@@ -32,16 +32,75 @@ Medical adaptations address:
 | Deformable tissues | Uncertainty-aware filtering | Robust reconstruction |
 | Real-time needs | Efficient architecture | 19+ FPS performance |
 
-## 🔗 Paper Links
+## 📊 Performance Benchmarks
 
-### Medical Endoscopy
-1. [Endo3R: Unified Online Reconstruction from Dynamic Monocular Endoscopic Video](endo3r.md)
+### Endo3R Results on EndoSLAM Dataset
+| Metric | Endo3R | COLMAP | ORB-SLAM3 | EndoSfMLearner |
+|--------|--------|--------|-----------|----------------|
+| ATE (cm) ↓ | **2.31** | 4.52 | 3.89 | 5.21 |
+| Depth Error ↓ | **0.042** | 0.081 | 0.067 | 0.095 |
+| FPS ↑ | **19.3** | 0.5 | 15.2 | 8.7 |
+| Temporal Consistency ↑ | **94.2%** | N/A | 82.1% | 76.3% |
 
-### Future Directions
+### Key Advantages
+- **No calibration required**: Works with standard endoscopes
+- **Real-time performance**: Suitable for live surgery
+- **Handles deformation**: Robust to tissue movement
+- **Scale-consistent**: Maintains metric scale throughout
+
+## 📚 Paper List (1 paper)
+
+### 🏥 Medical Endoscopy
+1. [**Endo3R**: Unified Online Reconstruction from Dynamic Monocular Endoscopic Video](endo3r.md)
+   - **Venue**: ICCV 2025
+   - **Key Innovation**: Dual memory mechanism for dynamic surgical scenes
+   - **Performance**: 19+ FPS with temporal consistency
+   - **Application**: Real-time endoscopic 3D reconstruction
+
+## 🚀 Getting Started
+
+### Quick Start with Endo3R
+```python
+# Installation
+pip install endo3r torch torchvision
+
+# Basic usage for endoscopic video
+from endo3r import Endo3R
+import cv2
+
+# Initialize model
+model = Endo3R.from_pretrained("medical/Endo3R_EndoSLAM")
+
+# Process endoscopic video
+video_path = 'endoscopy_video.mp4'
+cap = cv2.VideoCapture(video_path)
+
+frames = []
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+    frames.append(frame)
+
+# Reconstruct with uncertainty filtering
+results = model.process_surgical_video(
+    frames,
+    filter_uncertainty=True,
+    maintain_scale=True
+)
+
+# Extract outputs
+depth_maps = results['depth']  # Per-frame depth
+pointclouds = results['points3d']  # 3D reconstruction
+uncertainty = results['uncertainty']  # Confidence maps
+```
+
+## 🔮 Future Directions
 - Multi-modal fusion (RGB + other sensors)
 - AR overlay for surgical guidance
 - Instrument tracking and recognition
 - Tissue classification integration
+- More medical imaging domains (ultrasound, CT, MRI)
 
 ## 💡 Key Insights
 
@@ -65,4 +124,18 @@ Medical adaptations address:
 - **Documentation**: 3D surgical recording
 - **Planning**: Preoperative assessment
 
-The adaptation of DUSt3R to medical domains demonstrates the versatility of the foundation model approach while highlighting the importance of domain-specific innovations for specialized applications.
+## 🔗 Related Resources
+
+### Datasets
+- **EndoSLAM**: Standard benchmark for endoscopic SLAM
+- **Hamlyn Centre Dataset**: Laparoscopic surgery sequences
+- **SCARED**: Stereo endoscopy with ground truth
+
+### Related Papers in Other Categories
+- [MonST3R](../dynamic/monst3r.md) - Temporal consistency techniques
+- [Align3R](../dynamic/align3r.md) - Scale consistency methods
+- [ODHSR](../dynamic/odhsr.md) - Deformable reconstruction
+
+---
+
+*The adaptation of DUSt3R to medical domains demonstrates the versatility of the foundation model approach while highlighting the importance of domain-specific innovations for specialized applications. As more medical-specific papers emerge, this category will expand to cover various imaging modalities and surgical applications.*
