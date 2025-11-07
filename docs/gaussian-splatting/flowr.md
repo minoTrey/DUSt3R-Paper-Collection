@@ -4,10 +4,11 @@
 *FlowR uses flow matching to generate high-quality additional views, bridging the gap between sparse and dense 3D scene captures*
 
 ## 📋 Overview
-- **Authors**: Tobias Fischer, and colleagues
-- **Institution**: ETH Zurich, Meta Reality Labs Zurich, CMU
-- **Venue**: arXiv preprint (2025)
-- **Links**: [Paper](https://arxiv.org/abs/2501.10711) | [Project Page](https://tobiasfshr.github.io/pub/flowr/) | Code (coming soon)
+
+- **Authors**: Tobias Fischer¹'², Samuel Rota Bulò², Yung-Hsu Yang¹, Nikhil Keetha²'³, Lorenzo Porzi², Norman Müller², Katja Schwarz², Jonathon Luiten², Marc Pollefeys¹, Peter Kontschieder²
+- **Institutions**: ¹ETH Zurich, ²Meta Reality Labs Zurich, ³Carnegie Mellon University
+- **Venue**: ICCV 2025 (Highlight) | arXiv preprint (2025)
+- **Links**: [Paper](https://arxiv.org/abs/2504.01647) | [Project Page](https://tobiasfshr.github.io/pub/flowr/) | Code (coming soon)
 - **TL;DR**: Novel approach that flows from sparse to dense 3D reconstructions using Gaussian splatting techniques for high-quality scene representation.
 
 ## 🎯 Key Contributions

@@ -4,6 +4,7 @@
 *AVAT3R creates animatable 3D head avatars from just 4 smartphone images using pixel-aligned 3D Gaussian prediction*
 
 ## 📋 Overview
+
 - **Authors**: Tobias Kirschstein, Javier Romero, Artem Sevastopolsky, Matthias Nießner, Shunsuke Saito
 - **Institutions**: Technical University of Munich, Meta Reality Labs
 - **Venue**: ICCV 2025

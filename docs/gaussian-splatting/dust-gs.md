@@ -4,6 +4,7 @@
 *Dust-GS framework estimates camera poses and registers point clouds using DUSt3R, initializes 3D Gaussian primitives, and optimizes them with RGB, depth, GPP, and dynamic depth masks*
 
 ## 📋 Overview
+
 - **Authors**: Shan Chen, Jiale Zhou, Lei Li
 - **Institution**: SenseTime Research, Chinese University of Hong Kong
 - **Venue**: arXiv preprint (2024)
