@@ -10,6 +10,7 @@
 *Figure 7: CroCo v2 results*
 
 ## 📋 Overview
+
 - **Authors**: Philippe Weinzaepfel, Thomas Lucas, Vincent Leroy, Yohann Cabon, Vaibhav Arora, Romain Brégier, Gabriela Csurka, Leonid Antsfeld, Boris Chidlovskii, Jérôme Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: ICCV 2023

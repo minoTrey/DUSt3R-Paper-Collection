@@ -13,6 +13,7 @@
 *Figure 3: CroCo architecture*
 
 ## 📋 Overview
+
 - **Authors**: Philippe Weinzaepfel, Vincent Leroy, Thomas Lucas, Romain Brégier, Yohann Cabon, Vaibhav Arora, Leonid Antsfeld, Boris Chidlovskii, Gabriela Csurka, Jérôme Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: NeurIPS 2022
