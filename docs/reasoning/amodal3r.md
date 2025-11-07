@@ -4,6 +4,7 @@
 *Amodal3R reconstructs complete 3D objects from partially occluded views using conditional generation and occlusion-aware attention*
 
 ## 📋 Overview
+
 - **Authors**: Tianhao Wu, Chuanxia Zheng, Frank Guan, Andrea Vedaldi, Tat-Jen Cham
 - **Institution**: S-Lab NTU, Visual Geometry Group Oxford, Singapore Institute of Technology
 - **Venue**: ICCV 2025

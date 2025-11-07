@@ -4,6 +4,7 @@
 *LargeSpatialModel creates semantic 3D representations directly from unposed images through end-to-end learning*
 
 ## 📋 Overview
+
 - **Authors**: Zhiwen Fan, Jian Zhang, Wenyan Cong, Peihao Wang, Renjie Li, Kwan-Yee Lin, Shijie Zhou, Achuta Kadambi, Zhangyang Wang
 - **Institution**: University of Texas at Austin, UCLA, Hong Kong University of Science and Technology
 - **Venue**: NeurIPS 2024

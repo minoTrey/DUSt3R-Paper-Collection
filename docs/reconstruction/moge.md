@@ -4,6 +4,7 @@
 *MoGe enables accurate monocular geometry estimation on diverse open-domain images through affine-invariant representation and robust training strategies*
 
 ## 📋 Overview
+
 - **Authors**: Ruicheng Wang¹, Sicheng Xu², Cassie Dai³, Jianfeng Xiang⁴, Yu Deng², Xin Tong², Jiaolong Yang²
 - **Institution**: Microsoft Research
 - **Venue**: CVPR 2025

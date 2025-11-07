@@ -4,6 +4,7 @@
 *LoRA3D self-calibrates 3D foundation models through robust optimization and LoRA fine-tuning, achieving up to 88% improvement in camera estimation*
 
 ## 📋 Overview
+
 - **Authors**: Ziqi Lu¹², Heng Yang¹³, Danfei Xu¹⁴, Boyi Li¹⁵, Boris Ivanovic¹, Marco Pavone¹⁶, Yue Wang¹⁷
 - **Institution**: ETH Zürich, DisneyResearch|Studios
 - **Venue**: ICLR 2025 (Highlight Paper)

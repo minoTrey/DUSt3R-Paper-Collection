@@ -4,6 +4,7 @@
 *MEt3R uses DUSt3R for geometry-aware warping and DINO features to measure multi-view consistency without camera poses*
 
 ## 📋 Overview
+
 - **Authors**: Mohammad Asim, Christopher Wewer, Thomas Wimmer, Bernt Schiele, Jan Eric Lenssen
 - **Institutions**: Max Planck Institute for Informatics, Saarland Informatics Campus; ETH Zurich
 - **Venue**: CVPR 2025

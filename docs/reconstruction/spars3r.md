@@ -4,6 +4,7 @@
 *SPARS3R fuses DUSt3R priors with SfM calibration using semantic-aware alignment for high-quality sparse-view reconstruction*
 
 ## 📋 Overview
+
 - **Authors**: Yutao Tang, Yuxiang Guo, Deming Li, Cheng Peng
 - **Institution**: Johns Hopkins University
 - **Venue**: CVPR 2025

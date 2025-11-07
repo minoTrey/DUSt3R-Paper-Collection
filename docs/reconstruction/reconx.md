@@ -4,6 +4,7 @@
 *ReconX leverages video diffusion models to reconstruct complete 3D scenes from just a few input views, generating missing viewpoints through learned priors*
 
 ## 📋 Overview
+
 - **Authors**: Fangfu Liu, Wenqiang Sun, Hanyang Wang, Yikai Wang, Haowen Sun, Junliang Ye, Jun Zhang, Yueqi Duan
 - **Institution**: Tsinghua University, Shanghai AI Laboratory
 - **Venue**: arXiv preprint (2024)

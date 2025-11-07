@@ -4,6 +4,7 @@
 *Pos3R leverages 3D foundation models for zero-shot 6D pose estimation without any additional training*
 
 ## 📋 Overview
+
 - **Authors**: Weijian Deng, Dylan Campbell, Chunyi Sun, Jiahao Zhang, Shubham Kanitkar, Matthew E. Shaffer, Stephen Gould
 - **Institution**: Australian National University
 - **Venue**: CVPR 2025

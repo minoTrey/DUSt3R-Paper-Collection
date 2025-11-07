@@ -4,6 +4,7 @@
 *Dens3R provides unified geometric dense prediction for high-quality 3D reconstruction from unposed images through joint modeling of multiple geometric quantities*
 
 ## 📋 Overview
+
 - **Authors**: Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang, Xiaokang Yang, Yichao Yan, Chengfei Lyu
 - **Institution**: Alibaba Group, Shanghai Jiao Tong University
 - **Venue**: arXiv preprint (2025)

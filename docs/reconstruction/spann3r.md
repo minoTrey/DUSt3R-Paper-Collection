@@ -4,6 +4,7 @@
 *Spann3R achieves real-time 3D reconstruction using dual spatial memory for globally aligned pointmap generation*
 
 ## 📋 Overview
+
 - **Authors**: Hengyi Wang, Lourdes Agapito
 - **Institution**: University College London
 - **Venue**: 3DV 2025 (International Conference on 3D Vision)

@@ -4,6 +4,7 @@
 *Unified framework for joint scene representation and hand-eye calibration using 3D foundation models without external markers*
 
 ## 📋 Overview
+
 - **Authors**: Weiming Zhi, Haozhan Tang, Tianyi Zhang, Matthew Johnson-Roberson
 - **Institution**: Carnegie Mellon University, University of Michigan
 - **Venue**: IEEE Robotics and Automation Letters (RAL) 2024

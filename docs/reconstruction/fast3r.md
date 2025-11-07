@@ -4,6 +4,7 @@
 *Fast3R enables efficient 3D reconstruction from 1000+ images in a single forward pass, achieving 320× speedup over DUSt3R and 1000× over MASt3R*
 
 ## 📋 Overview
+
 - **Authors**: Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, Matt Feiszli
 - **Institution**: Meta FAIR, University of Michigan
 - **Venue**: CVPR 2025

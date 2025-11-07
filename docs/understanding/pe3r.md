@@ -5,6 +5,7 @@
 *PE3R achieves 9× speedup by integrating semantic understanding into 3D reconstruction, enabling text-based scene exploration*
 
 ## 📋 Overview
+
 - **Authors**: Jie Hu, Shizun Wang, Xinchao Wang
 - **Institution**: xML Lab, National University of Singapore
 - **Venue**: arXiv 2025 (March 2025)

@@ -4,6 +4,7 @@
 *Spurfies reconstructs high-quality surfaces from sparse point clouds by leveraging local geometry priors and neural implicit representations*
 
 ## 📋 Overview
+
 - **Authors**: Kevin Raj, Christopher Wewer, Raza Yunus, Eddy Ilg, Jan Eric Lenssen
 - **Institution**: University of Siegen, Germany
 - **Venue**: arXiv preprint (2024)

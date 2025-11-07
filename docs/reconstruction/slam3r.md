@@ -4,6 +4,7 @@
 *SLAM3R achieves real-time dense 3D reconstruction with two-hierarchy networks: I2P for local geometry and L2W for global alignment*
 
 ## 📋 Overview
+
 - **Authors**: Yuzheng Liu, Siyan Dong, Shuzhe Wang, Yingda Yin, Yanchao Yang, Qingnan Fan, Baoquan Chen
 - **Institution**: University of Freiburg, ETH Zürich
 - **Venue**: CVPR 2025 (Highlight Paper)

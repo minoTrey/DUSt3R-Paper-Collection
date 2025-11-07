@@ -4,6 +4,7 @@
 *π³ achieves true permutation equivariance in visual geometry through symmetric architecture design*
 
 ## 📋 Overview
+
 - **Authors**: Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chunhua Shen, Tong He
 - **Institution**: UC Berkeley, Google Research
 - **Venue**: arXiv preprint (2025)

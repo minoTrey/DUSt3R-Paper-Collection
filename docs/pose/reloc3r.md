@@ -4,6 +4,7 @@
 *ReLoc3R achieves 40 FPS visual localization through simplified DUSt3R-based architecture trained on 8M+ image pairs*
 
 ## 📋 Overview
+
 - **Authors**: Siyan Dong, Shuzhe Wang, Shaohui Liu, Lulu Cai, Qingnan Fan, Juho Kannala, Yanchao Yang
 - **Institutions**: University of Hong Kong, Aalto University, ETH Zurich, VIVO, University of Oulu
 - **Venue**: CVPR 2025

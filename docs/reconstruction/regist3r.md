@@ -5,6 +5,7 @@
 <!-- Key visualizations would include: 1) Incremental registration process, 2) MST ordering strategy, 3) Scalability comparison with traditional methods -->
 
 ## 📋 Overview
+
 - **Authors**: Sidun Liu, Wenyu Li, Peng Qiao, Yong Dou
 - **Institution**: National University of Defence Technology, China
 - **Venue**: arXiv preprint

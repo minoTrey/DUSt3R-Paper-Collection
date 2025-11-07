@@ -5,6 +5,7 @@
 *MUSt3R extends DUSt3R to handle thousands of images through an efficient memory mechanism, enabling scalable 3D reconstruction*
 
 ## 📋 Overview
+
 - **Authors**: Yohann Cabon, Lucas Stoffl, Leonid Antsfeld, Gabriela Csurka, Boris Chidlovskii, Jerome Revaud, Vincent Leroy
 - **Institution**: NAVER LABS Europe, ENS Paris-Saclay
 - **Venue**: CVPR 2025
