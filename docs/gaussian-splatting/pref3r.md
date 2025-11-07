@@ -4,6 +4,7 @@
 *PreF3R enables feed-forward 3D Gaussian Splatting using spatial memory networks for variable-length sequences*
 
 ## 📋 Overview
+
 - **Authors**: Zequn Chen, Jiezhi Yang, Heng Yang
 - **Institution**: Harvard University, Computational Robotics Lab
 - **Venue**: arXiv 2024

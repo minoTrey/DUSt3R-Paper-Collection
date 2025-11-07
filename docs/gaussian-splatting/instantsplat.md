@@ -4,6 +4,7 @@
 *InstantSplat achieves 30× speedup for 3D reconstruction by combining DUSt3R initialization with fast Gaussian optimization*
 
 ## 📋 Overview
+
 - **Authors**: Zhiwen Fan, Wenyan Cong, Kairun Wen, Kevin Wang, Jian Zhang, Xinghao Ding, Danfei Xu, Boris Ivanovic, Marco Pavone, Georgios Pavlakos, Zhangyang Wang, Yue Wang
 - **Institutions**: UT Austin, NVIDIA Research, Xiamen University, Georgia Tech, Stanford, USC
 - **Venue**: arXiv 2024, CVPR NRI 2024

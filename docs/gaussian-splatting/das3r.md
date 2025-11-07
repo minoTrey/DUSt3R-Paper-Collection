@@ -11,6 +11,7 @@
 *Left: DAVIS dataset results showing dynamic object removal. Right: Sintel dataset results demonstrating clean static reconstruction*
 
 ## 📋 Overview
+
 - **Authors**: Kai Xu, Tze Ho Elden Tse, Jizong Peng, Angela Yao
 - **Institutions**: National University of Singapore, dConstruct Robotics
 - **Venue**: arXiv 2024

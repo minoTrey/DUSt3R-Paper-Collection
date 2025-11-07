@@ -4,6 +4,7 @@
 *Styl3R achieves instant 3D stylized reconstruction from sparse unposed images and arbitrary style references in less than a second*
 
 ## 📋 Overview
+
 - **Authors**: Peng Wang, Xiang Liu, Peidong Liu
 - **Institution**: Zhejiang University, Westlake University
 - **Venue**: arXiv preprint (2025)
