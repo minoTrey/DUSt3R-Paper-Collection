@@ -4,6 +4,7 @@
 *ODHSR achieves unified online reconstruction of humans and scenes from monocular video with 75× speedup*
 
 ## 📋 Overview
+
 - **Authors**: Zetong Zhang, Manuel Kaufmann, Lixin Xue, Jie Song, Martin R. Oswald
 - **Institutions**: ETH Zürich, HKUST(GZ), HKUST, University of Amsterdam
 - **Venue**: CVPR 2025

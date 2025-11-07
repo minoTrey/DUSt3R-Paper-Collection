@@ -4,6 +4,7 @@
 *Geo4D leverages video diffusion models to achieve state-of-the-art 4D reconstruction with multi-modal geometric predictions*
 
 ## 📋 Overview
+
 - **Authors**: Zeren Jiang, Chuanxia Zheng, Iro Laina, Diane Larlus, Andrea Vedaldi
 - **Institutions**: Visual Geometry Group (Oxford), Naver Labs Europe
 - **Venue**: ICCV 2025

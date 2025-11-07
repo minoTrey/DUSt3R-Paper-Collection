@@ -4,9 +4,10 @@
 *Adapt3R synthesizes RGBD observations into robust 3D representations for domain transfer in imitation learning*
 
 ## 📋 Overview
-- **Authors**: Albert Wilcox, Yifeng Zhu, Yuke Zhu, Austin Wang, Jonathan Tremblay, Stan Birchfield
-- **Institution**: Georgia Institute of Technology, Georgia Tech Research Institute, University of Toronto
-- **Venue**: arXiv preprint (2025)
+
+- **Authors**: Albert Wilcox¹'², Mohamed Ghanem¹, Masoud Moghani³, Pierre Barroso², Benjamin Joffe¹'², Animesh Garg¹
+- **Institutions**: ¹Georgia Institute of Technology, ²Georgia Tech Research Institute, ³University of Toronto
+- **Venue**: arXiv preprint (submitted March 2025, revised May 2025)
 - **Links**: [Paper](https://arxiv.org/abs/2503.04877) | [Project Page](https://www.pair.toronto.edu/Adapt3R/) | [Code](https://github.com/pairlab/Adapt3R)
 - **TL;DR**: Novel approach for robust domain transfer in robotic imitation learning using adaptive 3D scene representations that handle visual domain shifts effectively.
 
@@ -56,44 +57,56 @@ Output: Successful skill transfer
 
 ## 📊 Results
 
-### Domain Transfer Performance
+### Evaluation Scope
 
-| Source → Target | Without Adapt3R | With Adapt3R | Improvement |
-|-----------------|-----------------|--------------|-------------|
-| Sim → Real | 0.523 | **0.342** | +35% |
-| Indoor → Outdoor | 0.467 | **0.312** | +33% |
-| Day → Night | 0.498 | **0.367** | +26% |
+**Comprehensive Testing**:
 
-### Imitation Learning Results
+- **Simulated Tasks**: 93 tasks including LIBERO-90 benchmark evaluation
+- **Real-World Tasks**: 6 tasks on UR5 robot with language conditioning
+- **Multi-Task Policy**: Demonstrated multi-task policy training capability
 
-| Task | Success Rate ↑ | Steps to Goal ↓ |
-|------|---------------|-----------------|
-| Navigation | 87.3% | 42 |
-| Manipulation | 82.1% | 67 |
-| Combined | 84.7% | 55 |
+### Zero-Shot Transfer Capabilities
 
-### Domain Transfer Performance
-| Environment Pair | Traditional IL | 3D-IL | Adapt3R | Improvement |
-|------------------|----------------|-------|---------|-------------|
-| Sim → Real | 42.3% | 58.7% | **73.2%** | +14.5% |
-| Lab → Home | 35.1% | 51.4% | **67.8%** | +16.4% |
-| Day → Night | 28.9% | 44.6% | **61.3%** | +16.7% |
-| Clean → Cluttered | 39.7% | 55.2% | **70.1%** | +14.9% |
+**Novel Embodiments** (tested without retraining):
 
-### Task Success Rates
-| Task Type | Source Domain | Target Domain | Success Rate |
-|-----------|---------------|---------------|--------------|
-| Pick & Place | 89.2% | **76.4%** | High Transfer |
-| Pour Liquid | 85.7% | **71.3%** | Good Transfer |
-| Open Drawer | 91.1% | **78.9%** | Robust Transfer |
-| Stack Objects | 87.3% | **73.7%** | Reliable Transfer |
+- Kinova3 robot arm
+- UR5e robot arm
+- Kuka IIWA robot arm
 
-### Key Achievements
-- ✅ Superior domain transfer performance
-- ✅ Robust to various visual changes
-- ✅ Maintains high task success rates
-- ✅ Practical real-world applicability
-- ✅ Improved sample efficiency
+**Novel Camera Viewpoints**:
+
+- Successfully generalizes to unseen camera poses
+- Maintains performance across different viewing angles
+- Robust to camera placement changes
+
+### Key Performance Characteristics
+
+**Technical Achievements**:
+
+1. **3D Scene Encoding**:
+   - Lifts pre-trained foundation model features on RGBD inputs
+   - Point cloud processing with attention pooling
+   - Compresses scene into single conditioning vector
+
+2. **End-Effector Localization**:
+   - Uses pretrained 2D backbone for semantic extraction
+   - 3D serves as medium for end-effector-relative localization
+   - Maintains spatial awareness across viewpoints
+
+3. **Task-Relevant Attention**:
+   - Attention maps demonstrate focus on task-relevant objects
+   - Ignores distractors and background elements
+   - Maintains consistency across domain shifts
+
+### Implementation Versatility
+
+- ✅ General-purpose 3D observation encoder
+- ✅ Compatible with multiple imitation learning algorithms
+- ✅ Zero-shot transfer to novel embodiments and camera poses
+- ✅ Handles sim-to-real domain gap effectively
+- ✅ Supports multi-task policy training
+
+> **⚠️ Note**: Specific success rate percentages and quantitative baseline comparisons are available in the full paper. The above information is verified from the project page and arXiv abstract. For detailed numerical benchmarks, please refer to the [full paper](https://arxiv.org/abs/2503.04877).
 
 ## 💡 Insights & Impact
 
@@ -132,13 +145,14 @@ Output: Successful skill transfer
 
 ## 🔗 Related Work
 
-### Comparison with Imitation Learning Methods
-| Method | Representation | Domain Transfer | Success Rate | Efficiency |
-|--------|----------------|-----------------|--------------|------------|
-| Vanilla IL | 2D RGB | Poor | Low | Low |
-| 3D-IL | Fixed 3D | Medium | Medium | Medium |
-| Domain Adaptive IL | 2D Adaptive | Good | Medium | High |
-| **Adapt3R** | **Adaptive 3D** | **Excellent** | **High** | **High** |
+### Key Differentiators
+
+**Adapt3R's Unique Approach**:
+
+- **Representation**: Adaptive 3D scene encoding (vs. fixed 2D or 3D)
+- **Transfer Method**: Zero-shot to novel embodiments and camera poses
+- **Compatibility**: Works as general-purpose encoder with multiple IL algorithms
+- **Scalability**: Evaluated on 93 simulated + 6 real-world tasks
 
 ### Builds On
 - **Imitation Learning**: Learning from demonstrations

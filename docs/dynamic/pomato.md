@@ -4,6 +4,7 @@
 *POMATO combines explicit pointmap matching with temporal motion modeling for dynamic scene reconstruction*
 
 ## 📋 Overview
+
 - **Authors**: Songyan Zhang, Yongtao Ge, Jinyuan Tian, Guangkai Xu, Hao Chen, Chen Lv, Chunhua Shen
 - **Institution**: Not specified in available sources
 - **Venue**: ICCV 2025

@@ -4,6 +4,7 @@
 *D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspondence in both static and dynamic regions*
 
 ## 📋 Overview
+
 - **Authors**: Jisang Han, Honggyu An, Jaewoo Jung, Takuya Narihira, Junyoung Seo, Kazumi Fukuda, Chaehyun Kim, Sunghwan Hong, Yuki Mitsufuji, Seungryong Kim
 - **Institutions**: KAIST AI, Sony AI, Korea University
 - **Venue**: arXiv preprint
