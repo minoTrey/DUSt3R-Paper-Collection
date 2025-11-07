@@ -5,6 +5,7 @@
 ![GraphSeg_Method](https://arxiv.org/html/2504.03129v1/extracted/6335082/imgs/gseg_method_updated.jpg)
 
 ## 📋 Overview
+
 - **Authors**: Haozhan Tang, Tianyi Zhang, Oliver Kroemer, Matthew Johnson-Roberson, Weiming Zhi
 - **Institution**: Carnegie Mellon University, University of Michigan
 - **Venue**: arXiv preprint (2025)

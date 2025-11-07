@@ -4,6 +4,7 @@
 *Real-time monocular dense SLAM system that leverages MASt3R priors for robust performance on in-the-wild video sequences*
 
 ## 📋 Overview
+
 - **Authors**: Riku Murai, Eric Dexheimer, Andrew J. Davison
 - **Institution**: Imperial College London
 - **Venue**: CVPR 2025 (Best Demo Honorable Mention)

@@ -4,6 +4,7 @@
 *Test3R improves 3D reconstruction through test-time adaptation using cross-pair consistency on image triplets*
 
 ## 📋 Overview
+
 - **Authors**: Yuheng Yuan, Qiuhong Shen, Shizun Wang, Xingyi Yang, Xinchao Wang
 - **Institution**: xML Lab, National University of Singapore
 - **Venue**: arXiv preprint

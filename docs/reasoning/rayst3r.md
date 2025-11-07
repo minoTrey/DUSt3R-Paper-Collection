@@ -4,6 +4,7 @@
 *RaySt3R recasts object completion as novel view depth prediction, achieving 44% improvement through transformer-based zero-shot approach*
 
 ## 📋 Overview
+
 - **Authors**: Bardienus P. Duisterhof, Jan Oberst, Bowen Wen, Stan Birchfield, Deva Ramanan, Jeffrey Ichnowski
 - **Institutions**: Carnegie Mellon University, Karlsruhe Institute of Technology, NVIDIA
 - **Venue**: arXiv 2025

@@ -4,6 +4,7 @@
 *Pow3R conditions on any combination of camera intrinsics, poses, and depth for versatile 3D reconstruction*
 
 ## 📋 Overview
+
 - **Authors**: Wonbong Jang, Philippe Weinzaepfel, Vincent Leroy, Lourdes Agapito, Jerome Revaud
 - **Institution**: MIT CSAIL, Google Research
 - **Venue**: CVPR 2025

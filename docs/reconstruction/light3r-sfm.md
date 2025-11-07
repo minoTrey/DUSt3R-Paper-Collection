@@ -4,6 +4,7 @@
 *Light3R achieves 49× speedup in SfM through learnable global alignment, reconstructing 200 images in 33 seconds*
 
 ## 📋 Overview
+
 - **Authors**: Sven Elflein, Qunjie Zhou, Sérgio Agostinho, Laura Leal-Taixé
 - **Institution**: Meta FAIR, University of Michigan
 - **Venue**: CVPR 2025

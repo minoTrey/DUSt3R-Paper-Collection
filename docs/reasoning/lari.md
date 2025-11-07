@@ -4,6 +4,7 @@
 *LaRI models multiple surface layers along camera rays, enabling reasoning about occluded geometry from single images*
 
 ## 📋 Overview
+
 - **Authors**: Rui Li, Biao Zhang, Zhenyu Li, Federico Tombari, Peter Wonka
 - **Institution**: KAUST and affiliates
 - **Venue**: arXiv 2025

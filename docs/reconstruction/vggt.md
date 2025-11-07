@@ -4,6 +4,7 @@
 *VGGT unifies all geometric tasks in a single transformer, achieving 45x speedup over DUSt3R with better performance*
 
 ## 📋 Overview
+
 - **Authors**: Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, David Novotny
 - **Institution**: Meta GenAI, Zhejiang University
 - **Venue**: CVPR 2025 (Best Paper Award)
