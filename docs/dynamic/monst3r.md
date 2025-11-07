@@ -4,6 +4,7 @@
 *MonST3R extends DUSt3R to dynamic scenes with per-timestep geometry estimation, without explicit motion modeling*
 
 ## 📋 Overview
+
 - **Authors**: Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Trevor Darrell, Forrester Cole, Deqing Sun, Ming-Hsuan Yang
 - **Institutions**: UC Berkeley, Google DeepMind, Stability AI, UC Merced
 - **Venue**: ICLR 2025 (Spotlight)

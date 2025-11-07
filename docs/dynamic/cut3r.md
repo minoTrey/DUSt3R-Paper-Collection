@@ -1,12 +1,13 @@
-# CUT3R: Continuous 3D Perception Model with Persistent State (CVPR 2025)
+# Continuous 3D Perception Model with Persistent State (CUT3R)
 
 ![CUT3R Method](https://cut3r.github.io/static/images/method1_2-min.jpg)
 *CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruction in a unified coordinate space*
 
 ## 📋 Overview
-- **Authors**: Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A. Efros, Angjoo Kanazawa
+
+- **Authors**: Qianqian Wang*, Yifei Zhang*, Aleksander Holynski, Alexei A. Efros, Angjoo Kanazawa (*Equal contribution)
 - **Institutions**: UC Berkeley, Google DeepMind
-- **Venue**: CVPR 2025 (Oral)
+- **Venue**: CVPR 2025 (Oral) | arXiv preprint (submitted January 2025)
 - **Links**: [Paper](https://arxiv.org/abs/2501.12387) | [Code](https://github.com/CUT3R/CUT3R) | [Project Page](https://cut3r.github.io/)
 - **TL;DR**: A stateful recurrent transformer that incrementally reconstructs dynamic 3D scenes from streams of images in a unified coordinate space, enabling continuous online 3D perception.
 
@@ -40,48 +41,51 @@ CUT3R: Maintain evolving state across observations
 5. **Accumulation**: Dense scene reconstruction in unified coordinates
 
 ### Key Features
+
 **Memory Efficiency**:
+
 - Linear memory consumption with frame count
 - Parallel encoder processing for acceleration
-- Intermediate checkpoint: `cut3r_224_linear_4.pth`
-- Final checkpoint: `cut3r_512_dpt_4_64.pth`
 
 **Capability Highlights**:
+
 - Online 3D reconstruction without optimization
 - Scene completion beyond observed views
 - Handles both static and dynamic content
 - Continuous metric-scale output
 
+> **📝 Note**: Model checkpoint names (e.g., `cut3r_224_linear_4.pth`) should be verified from the official GitHub repository or paper supplementary materials.
+
 ## 📊 Results
 
-### Continuous 3D Perception
+> **⚠️ Note**: The paper abstract reports "competitive or state-of-the-art performance" on evaluated 3D and 4D tasks. Specific quantitative metrics require verification from the full paper PDF.
 
-| Metric | DUSt3R | MASt3R | CUT3R |
-|--------|--------|--------|-------|
-| Temporal Consistency | 0.612 | 0.734 | **0.923** |
-| Memory Efficiency | 12.3 GB | 15.6 GB | **8.7 GB** |
-| Processing Speed | 5.2 FPS | 3.8 FPS | **6.98 FPS** |
+### Reported Capabilities
 
-### Video Depth Estimation
+**Core Model Properties**:
 
-| Dataset | Abs Rel ↓ | δ₁ ↑ | Temporal Smooth |
-|---------|-----------|------|-----------------|
-| Sintel | 0.534 | 0.756 | 0.923 |
-| KITTI | 0.111 | 0.943 | 0.967 |
+- Stateful recurrent model with continuous state updates
+- Generates metric-scale pointmaps (per-pixel 3D points)
+- Accumulates observations into coherent, dense scene reconstruction
+- Can infer unseen regions via virtual, unobserved viewpoint probing
 
-### Performance on 3D/4D Tasks
-| Task | Performance | Notes |
-|------|-------------|--------|
-| Online Reconstruction | **SOTA** | Real-time capable |
+**Performance Claims**:
+
+| Task Category | Performance | Key Capability |
+|--------------|-------------|----------------|
+| Online Reconstruction | State-of-the-art | Real-time capable |
 | View Synthesis | Competitive | Can infer unseen regions |
-| Dynamic Scenes | **SOTA** | Unified static/dynamic handling |
-| Scene Completion | Novel | Virtual viewpoint probing |
+| Dynamic Scenes | State-of-the-art | Unified static/dynamic handling |
+| Scene Completion | Novel capability | Virtual viewpoint probing |
 
-### Key Achievements
+**Key Achievements**:
+
 - ✅ Unified framework for diverse 3D tasks
 - ✅ Online processing without optimization
-- ✅ Handles varying input modalities
-- ✅ State-of-the-art on multiple benchmarks
+- ✅ Handles varying input modalities (video streams or photo collections)
+- ✅ Continuous metric-scale output
+
+> **📝 For Maintainers**: Specific numerical benchmarks (temporal consistency, memory efficiency, FPS, dataset-specific metrics) need to be extracted from the full paper PDF and verified.
 
 ## 💡 Insights & Impact
 

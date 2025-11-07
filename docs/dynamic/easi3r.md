@@ -4,6 +4,7 @@
 *Easi3R extracts motion information from DUSt3R's attention maps without any additional training*
 
 ## 📋 Overview
+
 - **Authors**: Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, Anpei Chen
 - **Institution**: MPI-IS, University of Tübingen, ETH Zürich
 - **Venue**: ICCV 2025

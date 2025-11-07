@@ -4,6 +4,7 @@
 *Dynamic Point Maps extend standard point maps to support 4D tasks by predicting point maps at multiple timestamps*
 
 ## 📋 Overview
+
 - **Authors**: Edgar Sucar, Zihang Lai, Eldar Insafutdinov, Andrea Vedaldi
 - **Institution**: Visual Geometry Group, University of Oxford
 - **Venue**: arXiv preprint (2025)

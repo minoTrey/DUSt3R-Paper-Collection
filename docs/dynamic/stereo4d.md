@@ -8,6 +8,7 @@
 *Stereo4D mines 100,000+ real-world 4D scenes from internet stereo videos to train DynaDUSt3R for accurate 3D motion prediction*
 
 ## 📋 Overview
+
 - **Authors**: Linyi Jin, Richard Tucker, Zhengqi Li, David Fouhey, Noah Snavely, Aleksander Hołyński
 - **Institutions**: University of Michigan, Google DeepMind, New York University, UC Berkeley
 - **Venue**: CVPR 2025 (Oral)
