@@ -4,6 +4,7 @@
 *DUSt3R revolutionizes 3D reconstruction with end-to-end pointmap regression from uncalibrated image pairs*
 
 ## 📋 Overview
+
 - **Authors**: Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, Jérôme Revaud
 - **Institution**: Aalto University, NAVER LABS Europe
 - **Venue**: CVPR 2024

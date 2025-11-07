@@ -4,6 +4,7 @@
 *MASt3R-SfM replaces the entire traditional SfM pipeline with an end-to-end foundation model approach*
 
 ## 📋 Overview
+
 - **Authors**: Bardienus Pieter Duisterhof, Lojze Zust, Philippe Weinzaepfel, Vincent Leroy, Yohann Cabon, Jerome Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: International Conference on 3D Vision (3DV) 2025

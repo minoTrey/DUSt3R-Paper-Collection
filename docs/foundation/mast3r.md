@@ -4,6 +4,7 @@
 *MASt3R grounds image matching in 3D space, unifying dense correspondence with geometric reconstruction*
 
 ## 📋 Overview
+
 - **Authors**: Vincent Leroy, Yohann Cabon, Jérôme Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: ECCV 2024
