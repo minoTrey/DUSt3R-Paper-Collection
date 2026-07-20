@@ -1,7 +1,7 @@
 # Styl3R: Instant 3D Stylized Reconstruction for Arbitrary Scenes and Styles (arXiv 2025)
 
 ![Styl3R Teaser](https://nickisdope.github.io/Styl3R/static/images/pipeline_v4.png)
-*Styl3R achieves instant 3D stylized reconstruction from sparse unposed images and arbitrary style references in less than a second*
+_Styl3R achieves instant 3D stylized reconstruction from sparse unposed images and arbitrary style references in less than a second_
 
 ## 📋 Overview
 
@@ -22,6 +22,7 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: 3D-Aware Style Transfer
+
 ```
 Traditional: 3D reconstruction → Post-process stylization → Inconsistencies
 Styl3R: Style-aware 3D reconstruction → Consistent stylized 3D
@@ -30,12 +31,14 @@ Styl3R: Style-aware 3D reconstruction → Consistent stylized 3D
 ### Technical Approach
 
 #### 1. Style-Aware Reconstruction
+
 - Joint optimization of geometry and style
 - 3D-consistent style application
 - Multi-view style coherence
 - Real-time processing capability
 
 #### 2. Stylization Pipeline
+
 ```
 Input: Images + Style reference
 Process: Style-aware 3D reconstruction
@@ -43,47 +46,49 @@ Output: Stylized 3D scene representation
 ```
 
 #### 3. Key Components
+
 - **Style Encoder**: Extracts style features from reference
 - **3D Reconstructor**: Geometry-aware scene building
 - **Style Integrator**: Applies style to 3D representation
 - **Consistency Enforcer**: Maintains multi-view coherence
 
 ### Style Transfer Architecture
+
 - **Feature Extraction**: Multi-scale style features
 - **3D Integration**: Geometric style application
 - **Temporal Consistency**: Stable style across frames
 - **Quality Control**: Maintains reconstruction accuracy
 
-
 ## 📊 Results
 
 ### 3D Style Transfer Performance
 
-| Style | Content Preservation | Style Transfer | Speed |
-|-------|---------------------|----------------|-------|
-| Artistic | 89.2% | 85.7% | 2.3s |
-| Photo | 92.4% | 88.3% | 2.1s |
-| Abstract | 84.7% | 91.2% | 2.5s |
+| Style    | Content Preservation | Style Transfer | Speed |
+| -------- | -------------------- | -------------- | ----- |
+| Artistic | 89.2%                | 85.7%          | 2.3s  |
+| Photo    | 92.4%                | 88.3%          | 2.1s  |
+| Abstract | 84.7%                | 91.2%          | 2.5s  |
 
 ### Quality Metrics
 
-| Method | LPIPS ↓ | FID ↓ | User Score |
-|--------|---------|-------|------------|
-| 2D StyleGAN | 0.187 | 42.3 | 3.2/5 |
-| Neural 3D Style | 0.142 | 38.7 | 3.8/5 |
-| **Styl3R** | **0.098** | **31.2** | **4.3/5** |
-
+| Method          | LPIPS ↓   | FID ↓    | User Score |
+| --------------- | --------- | -------- | ---------- |
+| 2D StyleGAN     | 0.187     | 42.3     | 3.2/5      |
+| Neural 3D Style | 0.142     | 38.7     | 3.8/5      |
+| **Styl3R**      | **0.098** | **31.2** | **4.3/5**  |
 
 ## 📊 Expected Results
 
 ### Stylization Quality
-| Method | Style Quality | 3D Consistency | Speed | Versatility |
-|--------|---------------|----------------|-------|-------------|
-| 2D Style Transfer | High | Poor | Fast | Limited |
-| 3D Post-processing | Medium | Medium | Slow | Good |
-| **Styl3R** | **High** | **Excellent** | **Fast** | **Excellent** |
+
+| Method             | Style Quality | 3D Consistency | Speed    | Versatility   |
+| ------------------ | ------------- | -------------- | -------- | ------------- |
+| 2D Style Transfer  | High          | Poor           | Fast     | Limited       |
+| 3D Post-processing | Medium        | Medium         | Slow     | Good          |
+| **Styl3R**         | **High**      | **Excellent**  | **Fast** | **Excellent** |
 
 ### Performance Metrics
+
 - **Style Transfer Quality**: Maintains artistic fidelity
 - **3D Consistency**: Coherent across viewpoints
 - **Processing Speed**: Real-time capability
@@ -95,24 +100,28 @@ Output: Stylized 3D scene representation
 ### Paradigm Shift in 3D Stylization
 
 **Traditional Approach**:
+
 1. Separate reconstruction and stylization
 2. 2D style transfer with 3D inconsistencies
 3. Post-processing required
 4. Limited real-time capability
 
 **Styl3R Approach**:
+
 1. Joint reconstruction and stylization
 2. 3D-aware style application
 3. Direct stylized output
 4. Real-time processing
 
 ### Why 3D-Aware Stylization Works
+
 1. **Geometric Understanding**: Style respects 3D structure
 2. **Multi-View Consistency**: Coherent across viewpoints
 3. **Real-Time Processing**: Efficient joint optimization
 4. **Style Preservation**: Maintains artistic integrity
 
 ### Applications
+
 - **Content Creation**: Stylized 3D environments
 - **Game Development**: Artistic 3D assets
 - **VR/AR**: Immersive stylized experiences
@@ -120,6 +129,7 @@ Output: Stylized 3D scene representation
 - **Architecture**: Stylized building visualization
 
 ### Technical Advantages
+
 - **Real-Time**: Instant stylized reconstruction
 - **Consistent**: 3D-coherent stylization
 - **Versatile**: Multiple scenes and styles
@@ -128,20 +138,23 @@ Output: Stylized 3D scene representation
 ## 🔗 Related Work
 
 ### Comparison with Stylization Methods
-| Aspect | 2D Style Transfer | 3D Post-process | Neural Style | Styl3R |
-|--------|-------------------|-----------------|--------------|--------|
-| Consistency | Poor | Medium | Medium | Excellent |
-| Speed | Fast | Slow | Medium | Fast |
-| Quality | High | Variable | Good | High |
-| 3D Aware | No | Limited | Limited | Yes |
+
+| Aspect      | 2D Style Transfer | 3D Post-process | Neural Style | Styl3R    |
+| ----------- | ----------------- | --------------- | ------------ | --------- |
+| Consistency | Poor              | Medium          | Medium       | Excellent |
+| Speed       | Fast              | Slow            | Medium       | Fast      |
+| Quality     | High              | Variable        | Good         | High      |
+| 3D Aware    | No                | Limited         | Limited      | Yes       |
 
 ### Builds On
+
 - **Neural Style Transfer**: 2D stylization techniques
 - **3D Reconstruction**: Scene geometry understanding
 - **Real-Time Rendering**: Efficient processing methods
 - **Multi-View Synthesis**: Consistent view generation
 
 ### Relationship to DUSt3R Ecosystem
+
 - **3D Foundation**: Leverages geometric understanding
 - **Style Extension**: Adds artistic capabilities
 - **Real-Time**: Maintains efficiency focus
@@ -150,6 +163,7 @@ Output: Stylized 3D scene representation
 ## 📚 Key Takeaways
 
 Styl3R demonstrates that:
+
 1. **Joint optimization works**: Reconstruction + stylization together is better
 2. **3D awareness crucial**: Geometric understanding improves style consistency
 3. **Real-time possible**: Efficient methods enable instant stylization

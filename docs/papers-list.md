@@ -1,6 +1,7 @@
 # Complete Papers List
 
 ## Summary Statistics
+
 - **Total Papers**: 55
 - **2025 Papers**: 35
 - **2024 Papers**: 17
@@ -10,6 +11,7 @@
 ## Papers by Category
 
 ### Foundation Papers (5)
+
 1. **CroCo** - Self-Supervised Pre-training for 3D Vision Tasks by Cross-View Completion (NeurIPS 2022)
 2. **CroCo v2** - Improved Cross-view Completion Pre-training for Stereo Matching and Optical Flow (ICCV 2023)
 3. **DUSt3R** - Geometric 3D Vision Made Easy (CVPR 2024)
@@ -17,6 +19,7 @@
 5. **MASt3R-SfM** - A Fully-Integrated Solution for Unconstrained Structure-from-Motion (arXiv 2024)
 
 ### 3D Reconstruction (18)
+
 1. **SLAM3R** - Real-Time Dense Scene Reconstruction from Monocular RGB Videos (CVPR 2025)
 2. **MASt3R-SLAM** - Real-Time Dense SLAM with 3D Reconstruction Priors (arXiv 2024)
 3. **Fast3R** - Towards 3D Reconstruction of 1000+ Images in One Forward Pass (CVPR 2025)
@@ -37,6 +40,7 @@
 18. **REGIST3R** - Incremental Registration with Stereo Foundation Model (arXiv 2024)
 
 ### Dynamic Scene Reconstruction (11)
+
 1. **CUT3R** - Continuous 3D Perception Model with Persistent State (CVPR 2025)
 2. **Easi3R** - Estimating Disentangled Motion from DUSt3R Without Training (ICCV 2025)
 3. **ODHSR** - Online Dense 3D Reconstruction of Humans and Scenes from Monocular Videos (CVPR 2025)
@@ -50,6 +54,7 @@
 11. **Adapt3R** - Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning (arXiv 2025)
 
 ### Gaussian Splatting (10)
+
 1. **FlowR** - Flowing from Sparse to Dense 3D Reconstructions (arXiv 2025)
 2. **Styl3R** - Instant 3D Stylized Reconstruction for Arbitrary Scenes and Styles (arXiv 2025)
 3. **InstantSplat** - Unbounded Sparse-view Pose-free Gaussian Splatting in 40 Seconds (arXiv 2024)
@@ -62,40 +67,49 @@
 10. **Avat3R** - Large Animatable Gaussian Reconstruction Model for High-fidelity 3D Head Avatars (ICCV 2025)
 
 ### Scene Understanding (3)
+
 1. **PE3R** - Perception-Efficient 3D Reconstruction (arXiv 2025)
 2. **MEt3R** - Measuring Multi-View Consistency in Generated Images (CVPR 2025)
 3. **LargeSpatialModel** - End-to-end Unposed Images to Semantic 3D (NeurIPS 2024)
 
 ### Scene Reasoning (3)
+
 1. **LaRI** - Layered Ray Intersections for Single-view 3D Geometric Reasoning (arXiv 2025)
 2. **RaySt3R** - Predicting Novel Depth Maps for Zero-Shot Object Completion (arXiv 2025)
 3. **Amodal3R** - Amodal 3D Reconstruction from Occluded 2D Images (ICCV 2025)
 
 ### Robotics (2)
+
 1. **Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models** (RAL 2024)
 2. **GraphSeg** - Segmented 3D Representations via Graph Edge Addition and Contraction (arXiv 2025)
 
 ### Medical Applications (1)
+
 1. **Endo3R** - Unified Online Reconstruction from Dynamic Monocular Endoscopic Video (arXiv 2025)
 
 ### Pose Estimation (2)
+
 1. **Reloc3R** - Large-Scale Training of Relative Camera Pose Regression (CVPR 2025)
 2. **Pos3R** - 6D Pose Estimation for Unseen Objects Made Easy (CVPR 2025)
 
 ## Latest Updates (July 2025)
 
 ### New Papers Added
+
 - **π³ (Pi3)** - State-of-the-art permutation-equivariant method that surpasses VGGT
 - **Dens3R** - Unified geometric dense prediction framework
 - Multiple other 2025 papers across all categories
 
 ### Repository Updates
+
 - Comprehensive documentation for all papers
 - Improved category organization
 - Enhanced consistency across documents
 
 ## Notes on Availability
+
 Some papers have limited public resources:
+
 - **Papers with project pages only**: Some arXiv papers
 - **Papers pending code/project page**: Dense Point Clouds Matter (Dust-GS), Dust to Tower, Dynamic Point Maps, FlowR, Styl3R, and others
 - **Papers with full resources**: Most CVPR/ICCV/ECCV papers have code and demos available

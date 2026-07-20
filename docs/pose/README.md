@@ -7,11 +7,13 @@ The Pose Estimation category specializes in determining camera poses and object 
 ## 🎯 Key Research Directions
 
 ### 1. **Camera Relocalization**
+
 - Visual localization in known environments
 - Large-scale training for generalization
 - Real-time performance
 
 ### 2. **Object Pose Estimation**
+
 - 6D pose for unseen objects
 - Zero-shot capabilities
 - BOP benchmark performance
@@ -19,6 +21,7 @@ The Pose Estimation category specializes in determining camera poses and object 
 ## 📚 Paper List (2 papers)
 
 ### 1. [**Reloc3R**: Large-Scale Training of Relative Camera Pose Regression](reloc3r.md)
+
 - **Venue**: CVPR 2025
 - **Key Innovation**: Specialized architecture for pose regression
 - **Performance**: 40 FPS with strong generalization
@@ -26,7 +29,8 @@ The Pose Estimation category specializes in determining camera poses and object 
 - **Application**: Real-time visual localization
 
 ### 2. [**Pos3R**: 6D Pose Estimation for Unseen Objects Made Easy](pos3r.md)
-- **Venue**: CVPR 2025  
+
+- **Venue**: CVPR 2025
 - **Key Innovation**: Zero-shot 6D pose using 3D foundation models
 - **Performance**: Competitive on BOP benchmark without training
 - **Breakthrough**: No object-specific training needed
@@ -37,12 +41,14 @@ The Pose Estimation category specializes in determining camera poses and object 
 ### Technical Innovations
 
 **Reloc3R - Efficiency Focus**:
+
 - Streamlined architecture for speed
 - Pose-only output (no full 3D)
 - Large-scale training strategy
 - Real-time capable (40 FPS)
 
 **Pos3R - Zero-Shot Power**:
+
 - Leverages DUSt3R's 3D understanding
 - Template matching in 3D space
 - No pose-specific training
@@ -58,24 +64,28 @@ The Pose Estimation category specializes in determining camera poses and object 
 ## 📊 Performance Highlights
 
 ### Speed vs Accuracy Trade-offs
-| Model | Task | Speed | Accuracy | Training |
-|-------|------|-------|----------|----------|
-| Reloc3R | Camera pose | 40 FPS | High | 8M pairs |
-| Pos3R | Object pose | Real-time | BOP competitive | None |
+
+| Model   | Task        | Speed     | Accuracy        | Training |
+| ------- | ----------- | --------- | --------------- | -------- |
+| Reloc3R | Camera pose | 40 FPS    | High            | 8M pairs |
+| Pos3R   | Object pose | Real-time | BOP competitive | None     |
 
 ### Generalization Capabilities
+
 - **Reloc3R**: Across scene types and scales
 - **Pos3R**: Any object without training
 
 ## 🔧 Applications
 
 ### Camera Relocalization (Reloc3R)
+
 - **AR/VR**: Device tracking
 - **Robotics**: Visual SLAM
 - **Navigation**: Indoor/outdoor localization
 - **Mapping**: Loop closure detection
 
 ### Object Pose (Pos3R)
+
 - **Robotics**: Universal grasping
 - **AR**: Object placement
 - **Industrial**: Part inspection
@@ -84,11 +94,13 @@ The Pose Estimation category specializes in determining camera poses and object 
 ## 🚀 Getting Started
 
 **For Camera Tracking**:
+
 - Use **Reloc3R** for real-time localization
 - Ideal for AR/VR applications
 - Works in diverse environments
 
 **For Object Pose**:
+
 - Use **Pos3R** for zero-shot estimation
 - No training on target objects
 - Handles any rigid object
@@ -104,12 +116,14 @@ The Pose Estimation category specializes in determining camera poses and object 
 ## 🎯 Why Pose Matters
 
 Pose estimation is fundamental for:
+
 - **Spatial AI**: Understanding where things are
 - **Interaction**: Enabling manipulation and navigation
 - **Augmentation**: Placing virtual content correctly
 - **Automation**: Robotic perception and control
 
 ### Evolution from DUSt3R
+
 ```
 DUSt3R: Full 3D reconstruction → Extract poses
 Reloc3R/Pos3R: Direct pose estimation → Faster & specialized
@@ -124,4 +138,4 @@ Reloc3R/Pos3R: Direct pose estimation → Faster & specialized
 
 ---
 
-*Pose Estimation demonstrates how DUSt3R's general 3D understanding can be specialized for critical spatial tasks, achieving real-time performance while maintaining the zero-shot generalization that makes foundation models powerful.*
+_Pose Estimation demonstrates how DUSt3R's general 3D understanding can be specialized for critical spatial tasks, achieving real-time performance while maintaining the zero-shot generalization that makes foundation models powerful._

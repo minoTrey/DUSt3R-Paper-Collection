@@ -1,7 +1,7 @@
 # Adapt3R: Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning (arXiv 2025)
 
 ![Adapt3R Framework](https://arxiv.org/html/2503.04877v1/x1.png)
-*Adapt3R synthesizes RGBD observations into robust 3D representations for domain transfer in imitation learning*
+_Adapt3R synthesizes RGBD observations into robust 3D representations for domain transfer in imitation learning_
 
 ## 📋 Overview
 
@@ -22,6 +22,7 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: Adaptive 3D for Robotics
+
 ```
 Traditional: Fixed 3D representations → Poor domain transfer
 Adapt3R: Adaptive 3D representations → Robust domain transfer
@@ -30,12 +31,14 @@ Adapt3R: Adaptive 3D representations → Robust domain transfer
 ### Technical Approach
 
 #### 1. Adaptive Scene Representation
+
 - Domain-aware 3D feature extraction
 - Adaptive visual encoding mechanisms
 - Robust geometric understanding
 - Dynamic feature adaptation
 
 #### 2. Domain Transfer Pipeline
+
 ```
 Source Domain: Expert demonstrations + 3D scenes
 Target Domain: New visual conditions + Same tasks
@@ -44,12 +47,14 @@ Output: Successful skill transfer
 ```
 
 #### 3. Key Components
+
 - **3D Scene Encoder**: Adaptive visual-geometric features
 - **Domain Adaptation Module**: Visual domain transfer
 - **Policy Network**: Imitation learning with 3D guidance
 - **Consistency Regularization**: Cross-domain stability
 
 ### Robotic Integration
+
 - **Perception**: 3D scene understanding
 - **Planning**: 3D-aware action generation
 - **Adaptation**: Dynamic visual adjustment
@@ -113,24 +118,28 @@ Output: Successful skill transfer
 ### Paradigm Shift in Robotic Learning
 
 **Traditional Imitation Learning**:
+
 1. 2D visual features
 2. Brittle to domain shifts
 3. Poor generalization
 4. Requires extensive retraining
 
 **Adapt3R Approach**:
+
 1. Adaptive 3D features
 2. Robust to visual changes
 3. Strong generalization
 4. Efficient domain transfer
 
 ### Why Adaptive 3D Works for Robotics
+
 1. **Geometric Consistency**: 3D structure is domain-invariant
 2. **Visual Adaptation**: Handles appearance changes
 3. **Spatial Understanding**: Better scene comprehension
 4. **Transfer Learning**: Leverages geometric priors
 
 ### Applications
+
 - **Manufacturing**: Adapt to different production lines
 - **Service Robotics**: Transfer skills across environments
 - **Warehouse Automation**: Handle various lighting/conditions
@@ -138,6 +147,7 @@ Output: Successful skill transfer
 - **Field Robotics**: Outdoor to indoor deployment
 
 ### Technical Advantages
+
 - **Domain Robustness**: Handles visual domain shifts
 - **Sample Efficiency**: Requires less target domain data
 - **Geometric Awareness**: Leverages 3D spatial information
@@ -155,12 +165,14 @@ Output: Successful skill transfer
 - **Scalability**: Evaluated on 93 simulated + 6 real-world tasks
 
 ### Builds On
+
 - **Imitation Learning**: Learning from demonstrations
 - **Domain Adaptation**: Cross-domain transfer techniques
 - **3D Scene Understanding**: Spatial reasoning capabilities
 - **Robotic Perception**: Visual-geometric integration
 
 ### Relationship to DUSt3R Ecosystem
+
 - **Robotic Application**: Extends 3D understanding to robotics
 - **Domain Adaptation**: Adds robustness to visual changes
 - **Practical Impact**: Real-world deployment of 3D methods
@@ -169,6 +181,7 @@ Output: Successful skill transfer
 ## 📚 Key Takeaways
 
 Adapt3R demonstrates that:
+
 1. **3D helps robotics**: Geometric understanding improves transfer
 2. **Adaptation is crucial**: Visual domain shifts need special handling
 3. **Geometry is invariant**: 3D structure generalizes across domains

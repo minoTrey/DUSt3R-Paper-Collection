@@ -1,7 +1,7 @@
 # Align3R: Aligned Monocular Depth Estimation for Dynamic Videos (CVPR 2025)
 
 ![Align3R Framework](https://igl-hkust.github.io/Align3R.github.io/static/img/framework_00.jpg)
-*Align3R combines monocular depth estimation with DUSt3R to achieve temporally consistent depth for dynamic videos*
+_Align3R combines monocular depth estimation with DUSt3R to achieve temporally consistent depth for dynamic videos_
 
 ## 📋 Overview
 
@@ -22,6 +22,7 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: Depth-Enhanced DUSt3R
+
 ```
 Problem: Monocular depth → Frame-by-frame inconsistency
          DUSt3R → Lacks fine details
@@ -31,12 +32,14 @@ Align3R: Monocular + DUSt3R → Consistent detailed depth
 ### Architecture Pipeline
 
 #### 1. Monocular Depth Generation
+
 - Use Depth Pro or Depth Anything V2
 - Generate high-quality per-frame depth
 - Capture fine geometric details
 - Scale-ambiguous but detailed
 
 #### 2. Point Map Encoding
+
 ```python
 # Conceptual flow
 depth_map = monocular_estimator(frame)
@@ -45,21 +48,24 @@ features = transformer_encoder(point_map)
 ```
 
 #### 3. DUSt3R Enhancement
+
 - Fine-tune DUSt3R for dynamic scenes
 - Inject point map features via zero convolution
 - Preserve DUSt3R's alignment capability
 - Add flow loss from MonST3R
 
 #### 4. Feature Injection Strategy
+
 - Additional ViT encoder for depth processing
 - Zero convolution layers for feature fusion
 - Maintains original DUSt3R structure
 - Enables scale-aware predictions
 
 ### Training Details
+
 - **Base Models**: DUSt3R + MonST3R
 - **Depth Sources**: Depth Pro, Depth Anything V2
-- **Loss Functions**: 
+- **Loss Functions**:
   - Point map regression
   - Confidence weighting
   - Flow consistency (from MonST3R)
@@ -98,13 +104,13 @@ features = transformer_encoder(point_map)
 
 **Method Characteristics**:
 
-| Aspect | Monocular Only | DUSt3R/MonST3R | Align3R |
-|--------|----------------|----------------|---------|
-| Fine Details | ✅ High quality | ⚠️ Limited | ✅ High quality |
-| Temporal Consistency | ❌ Poor (flickering) | ✅ Good | ✅ Excellent |
-| Dynamic Scenes | ❌ Frame-by-frame | ⚠️ Limited support | ✅ Full support |
-| Scale | ❌ Ambiguous | ✅ Metric | ✅ Metric |
-| Diffusion Required | ❌ No | ❌ No | ❌ No |
+| Aspect               | Monocular Only       | DUSt3R/MonST3R     | Align3R         |
+| -------------------- | -------------------- | ------------------ | --------------- |
+| Fine Details         | ✅ High quality      | ⚠️ Limited         | ✅ High quality |
+| Temporal Consistency | ❌ Poor (flickering) | ✅ Good            | ✅ Excellent    |
+| Dynamic Scenes       | ❌ Frame-by-frame    | ⚠️ Limited support | ✅ Full support |
+| Scale                | ❌ Ambiguous         | ✅ Metric          | ✅ Metric       |
+| Diffusion Required   | ❌ No                | ❌ No              | ❌ No           |
 
 ### Demonstrated Applications
 
@@ -120,17 +126,20 @@ features = transformer_encoder(point_map)
 ### Solving the Video Depth Problem
 
 **Traditional Challenges**:
+
 - Monocular methods: Flickering, scale ambiguity
 - Multi-view methods: Fail with motion
 - SfM: Cannot handle dynamic content
 
 **Align3R Solution**:
+
 - Leverages strengths of both approaches
 - Maintains temporal consistency
 - Handles arbitrary motion
 - Preserves geometric details
 
 ### Technical Advantages
+
 1. **Best of Both Worlds**: Monocular detail + DUSt3R consistency
 2. **Zero-shot Capability**: Works on any video
 3. **Robust to Motion**: Dynamic objects handled naturally
@@ -138,15 +147,16 @@ features = transformer_encoder(point_map)
 
 ### Comparison with Related Methods
 
-| Method | Approach | Dynamic | Consistency | Detail |
-|--------|----------|---------|-------------|--------|
-| MiDaS | Monocular | ❌ | ❌ | ✅ |
-| COLMAP | Multi-view | ❌ | ✅ | ⚠️ |
-| DUSt3R | Pairwise | ⚠️ | ✅ | ⚠️ |
-| MonST3R | Temporal | ✅ | ✅ | ⚠️ |
-| **Align3R** | **Hybrid** | **✅** | **✅** | **✅** |
+| Method      | Approach   | Dynamic | Consistency | Detail |
+| ----------- | ---------- | ------- | ----------- | ------ |
+| MiDaS       | Monocular  | ❌      | ❌          | ✅     |
+| COLMAP      | Multi-view | ❌      | ✅          | ⚠️     |
+| DUSt3R      | Pairwise   | ⚠️      | ✅          | ⚠️     |
+| MonST3R     | Temporal   | ✅      | ✅          | ⚠️     |
+| **Align3R** | **Hybrid** | **✅**  | **✅**      | **✅** |
 
 ### Applications
+
 - **AR/VR**: Consistent depth for effects
 - **Video Editing**: 3D-aware modifications
 - **Robotics**: Dynamic scene understanding
@@ -156,18 +166,21 @@ features = transformer_encoder(point_map)
 ## 🔗 Related Work
 
 ### Building On
+
 - **DUSt3R**: Core reconstruction framework
 - **MonST3R**: Temporal consistency ideas
 - **Depth Pro**: High-quality monocular depth
 - **ControlNet**: Feature injection techniques
 
 ### Key Differences from MonST3R
+
 - MonST3R: Separate pointmaps per frame
 - Align3R: Aligned depth with monocular input
 - Focus: Depth quality vs motion handling
 - Both: Enable dynamic scene reconstruction
 
 ### Enables
+
 - High-quality video depth datasets
 - Improved dynamic 3D reconstruction
 - Better video understanding models
@@ -176,6 +189,7 @@ features = transformer_encoder(point_map)
 ## 📚 Key Takeaways
 
 Align3R demonstrates that:
+
 1. **Hybrid approaches win**: Combining methods beats individual solutions
 2. **Consistency is learnable**: Neural alignment works for video
 3. **Details matter**: Monocular depth adds crucial information

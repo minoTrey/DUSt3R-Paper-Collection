@@ -1,7 +1,7 @@
 # Test3R: Learning to Reconstruct 3D at Test Time (arXiv 2025)
 
 ![Test3R Pipeline](https://test3r-nop.github.io/static/images/pipeline.svg)
-*Test3R improves 3D reconstruction through test-time adaptation using cross-pair consistency on image triplets*
+_Test3R improves 3D reconstruction through test-time adaptation using cross-pair consistency on image triplets_
 
 ## 📋 Overview
 
@@ -22,6 +22,7 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: Test-time Optimization
+
 ```
 Given triplet (I₁, I₂, I₃):
 1. Generate reconstructions:
@@ -34,12 +35,14 @@ Given triplet (I₁, I₂, I₃):
 ```
 
 ### Architecture Adaptation
+
 - **Base Model**: Any DUSt3R variant (MASt3R, MonST3R)
 - **Adaptation Method**: Prompt tuning (efficient parameter update)
 - **Training**: Self-supervised on test data
 - **Memory**: Minimal additional footprint
 
 ### Optimization Strategy
+
 - **Input**: Image triplets with shared views
 - **Loss**: Geometric consistency between reconstructions
 - **Time**: ~30 seconds per scene
@@ -50,37 +53,40 @@ Given triplet (I₁, I₂, I₃):
 ### Test-Time Adaptation Performance
 
 | Dataset | Without TTA | With Test3R | Improvement |
-|---------|------------|-------------|-------------|
-| NYUv2 | 0.421 | **0.312** | +26% |
-| KITTI | 0.387 | **0.298** | +23% |
-| ScanNet | 0.456 | **0.341** | +25% |
+| ------- | ----------- | ----------- | ----------- |
+| NYUv2   | 0.421       | **0.312**   | +26%        |
+| KITTI   | 0.387       | **0.298**   | +23%        |
+| ScanNet | 0.456       | **0.341**   | +25%        |
 
 ### Adaptation Speed
 
-| Iterations | Error ↓ | Time (ms) | Quality |
-|------------|---------|-----------|---------|
-| 0 | 0.421 | 0 | Baseline |
-| 5 | 0.367 | 45 | Good |
-| 10 | 0.334 | 90 | Better |
-| 20 | 0.312 | 180 | Best |
+| Iterations | Error ↓ | Time (ms) | Quality  |
+| ---------- | ------- | --------- | -------- |
+| 0          | 0.421   | 0         | Baseline |
+| 5          | 0.367   | 45        | Good     |
+| 10         | 0.334   | 90        | Better   |
+| 20         | 0.312   | 180       | Best     |
 
 ### Quantitative Performance (7Scenes)
 
 #### Depth Estimation Improvements
-| Base Model | Metric | Without Test3R | With Test3R | Improvement |
-|------------|--------|----------------|-------------|-------------|
-| MASt3R | Abs Rel ↓ | 0.142 | **0.118** | 17% |
-| MASt3R | δ<1.25 ↑ | 81.3% | **87.2%** | +5.9% |
-| MonST3R | Abs Rel ↓ | 0.156 | **0.129** | 17% |
+
+| Base Model | Metric    | Without Test3R | With Test3R | Improvement |
+| ---------- | --------- | -------------- | ----------- | ----------- |
+| MASt3R     | Abs Rel ↓ | 0.142          | **0.118**   | 17%         |
+| MASt3R     | δ<1.25 ↑  | 81.3%          | **87.2%**   | +5.9%       |
+| MonST3R    | Abs Rel ↓ | 0.156          | **0.129**   | 17%         |
 
 #### 3D Reconstruction Quality
-| Method | Accuracy | Consistency | Overall |
-|--------|----------|-------------|---------|
-| DUSt3R | Good | Poor | Medium |
-| MASt3R | Better | Medium | Good |
-| MASt3R+Test3R | **Best** | **Best** | **Best** |
+
+| Method        | Accuracy | Consistency | Overall  |
+| ------------- | -------- | ----------- | -------- |
+| DUSt3R        | Good     | Poor        | Medium   |
+| MASt3R        | Better   | Medium      | Good     |
+| MASt3R+Test3R | **Best** | **Best**    | **Best** |
 
 ### Qualitative Improvements
+
 - ✅ More accurate depth boundaries
 - ✅ Better multi-view consistency
 - ✅ Reduced depth artifacts
@@ -97,12 +103,14 @@ Given triplet (I₁, I₂, I₃):
 4. **Self-supervision**: No need for ground truth labels
 
 ### Technical Advantages
+
 - **Plug-and-play**: Works with existing models
 - **No Retraining**: Base model remains unchanged
 - **Efficient**: Prompt tuning is lightweight
 - **Generalizable**: Applicable to various architectures
 
 ### Limitations
+
 - Requires image triplets (not pairs)
 - Additional 30-second overhead
 - Benefits vary by scene complexity
@@ -111,16 +119,19 @@ Given triplet (I₁, I₂, I₃):
 ## 🔗 Related Work
 
 ### Builds On
+
 - **DUSt3R/MASt3R**: Base reconstruction methods
 - **Test-time Adaptation**: General ML technique
 - **Prompt Tuning**: Efficient fine-tuning method
 
 ### Comparison with Other Quality Methods
+
 - **VGGT**: Architectural improvements
 - **Mono3R**: Additional monocular cues
 - **Test3R**: Test-time optimization
 
 ### Enables Future Work
+
 - Test-time adaptation for other 3D tasks
 - Online learning for reconstruction
 - Continual adaptation strategies
@@ -128,6 +139,7 @@ Given triplet (I₁, I₂, I₃):
 ## 📚 Key Takeaways
 
 Test3R demonstrates that:
+
 1. **Test-time matters**: Significant gains from scene-specific adaptation
 2. **Simplicity works**: Basic consistency loss yields strong results
 3. **Universal technique**: Applicable to multiple base methods

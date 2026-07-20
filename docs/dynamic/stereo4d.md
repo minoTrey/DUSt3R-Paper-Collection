@@ -5,7 +5,7 @@
   Your browser does not support the video tag.
 </video>
 
-*Stereo4D mines 100,000+ real-world 4D scenes from internet stereo videos to train DynaDUSt3R for accurate 3D motion prediction*
+_Stereo4D mines 100,000+ real-world 4D scenes from internet stereo videos to train DynaDUSt3R for accurate 3D motion prediction_
 
 ## 📋 Overview
 
@@ -26,6 +26,7 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: Real-World 4D from Stereo
+
 ```
 Problem: Synthetic data → Poor real-world generalization
 Solution: Internet VR180 videos → Diverse real 4D scenes
@@ -35,12 +36,14 @@ Result: Superior motion prediction on real videos
 ### Dataset Creation Pipeline
 
 #### 1. Source Data
+
 - **VR180 Videos**: Stereoscopic fisheye format
 - **Content**: People, animals, vehicles, sports
 - **Diversity**: Indoor/outdoor, static/moving cameras
 - **Scale**: 4.3 TB processed data
 
 #### 2. Processing Steps
+
 ```python
 # Conceptual pipeline
 for video in vr180_videos:
@@ -52,6 +55,7 @@ for video in vr180_videos:
 ```
 
 #### 3. Quality Control
+
 - Confidence-based filtering
 - Trajectory smoothness checks
 - Stereo consistency validation
@@ -60,11 +64,13 @@ for video in vr180_videos:
 ### DynaDUSt3R Architecture
 
 #### Base: DUSt3R Framework
+
 - Encoder-decoder transformer
 - Pairwise 3D prediction
 - No camera calibration needed
 
 #### Extension: Motion Head
+
 ```
 Input: Frame pairs (t1, t2)
 DUSt3R head → 3D points at t1, t2
@@ -73,6 +79,7 @@ Output: Points + trajectories
 ```
 
 #### Training Strategy
+
 - **Loss**: Point prediction + motion prediction
 - **Confidence**: Weighted by data quality
 - **Temporal**: Can predict intermediate times
@@ -82,37 +89,40 @@ Output: Points + trajectories
 
 ### 4D Motion from Stereo Videos
 
-| Method | Flow Error ↓ | 3D Error ↓ | Temporal ↑ |
-|--------|-------------|------------|------------|
-| RAFT-3D | 2.34 | 0.412 | 0.756 |
-| Dynamic-Stereo | 1.98 | 0.367 | 0.812 |
-| **Stereo4D** | **1.52** | **0.298** | **0.887** |
+| Method         | Flow Error ↓ | 3D Error ↓ | Temporal ↑ |
+| -------------- | ------------ | ---------- | ---------- |
+| RAFT-3D        | 2.34         | 0.412      | 0.756      |
+| Dynamic-Stereo | 1.98         | 0.367      | 0.812      |
+| **Stereo4D**   | **1.52**     | **0.298**  | **0.887**  |
 
 ### Motion Segmentation
 
-| Category | Precision ↑ | Recall ↑ | F1 ↑ |
-|----------|------------|----------|------|
-| Static | 94.2% | 92.8% | 93.5% |
-| Dynamic | 87.3% | 89.1% | 88.2% |
-| Overall | 90.8% | 91.0% | 90.9% |
+| Category | Precision ↑ | Recall ↑ | F1 ↑  |
+| -------- | ----------- | -------- | ----- |
+| Static   | 94.2%       | 92.8%    | 93.5% |
+| Dynamic  | 87.3%       | 89.1%    | 88.2% |
+| Overall  | 90.8%       | 91.0%    | 90.9% |
 
 ### Dataset Statistics
-| Metric | Value |
-|--------|-------|
-| Total Clips | 110,000 |
-| Source Videos | 6,493 |
-| Average Length | 4.5 seconds |
-| Total Size | 4.3 TB |
-| Scene Types | 50+ categories |
+
+| Metric         | Value          |
+| -------------- | -------------- |
+| Total Clips    | 110,000        |
+| Source Videos  | 6,493          |
+| Average Length | 4.5 seconds    |
+| Total Size     | 4.3 TB         |
+| Scene Types    | 50+ categories |
 
 ### Performance Comparison
-| Training Data | EPE ↓ | <5cm ↑ | <10cm ↑ |
-|--------------|-------|--------|---------|
-| Synthetic Only | 12.3 | 42% | 68% |
-| Stereo4D (1%) | 8.7 | 58% | 79% |
+
+| Training Data       | EPE ↓   | <5cm ↑  | <10cm ↑ |
+| ------------------- | ------- | ------- | ------- |
+| Synthetic Only      | 12.3    | 42%     | 68%     |
+| Stereo4D (1%)       | 8.7     | 58%     | 79%     |
 | **Stereo4D (Full)** | **6.2** | **71%** | **86%** |
 
 ### Advantages Over Synthetic
+
 1. **Natural Motion**: Real physics and behaviors
 2. **Diverse Scenarios**: Unconstrained capture
 3. **Metric Scale**: True distances from stereo
@@ -123,23 +133,27 @@ Output: Points + trajectories
 ### Solving the Data Problem
 
 **Traditional Approach**:
+
 - Synthetic data: Clean but unrealistic
 - Lab capture: Limited diversity
 - Manual annotation: Expensive and sparse
 
 **Stereo4D Solution**:
+
 - Internet scale: Massive diversity
 - Automatic processing: No manual labels
 - Real motion: Natural behaviors
 - Metric accuracy: Stereo provides scale
 
 ### Technical Advantages
+
 1. **Scale**: 100K+ scenes unprecedented
 2. **Quality**: Careful filtering ensures accuracy
 3. **Diversity**: Every imaginable scenario
 4. **Accessibility**: Public dataset release
 
 ### Applications Enabled
+
 - **Motion Prediction**: Forecast object trajectories
 - **4D Reconstruction**: Full spacetime modeling
 - **Video Understanding**: Motion-aware analysis
@@ -148,27 +162,30 @@ Output: Points + trajectories
 
 ### Relationship to DUSt3R Ecosystem
 
-| Model | Static 3D | Dynamic 3D | Data Source |
-|-------|-----------|------------|-------------|
-| DUSt3R | ✅ | ❌ | Images |
-| MonST3R | ✅ | ⚠️ | Videos |
-| **DynaDUSt3R** | ✅ | ✅ | **Stereo Videos** |
+| Model          | Static 3D | Dynamic 3D | Data Source       |
+| -------------- | --------- | ---------- | ----------------- |
+| DUSt3R         | ✅        | ❌         | Images            |
+| MonST3R        | ✅        | ⚠️         | Videos            |
+| **DynaDUSt3R** | ✅        | ✅         | **Stereo Videos** |
 
 ## 🔗 Related Work
 
 ### Building On
+
 - **DUSt3R**: Base architecture
 - **Stereo Vision**: Depth from binocular
 - **Point Tracking**: 2D motion estimation
 - **Structure from Motion**: 3D reconstruction
 
 ### Comparison with Other Dynamic Methods
+
 - **MonST3R**: Frame-by-frame vs trajectories
 - **CUT3R**: Recurrent vs feed-forward
 - **Geo4D**: Synthetic vs real data
 - **Stereo4D**: Real stereo advantage
 
 ### Enables
+
 - Better dynamic reconstruction models
 - Real-world motion understanding
 - Metric-scale 4D applications
@@ -177,6 +194,7 @@ Output: Points + trajectories
 ## 📚 Key Takeaways
 
 Stereo4D demonstrates that:
+
 1. **Real data wins**: Internet scale beats synthetic
 2. **Stereo is valuable**: Provides metric scale naturally
 3. **4D is learnable**: Motion patterns can be predicted
