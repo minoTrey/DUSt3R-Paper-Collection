@@ -2,16 +2,16 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Papers](https://img.shields.io/badge/Papers-54-green.svg)](#papers-database)
+[![Papers](https://img.shields.io/badge/Papers-55-green.svg)](#papers-database)
 [![Last Updated](https://img.shields.io/badge/Last%20Updated-July%202025-orange.svg)](#)
 
-> **A curated collection of 54+ research papers on DUSt3R and feed-forward 3D reconstruction**
+> **A curated collection of 55+ research papers on DUSt3R and feed-forward 3D reconstruction**
 
 ## 🌟 What is DUSt3R?
 
 [DUSt3R](docs/foundation/dust3r.md) (Dense Uncalibrated Stereo 3D Reconstruction) revolutionized 3D computer vision by enabling **instant 3D reconstruction from uncalibrated images**. Unlike traditional methods requiring camera calibration and iterative optimization, DUSt3R uses a feed-forward neural network to directly predict 3D geometry.
 
-This paper collection tracks the explosive growth of the DUSt3R ecosystem, documenting **54 papers** with in-depth analysis that extend, improve, or apply this groundbreaking technology across diverse domains.
+This paper collection tracks the explosive growth of the DUSt3R ecosystem, documenting **55 papers** with in-depth analysis that extend, improve, or apply this groundbreaking technology across diverse domains.
 
 ## 🚀 Quick Start
 
@@ -26,8 +26,8 @@ DUSt3R has catalyzed a paradigm shift in 3D reconstruction, moving from traditio
 ```
 2022 ██ 1 paper   (CroCo - NeurIPS)
 2023 ██ 1 paper   (CroCo v2 - ICCV)
-2024 ████████████████████ 16 papers
-2025 ████████████████████████████████████████████████████████████████ 36 papers
+2024 ████████████████████ 55 papers
+2025 ████████████████████████████████████████████████████████████████ 55 papers
 ```
 
 ## 🏷️ Research Categories
@@ -119,7 +119,6 @@ Enabling robotic perception and manipulation.
 <details>
 <summary>View papers in this category</summary>
 
-- **🦾 Manipulation**: [RIG3R](docs/robotics/rig3r.md) (robotic grasping)
 - **🎯 Perception**: [GraphSeg](docs/robotics/graphseg.md) (graph-based segmentation)
 
 </details>
@@ -269,20 +268,20 @@ pts3d = output['pts3d']  # Your 3D points!
 
 ### By Publication Year
 
-- **2025**: 36 papers (CVPR, ICCV, ICLR, 3DV, arXiv)
-- **2024**: 16 papers (CVPR, ECCV, NeurIPS, RAL, arXiv)
+- **2025**: 55 papers (CVPR, ICCV, ICLR, 3DV, arXiv)
+- **2024**: 55 papers (CVPR, ECCV, NeurIPS, RAL, arXiv)
 - **2023**: 1 paper (ICCV)
 - **2022**: 1 paper (NeurIPS)
 
 ### By Application Domain
 
-- **3D Reconstruction**: 18 papers
-- **Dynamic Scenes**: 11 papers
-- **Gaussian Splatting**: 10 papers
-- **Scene Understanding/Reasoning**: 6 papers
-- **Foundation Models**: 5 papers
-- **Pose Estimation**: 2 papers
-- **Robotics**: 2 papers
+- **3D Reconstruction**: 55 papers
+- **Dynamic Scenes**: 55 papers
+- **Gaussian Splatting**: 55 papers
+- **Scene Understanding/Reasoning**: 55 papers
+- **Foundation Models**: 55 papers
+- **Pose Estimation**: 55 papers
+- **Robotics**: 55 papers
 - **Medical Applications**: 1 paper
 
 ## 🌟 Featured Research Highlights
@@ -332,7 +331,7 @@ pts3d = output['pts3d']  # Your 3D points!
 
 ### 📖 Additional Resources
 
-- [📊 Complete Papers List](docs/papers-list.md) - All 54 papers with summaries
+- [📊 Complete Papers List](docs/papers-list.md) - All 55 papers with summaries
 - [🔍 Search by Topic](#research-categories) - Find specific applications
 - [💻 Code Examples](https://github.com/naver/dust3r) - Official tutorials
 
@@ -409,7 +408,7 @@ The DUSt3R ecosystem continues to evolve rapidly:
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 [![Watchers](https://img.shields.io/github/watchers/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 
-_Tracking 54 papers and growing | Last updated: July 2025_
+_Tracking 55 papers and growing | Last updated: July 2025_
 
 **[Submit a Paper](../../issues/new)** | **[Report an Issue](../../issues)** | **[Join Discussion](../../discussions)**
 

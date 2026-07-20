@@ -1,4 +1,4 @@
-# REGIST3R: Incremental Registration with Stereo Foundation Model (arXiv 2024)
+# REGIST3R: Incremental Registration with Stereo Foundation Model (ACM MM 2025)
 
 ![REGIST3R Overview](https://www.researchgate.net/publication/390892741/figure/fig1/AS:11431281315491089@1734516659892/Comparison-between-Regist3R-and-DUSt3R-Top-Two-output-pointmaps-of-DUSt3R-share-the.png)
 <!-- Paper demonstrates incremental registration with stereo foundation model for 1000+ views -->
@@ -8,8 +8,9 @@
 
 - **Authors**: Sidun Liu, Wenyu Li, Peng Qiao, Yong Dou
 - **Institution**: National University of Defence Technology, China
-- **Venue**: arXiv preprint
+- **Venue**: ACM MM 2025
 - **Links**: [Paper](https://arxiv.org/abs/2504.12356) | Code (not yet available)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Inference-only incremental registration that scales to 1000+ views through autoregressive training and MST-based ordering, achieving 5-minute reconstruction times.
 
 ## 🎯 Key Contributions

@@ -7,8 +7,10 @@ _VGGT unifies all geometric tasks in a single transformer, achieving 45x speedup
 
 - **Authors**: Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, David Novotny
 - **Institution**: Meta GenAI, Zhejiang University
-- **Venue**: CVPR 2025 (Best Paper Award)
+- **Venue**: CVPR 2025
+- **Award**: Best Paper Award
 - **Links**: [Paper](https://arxiv.org/abs/2503.11651) | [Code](https://github.com/facebookresearch/vggt) | [Project Page](https://vgg-t.github.io/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Unified transformer that jointly estimates camera parameters, depth, 3D pointmaps, and point tracks in one forward pass, 45x faster than DUSt3R.
 
 ## 🎯 Key Contributions

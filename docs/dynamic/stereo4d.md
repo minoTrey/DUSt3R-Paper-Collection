@@ -11,8 +11,10 @@ _Stereo4D mines 100,000+ real-world 4D scenes from internet stereo videos to tra
 
 - **Authors**: Linyi Jin, Richard Tucker, Zhengqi Li, David Fouhey, Noah Snavely, Aleksander Hołyński
 - **Institutions**: University of Michigan, Google DeepMind, New York University, UC Berkeley
-- **Venue**: CVPR 2025 (Oral)
+- **Venue**: CVPR 2025
+- **Award**: Oral
 - **Links**: [Paper](https://arxiv.org/abs/2412.09621) | [Code](https://github.com/Stereo4d/stereo4d-code) | [Project Page](https://stereo4d.github.io/) | [Demo Video](https://stereo4d.github.io/static/videos/stereo4d-gallery/composite/ko2x2dcU9PI-clip13-composited-compressed.mp4)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Mines 100,000+ real-world 4D scenes from internet stereo videos to train DynaDUSt3R, enabling accurate 3D motion prediction from casual videos.
 
 ## 🎯 Key Contributions

@@ -7,8 +7,10 @@ _SLAM3R achieves real-time dense 3D reconstruction with two-hierarchy networks: 
 
 - **Authors**: Yuzheng Liu, Siyan Dong, Shuzhe Wang, Yingda Yin, Yanchao Yang, Qingnan Fan, Baoquan Chen
 - **Institution**: University of Freiburg, ETH Zürich
-- **Venue**: CVPR 2025 (Highlight Paper)
-- **Links**: [Paper](https://arxiv.org/abs/2404.18774) | [Code](https://github.com/PKU-VCL-3DV/SLAM3R) | [Project Page](https://pku-vcl-3dv.github.io/SLAM3R/)
+- **Venue**: CVPR 2025
+- **Award**: Highlight Paper
+- **Links**: [Paper](https://arxiv.org/abs/2412.09401) | [Code](https://github.com/PKU-VCL-3DV/SLAM3R) | [Project Page](https://pku-vcl-3dv.github.io/SLAM3R/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Real-time (20+ FPS) dense 3D reconstruction from monocular RGB video using feed-forward networks without explicit camera parameter estimation.
 
 ## 🎯 Key Contributions

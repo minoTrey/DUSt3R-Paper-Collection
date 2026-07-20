@@ -8,7 +8,7 @@ _Amodal3R reconstructs complete 3D objects from partially occluded views using c
 - **Authors**: Tianhao Wu, Chuanxia Zheng, Frank Guan, Andrea Vedaldi, Tat-Jen Cham
 - **Institution**: S-Lab NTU, Visual Geometry Group Oxford, Singapore Institute of Technology
 - **Venue**: ICCV 2025
-- **Links**: [Paper](https://arxiv.org/abs/TBD) | [Project Page](https://sm0kywu.github.io/Amodal3R/) | [Code](https://github.com/Sm0kyWu/Amodal3R)
+- **Links**: [Paper](https://arxiv.org/abs/2503.13439) | [Project Page](https://sm0kywu.github.io/Amodal3R/) | [Code](https://github.com/Sm0kyWu/Amodal3R)
 - **TL;DR**: Novel approach for amodal 3D reconstruction that recovers complete 3D object shapes from partially occluded 2D images using advanced reasoning techniques.
 
 ## 🎯 Key Contributions

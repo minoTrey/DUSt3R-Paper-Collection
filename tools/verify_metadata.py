@@ -103,7 +103,14 @@ def stage_a(ids: list[str]) -> dict[str, dict]:
         chunk = ids[i : i + 100]
         url = f"{ARXIV_API}?{urllib.parse.urlencode({'id_list': ','.join(chunk), 'max_results': len(chunk)})}"
         print(f"  [A] arXiv {i + 1}-{i + len(chunk)} / {len(ids)}", file=sys.stderr)
-        xml = http(url)
+        try:
+            xml = http(url)
+        except Exception as e:
+            # arXiv도 503/429를 던진다. 한 청크 실패가 전체를 죽이면 안 된다.
+            # 이 청크의 논문들은 arXiv 정보 없이 DBLP/Crossref로만 판정된다.
+            print(f"    ⚠️ arXiv 청크 실패 ({e}) — 건너뛴다", file=sys.stderr)
+            time.sleep(10)
+            continue
         (RAW / "arxiv").mkdir(parents=True, exist_ok=True)
         root = ET.fromstring(xml)
         for e in root.findall("a:entry", ns):
@@ -233,13 +240,60 @@ def stage_c(title: str) -> dict:
     return {"conference": conf, "corr": corr, "n_hits": len(hits)}
 
 
+# ------------------------------------------------------- Stage D: Crossref
+CROSSREF = "https://api.crossref.org/works"
+
+
+def stage_d(title: str, authors: list[str] | None = None) -> dict:
+    """Crossref 대조. PREPRINT 판정을 뒤집을 마지막 기회다.
+
+    ⚠️ 이 단계가 필요한 이유 — 실제 사례:
+    "Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models"
+    (arXiv 2404.11683)는 RA-L 게재 시 제목이
+    "Unifying Representation and Calibration With 3D Foundation Models"로 바뀌었다.
+    저자가 arXiv에 journal_ref를 달지 않아 arXiv·DBLP·S2가 전부 "프리프린트"라고
+    답했지만 실제로는 RA-L 2024(DOI 10.1109/LRA.2024.3451396) + ICRA 2025다.
+
+    → 게재 시 개명된 논문은 제목 완전일치로 못 잡는다. Crossref는 bibliographic
+      쿼리로 부분 일치를 찾아주므로 이 실패 모드를 덮는다.
+    """
+    q = {"query.bibliographic": title, "rows": 5, "mailto": "noreply@example.com"}
+    if authors:
+        q["query.author"] = " ".join(authors[:2])
+    try:
+        data = json.loads(http(f"{CROSSREF}?{urllib.parse.urlencode(q)}"))
+    except Exception as e:
+        return {"error": str(e), "hits": []}
+    hits = []
+    for it in (data.get("message", {}) or {}).get("items", []):
+        doi = it.get("DOI") or ""
+        if doi.lower().startswith("10.48550"):  # arXiv DOI는 게재 근거가 아니다
+            continue
+        if it.get("type") in ("posted-content", "dataset"):
+            continue
+        parts = (it.get("published") or {}).get("date-parts") or [[None]]
+        hits.append(
+            {
+                "title": (it.get("title") or [""])[0],
+                "container": (it.get("container-title") or [""])[0],
+                "year": str(parts[0][0]) if parts[0][0] else None,
+                "doi": doi,
+                "type": it.get("type"),
+                "score": it.get("score"),
+            }
+        )
+    return {"hits": hits}
+
+
 # ----------------------------------------------------------------- 판정
-def adjudicate(a: dict | None, b: dict | None, c: dict | None) -> dict:
+def adjudicate(
+    a: dict | None, b: dict | None, c: dict | None, d: dict | None = None
+) -> dict:
     """CONFIRMED / LIKELY / PREPRINT / UNKNOWN 판정.
 
     PREPRINT는 세 소스가 모두 침묵할 때만. 하나라도 venue를 말하면 프리프린트가 아니다.
     """
-    a, b, c = a or {}, b or {}, c or {}
+    a, b, c, d = a or {}, b or {}, c or {}, d or {}
     conf = (c.get("conference") or [])
 
     # 1순위: DBLP non-CoRR 레코드 = 등재 확정
@@ -280,14 +334,43 @@ def adjudicate(a: dict | None, b: dict | None, c: dict | None) -> dict:
             "source": "S2 venue (연도 미확정)" if not y else "S2 venue",
         }
 
-    # 세 소스 모두 침묵 → 프리프린트. 단 색인 지연 가능성을 경고한다.
+    # 5순위: Crossref에 publisher DOI가 있으면 게재된 것이다.
+    #        게재 시 제목이 바뀐 논문은 여기서만 잡힌다.
+    # ⚠️ 임계값 주의: RA-L 정답 사례의 score가 40이었다. 60으로 잡으면 놓친다.
+    #    대신 container-title이 있고 논문 타입인 것만 본다 (보충자료 _supp 배제).
+    for h in (d.get("hits") or [])[:3]:
+        if (
+            h.get("container")
+            and h.get("year")
+            and (h.get("score") or 0) >= 35
+            and h.get("type") in ("journal-article", "proceedings-article")
+        ):
+            return {
+                "verdict": "LIKELY",
+                "venue": f"{h['container']} {h['year']}",
+                "source": f"Crossref DOI {h['doi']} — 제목 \"{h['title'][:50]}\"",
+                "caveat": "arXiv 제목과 다를 수 있다(게재 시 개명). 제목 대조 필요.",
+            }
+
+    # 네 소스 모두 침묵 → 프리프린트.
+    # ⚠️ S2가 429로 죽었으면 근거가 3개가 아니라 2개다. 이때는 단정하지 않는다.
+    #    실제로 pomato는 S2 부재 시 PREPRINT, S2 응답 시 ICCV 2025로 뒤집혔다.
     if c.get("corr") or a:
         pub = (a.get("published") or "")[:7]
+        s2_up = bool(b)
         return {
-            "verdict": "PREPRINT",
+            "verdict": "PREPRINT" if s2_up else "PREPRINT?",
             "venue": f"arXiv preprint ({pub})" if pub else "arXiv preprint",
-            "source": "DBLP CoRR 단독 + S2 공란 + arXiv comment 침묵",
-            "caveat": "색인 지연 가능. project page / GitHub README 확인 권장",
+            "source": (
+                "DBLP CoRR 단독 + S2 공란 + arXiv comment 침묵"
+                if s2_up
+                else "DBLP CoRR 단독 + arXiv comment 침묵 (⚠️ S2 조회 실패 — 근거 2/3)"
+            ),
+            "caveat": (
+                "색인 지연 가능. project page / GitHub README 확인 권장"
+                if s2_up
+                else "S2 없이 판정됨. S2_API_KEY를 설정해 재검증할 것. 문서 값을 지우지 마라."
+            ),
         }
 
     return {"verdict": "UNKNOWN", "venue": None, "source": "조회 실패"}
@@ -340,6 +423,15 @@ def main() -> int:
         a = A.get(r["arxiv_id"] or "")
         b = B.get(r["arxiv_id"] or "")
         c = C.get(r["slug"])
+        # Stage D는 앞의 셋이 게재 근거를 못 찾았을 때만 돈다 (비용 절약).
+        d = None
+        if adjudicate(a, b, c)["verdict"].startswith("PREPRINT"):
+            t = (a or {}).get("title") or r["h1"] or ""
+            t = re.sub(r"\s*\(.*?\)\s*$", "", t)
+            if t:
+                print(f"  [D] Crossref 확인: {t[:55]}", file=sys.stderr)
+                d = stage_d(t, (a or {}).get("authors"))
+                time.sleep(1)
         results.append(
             {
                 "file": r["file"],
@@ -350,7 +442,8 @@ def main() -> int:
                 "arxiv": a,
                 "s2": b,
                 "dblp": c,
-                **adjudicate(a, b, c),
+                "crossref": d,
+                **adjudicate(a, b, c, d),
             }
         )
 

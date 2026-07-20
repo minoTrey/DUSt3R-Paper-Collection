@@ -1,4 +1,4 @@
-# RaySt3R: Predicting Novel Depth Maps for Zero-Shot Object Completion (arXiv 2025)
+# RaySt3R: Predicting Novel Depth Maps for Zero-Shot Object Completion (NeurIPS 2025)
 
 ![RaySt3R Overview](https://rayst3r.github.io/static/images/overview.png)
 _RaySt3R recasts object completion as novel view depth prediction, achieving 44% improvement through transformer-based zero-shot approach_
@@ -7,8 +7,9 @@ _RaySt3R recasts object completion as novel view depth prediction, achieving 44%
 
 - **Authors**: Bardienus P. Duisterhof, Jan Oberst, Bowen Wen, Stan Birchfield, Deva Ramanan, Jeffrey Ichnowski
 - **Institutions**: Carnegie Mellon University, Karlsruhe Institute of Technology, NVIDIA
-- **Venue**: arXiv 2025
+- **Venue**: NeurIPS 2025
 - **Links**: [Paper](https://arxiv.org/abs/2506.05285) | [Code](https://github.com/Duisterhof/rayst3r) | [Project Page](https://rayst3r.github.io/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Recasts object completion as novel view depth prediction, achieving 44% improvement in 3D reconstruction accuracy through transformer-based zero-shot approach.
 
 ## 🎯 Key Contributions

@@ -40,42 +40,42 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 
 ### ⏱️ Temporal Consistency
 
-5. [**CUT3R**: Continuous 3D Perception via Memory](cut3r.md)
+1. [**CUT3R**: Continuous 3D Perception via Memory](cut3r.md)
    - **Venue**: CVPR 2025
    - **Innovation**: Persistent 3D state across time
    - **Key**: Long-term scene understanding
 
-6. [**Align3R**: Aligned Monocular Depth for Dynamic Videos](align3r.md)
+2. [**Align3R**: Aligned Monocular Depth for Dynamic Videos](align3r.md)
    - **Venue**: CVPR 2025
    - **Innovation**: Scale-consistent depth across frames
    - **Key**: Solves scale drift problem
 
-7. [**Dynamic Point Maps**: Efficient 4D Representation](dynamic-point-maps.md)
+3. [**Dynamic Point Maps**: Efficient 4D Representation](dynamic-point-maps.md)
    - **Venue**: arXiv 2025
    - **Innovation**: Versatile 4D scene representation
    - **Key**: Memory-efficient design
 
 ### 👥 Specialized Applications
 
-8. [**ODHSR**: One-shot Deformable Human and Scene Reconstruction](odhsr.md)
+1. [**ODHSR**: One-shot Deformable Human and Scene Reconstruction](odhsr.md)
    - **Venue**: CVPR 2025
    - **Innovation**: Joint human-scene understanding
    - **Key**: Handles human-object interaction
 
-9. [**Geo4D**: Learning 4D Geometric Representations](geo4d.md)
+2. [**Geo4D**: Learning 4D Geometric Representations](geo4d.md)
    - **Venue**: ICCV 2025
    - **Innovation**: Video generators for 4D
    - **Key**: Generative 4D modeling
 
-10. [**Stereo4D**: Learning How Things Move from Internet Videos](stereo4d.md)
-    - **Venue**: CVPR 2025
-    - **Innovation**: Self-supervised motion learning
-    - **Key**: Learns from wild videos
+3. [**Stereo4D**: Learning How Things Move from Internet Videos](stereo4d.md)
+   - **Venue**: CVPR 2025
+   - **Innovation**: Self-supervised motion learning
+   - **Key**: Learns from wild videos
 
-11. [**Adapt3R**: Adaptive 3D Scene Representation](adapt3r.md)
-    - **Venue**: arXiv 2025
-    - **Innovation**: Domain adaptation for dynamic scenes
-    - **Key**: Generalizes across domains
+4. [**Adapt3R**: Adaptive 3D Scene Representation](adapt3r.md)
+   - **Venue**: arXiv 2025
+   - **Innovation**: Domain adaptation for dynamic scenes
+   - **Key**: Generalizes across domains
 
 ## 💡 Technical Approaches & Innovations
 

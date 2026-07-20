@@ -7,8 +7,10 @@ _LoRA3D self-calibrates 3D foundation models through robust optimization and LoR
 
 - **Authors**: Ziqi Lu¹², Heng Yang¹³, Danfei Xu¹⁴, Boyi Li¹⁵, Boris Ivanovic¹, Marco Pavone¹⁶, Yue Wang¹⁷
 - **Institution**: ETH Zürich, DisneyResearch|Studios
-- **Venue**: ICLR 2025 (Highlight Paper)
+- **Venue**: ICLR 2025
+- **Award**: Highlight Paper
 - **Links**: [Paper](https://arxiv.org/abs/2412.07746) | [Project Page](https://520xyxyzq.github.io/lora3d/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Self-calibration pipeline that uses robust optimization to generate pseudo-labels and LoRA fine-tuning to specialize pre-trained 3D geometric foundation models.
 
 ## 🎯 Key Contributions
