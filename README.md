@@ -2,16 +2,16 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Papers](https://img.shields.io/badge/Papers-55-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-73-green.svg)](docs/papers-list.md)
 [![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--07-orange.svg)](log.md)
 
-> **A curated collection of 55+ research papers on DUSt3R and feed-forward 3D reconstruction**
+> **A curated collection of 73+ research papers on DUSt3R and feed-forward 3D reconstruction**
 
 ## 🌟 What is DUSt3R?
 
 [DUSt3R](docs/foundation/dust3r.md) (Dense Uncalibrated Stereo 3D Reconstruction) revolutionized 3D computer vision by enabling **instant 3D reconstruction from uncalibrated images**. Unlike traditional methods requiring camera calibration and iterative optimization, DUSt3R uses a feed-forward neural network to directly predict 3D geometry.
 
-This paper collection tracks the explosive growth of the DUSt3R ecosystem, documenting **55 papers** with in-depth analysis that extend, improve, or apply this groundbreaking technology across diverse domains.
+This paper collection tracks the explosive growth of the DUSt3R ecosystem, documenting **73 papers** with in-depth analysis that extend, improve, or apply this groundbreaking technology across diverse domains.
 
 ## 🚀 Quick Start
 
@@ -26,8 +26,8 @@ DUSt3R has catalyzed a paradigm shift in 3D reconstruction, moving from traditio
 ```text
 2022 ██ 1 paper   (CroCo - NeurIPS)
 2023 ██ 1 paper   (CroCo v2 - ICCV)
-2024 ████████████████████ 55 papers
-2025 ████████████████████████████████████████████████████████████████ 55 papers
+2024 ████████████████████ 73 papers
+2025 ████████████████████████████████████████████████████████████████ 73 papers
 ```
 
 ## 🏷️ Research Categories
@@ -44,7 +44,7 @@ The seminal works that established the feed-forward 3D reconstruction paradigm.
 | [MASt3R](docs/foundation/mast3r.md)         | ECCV 2024    | 3D-aware feature matching         | 93.3% VCRE AUC (SOTA)     |
 | [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 3DV 2025     | Complete SfM pipeline             | 100% registration T&T     |
 
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (18 papers)
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (31 papers)
 
 Core advances in static scene reconstruction, multi-view consistency, and large-scale scenarios.
 
@@ -60,7 +60,7 @@ Core advances in static scene reconstruction, multi-view consistency, and large-
 
 </details>
 
-### 🎬 [Dynamic Scene Reconstruction](docs/dynamic/) (11 papers)
+### 🎬 [Dynamic Scene Reconstruction](docs/dynamic/) (14 papers)
 
 Extending DUSt3R to handle motion, temporal consistency, and 4D understanding.
 
@@ -74,7 +74,7 @@ Extending DUSt3R to handle motion, temporal consistency, and 4D understanding.
 
 </details>
 
-### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (10 papers)
+### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (11 papers)
 
 Revolutionizing neural rendering by combining DUSt3R with 3D Gaussian Splatting.
 
@@ -112,7 +112,7 @@ Advanced geometric reasoning beyond visible surfaces.
 
 </details>
 
-### 🤖 [Robotics](docs/robotics/) (2 papers)
+### 🤖 [Robotics](docs/robotics/) (3 papers)
 
 Enabling robotic perception and manipulation.
 
@@ -268,20 +268,20 @@ pts3d = output['pts3d']  # Your 3D points!
 
 ### By Publication Year
 
-- **2025**: 55 papers (CVPR, ICCV, ICLR, 3DV, arXiv)
-- **2024**: 55 papers (CVPR, ECCV, NeurIPS, RAL, arXiv)
+- **2025**: 73 papers (CVPR, ICCV, ICLR, 3DV, arXiv)
+- **2024**: 73 papers (CVPR, ECCV, NeurIPS, RAL, arXiv)
 - **2023**: 1 paper (ICCV)
 - **2022**: 1 paper (NeurIPS)
 
 ### By Application Domain
 
-- **3D Reconstruction**: 55 papers
-- **Dynamic Scenes**: 55 papers
-- **Gaussian Splatting**: 55 papers
-- **Scene Understanding/Reasoning**: 55 papers
-- **Foundation Models**: 55 papers
-- **Pose Estimation**: 55 papers
-- **Robotics**: 55 papers
+- **3D Reconstruction**: 73 papers
+- **Dynamic Scenes**: 73 papers
+- **Gaussian Splatting**: 73 papers
+- **Scene Understanding/Reasoning**: 73 papers
+- **Foundation Models**: 73 papers
+- **Pose Estimation**: 73 papers
+- **Robotics**: 73 papers
 - **Medical Applications**: 1 paper
 
 ## 🌟 Featured Research Highlights
@@ -331,7 +331,7 @@ pts3d = output['pts3d']  # Your 3D points!
 
 ### 📖 Additional Resources
 
-- [📊 Complete Papers List](docs/papers-list.md) - All 55 papers with summaries
+- [📊 Complete Papers List](docs/papers-list.md) - All 73 papers with summaries
 - [🔍 Search by Topic](#️-research-categories) - Find specific applications
 - [💻 Code Examples](https://github.com/naver/dust3r) - Official tutorials
 
@@ -408,7 +408,7 @@ The DUSt3R ecosystem continues to evolve rapidly:
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 [![Watchers](https://img.shields.io/github/watchers/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 
-_Tracking 55 papers and growing | Last updated: July 2025_
+_Tracking 73 papers and growing | Last updated: July 2025_
 
 **[Submit a Paper](../../issues/new)** | **[Report an Issue](../../issues)** | **[Join Discussion](../../discussions)**
 
