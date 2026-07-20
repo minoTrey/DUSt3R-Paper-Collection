@@ -1,4 +1,4 @@
-# Dust to Tower: Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images (arXiv 2024)
+# Dust to Tower: Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images (arXiv preprint)
 
 ![Dust to Tower Pipeline](https://arxiv.org/html/2412.19518v1/x1.png)
 _Dust to Tower achieves photo-realistic scene reconstruction through a coarse-to-fine approach with CCM, CADA, and WIGI modules_

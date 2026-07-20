@@ -1,4 +1,4 @@
-# Any4D: Unified Feed-Forward Metric 4D Reconstruction (arXiv preprint (2025-12))
+# Any4D: Unified Feed-Forward Metric 4D Reconstruction (arXiv preprint)
 
 ## 📋 Overview
 

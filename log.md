@@ -93,6 +93,55 @@ Crossref와 대조했다. 판정: CONFIRMED 41 / LIKELY 12 / PREPRINT 2.
 `fast3r` 320×/1000×, `mast3r-slam` 4000×/80×, `light3r-sfm` 49×, `odhsr` 75×,
 `pref3r` 100×, `pe3r` 9×는 원문 확인됨 — 그대로 두고 출처를 달았다.
 
+## [2026-07-20] 논문 58편 추가 (73 → 131편)
+
+조사된 73편 중 1차로 넣은 15편을 뺀 나머지 58편을 전부 추가했다.
+`docs/surveys/` 카테고리를 신설해 서베이·벤치마크·분석 논문 4편을 분리했다
+(방법+결과표 전제의 템플릿과 성격이 다르다).
+
+**venue 확정**
+
+2026 학회는 DBLP에 아직 색인되지 않아 GitHub 배지·OpenReview·CVF openaccess·
+CVPR/ICLR 공식 사이트를 1차 출처로 삼았다. CONFIRMED 35 / UNKNOWN 18 / PREPRINT 4 / LIKELY 1.
+
+**UNKNOWN 18편은 추측하지 않았다.** `arXiv preprint`로 두고 "1차 출처에서 확인 불가,
+재확인 필요"를 Note에 남겼다. 그럴듯한 venue를 채우는 것이 이 레포를 망가뜨린 원인이다.
+
+주요 논문: D4RT(CVPR 2026 **Best Paper + Oral**), Scal3R(CVPR 2026 Highlight),
+SAIL-Recon(3DV 2026 Oral), SLAM-Former(ECCV 2026), WorldMirror·EPS3D(ICML 2026).
+E3D-Bench는 ICLR 2026 **desk reject**로 확인돼 프리프린트로 확정했다.
+
+**이름 충돌 3건을 분리했다**
+
+`PAGE-4D`(2510.17568) / `VGGT4D`(2511.19971) / `DynamicVGGT`(2603.08254)는 서로 다른
+논문이다. PAGE-4D의 arXiv comment가 나머지 둘을 별칭 키워드로 달아놔 혼동하기 쉽다.
+각 문서에 명시적 구분 문구를 넣었다.
+
+**검증 도구의 사각지대 2건을 발견해 고쳤다**
+
+- `verify_benchmarks.py`의 수치 정규식이 소수 3자리까지만 봤다. EPS3D처럼 4자리
+  (`0.4701`)를 쓰는 논문은 통째로 건너뛰어져 **"검증됨"으로 보였다.** 4자리까지 확장.
+  이 수정으로 검증 대상 수치가 12,805 → 25,039개로 늘었다.
+- `SKIP_ROW`가 `×`를 포함해, 배속과 정확도를 한 표에 쓴 효율화 논문은 표 전체가
+  건너뛰어졌다. 해당 논문들은 표를 정확도/지연으로 분리해 검증 범위에 넣었다.
+  **아직 남은 한계다** — `×`가 섞인 표는 여전히 자동 검증에서 빠진다.
+
+**교정 1건**: `g-cut3r`은 UNKNOWN이었으나 PDF 페이지 헤더에 "Published as a conference
+paper at ICLR 2026"이 인쇄돼 있어 CONFIRMED로 올렸다. UNKNOWN 전체를 헤더로 재확인했고
+근거가 있는 것은 이 1편뿐이었다.
+
+**H1 표기 통일**: 프리프린트 H1이 `(arXiv 2025)`와 `(arXiv preprint (2026-06))`로
+갈려 있어 37편을 `(arXiv preprint)`로 통일했다. 정확한 연월은 Venue 필드에 있다.
+
+**서베이 논문의 오류를 발견해 기록했다**
+
+`survey-dust3r-to-vggt`는 Table 1에서 최소 4개 모델을 원논문과 다르게 기술한다
+(Fast3R를 pairwise distillation으로, Pow3R를 pose-graph optimization으로,
+Spann3R를 sparse attention으로, Align3R를 multi-view aggregation으로).
+Table 4의 `τ↓`도 본문이 정의한 inlier ratio와 방향이 반대다.
+**조용히 고치지 않고 원문대로 옮긴 뒤 Insights에 문제를 기록했다** — 독자가
+잘못된 정보를 전파하지 않도록.
+
 **미해결 backlog**
 
 - PDF는 `docs/papers/`에 있으나 문서 미작성: **MoGe-2, Mono3R, RIG3R**

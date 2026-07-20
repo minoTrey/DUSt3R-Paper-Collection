@@ -1,4 +1,4 @@
-# Rig3R: Rig-Aware Conditioning for Learned 3D Reconstruction (arXiv preprint (2025-06))
+# Rig3R: Rig-Aware Conditioning for Learned 3D Reconstruction (arXiv preprint)
 
 ## 📋 Overview
 

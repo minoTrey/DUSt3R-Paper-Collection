@@ -1,4 +1,4 @@
-# MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details (arXiv preprint (2025-07))
+# MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details (arXiv preprint)
 
 ## 📋 Overview
 

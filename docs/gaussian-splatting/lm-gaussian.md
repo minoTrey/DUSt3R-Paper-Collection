@@ -1,4 +1,4 @@
-# LM-Gaussian: Boost Sparse-view 3D Gaussian Splatting with Large Model Priors (arXiv 2024)
+# LM-Gaussian: Boost Sparse-view 3D Gaussian Splatting with Large Model Priors (arXiv preprint)
 
 ![LM-Gaussian Pipeline](https://hanyangyu1021.github.io/lm-gaussian.github.io/static/images/overall.png)
 _LM-Gaussian leverages large model priors to enhance sparse-view 3D Gaussian splatting for high-quality novel view synthesis_

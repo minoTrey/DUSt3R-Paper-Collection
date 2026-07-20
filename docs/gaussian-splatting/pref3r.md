@@ -1,4 +1,4 @@
-# PreF3R: Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence (arXiv 2024)
+# PreF3R: Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence (arXiv preprint)
 
 ![PreF3R Method](https://computationalrobotics.seas.harvard.edu/PreF3R/static/images/method.jpg)
 _PreF3R enables feed-forward 3D Gaussian Splatting using spatial memory networks for variable-length sequences_

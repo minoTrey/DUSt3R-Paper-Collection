@@ -1,4 +1,4 @@
-# PE3R: Perception-Efficient 3D Reconstruction (arXiv 2025)
+# PE3R: Perception-Efficient 3D Reconstruction (arXiv preprint)
 
 ![PE3R Demo](https://raw.githubusercontent.com/hujiecpp/PE3R/main/imgs/pe3r.gif)
 _PE3R enables perception-efficient 3D reconstruction: take 2-3 photos with your phone and explore your 3D world via text_

@@ -1,4 +1,4 @@
-# LaRI: Layered Ray Intersections for Single-view 3D Geometric Reasoning (arXiv 2025)
+# LaRI: Layered Ray Intersections for Single-view 3D Geometric Reasoning (arXiv preprint)
 
 ![LaRI Teaser](https://raw.githubusercontent.com/ruili3/lari/main/assets/teaser.jpg)
 _LaRI models multiple surface layers along camera rays, enabling reasoning about occluded geometry from single images_

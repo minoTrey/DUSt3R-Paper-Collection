@@ -1,4 +1,4 @@
-# GraphSeg: Segmented 3D Representations via Graph Edge Addition and Contraction (arXiv 2025)
+# GraphSeg: Segmented 3D Representations via Graph Edge Addition and Contraction (arXiv preprint)
 
 ![GraphSeg Overview](https://arxiv.org/html/2504.03129v1/extracted/6335082/imgs/gs_abs.png)
 _GraphSeg generates consistent 3D object segmentations from sparse 2D images via graph edge addition and contraction_

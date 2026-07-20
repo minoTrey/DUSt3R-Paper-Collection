@@ -1,4 +1,4 @@
-# DAS3R: Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction (arXiv 2024)
+# DAS3R: Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction (arXiv preprint)
 
 ![DAS3R Overview](https://kai422.github.io/DAS3R/assets/main.png)
 _DAS3R reconstructs clean static scenes from videos with moving objects by predicting dynamic masks and using staticness attributes_

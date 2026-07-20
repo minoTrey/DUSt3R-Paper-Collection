@@ -1,4 +1,4 @@
-# D²USt3R: Enhancing 3D Reconstruction with 4D Pointmaps for Dynamic Scenes (arXiv 2025)
+# D²USt3R: Enhancing 3D Reconstruction with 4D Pointmaps for Dynamic Scenes (arXiv preprint)
 
 ![D²USt3R Teaser](https://cvlab-kaist.github.io/DDUSt3R/assets/1_teaser.png)
 _D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspondence in both static and dynamic regions_

@@ -30,6 +30,7 @@ CATEGORY_TITLE = {
     "understanding": "Scene Understanding",
     "robotics": "Robotics",
     "medical": "Medical",
+    "surveys": "Surveys & Analysis",
 }
 
 
