@@ -18,7 +18,7 @@ _π³ achieves true permutation equivariance in visual geometry through symmetri
 3. **SOTA Performance**: Best results on camera pose, point maps, video depth, with near-zero order variance
 4. **Efficiency**: 959M params outperforming models with 1.26B-5.57B params
 
-## 🔧 Technical Architecture
+## 🔧 Technical Details
 
 ### Core Innovation: Eliminating Order Dependence
 
@@ -222,7 +222,7 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 - **Speed**: 57.4 FPS on KITTI (vs VGGT 43.2 FPS, Fast3R 65.8 FPS)
 - **Efficiency**: 959M params achieving better results than models with 1.26B-5.57B params
 
-## 💡 Critical Analysis
+## 💡 Insights & Impact
 
 ### Why π³ Works: The Power of True Symmetry
 
@@ -260,7 +260,7 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 - **Memory Requirements**: Processing many views simultaneously needs substantial GPU memory
 - **Limited to Static Scenes**: Like most geometry methods, assumes static content
 
-## 🔗 Significance and Future Impact
+## 🔗 Related Work
 
 ### Paradigm Shift in Visual Geometry
 
@@ -278,7 +278,7 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 - Applying similar principles to other computer vision tasks
 - Exploring other symmetries in visual data
 
-## 📚 Conclusions
+## 📚 Key Takeaways
 
 π³ achieves what previous methods couldn't: true permutation equivariance in visual geometry learning. By eliminating all order-dependent components (positional embeddings, reference frames), it creates a genuinely symmetric architecture that:
 

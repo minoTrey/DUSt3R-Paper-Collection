@@ -6,10 +6,10 @@ _Endo3R achieves real-time 3D reconstruction from monocular endoscopy using dual
 ## 📋 Overview
 
 - **Authors**: Jiaxin Guo, Wenzhen Dong, Tianyu Huang, Hao Ding, Ziyi Wang, Haomin Kuang, Qi Dou, Yun-hui Liu
-- **Institutions**: The Chinese University of Hong Kong (CUHK), Hong Kong Centre For Logistics Robotics, Johns Hopkins University, Shanghai Jiao Tong University
+- **Institution**: The Chinese University of Hong Kong (CUHK), Hong Kong Centre For Logistics Robotics, Johns Hopkins University, Shanghai Jiao Tong University
 - **Venue**: MICCAI 2025
 - **Award**: Oral
-- **Links**: [Paper](https://arxiv.org/html/2504.03198v1) | [Project Page](https://wrld.github.io/Endo3R/)
+- **Links**: [Paper](https://arxiv.org/abs/2504.03198) | [Project Page](https://wrld.github.io/Endo3R/)
 - **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: First unified 3D surgical foundation model for online scale-consistent reconstruction from monocular endoscopy at 19.17 FPS without calibration.
 

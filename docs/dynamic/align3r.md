@@ -6,7 +6,7 @@ _Align3R combines monocular depth estimation with DUSt3R to achieve temporally c
 ## 📋 Overview
 
 - **Authors**: Jiahao Lu, Tianyu Huang, Peng Li, Zhiyang Dou, Cheng Lin, Zhiming Cui, Zhen Dong, Sai-Kit Yeung, Wenping Wang, Yuan Liu
-- **Institutions**: Hong Kong University of Science and Technology (HKUST), Chinese University of Hong Kong (CUHK), University of Hong Kong (HKU), ShanghaiTech University, Wuhan University (WHU), Texas A&M University (TAMU), National Taiwan University (NTU)
+- **Institution**: Hong Kong University of Science and Technology (HKUST), Chinese University of Hong Kong (CUHK), University of Hong Kong (HKU), ShanghaiTech University, Wuhan University (WHU), Texas A&M University (TAMU), National Taiwan University (NTU)
 - **Venue**: CVPR 2025 | arXiv preprint (submitted December 2024)
 - **Links**: [Paper](https://arxiv.org/abs/2412.03079) | [Code](https://github.com/jiah-cloud/Align3R) | [Project Page](https://igl-hkust.github.io/Align3R.github.io/)
 - **TL;DR**: Achieves temporally consistent depth estimation for dynamic videos by aligning monocular depth predictions through DUSt3R, enabling robust 3D reconstruction from single videos.

@@ -6,7 +6,7 @@ _CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruc
 ## 📋 Overview
 
 - **Authors**: Qianqian Wang*, Yifei Zhang*, Aleksander Holynski, Alexei A. Efros, Angjoo Kanazawa (*Equal contribution)
-- **Institutions**: UC Berkeley, Google DeepMind
+- **Institution**: UC Berkeley, Google DeepMind
 - **Venue**: CVPR 2025
 - **Award**: Oral
 - **Links**: [Paper](https://arxiv.org/abs/2501.12387) | [Code](https://github.com/CUT3R/CUT3R) | [Project Page](https://cut3r.github.io/)

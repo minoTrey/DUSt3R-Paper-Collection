@@ -78,9 +78,9 @@ Output: Complete 3D object reconstruction
 | MASt3R       | 91.7%         | 48.6%          | 70.2%       |
 | **Amodal3R** | **92.3%**     | **71.3%**      | **81.8%**   |
 
-## 📊 Expected Results
+### 📊 Expected Results
 
-### Amodal Reconstruction Quality
+#### Amodal Reconstruction Quality
 
 | Occlusion Level | Traditional | Amodal3R      | Improvement |
 | --------------- | ----------- | ------------- | ----------- |
@@ -89,7 +89,7 @@ Output: Complete 3D object reconstruction
 | 50-70%          | Very Poor   | **Fair**      | +50%        |
 | 70%+            | Failed      | **Partial**   | Significant |
 
-### Applications
+#### Applications
 
 - **Robotics**: Object manipulation with partial visibility
 - **Autonomous Driving**: Vehicle detection behind obstacles

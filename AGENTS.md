@@ -42,9 +42,12 @@ DUSt3R 계열 feed-forward 3D 재구성 논문 서베이. `docs/<category>/<slug
 ## 🔧 Technical Details
 ## 📊 Results
 ## 💡 Insights & Impact
-## 📚 Key Takeaways
 ## 🔗 Related Work
+## 📚 Key Takeaways
 ```
+
+이 순서는 임의로 정한 것이 아니라 레포 55편 중 45편이 이미 따르던 관행이다.
+다수를 소수에 맞추지 않는다.
 
 새 섹션이 필요하면 `###`로 위 7개 안에 넣는다. `## 💡 Critical Analysis`,
 `## 📊 Expected Results` 같은 1회성 `##` 섹션을 만들지 않는다.

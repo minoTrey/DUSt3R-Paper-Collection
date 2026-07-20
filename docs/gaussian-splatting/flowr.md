@@ -6,7 +6,7 @@ _FlowR uses flow matching to generate high-quality additional views, bridging th
 ## 📋 Overview
 
 - **Authors**: Tobias Fischer¹'², Samuel Rota Bulò², Yung-Hsu Yang¹, Nikhil Keetha²'³, Lorenzo Porzi², Norman Müller², Katja Schwarz², Jonathon Luiten², Marc Pollefeys¹, Peter Kontschieder²
-- **Institutions**: ¹ETH Zurich, ²Meta Reality Labs Zurich, ³Carnegie Mellon University
+- **Institution**: ¹ETH Zurich, ²Meta Reality Labs Zurich, ³Carnegie Mellon University
 - **Venue**: ICCV 2025
 - **Award**: Highlight
 - **Links**: [Paper](https://arxiv.org/abs/2504.01647) | [Project Page](https://tobiasfshr.github.io/pub/flowr/) | Code (coming soon)
@@ -79,9 +79,9 @@ Output: Dense 3D Gaussian representation
 | Dense MVS  | 28.7     | 0.923     | 87%        |
 | **FlowR**  | **27.2** | **0.901** | **95%**    |
 
-## 📊 Expected Results
+### 📊 Expected Results
 
-### Reconstruction Quality
+#### Reconstruction Quality
 
 | Method         | Density         | Quality  | Speed      | Memory     |
 | -------------- | --------------- | -------- | ---------- | ---------- |
@@ -89,7 +89,7 @@ Output: Dense 3D Gaussian representation
 | Dense Methods  | High            | Good     | Slow       | High       |
 | **FlowR**      | **Progressive** | **High** | **Medium** | **Medium** |
 
-### Applications
+#### Applications
 
 - **Scene Reconstruction**: High-quality 3D scenes
 - **View Synthesis**: Novel viewpoint generation

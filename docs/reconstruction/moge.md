@@ -199,9 +199,9 @@ Point Map    Camera FOV
 - Faster processing time
 - Better scalability
 
-## 📊 Experimental Results
+### 📊 Experimental Results
 
-### Table 1: Point Map Estimation
+#### Table 1: Point Map Estimation
 
 | Method                         | Metric | NYUv2    | KITTI    | ETH3D    | iBims-1  | GSO      | Sintel   | DDAD     | DIODE    | Avg      | Rank     |
 | ------------------------------ | ------ | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
@@ -233,7 +233,7 @@ Point Map    Camera FOV
 | **Ours**                       | Relp↓  | -        | -        | **3.21** | **4.16** | -        | **8.63** | **6.74** | **4.78** | **5.50** | **1.00** |
 |                                | δ₁p↑   | -        | -        | **98.1** | **96.8** | -        | **92.7** | **94.3** | **96.3** | **95.6** |          |
 
-### Table 2: Depth Map Estimation
+#### Table 2: Depth Map Estimation
 
 | Method                             | Metric | NYUv2    | KITTI    | ETH3D    | iBims-1  | GSO      | Sintel   | DDAD     | DIODE    | Avg      | Rank     |
 | ---------------------------------- | ------ | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
@@ -271,7 +271,7 @@ Point Map    Camera FOV
 | **Ours**                           | Reld↓  | **3.38** | **4.05** | **3.11** | **3.23** | **0.96** | **18.4** | **8.99** | **3.98** | **5.76** | **1.06** |
 |                                    | δ₁d↑   | **98.6** | **98.1** | **98.9** | **98.0** | **100**  | **79.5** | **91.5** | **97.2** | **95.2** |          |
 
-### Table 3: Camera Field of View Estimation (degrees)
+#### Table 3: Camera Field of View Estimation (degrees)
 
 | Method      | NYUv2 Mean↓ | NYUv2 Med.↓ | ETH3D Mean↓ | ETH3D Med.↓ | iBims-1 Mean↓ | iBims-1 Med.↓ | Avg Mean↓ | Avg Med.↓ | Rank↓    |
 | ----------- | ----------- | ----------- | ----------- | ----------- | ------------- | ------------- | --------- | --------- | -------- |
@@ -282,7 +282,7 @@ Point Map    Camera FOV
 | UniDepth    | 7.56        | 4.31        | 10.7        | 9.96        | 11.9          | 5.96          | 10.1      | 6.74      | 4.50     |
 | **Ours**    | **3.41**    | **3.21**    | **2.50**    | **1.54**    | **2.81**      | **1.89**      | **2.91**  | **2.21**  | **1.50** |
 
-### Table 4: Ablation Study
+#### Table 4: Ablation Study
 
 **Point map metrics**
 
@@ -318,16 +318,35 @@ Point Map    Camera FOV
 
 _Note: Relp and Reld are relative errors in percentage (%). δ₁p and δ₁d represent accuracy thresholds. Best values are in bold. Local point map evaluation is performed on affine-invariant point maps within local object regions._
 
-### Computational Efficiency
+#### Computational Efficiency
 
 - **Inference Time**: ~50ms per image (RTX 3090)
 - **Camera Estimation**: ~3ms additional
 - **Memory Usage**: 4GB VRAM for inference
 - **Model Size**: ViT-Base encoder (~86M params)
 
-## 💡 Critical Analysis
+## 💡 Insights & Impact
 
-### Strengths from Experimental Evidence
+### Technical Innovation
+
+This work advances the field by introducing novel approaches to 3D reconstruction that overcome previous limitations.
+
+### Applications
+
+- Real-time 3D reconstruction
+- Robotics and autonomous navigation
+- AR/VR applications
+- 3D content creation
+
+### Future Directions
+
+- Extension to dynamic scenes
+- Integration with other modalities
+- Mobile deployment optimization
+
+### 💡 Critical Analysis
+
+#### Strengths from Experimental Evidence
 
 1. **Superior Performance Across Tasks**
    - **Point Maps**: 47% reduction in error vs DUSt3R (6.07 vs 11.4 affine-invariant)
@@ -347,7 +366,7 @@ _Note: Relp and Reld are relative errors in percentage (%). δ₁p and δ₁d re
    - Challenging on synthetic scenes (Sintel: 16.8 Relp) but still best
    - Achieves perfect δ₁p on GSO dataset (100%)
 
-### Technical Trade-offs and Limitations
+#### Technical Trade-offs and Limitations
 
 1. **Fundamental Constraints**
    - **Focal-Distance Ambiguity**: Cannot determine absolute scale from single images
@@ -364,7 +383,7 @@ _Note: Relp and Reld are relative errors in percentage (%). δ₁p and δ₁d re
    - **Evaluation Scope**: Limited to datasets with reliable ground truth
    - **Failure Analysis**: Paper lacks systematic failure mode investigation
 
-### Comparison Gaps and Missing Evaluations
+#### Comparison Gaps and Missing Evaluations
 
 1. **Missing Comparisons**
    - No direct comparison with MoGe's predecessor methods on all metrics
@@ -376,7 +395,7 @@ _Note: Relp and Reld are relative errors in percentage (%). δ₁p and δ₁d re
    - No analysis of performance vs model size trade-offs
    - Missing evaluation on edge cases (mirrors, glass, extreme lighting)
 
-### Real-World Applicability
+#### Real-World Applicability
 
 **Best Use Cases**:
 
@@ -410,25 +429,6 @@ _Note: Relp and Reld are relative errors in percentage (%). δ₁p and δ₁d re
 | UniDepth       | Metric depth        | Camera-aware               | Limited generalization  |
 | Metric3D       | Metric depth        | Good accuracy              | Scene-specific          |
 | **MoGe**       | **Affine geometry** | **Best relative accuracy** | **No absolute scale**   |
-
-## 💡 Insights & Impact
-
-### Technical Innovation
-
-This work advances the field by introducing novel approaches to 3D reconstruction that overcome previous limitations.
-
-### Applications
-
-- Real-time 3D reconstruction
-- Robotics and autonomous navigation
-- AR/VR applications
-- 3D content creation
-
-### Future Directions
-
-- Extension to dynamic scenes
-- Integration with other modalities
-- Mobile deployment optimization
 
 ## 📚 Key Takeaways
 
