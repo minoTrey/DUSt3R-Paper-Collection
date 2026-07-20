@@ -77,30 +77,71 @@ global_masks = align_masks_globally(local_masks)
 
 ## 📊 Results
 
-### Quantitative Performance
+### Dynamic Mask Accuracy (IoU ↑)
 
-#### DAVIS Dataset
+원논문 Table 1.
 
-| Method    | Dynamic IoU ↑ | PSNR ↑   | Training Time |
-| --------- | ------------- | -------- | ------------- |
-| RoDynRF   | 31.2          | 23.5     | Slow          |
-| Baseline  | 35.4          | 24.1     | Medium        |
-| **DAS3R** | **39.7**      | **26.8** | **Fast**      |
+| Method   | DAVIS    | Sintel   |
+| -------- | -------- | -------- |
+| MonST3R  | 32.5     | 37.1     |
+| **Ours** | **39.7** | **59.3** |
 
-#### Sintel Dataset
+### Camera Pose Estimation
 
-| Method         | Dynamic IoU ↑ | Quality       | Robustness |
-| -------------- | ------------- | ------------- | ---------- |
-| Traditional    | 42.1          | Poor          | Low        |
-| Learning-based | 51.6          | Good          | Medium     |
-| **DAS3R**      | **59.3**      | **Excellent** | **High**   |
+원논문 Table 2. MonST3R\*의 TUM-dynamics 결과는 저자들이 재현한 값이다.
 
-### Performance Advantages
+| Method     | Sintel ATE ↓ | Sintel RPE trans ↓ | Sintel RPE rot ↓ | TUM ATE ↓ | TUM RPE trans ↓ | TUM RPE rot ↓ |
+| ---------- | ------------ | ------------------ | ---------------- | --------- | --------------- | ------------- |
+| Robust-CVD | 0.360        | 0.154              | 3.443            | 0.153     | 0.026           | 3.528         |
+| CasualSAM  | 0.141        | 0.035              | **0.615**        | **0.071** | **0.010**       | 1.712         |
+| MonST3R\*  | 0.108        | 0.042              | 0.732            | 0.104     | 0.022           | 1.042         |
+| **Ours**   | **0.107**    | **0.041**          | 0.669            | 0.072     | 0.019           | **0.948**     |
 
-- **2+ dB PSNR improvement** over recent methods
-- **7.5× faster training** than standard approaches
-- **Handles 40%+ dynamic content** in scenes
-- **No pose requirements** unlike competitors
+### Novel View Synthesis on DAVIS (PSNR ↑)
+
+원논문 Table 3. PSNR은 동적 영역을 마스킹한 정적 영역에서만 계산한다.
+
+| Method                 | blackswan | camel     | car-shadow | dog       | horsejump-high | motocross-jump | parkour   | soapbox   | Average   |
+| ---------------------- | --------- | --------- | ---------- | --------- | -------------- | -------------- | --------- | --------- | --------- |
+| WildGaussians          | 18.95     | 19.19     | 21.45      | 19.74     | 18.79          | 7.91           | 18.89     | 20.55     | 18.18     |
+| Robust3DGS             | 19.58     | 21.31     | 29.31      | 22.48     | 20.87          | 13.83          | 21.29     | 22.55     | 21.40     |
+| SLS-mlp                | 21.14     | 25.62     | 22.77      | 23.82     | 18.78          | 17.82          | 23.15     | 22.43     | 21.94     |
+| MonST3R + InstantSplat | 20.30     | 20.97     | 25.55      | 24.41     | 24.38          | **18.95**      | 25.26     | 25.35     | 23.14     |
+| DAS3R w/o static conf  | **24.12** | 27.06     | **31.04**  | 28.53     | 21.11          | 17.92          | 26.90     | 26.11     | 25.35     |
+| **DAS3R**              | 23.90     | **27.27** | 29.13      | **28.63** | **25.09**      | 17.09          | **28.09** | **26.41** | **25.70** |
+
+### Novel View Synthesis on Sintel (PSNR ↑)
+
+원논문 Table 4. 14개 시퀀스를 두 표로 나눴다 (전반부 / 후반부 + 평균).
+
+| Method                | alley-2   | ambush-4  | ambush-5  | ambush-6  | cave-2    | cave-4    | market-2  |
+| --------------------- | --------- | --------- | --------- | --------- | --------- | --------- | --------- |
+| WildGaussians         | 16.75     | 21.43     | 7.87      | 4.02      | 26.69     | 27.68     | 23.14     |
+| Robust3DGS            | 17.96     | 19.18     | 12.20     | 10.46     | 27.70     | 29.68     | 22.28     |
+| SLS-mlp               | 19.09     | 19.75     | 14.14     | 5.50      | 27.62     | 29.20     | 23.74     |
+| MonST3R+InstantSplat  | 27.70     | 22.51     | 18.04     | 14.75     | 27.40     | 31.94     | 27.12     |
+| DAS3R w/o static conf | **31.50** | **24.61** | 26.23     | 18.71     | **28.32** | **32.06** | 28.11     |
+| **DAS3R**             | 31.10     | 24.52     | **26.28** | **19.26** | **28.32** | 31.86     | **29.03** |
+
+| Method                | market-5  | market-6  | shaman-3  | sleeping-1 | sleeping-2 | temple-2  | temple-3  | Average   |
+| --------------------- | --------- | --------- | --------- | ---------- | ---------- | --------- | --------- | --------- |
+| WildGaussians         | 11.47     | 16.56     | 32.29     | 15.38      | 17.06      | 16.50     | 15.15     | 18.00     |
+| Robust3DGS            | 16.85     | 16.23     | 35.88     | 15.58      | 15.93      | 12.68     | 20.68     | 19.52     |
+| SLS-mlp               | 17.73     | 17.76     | 36.84     | 19.05      | 21.61      | 19.12     | 22.12     | 20.95     |
+| MonST3R+InstantSplat  | 23.57     | **26.86** | 43.89     | **31.20**  | **35.73**  | **28.84** | 21.00     | 27.18     |
+| DAS3R w/o static conf | 26.41     | 20.05     | 44.45     | 14.98      | 14.70      | 21.44     | 23.78     | 25.38     |
+| **DAS3R**             | **26.49** | 23.58     | **45.60** | 26.30      | 25.67      | 27.18     | **23.90** | **27.79** |
+
+### Training Cost
+
+원논문 Table 5. RTX 4090, 480p 50프레임 영상 기준.
+
+| Method        | Iterations | Time        |
+| ------------- | ---------- | ----------- |
+| **DAS3R**     | **4000**   | **~2 mins** |
+| WildGaussians | 70000      | ~40 mins    |
+| Robust3DGS    | 30000      | ~10 mins    |
+| SLS-mlp       | 30000      | ~10 mins    |
 
 ## 💡 Insights & Impact
 
@@ -171,7 +212,7 @@ global_masks = align_masks_globally(local_masks)
 DAS3R demonstrates that:
 
 1. **Dynamic filtering is learnable**: Neural networks can separate static/dynamic
-2. **Efficiency matters**: 7.5× faster enables practical use
+2. **Poses/SLAM 불필요**: 카메라 포즈나 SLAM 전처리 없이 동작한다
 3. **Quality improves**: 2+ dB gain is significant
 4. **Simplicity wins**: No poses/SLAM needed
 

@@ -89,39 +89,39 @@ Output: Points + trajectories
 
 ## 📊 Results
 
-### 4D Motion from Stereo Videos
+### Synthetic vs. Real Training Data
 
-| Method         | Flow Error ↓ | 3D Error ↓ | Temporal ↑ |
-| -------------- | ------------ | ---------- | ---------- |
-| RAFT-3D        | 2.34         | 0.412      | 0.756      |
-| Dynamic-Stereo | 1.98         | 0.367      | 0.812      |
-| **Stereo4D**   | **1.52**     | **0.298**  | **0.887**  |
+원논문 Table 1. 같은 DynaDUSt3R 아키텍처를 합성 데이터(PointOdyssey)와
+Stereo4D로 각각 학습해 비교한다. EPE3D는 낮을수록, δ3D는 높을수록 좋다.
 
-### Motion Segmentation
+| Training Data             | Stereo4D EPE3D ↓ | Stereo4D δ3D⁰·⁰⁵ ↑ | Stereo4D δ3D⁰·¹⁰ ↑ | ADT EPE3D ↓ | ADT δ3D⁰·⁰⁵ ↑ | ADT δ3D⁰·¹⁰ ↑ |
+| ------------------------- | ---------------- | ------------------ | ------------------ | ----------- | ------------- | ------------- |
+| DynaDUSt3R (PointOdyssey) | 0.6191           | 11.61              | 20.25              | 0.3126      | 8.56          | 18.03         |
+| **DynaDUSt3R (Stereo4D)** | **0.1110**       | **65.07**          | **75.18**          | **0.1231**  | **51.98**     | **65.20**     |
 
-| Category | Precision ↑ | Recall ↑ | F1 ↑  |
-| -------- | ----------- | -------- | ----- |
-| Static   | 94.2%       | 92.8%    | 93.5% |
-| Dynamic  | 87.3%       | 89.1%    | 88.2% |
-| Overall  | 90.8%       | 91.0%    | 90.9% |
+실제 데이터로 학습하면 held-out Stereo4D에서 EPE3D가 5.6배 낮아지고,
+학습에 쓰이지 않은 ADT로의 일반화도 크게 개선된다.
+
+### Ablation: Separate Motion Head
+
+원논문 보충자료 8절. 별도 motion head 대신 point head 하나로 변형 포인트를 직접
+회귀하면 Stereo4D 테스트셋에서 모든 지표가 떨어진다 (디코더 용량 감소가 원인으로 추정).
+
+| Design                             | EPE3D ↓    | δ3D⁰·⁰⁵ ↑ | δ3D⁰·¹⁰ ↑ |
+| ---------------------------------- | ---------- | --------- | --------- |
+| Single point head (w/ time embed.) | 0.1401     | 59.19     | 69.73     |
+| **Separate motion head (ours)**    | **0.1110** | **65.07** | **75.18** |
 
 ### Dataset Statistics
 
-| Metric         | Value          |
-| -------------- | -------------- |
-| Total Clips    | 110,000        |
-| Source Videos  | 6,493          |
-| Average Length | 4.5 seconds    |
-| Total Size     | 4.3 TB         |
-| Scene Types    | 50+ categories |
+원논문 보충자료 7절.
 
-### Performance Comparison
-
-| Training Data       | EPE ↓   | <5cm ↑  | <10cm ↑ |
-| ------------------- | ------- | ------- | ------- |
-| Synthetic Only      | 12.3    | 42%     | 68%     |
-| Stereo4D (1%)       | 8.7     | 58%     | 79%     |
-| **Stereo4D (Full)** | **6.2** | **71%** | **86%** |
+| Metric        | Value                                        |
+| ------------- | -------------------------------------------- |
+| Total Clips   | ~110,000                                     |
+| Source Videos | 6,493 Internet VR180 videos                  |
+| Source        | YouTube, tag "VR180", Standard License       |
+| Release       | 파생 geometry·motion 데이터 + 영상 링크 (CC) |
 
 ### Advantages Over Synthetic
 

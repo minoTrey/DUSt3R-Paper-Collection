@@ -69,17 +69,19 @@ _Figure 3: CroCo architecture_
 
 #### Monocular Depth Estimation (NYUv2)
 
-| Method    | Pretrain Data | δ₁ ↑      | δ₂ ↑      | δ₃ ↑      | REL ↓     | RMS ↓     | log₁₀ ↓   |
-| --------- | ------------- | --------- | --------- | --------- | --------- | --------- | --------- |
-| DINO      | IN1K          | 0.668     | -         | -         | -         | -         | -         |
-| MAE       | IN1K          | 0.796     | 0.954     | 0.989     | 0.129     | 0.497     | 0.055     |
-| MultiMAE  | IN1K          | 0.830     | 0.964     | 0.991     | 0.116     | 0.455     | 0.050     |
-| MAE       | Habitat       | 0.790     | -         | -         | -         | -         | -         |
-| **CroCo** | **Habitat**   | **0.856** | **0.972** | **0.994** | **0.106** | **0.424** | **0.046** |
+원논문 Table 3. 논문은 NYUv2에서 Acc@1.25(δ₁) 하나만 보고한다.
 
-_Note: δᵢ represents accuracy at threshold 1.25ⁱ_
+| Method    | Pretrain Data | NYUv2 depth Acc@1.25 ↑ |
+| --------- | ------------- | ---------------------- |
+| DINO      | IN1K          | 66.8                   |
+| MAE       | IN1K          | 79.6                   |
+| MultiMAE  | IN1K          | 83.0                   |
+| MAE       | Habitat       | 79.0                   |
+| **CroCo** | **Habitat**   | **85.6**               |
 
 #### Other Monocular Tasks
+
+원논문 Table 3.
 
 | Task           | Dataset   | Metric     | CroCo     | MAE (Habitat) | MAE (IN1K) |
 | -------------- | --------- | ---------- | --------- | ------------- | ---------- |
@@ -90,12 +92,16 @@ _Note: δᵢ represents accuracy at threshold 1.25ⁱ_
 
 #### Binocular Tasks
 
+원논문 Table 4 (MPI-Sintel AEPE).
+
 | Task         | Dataset    | Split | CroCo    | MAE (Habitat) | Random Init |
 | ------------ | ---------- | ----- | -------- | ------------- | ----------- |
 | Optical Flow | MPI-Sintel | Clean | **3.00** | 4.63          | 18.81       |
 | Optical Flow | MPI-Sintel | Final | **3.60** | 5.24          | 18.97       |
 
 #### Relative Pose Estimation (7-Scenes)
+
+원논문 Table 5 (median translation/rotation error).
 
 | Method        | Chess            | Fire             | Heads            | Office           | Pumpkin          | Kitchen          | Stairs            | Average          |
 | ------------- | ---------------- | ---------------- | ---------------- | ---------------- | ---------------- | ---------------- | ----------------- | ---------------- |

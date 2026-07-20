@@ -199,8 +199,8 @@ _MASt3R-SLAM_ denotes uncalibrated setting
    - Key innovation for handling arbitrary cameras
 
 3. **Efficient Matching** (Table 4):
-   - 4000× faster than standard MASt3R (0.5ms vs 2000ms)
-   - 80× faster than k-d tree (0.5ms vs 40ms)
+   - 4000× faster than standard MASt3R (0.5ms vs 2000ms) — 원논문 Table 4
+   - 80× faster than k-d tree (0.5ms vs 40ms) — 원논문 Table 4
    - Maintains 15 FPS despite dense processing
 
 4. **Loop Closure Impact** (Table 7):

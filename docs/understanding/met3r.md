@@ -55,29 +55,42 @@ MEt3R: DUSt3R warping + DINO features → View-invariant consistency
 
 ### Quantitative Performance
 
+원논문 Table 1(b). MEt3R는 **낮을수록** 3D 일관성이 좋다 (↑ 아님).
+
 #### Multi-View Generation Methods
 
-| Method   | MEt3R Score ↑ | Consistency | Runtime |
-| -------- | ------------- | ----------- | ------- |
-| GenWarp  | 0.72          | High        | Fast    |
-| PhotoNVS | 0.68          | Medium      | Fast    |
-| MV-LDM   | 0.65          | Medium      | Slow    |
-| DFM      | 0.61          | Low         | Medium  |
+| Method           | MEt3R ↓   | TSED ↑    | SED ↓     | FVD ↓     | FID ↓     | KID ↓      |
+| ---------------- | --------- | --------- | --------- | --------- | --------- | ---------- |
+| GenWarp          | 0.120     | 0.674     | 1.398     | 1312.7    | **29.80** | **0.0033** |
+| PhotoNVS         | 0.069     | 0.996     | 0.479     | 1498.7    | 43.67     | 0.0081     |
+| MV-LDM (paper's) | 0.036     | **0.998** | 0.405     | **945.8** | 37.29     | 0.0064     |
+| DFM              | **0.026** | 0.990     | **0.346** | 1174.6    | 73.02     | 0.0324     |
 
 #### Video Generation Methods
 
-| Method       | MEt3R Score ↑ | Temporal  | Quality |
-| ------------ | ------------- | --------- | ------- |
-| SVD          | 0.74          | Excellent | High    |
-| Ruyi-Mini-7B | 0.69          | Good      | Medium  |
-| I2VGen-XL    | 0.63          | Fair      | Medium  |
+TSED/SED는 카메라 포즈를 요구해 비디오 생성에는 적용되지 않는다 (원논문 Table 1(b)).
+
+| Method       | MEt3R ↓   | FVD ↓     | FID ↓     | KID ↓      |
+| ------------ | --------- | --------- | --------- | ---------- |
+| I2VGen-XL    | 0.051     | 1722.6    | 66.88     | 0.0161     |
+| Ruyi-Mini-7B | 0.047     | 850.5     | **42.67** | **0.0071** |
+| SVD          | **0.033** | **674.6** | 48.33     | 0.0111     |
+
+#### Runtime
+
+원논문 Table 3. 80프레임 비디오 시퀀스 생성 시간, RTX 4090 24GB 기준.
+
+| Method      | GenWarp | PhotoNVS | DFM  | MV-LDM |
+| ----------- | ------- | -------- | ---- | ------ |
+| Runtime (s) | 70      | 7840     | 1020 | 100    |
 
 ### Key Findings
 
-- **Correlation with Quality**: MEt3R scores correlate with human perception
-- **View Robustness**: Consistent across different viewing angles
-- **Generalization**: Works on diverse content types
-- **Efficiency**: Real-time evaluation possible
+- **DFM은 일관성 1위, 화질 꼴찌**: MEt3R 0.026 / SED 0.346으로 최고지만 FID 73.02로
+  최악 — blur artifact에 민감한 FID/KID와의 trade-off를 드러낸다
+- **GenWarp은 정반대**: FID 29.80으로 화질 최고지만 MEt3R 0.120으로 일관성 최악
+- **FVD와의 상관은 비디오에서만 약하게 관찰**되고 multi-view 생성으로는 이어지지 않는다
+- **포즈 불필요**: TSED/SED와 달리 MEt3R은 카메라 포즈를 요구하지 않아 생성 비디오에도 적용된다
 
 ## 💡 Insights & Impact
 

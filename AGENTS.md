@@ -18,7 +18,13 @@ DUSt3R 계열 feed-forward 3D 재구성 논문 서베이. `docs/<category>/<slug
    `⚠️ unverified`를 단다. **그럴듯한 값을 채우는 것이 이 레포를 망가뜨린 원인이다.**
 2. **`TBD` 같은 플레이스홀더를 커밋하지 않는다.** 과거 `arxiv.org/abs/TBD`가
    실제로 배포된 적이 있다.
-3. **성능 수치를 원논문 확인 없이 옮기지 않는다.**
+3. **성능 수치를 원논문 확인 없이 옮기지 않는다.** 이 레포는 실제로 수치 4758개 중
+   637개가 원논문에 존재하지 않는 상태였다. `vggt.md`는 DTU 표 9개 값이 전부 틀렸고
+   열 이름을 `Overall ↓` 대신 `F-Score ↑`로 적어 **VGGT가 지는 표**가 돼 있었다.
+   `spann3r.md`의 확장성 표는 원논문에 아예 없었다.
+   → 표를 넣기 전에 `python3 tools/verify_benchmarks.py --only <slug>` 를 돌린다.
+   → 지표 이름과 화살표 방향을 원논문 그대로 옮긴다. 이름이 틀리면 의미가 뒤집힌다.
+   → 원문에서 못 찾은 수치는 **적지 않는다.** 채우지 말고 비워라.
 4. **표를 논문에서 그대로 붙여넣지 않는다.** 아래 표 규칙 참조.
 
 ## 논문 문서 형식
@@ -115,7 +121,18 @@ npx prettier --write "**/*.md"         # 표 정렬·공백
 python3 tools/extract_meta.py          # Overview 메타데이터 추출 (파일 전체를 읽지 않음)
 python3 tools/verify_metadata.py       # 외부 API 대조 검증
 python3 tools/update_stats.py          # README 카운트·히스토그램 재생성
+python3 tools/check_structure.py       # 7섹션·Overview 스키마 검사
+python3 tools/verify_benchmarks.py     # 표의 수치를 원논문 PDF와 대조
 ```
+
+`verify_benchmarks.py`는 `docs/papers/*.pdf`를 `pdftotext -layout`으로 읽어
+문서 표의 수치가 원문에 존재하는지 본다. **"틀렸다"고 단정하지 않고 "원문에서
+못 찾았다"고만 말한다** — 반올림·단위 차이·PDF 2단 레이아웃 때문에 정당한
+미검출이 있다. 커버리지 85% 미만이면 사람이 원문을 열어 확인한다.
+
+⚠️ **이 검사는 CI에서 돌지 않는다.** `docs/papers/*.pdf`가 gitignore돼 있어
+(용량·저작권) GitHub Actions에는 원문이 없다. **로컬에서 수동으로 돌려야 하는
+유일한 게이트**이므로, 표를 추가·수정했다면 커밋 전에 직접 실행할 것.
 
 ### 에이전트에게: 토큰 절약 규칙
 

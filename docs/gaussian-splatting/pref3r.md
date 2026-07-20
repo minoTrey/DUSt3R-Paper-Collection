@@ -74,46 +74,68 @@ PreF3R: Images → Memory Network → Direct Gaussians
 
 ## 📊 Results
 
-### Pose-Free Gaussian Splatting
+### Novel-View Synthesis on ScanNet++
 
-| Views | Processing Time | PSNR ↑ | Novel Views |
-| ----- | --------------- | ------ | ----------- |
-| 3-5   | 1.2s            | 26.4   | Good        |
-| 10-15 | 2.8s            | 28.7   | Better      |
-| 20-30 | 4.5s            | 29.8   | Best        |
+원논문 Table 1. 10개 검증 장면 평균, time은 초 단위. FF=Feed-Forward, PF=Pose-Free.
+2/10/50뷰 입력의 프레임 샘플링 간격은 각각 5/3/2다.
 
-### Variable-Length Sequence
+| FF  | PF  | Method       | 2v PSNR↑  | 2v SSIM↑  | 2v LPIPS↓ | 2v time   | 10v PSNR↑ | 10v SSIM↑ | 10v LPIPS↓ | 10v time  |
+| --- | --- | ------------ | --------- | --------- | --------- | --------- | --------- | --------- | ---------- | --------- |
+| ✓   |     | MVSplat      | **23.67** | **0.811** | 0.180     | **0.081** | 19.31     | 0.697     | 0.334      | 0.554     |
+|     | ✓   | InstantSplat | 20.91     | 0.766     | 0.362     | 49.75     | 17.32     | 0.623     | 0.389      | 92.49     |
+| ✓   | ✓   | Spann3R      | 22.36     | 0.788     | 0.128     | 0.119     | 21.86     | 0.779     | 0.134      | **0.451** |
+| ✓   | ✓   | Splatt3R     | 18.54     | 0.659     | 0.283     | 0.137     | -         | -         | -          | -         |
+| ✓   | ✓   | **PreF3R**   | 22.83     | 0.800     | **0.124** | 0.146     | **22.60** | **0.793** | **0.128**  | 0.472     |
 
-| Sequence Length | Quality | Speed  | Memory |
-| --------------- | ------- | ------ | ------ |
-| Short (3-10)    | Good    | Fast   | Low    |
-| Medium (10-30)  | Better  | Medium | Medium |
-| Long (30-100)   | Best    | Slow   | High   |
+50뷰 입력 (같은 Table 1). MVSplat과 Splatt3R은 이 설정을 처리하지 못한다
+(MVSplat은 H100에서 CUDA OOM, Splatt3R은 2뷰 전용).
 
-### Speed Comparison
+| Method       | PSNR↑     | SSIM↑     | LPIPS↓    | time      |
+| ------------ | --------- | --------- | --------- | --------- |
+| InstantSplat | 16.89     | 0.571     | 0.410     | 148.9     |
+| Spann3R      | 19.75     | 0.669     | 0.221     | **2.039** |
+| **PreF3R**   | **20.38** | **0.702** | **0.206** | 2.265     |
 
-| Method       | Reconstruction | Rendering   | Optimization |
-| ------------ | -------------- | ----------- | ------------ |
-| COLMAP+3DGS  | Hours          | 100+ FPS    | Required     |
-| InstantSplat | 40 sec         | 100+ FPS    | Required     |
-| **PreF3R**   | **0.05 sec**   | **200 FPS** | **None**     |
+### Novel-View Synthesis on ARKitScenes
 
-### Quality Metrics (Tanks & Temples)
+원논문 Table 2. 실험 설정은 Table 1과 동일하다.
 
-| Method     | PSNR ↑    | SSIM ↑    | LPIPS ↓   | Speed      |
-| ---------- | --------- | --------- | --------- | ---------- |
-| pixelSplat | 20.43     | 0.773     | 0.184     | 0.2 FPS    |
-| MVSplat    | 21.52     | 0.806     | 0.156     | 2 FPS      |
-| **PreF3R** | **22.17** | **0.824** | **0.138** | **20 FPS** |
+| FF  | PF  | Method       | 2v PSNR↑  | 2v SSIM↑  | 2v LPIPS↓ | 2v time   | 10v PSNR↑ | 10v SSIM↑ | 10v LPIPS↓ | 10v time  |
+| --- | --- | ------------ | --------- | --------- | --------- | --------- | --------- | --------- | ---------- | --------- |
+| ✓   |     | MVSplat      | **23.00** | **0.782** | 0.210     | **0.079** | 19.43     | **0.694** | 0.357      | 0.506     |
+|     | ✓   | InstantSplat | 19.79     | 0.656     | 0.213     | 48.99     | 18.55     | 0.586     | 0.314      | 97.56     |
+| ✓   | ✓   | Spann3R      | 19.50     | 0.648     | **0.172** | 0.115     | 19.96     | 0.631     | **0.218**  | **0.448** |
+| ✓   | ✓   | Splatt3R     | 17.46     | 0.517     | 0.349     | 0.122     | -         | -         | -          | -         |
+| ✓   | ✓   | **PreF3R**   | 20.96     | 0.712     | 0.187     | 0.152     | **21.91** | 0.693     | 0.210      | 0.490     |
 
-### Ablation Studies
+50뷰 입력 (같은 Table 2).
 
-| Component      | Impact on PSNR | Speed  |
-| -------------- | -------------- | ------ |
-| Full Model     | 22.17          | 20 FPS |
-| w/o Memory     | 18.42 (-16%)   | 25 FPS |
-| w/o Cross-Attn | 19.83 (-11%)   | 22 FPS |
-| Fixed Length   | 20.91 (-6%)    | 20 FPS |
+| Method       | PSNR↑     | SSIM↑ | LPIPS↓    | time      |
+| ------------ | --------- | ----- | --------- | --------- |
+| InstantSplat | 16.73     | 0.574 | 0.397     | 152.2     |
+| Spann3R      | 17.56     | 0.505 | 0.335     | **1.919** |
+| **PreF3R**   | **18.70** | 0.563 | **0.300** | 2.232     |
+
+ARKitScenes 50뷰에서는 SSIM만 Spann3R보다 높고 InstantSplat(0.574)에 뒤진다.
+
+### Ablation (ScanNet++ 10뷰)
+
+원논문 Table 3. loss mask 제거가 가장 치명적이다 (PSNR 22.60 → 19.70).
+
+| Method                | PSNR↑     | SSIM↑     | LPIPS↓    |
+| --------------------- | --------- | --------- | --------- |
+| w/o extra views       | 22.27     | 0.788     | 0.131     |
+| w/o Gaussian pruning  | 22.20     | 0.787     | **0.128** |
+| w/o finetune backbone | 22.56     | 0.790     | 0.129     |
+| w/o loss mask         | 19.70     | 0.619     | 0.288     |
+| **PreF3R (full)**     | **22.60** | **0.793** | **0.128** |
+
+### Speed
+
+원논문 초록·본문 서술: 단일 H100 GPU에서 온라인 재구성 20 FPS, 미분가능
+래스터라이제이션을 통한 novel-view rendering 200 FPS. Per-scene 최적화가 없다.
+표의 running time도 같은 H100 기준이다 — InstantSplat이 10뷰에 92.49초 걸리는 반면
+PreF3R은 0.472초다.
 
 ## 💡 Insights & Impact
 

@@ -67,40 +67,66 @@ Reloc3r: One model trained on massive diverse data → Universal localization
 
 ## 📊 Results
 
-### Benchmark Performance
+### Relative Camera Pose Estimation (원논문 Table 3)
 
-#### 7 Scenes Dataset
+원논문 Table 3. AUC는 높을수록 좋다. Non-PR은 매칭/최적화 기반, PR은 pose regression.
 
-| Method      | Med. Trans. (cm) ↓ | Med. Rot. (°) ↓ | Success Rate ↑ |
-| ----------- | ------------------ | --------------- | -------------- |
-| HLoc        | 2.0                | 0.8             | 95.2%          |
-| DUSt3R      | 4.7                | 1.9             | 82.1%          |
-| **Reloc3r** | **1.8**            | **0.7**         | **96.3%**      |
+| Method                | ScanNet1500 AUC@5 | AUC@10    | AUC@20    | RE10K AUC@20 | ACID AUC@20 | Inference time |
+| --------------------- | ----------------- | --------- | --------- | ------------ | ----------- | -------------- |
+| Efficient LoFTR       | 19.20             | 37.00     | 53.60     | -            | -           | 40 ms          |
+| ROMA                  | 28.90             | 50.40     | 68.30     | 79.70        | **68.90**   | 300 ms         |
+| DUSt3R                | 23.81             | 45.91     | 65.57     | 70.43        | 49.70       | 441 ms         |
+| MASt3R                | 28.01             | 50.24     | 68.83     | 84.50        | **73.61**   | 294 ms         |
+| NoPoSplat             | 31.80             | 53.80     | 71.70     | **87.70**    | 72.80       | >2000 ms       |
+| Map-free (Regress-SN) | 1.84              | 8.75      | 25.33     | 13.97        | 16.28       | **10 ms**      |
+| ExReNet (SN)          | 2.30              | 10.71     | 26.13     | 20.43        | 18.69       | 17 ms          |
+| **Reloc3r-224**       | 28.34             | 52.60     | 71.56     | 84.71        | 62.54       | **15 ms**      |
+| **Reloc3r-512**       | **34.79**         | **58.37** | **75.56** | 88.39        | 70.34       | 25 ms          |
 
-#### Cambridge Landmarks
+### Visual Localization — 7 Scenes (원논문 Table 4)
 
-| Method      | Avg. Med. Trans. ↓ | Avg. Med. Rot. ↓ |
-| ----------- | ------------------ | ---------------- |
-| ACE         | 11 cm              | 0.23°            |
-| DUSt3R      | 89 cm              | 1.42°            |
-| **Reloc3r** | **21 cm**          | **0.41°**        |
+원논문 Table 4. 값은 `median translation error (m) / median rotation error (°)`,
+둘 다 낮을수록 좋다. RPR (Unseen) 카테고리 발췌.
 
-### Speed Analysis
+| Method             | Chess        | Fire         | Heads        | Office       | Stairs       | Average         |
+| ------------------ | ------------ | ------------ | ------------ | ------------ | ------------ | --------------- |
+| Relative PN (U)    | 0.31 / 15.05 | 0.40 / 19.00 | 0.24 / 22.15 | 0.38 / 14.14 | 0.35 / 23.55 | 0.36 / 18.38    |
+| RelocNet (SN)      | 0.21 / 10.9  | 0.32 / 11.8  | 0.15 / 13.4  | 0.31 / 10.3  | 0.33 / 11.4  | 0.29 / 11.3     |
+| Map-free (Regress) | 0.09 / 2.66  | 0.13 / 4.54  | 0.11 / 4.81  | 0.11 / 2.77  | 0.18 / 4.70  | 0.13 / 3.72     |
+| ExReNet (SN)       | 0.06 / 2.15  | 0.09 / 3.20  | 0.04 / 3.30  | 0.07 / 2.17  | 0.33 / 7.34  | 0.11 / 3.34     |
+| ExReNet (SUNCG)    | 0.05 / 1.63  | 0.07 / 2.54  | 0.03 / 2.71  | 0.06 / 1.75  | 0.19 / 4.87  | 0.08 / 2.52     |
+| **Reloc3r-224**    | 0.03 / 0.99  | 0.04 / 1.13  | 0.02 / 1.23  | 0.05 / 0.88  | 0.12 / 2.25  | 0.05 / 1.26     |
+| **Reloc3r-512**    | 0.03 / 0.88  | 0.03 / 0.81  | 0.01 / 0.95  | 0.04 / 0.88  | 0.07 / 1.26  | **0.04 / 1.02** |
 
-```text
-Feature Matching (HLoc): ~100-200ms per pair
-DUSt3R + Optimization: ~500ms
-Reloc3r-512: 25ms (40 FPS)
-Speedup: 8-20× faster
-```
+참고로 장면별 학습이 필요한 APR 계열 중 최고인 DFNet+NeFeS는 평균
+`0.02 / 0.79`로, Reloc3r는 장면별 학습 없이 그에 근접한다 (원논문 Table 4).
 
-### Generalization Study
+### Visual Localization — Cambridge Landmarks (원논문 Table 5)
 
-| Training            | Test Scene Type | Performance   |
-| ------------------- | --------------- | ------------- |
-| Indoor only         | Indoor          | Good          |
-| Indoor only         | Outdoor         | Poor          |
-| **Mixed (Reloc3r)** | **Any**         | **Excellent** |
+원논문 Table 5. 값은 `median translation error (m) / median rotation error (°)`.
+RPR (Unseen) 카테고리 발췌.
+
+| Method             | GreatCourt   | KingsCollege | OldHospital | ShopFacade  | StMarysChurch | Average         |
+| ------------------ | ------------ | ------------ | ----------- | ----------- | ------------- | --------------- |
+| Map-free (Match)   | 9.09 / 5.33  | 2.51 / 3.11  | 3.89 / 6.44 | 1.04 / 3.61 | 3.00 / 6.14   | 3.90 / 4.93     |
+| Map-free (Regress) | 8.40 / 4.56  | 2.44 / 2.54  | 3.73 / 5.23 | 0.97 / 3.17 | 2.91 / 5.10   | 3.69 / 4.12     |
+| ExReNet (SN)       | 10.97 / 6.52 | 2.48 / 2.92  | 3.47 / 3.90 | 0.90 / 3.27 | 2.60 / 4.98   | 4.08 / 4.32     |
+| ExReNet (SUNCG)    | 9.79 / 4.46  | 2.33 / 2.48  | 3.54 / 3.49 | 0.72 / 2.41 | 2.30 / 3.72   | 3.74 / 3.31     |
+| **Reloc3r-224**    | 1.71 / 0.94  | 0.47 / 0.41  | 0.87 / 0.66 | 0.18 / 0.53 | 0.41 / 0.73   | 0.73 / 0.65     |
+| **Reloc3r-512**    | 1.22 / 0.73  | 0.42 / 0.36  | 0.62 / 0.55 | 0.13 / 0.58 | 0.34 / 0.58   | **0.55 / 0.56** |
+
+### Speed
+
+원논문 Table 3의 Inference time 열 기준.
+
+| Method          | Inference time |
+| --------------- | -------------- |
+| NoPoSplat       | >2000 ms       |
+| DUSt3R          | 441 ms         |
+| MASt3R          | 294 ms         |
+| ROMA            | 300 ms         |
+| **Reloc3r-512** | **25 ms**      |
+| **Reloc3r-224** | **15 ms**      |
 
 ## 💡 Insights & Impact
 

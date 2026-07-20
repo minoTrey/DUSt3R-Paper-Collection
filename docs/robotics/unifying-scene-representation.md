@@ -66,30 +66,36 @@ Output: Calibrated system + Scene representation
 
 ## 📊 Results
 
-### Calibration Accuracy
+> 아래 수치는 `docs/papers/unifying_scene_representation.pdf`(arXiv 2404.11683v1) 기준이다.
+> RA-L 게재본은 제목과 표 구성이 다를 수 있다.
 
-| Method         | Translation Error (mm) | Rotation Error (deg) | Success Rate |
-| -------------- | ---------------------- | -------------------- | ------------ |
-| Traditional    | 8.4 ± 3.2              | 2.1 ± 0.8            | 78%          |
-| Learning-based | 5.7 ± 2.1              | 1.4 ± 0.5            | 85%          |
-| **Unified**    | **3.2 ± 1.1**          | **0.8 ± 0.3**        | **94%**      |
+### Hand-Eye Calibration: JCR vs COLMAP + Calibration
 
-### Manipulation Performance
+원논문 Table I. δt / δR은 캘리브레이션 잔차(residual, 낮을수록 좋음).
+COLMAP은 이미지 수가 적으면 일부 포즈만 복원해 발산(NA)한다.
 
-| Task              | Traditional Pipeline | Unified Framework | Improvement |
-| ----------------- | -------------------- | ----------------- | ----------- |
-| Pick & Place      | 72%                  | **89%**           | +17%        |
-| Precise Insertion | 58%                  | **81%**           | +23%        |
-| Object Sorting    | 69%                  | **86%**           | +17%        |
-| Bin Picking       | 64%                  | **84%**           | +20%        |
+| Scene                | Images | Ours 수렴 | Ours δt | Ours δR | COLMAP 수렴 | COLMAP δt | COLMAP δR | COLMAP 복원 포즈 |
+| -------------------- | ------ | --------- | ------- | ------- | ----------- | --------- | --------- | ---------------- |
+| Light Tabletop (8개) | 10     | ✓         | 0.0420  | 0.0655  | ✗           | NA        | NA        | 2                |
+| Light Tabletop (8개) | 12     | ✓         | 0.0419  | 0.0657  | ✗           | NA        | NA        | 2                |
+| Light Tabletop (8개) | 15     | ✓         | 0.0396  | 0.0513  | ✗           | NA        | NA        | 2                |
+| Light Tabletop (7개) | 10     | ✓         | 0.0208  | 0.0519  | ✓           | 0.0412    | 1.27      | 5                |
+| Light Tabletop (7개) | 12     | ✓         | 0.0317  | 0.0623  | ✓           | 0.0412    | 1.27      | 5                |
+| Light Tabletop (7개) | 15     | ✓         | 0.0357  | 0.0701  | ✓           | 0.0469    | 0.0662    | 10               |
+| Dark Tabletop        | 10     | ✓         | 0.0310  | 0.0732  | ✗           | NA        | NA        | 4                |
+| Dark Tabletop        | 12     | ✓         | 0.0536  | 0.0742  | ✗           | NA        | NA        | 4                |
+| Dark Tabletop        | 15     | ✓         | 0.0414  | 0.0818  | ✓           | 0.0454    | 0.0503    | 10               |
 
-### Key Achievements
+### Scale Recovery: 물체 높이 오차
 
-- ✅ Superior calibration accuracy
-- ✅ Improved manipulation success rates
-- ✅ Reduced setup and calibration time
-- ✅ Robust to environmental changes
-- ✅ Practical deployment demonstrated
+원논문 Fig. 4(a). 복원된 물체 높이와 실측값의 백분율 오차 (낮을수록 좋음).
+
+| Images    | Tape | Box  | Mug  | Toolbox |
+| --------- | ---- | ---- | ---- | ------- |
+| 8 images  | 7.8% | 8.6% | 1.2% | 1.2%    |
+| 10 images | 2.5% | 2.9% | 3.1% | 0.7%    |
+
+10장을 쓰면 모든 물체의 높이 오차가 최대 3.1%로, 스케일이 정확히 복원됨을 보인다.
 
 ## 💡 Insights & Impact
 

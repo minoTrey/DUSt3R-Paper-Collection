@@ -72,34 +72,64 @@ confidence = confidence_head(features)
 
 ## 📊 Results
 
-### Quantitative Performance
+### Multi-Object Scene Completion (원논문 Table 1)
 
-#### Real-World Datasets
+원논문 Table 1. CD는 Chamfer Distance [mm], F1은 F1-Score@10mm.
+SceneComplete는 HOPE에서 VRAM 부족으로 N/A.
 
-| Method      | YCB-Video CD ↓ | HOPE CD ↓ | HomebrewedDB CD ↓ | Avg Std ↓ |
-| ----------- | -------------- | --------- | ----------------- | --------- |
-| Mesh R-CNN  | 18.9           | 21.3      | 19.7              | 3.21      |
-| Gen6D       | 15.2           | 17.8      | 16.4              | 2.87      |
-| AlignSDF    | 12.1           | 14.5      | 13.2              | 2.34      |
-| **RaySt3R** | **8.7**        | **10.2**  | **9.3**           | **1.74**  |
+| Method      | OctMAE CD ↓ | OctMAE F1 ↑ | YCB-V CD ↓ | YCB-V F1 ↑ | HB CD ↓  | HB F1 ↑   | HOPE CD ↓ | HOPE F1 ↑ |
+| ----------- | ----------- | ----------- | ---------- | ---------- | -------- | --------- | --------- | --------- |
+| VoxFormer   | 44.54       | 0.382       | 30.32      | 0.438      | 34.84    | 0.366     | 47.75     | 0.323     |
+| ShapeFormer | 39.50       | 0.401       | 38.21      | 0.385      | 40.93    | 0.328     | 39.54     | 0.306     |
+| MCC         | 43.37       | 0.459       | 35.85      | 0.289      | 19.59    | 0.371     | 17.53     | 0.357     |
+| ConvONet    | 23.68       | 0.541       | 32.87      | 0.458      | 26.71    | 0.504     | 20.95     | 0.581     |
+| POCO        | 21.11       | 0.634       | 15.45      | 0.587      | 13.17    | 0.624     | 13.20     | 0.602     |
+| Minkowski   | 11.47       | 0.746       | 8.04       | 0.761      | 8.81     | 0.728     | 8.56      | 0.734     |
+| OCNN        | 9.05        | 0.782       | 7.10       | 0.778      | 7.02     | 0.792     | 8.05      | 0.742     |
+| OctMAE      | 6.48        | 0.839       | 6.40       | 0.800      | 6.14     | 0.819     | 6.97      | 0.803     |
+| **RaySt3R** | **5.21**    | **0.893**   | **3.56**   | **0.930**  | **4.75** | **0.889** | **3.92**  | **0.926** |
 
-*CD = Chamfer Distance (mm)
+원논문 Table 1 (계속) — 단일 이미지 생성/재구성 계열 베이스라인.
+
+| Method             | OctMAE CD ↓ | OctMAE F1 ↑ | YCB-V CD ↓ | YCB-V F1 ↑ | HB CD ↓  | HB F1 ↑   | HOPE CD ↓ | HOPE F1 ↑ |
+| ------------------ | ----------- | ----------- | ---------- | ---------- | -------- | --------- | --------- | --------- |
+| LaRI               | 39.22       | 0.283       | 11.41      | 0.658      | 22.23    | 0.414     | 18.64     | 0.528     |
+| Unique3D           | 44.62       | 0.244       | 17.56      | 0.468      | 25.41    | 0.329     | 26.37     | 0.322     |
+| TRELLIS (w/ mask)  | 61.74       | 0.227       | 22.94      | 0.443      | 35.29    | 0.354     | 20.25     | 0.443     |
+| TRELLIS (w/o mask) | 65.74       | 0.225       | 31.74      | 0.338      | 30.71    | 0.348     | 22.05     | 0.416     |
+| SceneComplete      | 81.57       | 0.289       | 96.63      | 0.359      | 85.81    | 0.416     | N/A       | N/A       |
+| **RaySt3R**        | **5.21**    | **0.893**   | **3.56**   | **0.930**  | **4.75** | **0.889** | **3.92**  | **0.926** |
+
+### Training Ablation (원논문 Table 2)
+
+원논문 Table 2. YCB-Video 기준.
+
+| Method name              | CD ↓     | F1 ↑      |
+| ------------------------ | -------- | --------- |
+| **RaySt3R (proposed)**   | **3.56** | **0.930** |
+| ViT-S                    | 3.70     | 0.920     |
+| No data augmentation     | 3.89     | 0.916     |
+| Train on 100k scenes     | 4.30     | 0.894     |
+| w/o DINOv2               | 4.81     | 0.877     |
+| Train on 226k GSO scenes | 5.34     | 0.864     |
+
+### View Merging Ablation (원논문 Table 3)
+
+원논문 Table 3. OctMAE 테스트셋 기준.
+
+| Query Input | Occ. Mask | Pred. Mask | CD ↓     | F1 ↑      |
+| ----------- | --------- | ---------- | -------- | --------- |
+| ✓           | ✓         | ✓          | **5.21** | **0.893** |
+| ✗           | ✓         | ✓          | 7.55     | 0.836     |
+| ✓           | ✗         | ✓          | 7.69     | 0.855     |
+| ✓           | ✓         | ✗          | 10.12    | 0.825     |
+| ✗           | ✗         | ✗          | 73.17    | 0.641     |
 
 ### Key Advantages
 
-- **44% Improvement**: Over next best method
-- **Lowest Variance**: Most consistent across objects
+- **CD 20–44% 개선**: 원논문 본문 서술 기준, 기존 최고 방법 대비
 - **Real-Time**: Feed-forward inference
 - **No Optimization**: Direct prediction
-
-### Ablation Studies
-
-| Component      | Impact on CD |
-| -------------- | ------------ |
-| Full Model     | 8.7mm        |
-| w/o Confidence | 11.2mm       |
-| w/o Occlusion  | 10.5mm       |
-| Single View    | 13.8mm       |
 
 ## 💡 Insights & Impact
 
