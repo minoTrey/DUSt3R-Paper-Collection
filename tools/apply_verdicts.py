@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""검증 결과를 문서에 반영한다. AGENTS.md의 Venue 표기법을 강제한다.
+"""검증 결과를 문서에 반영한다. Venue 표기법을 강제한다.
 
 기본은 dry-run이다. --write 를 줘야 실제로 쓴다.
 CONFIRMED만 자동 반영하고, LIKELY 이하는 사람이 판단하도록 보고만 한다.
@@ -15,7 +15,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# 긴 이름 → AGENTS.md 규정 약칭
+# 긴 이름 → 정본 약칭
 ABBREV = {
     "computer vision and pattern recognition": "CVPR",
     "international conference on computer vision": "ICCV",
@@ -45,7 +45,7 @@ AWARDS = re.compile(
 
 
 def canon(venue: str) -> str:
-    """검증된 venue 문자열을 AGENTS.md 표기법으로 정규화."""
+    """검증된 venue 문자열을 정본 표기법(약칭 + 학회 연도)으로 정규화."""
     v = venue.strip()
     m = re.search(r"\b(19|20)\d{2}\b", v)
     year = m.group(0) if m else ""

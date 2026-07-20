@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""논문 문서가 AGENTS.md의 7섹션 구조를 지키는지 검사한다. CI용.
+"""논문 문서가 표준 7섹션 구조와 Overview 스키마를 지키는지 검사한다. CI용.
 
 이 검사가 없어서 섹션 이름과 순서가 4가지로 갈라져 있었다
 (45편 / 8편 / 1편 / 1편). 구조는 사람이 눈으로 지킬 수 없다.
@@ -13,7 +13,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# AGENTS.md 규정. 순서까지 포함해 정본이다.
+# 정본 구조. 순서까지 포함해 강제한다.
 STD = [
     "📋 Overview",
     "🎯 Key Contributions",
@@ -44,7 +44,7 @@ def main() -> int:
                 d = set(r["sections"]) ^ set(STD)
                 errs.append(f"섹션 불일치: {sorted(d)}")
             else:
-                errs.append("섹션 순서가 AGENTS.md와 다름")
+                errs.append(f"섹션 순서가 정본과 다름: {STD}")
         missing = [k for k in REQUIRED if k not in r["fields"]]
         if missing:
             errs.append(f"Overview 필수 키 누락: {missing}")
@@ -59,7 +59,7 @@ def main() -> int:
                 print(f"     {e}", file=sys.stderr)
 
     if bad:
-        print(f"\n{bad}/{len(recs)}편 위반. AGENTS.md 참조.", file=sys.stderr)
+        print(f"\n{bad}/{len(recs)}편 위반. docs/paper-template.md 참조.", file=sys.stderr)
         return 1
     print(f"✅ {len(recs)}편 전부 구조 정합")
     return 0
