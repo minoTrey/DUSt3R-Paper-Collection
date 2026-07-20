@@ -22,10 +22,10 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 
 **Critical Issues Found**:
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| Completely wrong authors (6/6) | ❌ Critical | ✅ Fixed |
-| Unverified institutions | ⚠️ Warning | ✅ Fixed |
+| Issue                              | Severity    | Status   |
+| ---------------------------------- | ----------- | -------- |
+| Completely wrong authors (6/6)     | ❌ Critical | ✅ Fixed |
+| Unverified institutions            | ⚠️ Warning  | ✅ Fixed |
 | All performance numbers unverified | ❌ Critical | ✅ Fixed |
 
 **Details**:
@@ -41,6 +41,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
   - All performance tables were fabricated or from different source
 
 **Fixes Applied**:
+
 ```diff
 - Authors: Albert Wilcox, Yifeng Zhu, Yuke Zhu, Austin Wang, Jonathan Tremblay, Stan Birchfield
 + Authors: Albert Wilcox, Mohamed Ghanem, Masoud Moghani, Pierre Barroso, Benjamin Joffe, Animesh Garg
@@ -63,21 +64,22 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 
 **Issues Found**:
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| Equal contribution markers unverified | ⚠️ Warning | ✅ Fixed |
-| Institutions unverified | ⚠️ Warning | ✅ Fixed |
+| Issue                                  | Severity   | Status   |
+| -------------------------------------- | ---------- | -------- |
+| Equal contribution markers unverified  | ⚠️ Warning | ✅ Fixed |
+| Institutions unverified                | ⚠️ Warning | ✅ Fixed |
 | CVPR 2025 Highlight status unconfirmed | ⚠️ Warning | ✅ Fixed |
-| All performance numbers unverified | ⚠️ Warning | ✅ Fixed |
+| All performance numbers unverified     | ⚠️ Warning | ✅ Fixed |
 
 **Details**:
 
 - **Equal Contribution**: Document shows "Jiahao Lu*, Tianyu Huang* (*Equal contribution)" but not confirmed in arXiv
 - **Venue Status**: Claimed "CVPR 2025 (Highlight Paper)" but paper is arXiv preprint from Dec 2024
-- **Institutions**: Listed 7 institutions (HKUST, CUHK, HKU, etc.) but not in abstract
+- **Institution**: Listed 7 institutions (HKUST, CUHK, HKU, etc.) but not in abstract
 - **Performance Numbers**: All benchmark results (Sintel, TUM RGB-D, KITTI) not in abstract
 
 **Fixes Applied**:
+
 ```diff
 - Authors: Jiahao Lu*, Tianyu Huang*, ... (*Equal contribution)
 + Authors: Jiahao Lu, Tianyu Huang, ... [equal contribution markers removed]
@@ -100,13 +102,13 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 
 **Issues Found**:
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| Title format discrepancy | ⚠️ Warning | ✅ Fixed |
-| Institutions unverified | ⚠️ Warning | ✅ Fixed |
-| CVPR 2025 Oral status unconfirmed | ⚠️ Warning | ✅ Fixed |
+| Issue                              | Severity   | Status   |
+| ---------------------------------- | ---------- | -------- |
+| Title format discrepancy           | ⚠️ Warning | ✅ Fixed |
+| Institutions unverified            | ⚠️ Warning | ✅ Fixed |
+| CVPR 2025 Oral status unconfirmed  | ⚠️ Warning | ✅ Fixed |
 | All performance numbers unverified | ⚠️ Warning | ✅ Fixed |
-| Model checkpoint names unverified | ℹ️ Info | ✅ Fixed |
+| Model checkpoint names unverified  | ℹ️ Info    | ✅ Fixed |
 
 **Details**:
 
@@ -116,6 +118,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 - **All Metrics**: Temporal consistency (0.923), memory (8.7 GB), FPS (6.98) unverified
 
 **Fixes Applied**:
+
 ```diff
 - Title: CUT3R: Continuous 3D Perception Model with Persistent State (CVPR 2025)
 + Title: Continuous 3D Perception Model with Persistent State (CUT3R)
@@ -138,6 +141,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 ## Common Patterns Identified
 
 ### 1. Conference Status Inflation
+
 **Pattern**: arXiv preprints labeled as accepted to top conferences (CVPR, ICCV) with award status (Oral, Highlight)
 
 **Problem**: Conference decisions take months; papers from Dec 2024/Jan 2025 unlikely to have CVPR 2025 status by Nov 2025
@@ -145,6 +149,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 **Fix Strategy**: Mark as "arXiv preprint" with submission date, add "[Conference status to be confirmed]"
 
 ### 2. Performance Number Hallucination
+
 **Pattern**: Detailed benchmark tables with specific numbers not found in paper abstracts
 
 **Problem**: Numbers may exist in full paper but unverified; some may be fabricated
@@ -152,6 +157,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 **Fix Strategy**: Replace with qualitative claims from abstract, add verification note for maintainers
 
 ### 3. Metadata Verification Gaps
+
 **Pattern**: Institutions, equal contribution markers, specific details not in abstract
 
 **Problem**: Full PDF required for complete verification
@@ -159,6 +165,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 **Fix Strategy**: Mark as "[To be verified from full paper]"
 
 ### 4. Model Implementation Details
+
 **Pattern**: Specific checkpoint names, technical parameters without source
 
 **Problem**: May be from GitHub repos or supplementary materials, not in paper
@@ -176,6 +183,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 ### Process Improvements
 
 1. **Verification Workflow**:
+
    ```bash
    /verify-paper-docs docs/[category]/*.md --thorough --report
    /fix-paper-docs docs/[category] --verify-first --backup
@@ -215,21 +223,24 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 ## Files Modified
 
 ### Backups Created
-```
+
+```text
 docs/dynamic/adapt3r.md.backup
 docs/dynamic/align3r.md.backup
 docs/dynamic/cut3r.md.backup
 ```
 
 ### Files Fixed
-```
+
+```text
 docs/dynamic/adapt3r.md     - Critical fixes applied
 docs/dynamic/align3r.md     - Warning fixes applied
 docs/dynamic/cut3r.md       - Warning fixes applied
 ```
 
 ### New Documentation
-```
+
+```text
 docs/dynamic/VERIFICATION_REPORT.md    - This report
 .claude/skills/verify-paper-docs.md    - Verification skill
 .claude/skills/fix-paper-docs.md       - Fix skill
@@ -268,6 +279,7 @@ docs/dynamic/VERIFICATION_REPORT.md    - This report
 The verification process revealed **serious quality issues** in the dynamic category documentation. The most concerning finding is completely fabricated author information in `adapt3r.md`, indicating possible confusion with a different paper or hallucination during documentation creation.
 
 **Key Learnings**:
+
 - ✅ Always verify from original source (arXiv API + full PDF)
 - ✅ Be conservative with conference acceptance claims
 - ✅ Mark unverified information explicitly

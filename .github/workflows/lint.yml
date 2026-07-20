@@ -1,0 +1,59 @@
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci || npm install
+
+      - name: 마크다운 구조 검사
+        run: npx markdownlint-cli2
+
+      - name: 서식 검사 (Prettier)
+        run: npx prettier --check "**/*.md"
+
+  consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 논문 문서 구조 (AGENTS.md 7섹션 + Overview 스키마)
+        run: python3 tools/check_structure.py
+
+      - name: README 카운트 정합성
+        run: python3 tools/update_stats.py --check
+
+      - name: 플레이스홀더 검출
+        # 과거 arxiv.org/abs/TBD 가 실제로 배포된 적이 있다.
+        run: |
+          if grep -rnE 'abs/TBD|\bTBD\b|<url>|FIXME|XXX' --include='*.md' \
+               --exclude-dir=node_modules --exclude=AGENTS.md . ; then
+            echo "::error::플레이스홀더가 남아 있다. AGENTS.md 규칙 위반."
+            exit 1
+          fi
+
+      - name: 내부 링크 검사
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            d=$(dirname "$f")
+            grep -oE '\]\([^)]+\.md[^)]*\)' "$f" | sed 's/](\(.*\))/\1/' | sed 's/#.*//' | \
+            while IFS= read -r l; do
+              case "$l" in http*|'') continue;; esac
+              [ -e "$d/$l" ] || { echo "::error file=$f::깨진 링크 → $l"; exit 1; }
+            done || fail=1
+          done < <(find . -name '*.md' -not -path './node_modules/*')
+          exit $fail
