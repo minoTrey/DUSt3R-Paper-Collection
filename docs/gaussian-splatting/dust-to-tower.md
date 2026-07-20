@@ -25,69 +25,115 @@ _Dust to Tower achieves photo-realistic scene reconstruction through a coarse-to
 
 ```text
 Traditional: Single-stage reconstruction → Limited quality/robustness
-Dust to Tower: Coarse → Medium → Fine → Photo-realistic results
+Dust to Tower: Coarse stage (k₁ steps) → Fine stage (K₂ steps) → Photo-realistic results
 ```
 
 ### Technical Approach
 
-#### 1. Multi-Stage Pipeline
+#### 1. Two-Stage Optimization
 
-- **Coarse Stage**: Initial geometry estimation
-- **Medium Stage**: Refinement with additional details
-- **Fine Stage**: Photo-realistic quality enhancement
-- **Progressive Optimization**: Each stage builds on previous
+- **Coarse Stage**: Train the coarse 3DGS model and DUSt3R-initialized poses using only the
+  training views for k₁ steps, with loss `Lc = Lrgb(I, Ĩ) + λd·Ldepth(D̃, Dm)`
+- **Fine Stage**: Use the updated input image poses to run WIGI, producing `Kp × (N − 1)`
+  images at novel viewpoints; refine the 3DGS for K₂ steps with
+  `Lf = Lc + λpseudo·Lrgb(Îp, Ĩp)`
 
 #### 2. Coarse-to-Fine Architecture
 
 ```text
 Input: Sparse uncalibrated images {I₁, I₂, ..., Iₙ}
-Stage 1: Coarse geometry + camera estimation
-Stage 2: Medium detail refinement
-Stage 3: Fine photo-realistic enhancement
+Coarse: CCM builds a coarse 3DGS + poses from DUSt3R
+Fine:   CADA-aligned depths → WIGI warping & inpainting → refined 3DGS
 Output: High-quality 3D scene representation
 ```
 
 #### 3. Key Components
 
-- **Geometry Estimator**: Initial 3D structure recovery
-- **Progressive Refiner**: Multi-stage quality enhancement
-- **Camera Calibrator**: Automatic camera parameter estimation
-- **Quality Controller**: Maintains consistency across stages
+- **CCM (Coarse Construction Module)**: Efficiently constructs the coarse 3DGS model
+- **CADA (Confidence Aware Depth Alignment)**: Aligns mono-depth predictions with coarse
+  depth estimates to improve warping accuracy
+- **WIGI (Warped Image-Guided Inpainting)**: Generates multi-view consistent images at
+  novel viewpoints via image warping and inpainting
+- **Joint Optimization**: Poses and 3DGS optimized together
 
-### Progressive Optimization
+### Optimization Details
 
-- **Stage-Wise Learning**: Specialized optimization for each level
-- **Feature Inheritance**: Knowledge transfer between stages
-- **Quality Metrics**: Stage-specific quality assessment
-- **Adaptive Refinement**: Scene-aware optimization strategy
+- **Depth Prior**: Mono-depths Dm used as a geometry prior via Pearson correlation on
+  inverse depth, a loose constraint that avoids scale discrepancies
+- **Pose Refinement**: ∆T updated by stochastic gradient descent alongside scene optimization
+- **Ablation Evidence**: Removing the coarse-to-fine strategy degrades RPEt from 0.8068 to
+  1.0384 (원논문 Table 5)
 
 ## 📊 Results
 
 ### Quantitative Performance
 
-| Dataset | Views | Method            | PSNR↑    | SSIM↑    | LPIPS↓   | Stages |
-| ------- | ----- | ----------------- | -------- | -------- | -------- | ------ |
-| DTU     | 3     | Single-stage      | 19.2     | 0.61     | 0.48     | 1      |
-| DTU     | 3     | Two-stage         | 22.4     | 0.71     | 0.38     | 2      |
-| DTU     | 3     | **Dust to Tower** | **25.7** | **0.81** | **0.29** | **3**  |
-| LLFF    | 4     | Single-stage      | 18.6     | 0.58     | 0.52     | 1      |
-| LLFF    | 4     | **Dust to Tower** | **24.3** | **0.77** | **0.32** | **3**  |
+논문은 Tanks and Temples, MipNeRF360, CO3D V2 세 데이터셋에서 3/6/12 views로 평가합니다. 아래는 각 데이터셋의 3 views 결과이며, 6/12 views 결과는 원논문 Table 1–3을 참고하십시오.
 
-### Stage-wise Improvement
+#### Tanks and Temples (3 views)
 
-| Stage    | PSNR     | SSIM     | Key Improvement   |
-| -------- | -------- | -------- | ----------------- |
-| Coarse   | 18.2     | 0.59     | Basic geometry    |
-| Medium   | 22.1     | 0.72     | Detail refinement |
-| **Fine** | **25.7** | **0.81** | **Photo-realism** |
+원논문 Table 1.
+
+| Category     | Method       | PSNR ↑    | SSIM ↑    | LPIPS ↓   | Time ↓  |
+| ------------ | ------------ | --------- | --------- | --------- | ------- |
+| Sparse       | FSGS         | 21.66     | 0.719     | 0.263     | 3m 47s  |
+| Sparse       | DNGaussian   | 17.31     | 0.534     | 0.400     | 1m 52s  |
+| Sparse       | 3DGS         | 16.17     | 0.558     | 0.366     | 4m 16s  |
+| Unpose       | CF-3DGS      | 14.23     | 0.402     | 0.454     | 1m 7s   |
+| Unpose       | Nope-NeRF    | 16.30     | 0.469     | 0.589     | 2h 22m  |
+| Unconstraint | InstantSplat | 21.90     | 0.749     | 0.218     | 23s     |
+| Unconstraint | COGS         | 18.56     | 0.569     | 0.299     | 50m 8s  |
+| Unconstraint | **Ours**     | **23.39** | **0.776** | **0.164** | **41s** |
+
+#### MipNeRF360 (3 views)
+
+원논문 Table 2.
+
+| Category     | Method       | PSNR ↑    | SSIM ↑    | LPIPS ↓   | Time ↓  |
+| ------------ | ------------ | --------- | --------- | --------- | ------- |
+| Sparse       | FSGS         | 12.33     | 0.261     | 0.637     | 3m 17s  |
+| Sparse       | DNGaussian   | 11.37     | 0.235     | 0.694     | 2m 45s  |
+| Sparse       | 3DGS         | 11.56     | 0.188     | 0.625     | 6m 41s  |
+| Unpose       | CF-3DGS      | 12.70     | 0.227     | 0.594     | 1m 10s  |
+| Unpose       | Nope-NeRF    | 14.43     | 0.304     | 0.702     | 2h 12m  |
+| Unconstraint | InstantSplat | 13.77     | 0.285     | 0.551     | 23s     |
+| Unconstraint | COGS         | 12.48     | 0.204     | 0.593     | 1h 7m   |
+| Unconstraint | **Ours**     | **14.99** | **0.331** | **0.524** | **45s** |
+
+#### CO3D V2 (3 views)
+
+원논문 Table 3.
+
+| Category     | Method       | PSNR ↑    | SSIM ↑    | LPIPS ↓   | Time ↓  |
+| ------------ | ------------ | --------- | --------- | --------- | ------- |
+| Sparse       | FSGS         | 17.99     | 0.731     | 0.438     | 4m 47s  |
+| Sparse       | DNGaussian   | 15.17     | 0.703     | 0.476     | 5m 3s   |
+| Sparse       | 3DGS         | 16.10     | 0.662     | 0.458     | 8m 29s  |
+| Unpose       | CF-3DGS      | 16.27     | 0.713     | 0.445     | 3m 30s  |
+| Unconstraint | InstantSplat | 18.15     | 0.741     | 0.362     | 30s     |
+| Unconstraint | COGS         | 16.10     | 0.669     | 0.455     | 14m 39s |
+| Unconstraint | **Ours**     | **19.79** | **0.771** | **0.345** | **59s** |
+
+### Ablation Study
+
+원논문 Table 5. Tanks and Temples 데이터셋, 3 training views 기준입니다.
+
+| Variant                         | PSNR ↑    | SSIM ↑     | RPEt ↓     | RPEr ↓     |
+| ------------------------------- | --------- | ---------- | ---------- | ---------- |
+| (a) w/o CADA                    | 22.89     | 0.7632     | 0.8253     | 0.4189     |
+| (b) w/o WIGI                    | 22.18     | 0.7511     | 0.8101     | 0.4175     |
+| (c) w/o Inpainting              | 22.29     | 0.7550     | 0.8223     | 0.4162     |
+| (d) w/o Mask Clean              | 22.90     | 0.7666     | 0.8122     | 0.4193     |
+| (e) w/o Joint Optimization      | 22.69     | 0.7547     | 1.4681     | 0.4526     |
+| (f) w/o Coarse-to-Fine Strategy | 22.85     | 0.7621     | 1.0384     | 0.4261     |
+| **Full**                        | **23.39** | **0.7762** | **0.8068** | **0.4159** |
 
 ### Key Achievements
 
-- ✅ Progressive quality improvement across stages
-- ✅ Superior final reconstruction quality
+- ✅ 세 데이터셋 모두에서 3 views 기준 최고 PSNR/SSIM/LPIPS
+- ✅ Nope-NeRF·COGS 대비 수 분~수 시간이 아닌 1분 내외의 최적화 시간
 - ✅ Robust to sparse uncalibrated input
-- ✅ Consistent improvement over single-stage methods
-- ✅ Handles diverse scene types effectively
+- ✅ 논문에 따르면 ATE에서 비교 방법 대비 order of magnitude 수준으로 정확 (Table 4)
 
 ## 💡 Insights & Impact
 
@@ -131,14 +177,16 @@ Output: High-quality 3D scene representation
 
 ## 🔗 Related Work
 
-### Comparison with Progressive Methods
+### Comparison with Sparse-View Methods
 
-| Method            | Stages   | Quality       | Robustness    | Complexity |
-| ----------------- | -------- | ------------- | ------------- | ---------- |
-| Single-stage      | 1        | Medium        | Poor          | Low        |
-| Two-stage         | 2        | Good          | Medium        | Medium     |
-| Multi-res NeRF    | Variable | Good          | Good          | High       |
-| **Dust to Tower** | **3**    | **Excellent** | **Excellent** | **Medium** |
+논문의 카테고리 구분(원논문 Table 1–3)에 따른 정성 비교입니다. 수치는 위 Results 섹션을 참조하십시오.
+
+| Category     | Representative Methods   | Requires Poses | Notes                                         |
+| ------------ | ------------------------ | -------------- | --------------------------------------------- |
+| Sparse       | FSGS, DNGaussian, 3DGS   | Yes            | Depth/geometry priors on given camera poses   |
+| Unpose       | CF-3DGS, Nope-NeRF       | No             | Rely on dense input; struggle in sparse views |
+| Unconstraint | InstantSplat, COGS       | No             | Sparse and uncalibrated input                 |
+| Unconstraint | **Dust to Tower (Ours)** | **No**         | **Coarse-to-fine with CADA + WIGI**           |
 
 ### Builds On
 

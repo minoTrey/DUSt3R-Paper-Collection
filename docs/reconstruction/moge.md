@@ -9,7 +9,7 @@ _MoGe enables accurate monocular geometry estimation on diverse open-domain imag
 - **Institution**: Microsoft Research
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2410.19115) | [Project Page](https://wangrc.site/MoGePage/) | [Code](https://github.com/microsoft/MoGe)
-- **TL;DR**: Foundation model for monocular geometry estimation using affine-invariant point maps, achieving SOTA performance across diverse domains with 30-40% error reduction.
+- **TL;DR**: Foundation model for monocular geometry estimation using affine-invariant point maps, achieving SOTA performance across diverse domains (원논문 초록 기준 point map 35% 이상, MDE 20~30%, camera FOV 20% 이상 오차 감소).
 
 ## 🎯 Key Contributions
 
@@ -159,30 +159,61 @@ Point Map    Camera FOV
 
 ## 📊 Results
 
-### Monocular Geometry Estimation
+### Point Map Estimation — 8개 데이터셋 평균
 
-| Method            | Point Map (Relp↓) | Depth (Reld↓) | FOV Error↓ | Type           |
-| ----------------- | ----------------- | ------------- | ---------- | -------------- |
-| DUSt3R            | 11.4              | -             | 4.06°      | Multi-view     |
-| UniDepth          | 9.43              | 5.47          | 10.1°      | Metric         |
-| Depth Anything v2 | 8.21              | 4.92          | -          | Relative       |
-| **MoGe**          | **6.07**          | **4.72**      | **2.91°**  | **Affine-inv** |
+원논문 Table 1의 Average 열. Relp, δ1p 모두 백분율. 정렬 방식(scale-invariant /
+affine-invariant / local)마다 비교 대상이 달라 원문의 블록 구분을 그대로 유지했다.
 
-### Zero-shot Performance on NYUv2
+| Method   | Alignment   | Relp ↓   | δ1p ↑    | Rank ↓   |
+| -------- | ----------- | -------- | -------- | -------- |
+| LeReS    | scale-inv.  | 24.6     | 55.6     | 3.94     |
+| DUSt3R   | scale-inv.  | 13.8     | 84.7     | 2.75     |
+| UniDepth | scale-inv.  | 12.3     | 87.7     | 2.09     |
+| **MoGe** | scale-inv.  | **7.91** | **93.3** | **1.22** |
+| LeReS    | affine-inv. | 18.1     | 73.3     | 3.94     |
+| DUSt3R   | affine-inv. | 11.4     | 86.0     | 2.94     |
+| UniDepth | affine-inv. | 9.43     | 90.5     | 1.81     |
+| **MoGe** | affine-inv. | **6.07** | **94.7** | **1.31** |
+| LeReS    | local       | 10.7     | 89.4     | 3.80     |
+| DUSt3R   | local       | 7.97     | 92.3     | 2.30     |
+| UniDepth | local       | 9.21     | 91.0     | 2.90     |
+| **MoGe** | local       | **5.50** | **95.6** | **1.00** |
 
-| Method            | δ₁ ↑      | δ₂ ↑      | δ₃ ↑      | Abs Rel ↓ |
-| ----------------- | --------- | --------- | --------- | --------- |
-| MiDaS             | 0.812     | 0.954     | 0.987     | 0.187     |
-| Marigold          | 0.863     | 0.968     | 0.991     | 0.152     |
-| Depth Anything v2 | 0.884     | 0.975     | 0.993     | 0.134     |
-| **MoGe**          | **0.901** | **0.982** | **0.995** | **0.118** |
+### Depth Map Estimation — 8개 데이터셋 평균
 
-### Surface Normal Prediction
+원논문 Table 2의 Average 열. 원문에서 회색으로 표시된(해당 벤치마크로 학습되어
+랭킹에서 제외된) 값도 그대로 옮겼다.
 
-| Dataset  | Mean ↓   | Median ↓ | 11.25° ↑ | 22.5° ↑  |
-| -------- | -------- | -------- | -------- | -------- |
-| iBims-1  | 14.2     | 8.7      | 62.3     | 84.1     |
-| **MoGe** | **11.8** | **6.9**  | **69.7** | **88.2** |
+| Method      | Representation        | Reld ↓   | δ1d ↑    | Rank ↓   |
+| ----------- | --------------------- | -------- | -------- | -------- |
+| LeReS       | scale-inv. depth      | 18.5     | 69.5     | 7.31     |
+| ZoeDepth    | scale-inv. depth      | 11.2     | 86.1     | 5.50     |
+| DUSt3R      | scale-inv. depth      | 10.6     | 87.2     | 5.00     |
+| Metric3D V2 | scale-inv. depth      | 6.33     | 94.3     | 2.07     |
+| UniDepth    | scale-inv. depth      | 8.43     | 91.6     | 3.00     |
+| DA V1       | scale-inv. depth      | 10.3     | 87.9     | 5.67     |
+| DA V2       | scale-inv. depth      | 9.09     | 89.6     | 4.06     |
+| **MoGe**    | scale-inv. depth      | **6.17** | **93.8** | **1.62** |
+| Marigold    | affine-inv. depth     | 8.41     | 91.8     | 2.25     |
+| GeoWizard   | affine-inv. depth     | 8.44     | 90.7     | 2.69     |
+| **MoGe**    | affine-inv. depth     | **4.72** | **95.8** | **1.00** |
+| MiDaS V3.1  | affine-inv. disparity | 8.13     | 92.2     | 3.69     |
+| DA V1       | affine-inv. disparity | 7.31     | 93.9     | 2.31     |
+| DA V2       | affine-inv. disparity | 7.37     | 93.3     | 2.56     |
+| **MoGe**    | affine-inv. disparity | **5.76** | **95.2** | **1.06** |
+
+### Camera FOV Estimation (degrees)
+
+원논문 Table 3. 수직 FOV ≥ 45°인 세 벤치마크에서 평가한다.
+
+| Method      | NYUv2 Mean ↓ | Med. ↓   | ETH3D Mean ↓ | Med. ↓   | iBims-1 Mean ↓ | Med. ↓   | Avg. Mean ↓ | Med. ↓   | Rank ↓   |
+| ----------- | ------------ | -------- | ------------ | -------- | -------------- | -------- | ----------- | -------- | -------- |
+| Perspective | 5.38         | 4.39     | 13.6         | 11.9     | 10.6           | 9.30     | 9.86        | 8.53     | 5.00     |
+| WildCam     | 3.82         | 3.20     | 7.70         | 5.81     | 9.48           | 9.08     | 7.00        | 6.03     | 3.00     |
+| LeReS       | 19.4         | 19.6     | 8.26         | 7.19     | 18.4           | 17.5     | 15.4        | 14.8     | 5.53     |
+| DUSt3R      | 2.57         | 1.86     | 5.77         | 3.60     | 3.83           | 2.53     | 4.06        | 2.66     | 1.67     |
+| UniDepth    | 7.56         | 4.31     | 10.7         | 9.96     | 11.9           | 5.96     | 10.1        | 6.74     | 4.50     |
+| **MoGe**    | **3.41**     | **3.21** | **2.50**     | **1.54** | **2.81**       | **1.89** | **2.91**    | **2.21** | **1.50** |
 
 ### Quantitative Performance
 
@@ -434,7 +465,7 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 
 MoGe's contributions and limitations:
 
-1. **Representation Innovation**: Affine-invariant design is key to 30-40% improvements
+1. **Representation Innovation**: Affine-invariant design is key to the reported gains (point map 35%+, MDE 20~30%, FOV 20%+ 오차 감소)
 2. **Training Strategy**: ROE alignment and multi-scale losses enable stable training
 3. **Practical Impact**: Best-in-class relative geometry, but not metric reconstruction
 4. **Fundamental Limits**: Single-image geometry remains inherently ambiguous

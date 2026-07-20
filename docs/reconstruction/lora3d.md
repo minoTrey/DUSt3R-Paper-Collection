@@ -6,7 +6,7 @@ _LoRA3D self-calibrates 3D foundation models through robust optimization and LoR
 ## 📋 Overview
 
 - **Authors**: Ziqi Lu¹², Heng Yang¹³, Danfei Xu¹⁴, Boyi Li¹⁵, Boris Ivanovic¹, Marco Pavone¹⁶, Yue Wang¹⁷
-- **Institution**: ETH Zürich, DisneyResearch|Studios
+- **Institution**: NVIDIA Research, Massachusetts Institute of Technology, Harvard University, Georgia Institute of Technology, University of California, Berkeley, Stanford University, University of Southern California
 - **Venue**: ICLR 2025
 - **Award**: Highlight Paper
 - **Links**: [Paper](https://arxiv.org/abs/2412.07746) | [Project Page](https://520xyxyzq.github.io/lora3d/)
@@ -80,23 +80,9 @@ min Σ ρ(||p_ij - π(T_j^(-1) * P_i)||) * c_ij
 
 ## 📊 Results
 
-### Self-Calibration Performance
-
-| Method     | Camera Error ↓ | Pose Error ↓ | 3D Error ↓ | Success Rate ↑ |
-| ---------- | -------------- | ------------ | ---------- | -------------- |
-| DUSt3R     | 12.3°          | 8.7°         | 0.423      | 82.1%          |
-| MASt3R     | 9.8°           | 6.2°         | 0.312      | 87.3%          |
-| **LoRA3D** | **1.5°**       | **2.1°**     | **0.087**  | **96.8%**      |
-
-### DTU Reconstruction with Self-Calibration
-
-| Method     | Accuracy ↓ | Completeness ↓ | Overall ↓ | Calibration |
-| ---------- | ---------- | -------------- | --------- | ----------- |
-| DUSt3R     | 2.677      | 0.805          | 1.741     | None        |
-| MASt3R     | 0.403      | 0.344          | 0.374     | None        |
-| **LoRA3D** | **0.298**  | **0.287**      | **0.293** | **Self**    |
-
 ### Replica Dataset - Point Prediction Errors (cm)
+
+원논문 Table 1.
 
 | Scene   | Pretrain | Self-Calib | GT Fine-Tuned |
 | ------- | -------- | ---------- | ------------- |
@@ -111,6 +97,8 @@ min Σ ρ(||p_ij - π(T_j^(-1) * P_i)||) * c_ij
 
 ### Replica Dataset - Reconstruction Metrics (cm)
 
+원논문 Table 2 (office0–office4) 및 부록 Table 9 (room0–room2).
+
 | Scene   | Pretrain (Acc/Comp) | Self-Calib (Acc/Comp) | GT Fine-Tuned (Acc/Comp) |
 | ------- | ------------------- | --------------------- | ------------------------ |
 | office0 | 5.22 / 6.78         | 4.43 / 6.08           | 3.51 / 5.29              |
@@ -118,9 +106,9 @@ min Σ ρ(||p_ij - π(T_j^(-1) * P_i)||) * c_ij
 | office2 | 6.57 / 8.35         | 4.75 / 6.89           | 3.93 / 6.72              |
 | office3 | 8.43 / 11.89        | 6.60 / 11.00          | 4.02 / 7.42              |
 | office4 | 12.97 / 15.89       | 7.81 / 12.22          | 5.53 / 11.25             |
-| room0   | 13.22 / 17.84       | 4.94 / 11.42          | 3.32 / 9.32              |
-| room1   | 13.00 / 18.73       | 8.17 / 13.31          | 7.59 / 12.76             |
-| room2   | 10.64 / 13.23       | 5.09 / 9.60           | 4.26 / 9.69              |
+| room0   | 6.97 / 9.97         | 6.83 / 9.86           | 4.59 / 8.15              |
+| room1   | 10.54 / 13.13       | 8.88 / 11.54          | 8.64 / 11.35             |
+| room2   | 7.79 / 10.92        | 5.80 / 9.10           | 3.35 / 7.34              |
 
 ### Waymo Dataset - Camera Parameter Estimation
 
@@ -151,6 +139,8 @@ _Total: 116 out of 150 test scenes improved_
 
 ### TUM RGBD Dataset
 
+원논문 Table 5.
+
 | Scene      | Method             | ATE (cm) ↓ | AFE (%) ↓ |
 | ---------- | ------------------ | ---------- | --------- |
 | fr1_desk   | DUSt3R-Pretrain    | 0.91       | 8.02      |
@@ -159,11 +149,11 @@ _Total: 116 out of 150 test scenes improved_
 |            | COLMAP             | 0.51       | 3.87      |
 | fr2_xyz    | DUSt3R-Pretrain    | 3.89       | 14.84     |
 |            | DUSt3R-Self-Calib  | 1.24       | 7.67      |
-|            | DUSt3R-Depth-Calib | 2.28       | 7.19      |
+|            | DUSt3R-Depth-Calib | 1.23       | 4.71      |
 |            | COLMAP             | 0.97       | 4.92      |
 | fr3_office | DUSt3R-Pretrain    | 3.28       | 1.95      |
 |            | DUSt3R-Self-Calib  | 3.10       | 1.81      |
-|            | DUSt3R-Depth-Calib | 3.01       | 1.01      |
+|            | DUSt3R-Depth-Calib | 4.12       | 1.78      |
 |            | COLMAP             | 1.98       | 4.71      |
 
 _ATE: Absolute Trajectory Error, AFE: Average Focal Length Error_

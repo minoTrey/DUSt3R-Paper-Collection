@@ -14,7 +14,7 @@ _Left: DAVIS dataset results showing dynamic object removal. Right: Sintel datas
 
 - **Authors**: Kai Xu, Tze Ho Elden Tse, Jizong Peng, Angela Yao
 - **Institution**: National University of Singapore, dConstruct Robotics
-- **Venue**: arXiv 2024
+- **Venue**: arXiv preprint (2024)
 - **Links**: [Paper](https://arxiv.org/abs/2412.19584) | [Code](https://github.com/kai422/das3r) | [Project Page](https://kai422.github.io/DAS3R/)
 - **TL;DR**: Reconstructs clean static scenes from videos with moving objects by predicting dynamic masks and incorporating staticness as a Gaussian attribute, achieving 2+ dB PSNR improvement.
 

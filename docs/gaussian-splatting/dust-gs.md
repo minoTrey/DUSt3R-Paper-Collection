@@ -6,7 +6,7 @@ _Dust-GS framework estimates camera poses and registers point clouds using DUSt3
 ## 📋 Overview
 
 - **Authors**: Shan Chen, Jiale Zhou, Lei Li
-- **Institution**: SenseTime Research, Chinese University of Hong Kong
+- **Institution**: East China University of Science and Technology, University of Washington, University of Copenhagen
 - **Venue**: ICASSP 2025
 - **Links**: [Paper](https://arxiv.org/abs/2409.08613) | Project Page (not available) | Code (not available)
 - **Verification**: CONFIRMED (2026-07-20)

@@ -6,7 +6,7 @@ _Light3R achieves 49× speedup in SfM through learnable global alignment, recons
 ## 📋 Overview
 
 - **Authors**: Sven Elflein, Qunjie Zhou, Sérgio Agostinho, Laura Leal-Taixé
-- **Institution**: Meta FAIR, University of Michigan
+- **Institution**: NVIDIA, Vector Institute, University of Toronto
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2501.14914) | [Project Page](https://selflein.github.io/Light3R/)
 - **TL;DR**: Feed-forward SfM system using learnable global alignment module in latent space, achieving 49× speedup over optimization-based methods.

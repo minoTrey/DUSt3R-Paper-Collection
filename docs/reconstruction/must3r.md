@@ -103,31 +103,50 @@ Memory features:
 
 ## 📊 Results
 
-### Scalability Comparison
+### Scalability
 
-| Method     | Max Views | Complexity | Memory/View | Processing Time |
-| ---------- | --------- | ---------- | ----------- | --------------- |
-| DUSt3R     | 20        | O(N²)      | O(N)        | Minutes         |
-| MASt3R     | 50        | O(N²)      | O(N)        | Minutes         |
-| **MUSt3R** | **1000+** | **O(N)**   | **O(1)**    | **Seconds**     |
+원논문이 명시한 내용만 옮겼다. 수치화된 "최대 뷰 수" 비교표는 원문에 없다.
 
-### Visual Odometry Performance (TUM RGB-D)
+- **Pairwise 접근의 한계**: 이미지 쌍의 수가 **quadratically** 증가한다 (원논문 초록).
+- **MUSt3R**: 수천 장 규모의 pointmap을 high frame-rate로 추론하되 추가 복잡도는 제한적이다 (원논문 초록).
+- **메모리**: 원논문 §3.4은 "the memory grows **linearly** with the number of images"라고 밝히며,
+  이를 완화하기 위해 memory token을 휴리스틱으로 선별한다. 상수 메모리가 아니다.
 
-| Sequence   | DUSt3R ATE ↓ | MASt3R ATE ↓ | MUSt3R ATE ↓ |
-| ---------- | ------------ | ------------ | ------------ |
-| fr1/desk   | 8.2 cm       | 6.4 cm       | **5.5 cm**   |
-| fr1/room   | 12.5 cm      | 9.8 cm       | **7.2 cm**   |
-| fr2/xyz    | 3.8 cm       | 2.9 cm       | **2.1 cm**   |
-| fr3/office | 15.3 cm      | 11.7 cm      | **8.9 cm**   |
+### Visual Odometry: ATE RMSE [cm] on TUM RGB
 
-### Memory Efficiency
+원논문 Table 1. S=sparse, D=dense, U=dense unconstrained. `X`는 실패(원문 표기 그대로).
+(\*) GlORIE-VO는 loop closure와 global bundle adjustment 없이 재실행한 결과다.
+DUSt3R·MASt3R는 원논문의 이 표에 baseline으로 포함되어 있지 않다.
 
-| Views | DUSt3R (GB) | MASt3R (GB) | MUSt3R (GB) | Reduction |
-| ----- | ----------- | ----------- | ----------- | --------- |
-| 100   | OOM         | OOM         | 8.5         | -         |
-| 500   | OOM         | OOM         | 12.3        | -         |
-| 1000  | OOM         | OOM         | 18.7        | -         |
-| 1500  | OOM         | OOM         | 24.2        | -         |
+| Class | Method      | fr1/360 | desk    | desk2   | plant   | room    | rpy     | teddy   | xyz     | fr2/xyz | fr3/desk | long    | Avg.    |
+| ----- | ----------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | -------- | ------- | ------- |
+| S     | ORB-SLAM3   | X       | 2.0     | X       | 11.8    | X       | 5.6     | X       | 1.0     | 0.5     | 1.3      | 1.7     | X       |
+| S     | DSO         | X       | 27.2    | 66.0    | 6.0     | 58.6    | X       | X       | 3.8     | 0.3     | 2.2      | 9.9     | X       |
+| D     | DPVO        | 13.1    | 9.4     | 6.5     | 3.0     | 39.8    | 3.5     | 6.2     | 1.3     | 0.5     | 3.5      | 5.5     | 8.4     |
+| D     | TANDEM      | X       | 4.3     | 33.7    | X       | X       | 4.9     | 43.1    | 2.4     | 0.3     | 2.0      | 8.3     | X       |
+| D     | MonoGS      | 14.2    | 6.3     | 74.0    | 9.3     | 64.9    | 3.4     | 35.6    | 1.6     | 4.5     | 133.1    | 3.3     | 31.8    |
+| D     | DeepFactors | 17.9    | 15.9    | 20.2    | 31.9    | 38.3    | 3.8     | 56.0    | 5.9     | 8.4     | 26.3     | 49.0    | 24.9    |
+| D     | DepthCov    | 12.8    | 5.6     | 4.8     | 26.1    | 25.7    | 5.2     | 47.5    | 5.6     | 1.2     | 15.9     | 68.8    | 19.9    |
+| D     | DROID-VO    | 15.7    | 5.2     | 11.1    | 6.0     | 33.4    | 3.2     | 19.1    | 5.6     | 10.7    | 7.9      | 7.3     | 11.4    |
+| D     | COMO-NC     | 16.1    | 4.2     | 10.9    | 19.3    | 28.6    | 5.2     | 68.7    | 4.1     | 0.7     | 8.8      | 46.8    | 19.4    |
+| D     | COMO        | 12.9    | 4.9     | 9.5     | 13.8    | 27.0    | 4.8     | 24.5    | 4.0     | 0.7     | 6.3      | 10.5    | 10.8    |
+| D     | GlORIE-VO\* | 13.1    | 4.0     | 8.6     | 4.1     | 32.7    | 2.9     | 14.5    | 1.2     | 0.2     | 16.1     | 4.8     | 9.3     |
+| U     | Spann3R     | 20.7    | 16.1    | 28.3    | 57.4    | 84.8    | 6.1     | 92.4    | 2.1     | 4.4     | 20.7     | 193.9   | 47.9    |
+| U     | MUSt3R-C    | 8.9     | 5.1     | 7.1     | 5.4     | 13.4    | 5.2     | 6.9     | 2.7     | 1.7     | 15.6     | 5.9     | 7.1     |
+| U     | **MUSt3R**  | **7.8** | **4.0** | **4.6** | **4.0** | **9.9** | **4.3** | **4.2** | **1.3** | **1.2** | **15.3** | **4.3** | **5.5** |
+
+### Speed and GPU Memory
+
+원논문 Table 6. FPS는 A100 GPU 기준이며 괄호 안 값은 Spann3R 논문에서 인용한 수치다.
+DUSt3R-224의 FPS·메모리는 complete graph 기준이다.
+
+| Method     | FPS           | Mem      |
+| ---------- | ------------- | -------- |
+| F-Recon    | (≤ 1)         | -        |
+| DUSt3R-224 | 0.74 (0.78)   | 38.1G    |
+| Spann3R    | 27.38 (65.49) | 5.0G     |
+| MUSt3R-224 | **40.41**     | **4.1G** |
+| MUSt3R-512 | 12.10         | 8.1G     |
 
 ### Quantitative Performance
 
@@ -341,9 +360,9 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 #### Strengths from Experimental Evidence
 
 1. **Scalability Breakthrough**
-   - Processes 1000+ images vs DUSt3R's 10-20 limit
-   - Linear complexity enables real-world applications
-   - 4× more memory efficient at scale
+   - 원논문 초록 기준 수천 장 규모의 pointmap을 high frame-rate로 추론
+   - Pairwise 방식은 이미지 쌍이 quadratically 증가하는 것이 근본 한계
+   - GPU 메모리: MUSt3R-224 4.1G vs DUSt3R-224 38.1G (원논문 Table 6)
 
 2. **Performance Improvements**
    - 88.5% better visual odometry than Spann3R (5.5 vs 47.9 cm)

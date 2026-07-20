@@ -8,9 +8,9 @@ _MV-DUSt3R+ achieves single-stage multi-view reconstruction in ~2 seconds using 
 ## 📋 Overview
 
 - **Authors**: Zhenggang Tang¹,², Yuchen Fan¹, Dilin Wang¹, Hongyu Xu¹, Rakesh Ranjan¹, Alexander Schwing², Zhicheng Yan¹
-- **Institution**: University of Toronto, Shanghai AI Laboratory
+- **Institution**: Meta Reality Labs, University of Illinois Urbana-Champaign
 - **Venue**: CVPR 2025
-- **Award**: Oral Presentation
+- **Award**: Oral
 - **Links**: [Paper](https://arxiv.org/abs/2412.06974) | [Code](https://github.com/facebookresearch/mvdust3r) | [Project Page](https://mv-dust3rp.github.io/)
 - **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Single-stage multi-view reconstruction that processes all views simultaneously, achieving full scene reconstruction in ~2 seconds from sparse views.
@@ -27,7 +27,7 @@ _MV-DUSt3R+ achieves single-stage multi-view reconstruction in ~2 seconds using 
 ### Architecture Components
 
 1. **Multi-View Decoder Blocks**: Cross-view attention with O(N) complexity where each view attends to a reference
-2. **Cross-Reference Fusion**: Aggregates multiple reference predictions via learned weights (10-30% quality improvement)
+2. **Cross-Reference Fusion**: Aggregates multiple reference predictions via learned weights (원논문 §4.4: 12뷰에서 ND 1.3×·DAc 1.2× 개선, 24뷰에서 ND 1.6×·DAc 1.8× 개선)
 3. **Unified Output**: Direct regression of pointmaps, camera poses, and optional Gaussian parameters
 
 ### Processing Pipeline
@@ -100,34 +100,19 @@ The cross-reference mechanism addresses the reference view selection problem by 
 
 ## 📊 Results
 
-### Single-Stage Multi-View Performance
-
-| Method         | Processing       | RRA@15° ↑ | RTA@15° ↑ | Speed  |
-| -------------- | ---------------- | --------- | --------- | ------ |
-| DUSt3R         | Pairwise+GA      | 96.2%     | 86.8%     | 10s    |
-| MASt3R         | Pairwise+GA      | 98.1%     | 91.2%     | 15s    |
-| **MV-DUSt3R+** | **Single-Stage** | **91.5%** | **84.3%** | **2s** |
-
-### Cross-Reference Fusion Results
-
-| Views | Without Fusion | With Fusion | Improvement |
-| ----- | -------------- | ----------- | ----------- |
-| 10    | 87.2%          | 91.5%       | +4.3%       |
-| 50    | 82.4%          | 89.7%       | +7.3%       |
-| 100   | 78.1%          | 88.2%       | +10.1%      |
-
 ### Quantitative Results
 
-#### Table 1: Speed Benchmarks
+#### Table 1: Reported Inference Times
 
-| Scene Type  | Views | Processing Time | FPS equivalent |
-| ----------- | ----- | --------------- | -------------- |
-| Single Room | 12    | 0.89s           | 13.5           |
-| Multi-Room  | 20    | 1.54s           | 13.0           |
-| Large Scene | 50    | 6.2s            | 8.1            |
-| Extended    | 100   | 19.1s           | 5.2            |
+원논문 Fig. 1 캡션 및 부록. 원문이 직접 밝힌 시간만 옮겼다.
 
-_Note: All timings measured on a single NVIDIA GPU_
+| Views | Reported inference time |
+| ----- | ----------------------- |
+| 12    | 0.89s                   |
+| 20    | 1.54s                   |
+| 100   | 19.1s                   |
+
+_Note: 100-view는 single-room 장면 기준이다._
 
 #### Table 2: Multi-View Stereo Reconstruction Results
 
@@ -274,12 +259,12 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 #### Limitations
 
 - **Performance Degradation**: Sharp drop beyond 20 views (29.5% decrease from 12→24 views)
-- **Dataset Sensitivity**: 26.9% performance gap between synthetic (HM3D) and real (ScanNet) data
+- **Dataset Sensitivity**: 24뷰 DAc 기준 HM3D 64.5 vs ScanNet 81.2 vs MP3D 26.7로 데이터셋 간 격차가 크다
 - **Gaussian Head Trade-off**: Slight accuracy decrease when adding rendering capabilities
 
 #### Key Experimental Findings
 
-1. **Oracle Gap**: 10-20% performance gap suggests room for better reference selection
+1. **Oracle Gap**: 24뷰 HM3D DAc 기준 MV-DUSt3R+ 64.5 vs oracle 77.9 — 레퍼런스 뷰 선택에 개선 여지가 남아 있다
 2. **Limited Baselines**: Missing comparisons with MASt3R, COLMAP
 3. **Scale Testing**: Only tested up to 24 views despite 100+ claims
 
@@ -327,7 +312,7 @@ MV-DUSt3R+           → Robustness: Cross-reference fusion mechanism
 #### Key Achievements
 
 1. **8~14× speedup** through O(N) architecture (원논문 §1)
-2. **3× quality improvement** with simultaneous speed gains
+2. **동시 품질 향상**: 24뷰에서 DAc 1.8×, ND 1.6× (원논문 §4.4)
 3. **Linear scaling** enables mobile to server deployment
 
 #### Impact

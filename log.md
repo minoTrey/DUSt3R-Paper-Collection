@@ -142,6 +142,75 @@ Table 4의 `τ↓`도 본문이 정의한 inlier ratio와 방향이 반대다.
 **조용히 고치지 않고 원문대로 옮긴 뒤 Insights에 문제를 기록했다** — 독자가
 잘못된 정보를 전파하지 않도록.
 
+## [2026-07-20] README 전면 재작성 + 검증 사각지대 4건 발견
+
+131편 규모와 현재 SOTA를 반영해 README를 다시 썼다. 그 과정에서 **검증 도구가
+통과시킨 것이 검증된 것이 아니었다**는 사실이 연달아 드러났다.
+
+**사각지대 1 — 색인 문서가 검증 범위 밖이었다**
+
+`verify_benchmarks.py`가 `docs/*/*.md`만 보고 README를 건너뛰었다. 개별 문서에서
+걷어낸 날조 수치가 README 대표 비교표에 그대로 살아 있었다
+(DUSt3R DTU 2.677/0.805, MASt3R 0.403/0.344, VGGT 1.338/1.896 — 열 이름도 `F-Score ↑`로
+지어냈고 그 결과 VGGT가 실제로는 이기는 비교에서 지는 것처럼 보였다).
+→ `tools/verify_index_numbers.py` 신설. README의 모든 수치가 논문 문서에 실재하는지
+검사하고 CI에 편입했다. 색인은 1차 출처가 아니다.
+
+**사각지대 2 — 커버리지 임계값이 표 단위 날조를 가렸다**
+
+85% 임계값은 총량 기준이라, 수치가 충분히 많은 논문은 표 하나가 통째로 날조여도
+통과했다. `pi3`(95.3%), `lora3d`(90.8%), `pow3r`(90.4%), `moge`, `dens3r`,
+`mv-dust3r-plus`, `must3r` 7편이 이렇게 빠져나갔다. 미검출을 줄 번호로 군집화해
+재검출한 뒤 전부 교정했다.
+`2.677/0.805/0.403/0.344` 조합이 pi3·lora3d·pow3r 3개 문서에 동일하게 나타났다 —
+출처는 Pow3R Table 4의 DUSt3R 행이고, 나머지 두 문서는 그 숫자를 빌려 표를 지어냈다.
+`must3r`는 O(1) 메모리라고 주장했으나 원논문 §3.4는 "grows **linearly**"라고 한다.
+
+**사각지대 3 — 정수 열은 아예 안 본다**
+
+수치 정규식이 소수만 잡아 `dens3r`의 `δ<22.5°`·`δ<30°` 두 열(약 50개 값)이
+날조인 채 통과했다. `×`가 섞인 행도 `SKIP_ROW`에 걸려 표 전체가 건너뛰어졌다.
+**여전히 남은 한계다.**
+
+**사각지대 4 — 소속(Institution)은 한 번도 검증된 적이 없다**
+
+어떤 API도 소속을 제공하지 않아 전부 손으로 채워진 필드였다. PDF 1페이지와
+대조하자 **15편 중 12편이 틀렸다**:
+
+| 논문             | 문서 주장                           | 실제                                      |
+| ---------------- | ----------------------------------- | ----------------------------------------- |
+| `slam3r`         | University of Freiburg, ETH Zürich  | Peking University, HKU, Aalto, VIVO       |
+| `light3r-sfm`    | Meta FAIR, University of Michigan   | NVIDIA, Vector Institute, Toronto         |
+| `lora3d`         | ETH Zürich, DisneyResearch\|Studios | NVIDIA, MIT, Harvard, Georgia Tech 등 7곳 |
+| `pow3r`          | MIT CSAIL, Google Research          | UCL, Naver Labs Europe                    |
+| `pi3`            | UC Berkeley, Google Research        | Shanghai AI Lab, ZJU, SII                 |
+| `mv-dust3r-plus` | Toronto, Shanghai AI Lab            | Meta Reality Labs, UIUC                   |
+
+잘못된 소속은 기여를 엉뚱한 기관에 귀속시킨다. **부분 일치하는 나머지 116편은
+여전히 미검증이다** — 이 검사는 토큰이 하나도 안 겹치는 경우만 잡는다.
+
+**README 재작성**
+
+- 리더보드를 **의도적으로 넣지 않았다.** 논문마다 평가 프로토콜이 달라
+  (GT 카메라 유무, aligned/metric scale, per-scene/평균) 표에서 떼어낸 숫자는
+  의미를 잃는다. 모델 간 비교는 `docs/surveys/`의 벤치마크 논문을 쓰라고 안내했다.
+- "Verification이 보장하지 않는 것"을 명시했다 — CI 미실행, 정수 미검증,
+  커버리지의 총량 성격, 산문의 낮은 검증 강도.
+- `docs/surveys/` 카테고리를 색인에 추가했다 (`update_stats.py`는 기존 항목의 수만
+  고치지 새 카테고리를 넣지 않는다).
+
+**`update_stats.py` 자체가 README를 망가뜨리고 있었다**
+
+일반 치환 규칙(`N papers` → 총계)이 연도 히스토그램 안까지 들어가 2024·2025를
+나란히 "131 papers"로 덮었다. 히스토그램 재생성 정규식은 줄 끝 주석 형식
+("1 paper (CroCo - NeurIPS)")을 못 맞춰 **한 번도 작동한 적이 없었다.**
+→ 생성 영역을 `<!-- GENERATED:histogram -->` 마커로 격리하고, 마커 안에서는
+치환하지 않도록 고쳤다. 일부러 값을 망가뜨려 자가 치유를 시험해 확인했다.
+
+**최종 상태**: 수치 25,143개 중 미검출 5개(0.02%) → 그 5개도 교정해 0건.
+`dust-to-tower`는 DTU/LLFF 표가 통째로 날조였고(원논문은 T&T/MipNeRF360/CO3D),
+`slam3r`은 TUM RGB-D 표와 ORB-SLAM3 비교가 둘 다 원문에 없었다.
+
 **미해결 backlog**
 
 - PDF는 `docs/papers/`에 있으나 문서 미작성: **MoGe-2, Mono3R, RIG3R**

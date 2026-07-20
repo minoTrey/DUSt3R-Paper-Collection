@@ -6,7 +6,7 @@ _ReconX leverages video diffusion models to reconstruct complete 3D scenes from 
 ## 📋 Overview
 
 - **Authors**: Fangfu Liu, Wenqiang Sun, Hanyang Wang, Yikai Wang, Haowen Sun, Junliang Ye, Jun Zhang, Yueqi Duan
-- **Institution**: Tsinghua University, Shanghai AI Laboratory
+- **Institution**: Tsinghua University, Hong Kong University of Science and Technology, Beijing Normal University
 - **Venue**: IEEE TIP 2026
 - **Links**: [Paper](https://arxiv.org/abs/2408.16767) | [Project Page](https://liuff19.github.io/ReconX/) | Code (coming soon)
 - **Verification**: CONFIRMED (2026-07-20)

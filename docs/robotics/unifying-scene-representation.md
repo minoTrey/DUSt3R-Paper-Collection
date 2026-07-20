@@ -6,7 +6,7 @@ _Unified framework for joint scene representation and hand-eye calibration using
 ## 📋 Overview
 
 - **Authors**: Weiming Zhi, Haozhan Tang, Tianyi Zhang, Matthew Johnson-Roberson
-- **Institution**: Carnegie Mellon University, University of Michigan
+- **Institution**: Robotics Institute, Carnegie Mellon University
 - **Venue**: RA-L 2024
 - **Note**: 게재본 제목은 "Unifying Representation and Calibration With 3D Foundation Models"로
   arXiv 프리프린트와 다르다. RA-L 9(10):8953-8960, DOI

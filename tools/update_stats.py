@@ -94,8 +94,8 @@ def apply(text: str, st: dict) -> tuple[str, list[str]]:
     changes: list[str] = []
     total = st["total"]
 
-    def sub(pattern: str, repl, label: str, s: str) -> str:
-        new, n = re.subn(pattern, repl, s)
+    def sub(pattern: str, repl, label: str, s: str, flags: int = 0) -> str:
+        new, n = re.subn(pattern, repl, s, flags=flags)
         if n and new != s:
             changes.append(f"{label} ({n}곳)")
         return new
@@ -105,12 +105,24 @@ def apply(text: str, st: dict) -> tuple[str, list[str]]:
         r"(badge/Papers-)\d+(-green)", rf"\g<1>{total}\g<2>", "Papers 배지", text
     )
     # 본문 "54 papers", "54+ research papers"
-    text = sub(
-        r"\b\d+(\+?) (research )?papers\b",
-        lambda m: f"{total}{m.group(1)} {m.group(2) or ''}papers",
-        "본문 논문 수",
+    # ⚠️ 생성 블록 안에서는 치환하지 않는다. 예전에 이 규칙이 연도 히스토그램
+    #    안까지 들어가 각 연도 수를 전부 총계로 덮어썼다 (2024·2025가 나란히
+    #    "131 papers"가 됐다). 마커 사이는 통째로 재생성하므로 건드리면 안 된다.
+    def outside_blocks(s: str, fn) -> str:
+        parts = re.split(r"(<!-- GENERATED:\w+ -->.*?<!-- /GENERATED -->)", s, flags=re.S)
+        return "".join(p if p.startswith("<!-- GENERATED:") else fn(p) for p in parts)
+
+    _before = text
+    text = outside_blocks(
         text,
+        lambda s: re.sub(
+            r"\b\d+(\+?) (research )?papers\b",
+            lambda m: f"{total}{m.group(1)} {m.group(2) or ''}papers",
+            s,
+        ),
     )
+    if text != _before:
+        changes.append("본문 논문 수")
     text = sub(
         r"\*\*\d+ papers\*\*", f"**{total} papers**", "강조된 논문 수", text
     )
@@ -122,14 +134,20 @@ def apply(text: str, st: dict) -> tuple[str, list[str]]:
             f"{cat} 카운트",
             text,
         )
-    # 연도 히스토그램 (```로 감싸인 블록)
+    # 연도 히스토그램 — 마커 사이를 통째로 재생성한다.
+    # 예전에는 히스토그램 줄 모양을 정규식으로 맞추려 했는데, 줄 끝에 주석이
+    # 붙은 형식("1 paper   (CroCo - NeurIPS)")을 못 맞춰 한 번도 작동하지 않았다.
+    # 마커는 모양에 의존하지 않는다.
     hist = histogram(st["years"])
     if hist:
         text = sub(
-            r"```\n(?:20\d{2} [█ ]*\d+ papers?\s*\n)+```",
-            f"```\n{hist}\n```",
+            r"<!-- GENERATED:histogram -->.*?<!-- /GENERATED -->",
+            "<!-- GENERATED:histogram -->\n\n```text\n"
+            + hist
+            + "\n```\n\n<!-- /GENERATED -->",
             "연도 히스토그램",
             text,
+            re.S,
         )
     return text, changes
 

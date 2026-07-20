@@ -6,7 +6,7 @@ _π³ achieves true permutation equivariance in visual geometry through symmetri
 ## 📋 Overview
 
 - **Authors**: Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chunhua Shen, Tong He
-- **Institution**: UC Berkeley, Google Research
+- **Institution**: Shanghai AI Lab, ZJU, SII
 - **Venue**: arXiv preprint (2025)
 - **Links**: [Paper](https://arxiv.org/abs/2507.13347) | [Project Page](https://yyfz.github.io/pi3/) | [Code](https://github.com/yyfz/Pi3) | [Demo](https://huggingface.co/spaces/yyfz233/Pi3)
 - **TL;DR**: First visual geometry model achieving true permutation equivariance by eliminating all order-dependent components, surpassing VGGT across all benchmarks.
@@ -81,26 +81,9 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 
 ## 📊 Results
 
-### Camera Pose Estimation (Sintel)
+### Video Depth Estimation (Abs Rel ↓, scale & shift alignment)
 
-| Method       | ATE ↓     | ARE ↓    | Order Variance | Speed (FPS) |
-| ------------ | --------- | -------- | -------------- | ----------- |
-| DUSt3R       | 0.342     | 8.21     | High           | 10.2        |
-| MASt3R       | 0.285     | 6.94     | High           | 7.3         |
-| MonST3R      | 0.402     | 9.15     | High           | 1.27        |
-| VGGT         | 0.167     | 4.32     | Partial        | 43.2        |
-| **π³ (Pi3)** | **0.074** | **2.18** | **Near-zero**  | **57.4**    |
-
-### DTU 3D Reconstruction
-
-| Method       | Accuracy ↓ | Completeness ↓ | F-Score ↑ |
-| ------------ | ---------- | -------------- | --------- |
-| DUSt3R       | 2.677      | 0.805          | 0.612     |
-| MASt3R       | 0.403      | 0.344          | 0.856     |
-| VGGT         | 1.338      | 1.896          | 0.721     |
-| **π³ (Pi3)** | **1.198**  | **1.849**      | **0.743** |
-
-### Video Depth Estimation (Scale-aligned)
+원논문 Table 5 (scale & shift 정렬 블록).
 
 | Dataset | MonST3R | CUT3R | VGGT  | π³ (Pi3)  |
 | ------- | ------- | ----- | ----- | --------- |
@@ -144,19 +127,37 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 
 ### Table 4: Point Map Estimation on 7-Scenes and NRGBD
 
-| Method | View   | 7-Scenes   |           |             |           |           |           | NRGBD      |           |             |           |           |           |
-| ------ | ------ | ---------- | --------- | ----------- | --------- | --------- | --------- | ---------- | --------- | ----------- | --------- | --------- | --------- |
-|        |        | Acc.↓ Mean | Med.      | Comp.↓ Mean | Med.      | NC.↑ Mean | Med.      | Acc.↓ Mean | Med.      | Comp.↓ Mean | Med.      | NC.↑ Mean | Med.      |
-| Fast3R | sparse | 0.096      | 0.065     | 0.145       | 0.093     | 0.672     | 0.760     | 0.135      | 0.091     | 0.163       | 0.104     | 0.759     | 0.877     |
-| CUT3R  |        | 0.094      | 0.051     | 0.101       | 0.050     | 0.703     | 0.804     | 0.104      | 0.041     | 0.079       | 0.031     | 0.822     | 0.968     |
-| FLARE  |        | 0.085      | 0.058     | 0.142       | 0.104     | 0.695     | 0.779     | 0.053      | 0.024     | 0.051       | 0.025     | 0.877     | 0.988     |
-| VGGT   |        | 0.046      | 0.026     | 0.057       | 0.034     | 0.728     | 0.842     | 0.051      | 0.029     | 0.066       | 0.038     | 0.890     | 0.981     |
-| **π³** |        | **0.048**  | **0.028** | **0.072**   | **0.047** | **0.742** | **0.842** | **0.026**  | **0.015** | **0.028**   | **0.014** | **0.916** | **0.992** |
-| Fast3R | dense  | 0.038      | 0.015     | 0.056       | 0.018     | 0.645     | 0.725     | 0.072      | 0.030     | 0.050       | 0.016     | 0.790     | 0.934     |
-| CUT3R  |        | 0.022      | 0.010     | 0.027       | 0.009     | 0.668     | 0.762     | 0.086      | 0.037     | 0.048       | 0.017     | 0.800     | 0.953     |
-| FLARE  |        | 0.018      | 0.007     | 0.027       | 0.014     | 0.681     | 0.781     | 0.023      | 0.011     | 0.018       | 0.008     | 0.882     | 0.986     |
-| VGGT   |        | 0.022      | 0.008     | 0.027       | 0.013     | 0.663     | 0.757     | 0.017      | 0.010     | 0.015       | 0.005     | 0.893     | 0.988     |
-| **π³** |        | **0.015**  | **0.007** | **0.022**   | **0.011** | **0.687** | **0.790** | **0.015**  | **0.008** | **0.013**   | **0.005** | **0.898** | **0.987** |
+원논문 Table 4. 열 폭 제한으로 7-Scenes와 NRGBD를 분리했다.
+
+**7-Scenes**
+
+| Method | View   | Acc. ↓ Mean | Med.      | Comp. ↓ Mean | Med.      | NC. ↑ Mean | Med.      |
+| ------ | ------ | ----------- | --------- | ------------ | --------- | ---------- | --------- |
+| Fast3R | sparse | 0.095       | 0.065     | 0.144        | 0.089     | 0.673      | 0.759     |
+| CUT3R  | sparse | 0.093       | 0.049     | 0.102        | 0.051     | 0.704      | 0.805     |
+| FLARE  | sparse | 0.085       | 0.057     | 0.145        | 0.107     | 0.696      | 0.780     |
+| VGGT   | sparse | 0.044       | 0.025     | 0.056        | 0.033     | 0.733      | 0.845     |
+| **π³** | sparse | **0.047**   | **0.029** | **0.075**    | **0.049** | **0.742**  | **0.841** |
+| Fast3R | dense  | 0.040       | 0.017     | 0.056        | 0.018     | 0.644      | 0.725     |
+| CUT3R  | dense  | 0.023       | 0.010     | 0.027        | 0.008     | 0.669      | 0.764     |
+| FLARE  | dense  | 0.019       | 0.007     | 0.026        | 0.013     | 0.684      | 0.785     |
+| VGGT   | dense  | 0.022       | 0.008     | 0.026        | 0.012     | 0.666      | 0.760     |
+| **π³** | dense  | **0.016**   | **0.007** | **0.022**    | **0.011** | **0.689**  | **0.792** |
+
+**NRGBD**
+
+| Method | View   | Acc. ↓ Mean | Med.      | Comp. ↓ Mean | Med.      | NC. ↑ Mean | Med.      |
+| ------ | ------ | ----------- | --------- | ------------ | --------- | ---------- | --------- |
+| Fast3R | sparse | 0.135       | 0.091     | 0.163        | 0.104     | 0.759      | 0.877     |
+| CUT3R  | sparse | 0.104       | 0.041     | 0.079        | 0.031     | 0.822      | 0.968     |
+| FLARE  | sparse | 0.053       | 0.024     | 0.051        | 0.025     | 0.877      | 0.988     |
+| VGGT   | sparse | 0.051       | 0.029     | 0.066        | 0.038     | 0.890      | 0.981     |
+| **π³** | sparse | **0.026**   | **0.015** | **0.028**    | **0.014** | **0.916**  | **0.992** |
+| Fast3R | dense  | 0.072       | 0.030     | 0.050        | 0.016     | 0.790      | 0.934     |
+| CUT3R  | dense  | 0.086       | 0.037     | 0.048        | 0.017     | 0.800      | 0.953     |
+| FLARE  | dense  | 0.023       | 0.011     | 0.018        | 0.008     | 0.882      | 0.986     |
+| VGGT   | dense  | 0.017       | 0.010     | 0.015        | 0.005     | 0.893      | 0.988     |
+| **π³** | dense  | **0.015**   | **0.008** | **0.013**    | **0.005** | **0.898**  | **0.987** |
 
 ### Table 5: Video Depth Estimation on Sintel, Bonn and KITTI
 

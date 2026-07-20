@@ -5,7 +5,7 @@
 - **Authors**: Leonid Antsfeld, Boris Chidlovskii, Yohann Cabon, Vincent Leroy, Jerome Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: arXiv preprint (2026-02)
-- **Note**: The venue could not be confirmed from any primary source (no arXiv comment, OpenReview record, CVF entry, or GitHub badge stating acceptance). It is recorded as a preprint and should be re-checked.
+- **Note**: 원논문 1페이지에 소속 표기가 없다. 소속은 NAVER LABS Europe 공식 출판 목록에서 확인했다 — <https://europe.naverlabs.com/research/publications/s-must3r-sliding-multi-view-3d-reconstruction/> / The venue could not be confirmed from any primary source (no arXiv comment, OpenReview record, CVF entry, or GitHub badge stating acceptance). It is recorded as a preprint and should be re-checked.
 - **Links**: [Paper](https://arxiv.org/abs/2602.04517) | [MUSt3R Code](https://github.com/naver/must3r)
 - **Verification**: UNKNOWN (2026-07-20)
 - **TL;DR**: A training-free sliding-window pipeline that cuts a long RGB stream into overlapping segments, runs stock MUSt3R on each, and stitches them with confidence/depth-weighted SIM(3) alignment plus a segment-level pose graph with lightweight loop closure — extending MUSt3R to sequences that exceed its memory limit while keeping metric-scale output.

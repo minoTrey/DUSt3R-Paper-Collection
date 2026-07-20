@@ -7,7 +7,7 @@ _Pow3R conditions on any combination of camera intrinsics, poses, and depth for 
 ## 📋 Overview
 
 - **Authors**: Wonbong Jang, Philippe Weinzaepfel, Vincent Leroy, Lourdes Agapito, Jerome Revaud
-- **Institution**: MIT CSAIL, Google Research
+- **Institution**: UCL, Naver Labs Europe
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2503.17316) | [Code](https://github.com/naver/pow3r) | [Project Page](https://europe.naverlabs.com/research/publications/pow3r-empowering-unconstrained-3d-reconstruction-with-camera-and-scene-priors/)
 - **TL;DR**: First 3D reconstruction model to flexibly leverage any combination of auxiliary inputs (camera intrinsics, poses, depth) while maintaining SOTA performance when no priors are available.
@@ -49,10 +49,9 @@ One model for all scenarios:
 
 ##### Base Model
 
-- Built on DUSt3R's transformer architecture
-- Encoder: ViT-Large (304M params)
-- Decoder: ViT-Base (85M params)
-- Total: 389M params (only 4.3% overhead vs DUSt3R)
+- Built on DUSt3R's transformer architecture (ViT-Large encoder / ViT-Base decoder)
+- 카메라 토큰 관련 모듈: **+0.1% 파라미터** (원논문 §4.1)
+- 보조 정보 주입 모듈: **+4% 파라미터** (기본 설정인 inject-1 변형 기준)
 
 ##### Conditioning Modules
 
@@ -131,32 +130,36 @@ Key innovation: Confidence-aware loss allows model to be uncertain in occluded/e
 
 ## 📊 Results
 
-### DTU 3D Reconstruction
+### DTU MVS Reconstruction (mm)
 
-| Method    | Setting     | Accuracy ↓ | Completeness ↓ | Overall ↓ |
-| --------- | ----------- | ---------- | -------------- | --------- |
-| DUSt3R    | No priors   | 2.677      | 0.805          | 1.741     |
-| MASt3R    | No priors   | 0.403      | 0.344          | 0.374     |
-| Pow3R     | No priors   | 2.116      | 1.370          | 1.743     |
-| **Pow3R** | **w/ K**    | **1.627**  | **0.903**      | **1.265** |
-| **Pow3R** | **w/ K+RT** | **1.384**  | **0.846**      | **1.115** |
+원논문 Table 4. `DUSt3R†`는 원 논문 게재값, `repr.`는 공개 코드/체크포인트 재현값.
 
-### Relative Pose Estimation (CO3D)
-
-| Method            | RRA@15° ↑ | RTA@15° ↑ | mAA@30° ↑ |
+| Method            | Acc. ↓    | Comp. ↓   | Overall ↓ |
 | ----------------- | --------- | --------- | --------- |
-| DUSt3R            | 96.2      | 86.8      | 76.7      |
-| MASt3R            | 98.1      | 91.2      | 82.4      |
-| **Pow3R**         | **98.5**  | **92.8**  | **84.1**  |
-| **Pow3R w/ K+RT** | **99.3**  | **95.2**  | **88.7**  |
+| DUSt3R†           | 2.677     | 0.805     | 1.741     |
+| DUSt3R (repr.)    | 2.191     | 1.598     | 1.894     |
+| Pow3R             | 2.116     | 1.370     | 1.743     |
+| Pow3R w/ K        | 1.722     | 1.119     | 1.420     |
+| Pow3R w/ Rt       | 2.205     | 1.429     | 1.817     |
+| **Pow3R w/ K+RT** | **1.384** | **0.846** | **1.115** |
 
-### Speed Performance
+### Multi-View Pose Estimation on CO3Dv2 and RealEstate10K
 
-| Method    | FPS     | Latency (ms) | Memory (GB) |
-| --------- | ------- | ------------ | ----------- |
-| DUSt3R    | 10.2    | 98           | 12.3        |
-| MASt3R    | 7.3     | 137          | 15.6        |
-| **Pow3R** | **3.7** | **270**      | **18.2**    |
+원논문 Table 5. `GT intrinsics`는 실제 내부 파라미터 사용 여부, `(Pro)`는 Procrustes 정렬.
+RealEstate10K는 학습셋에 포함되지 않는다. `-`는 원논문에 값이 없음을 뜻한다.
+
+| Method               | GT intrinsics | RRA@15 ↑ | RTA@15 ↑ | mAA(30) ↑ | RealEstate10K mAA(30) ↑ | Speed (fps) |
+| -------------------- | ------------- | -------- | -------- | --------- | ----------------------- | ----------- |
+| Colmap+SG            | ✓             | 36.1     | 27.3     | 25.3      | 45.2                    | -           |
+| PixSfM               | ✓             | 33.7     | 32.9     | 30.1      | 49.4                    | -           |
+| RelPose              | ×             | 57.1     | -        | -         | -                       | -           |
+| PoseDiff             | ×             | 80.5     | 79.8     | 66.5      | 48.0                    | -           |
+| RelPose++            | ×             | 85.5     | -        | -         | -                       | -           |
+| RayDiff              | ×             | 93.3     | -        | -         | -                       | -           |
+| DUSt3R (PnP)         | ×             | 94.3     | 88.4     | 77.2      | 61.7                    | 3.2         |
+| Pow3R (PnP)          | ×             | 94.8     | 89.9     | 78.5      | 62.5                    | 3.2         |
+| Pow3R (Pro)          | ×             | 94.6     | 90.3     | 78.1      | 66.3                    | 30.9        |
+| **Pow3R w/ K (Pro)** | **✓**         | **95.0** | **92.1** | **82.2**  | **72.5**                | **30.1**    |
 
 ### Quantitative Performance
 
@@ -334,8 +337,7 @@ This creates emergent behaviors:
 
 #### 3. **Lightweight Yet Powerful**
 
-- Only 4.3% parameter overhead vs DUSt3R
-- Outperforms much larger models (VGGT: 3x larger)
+- 보조 정보 주입에 드는 파라미터 오버헤드는 +4% (inject-1 기준)
 - Single forward pass for any input combination
 
 #### 4. **Practical Impact**
