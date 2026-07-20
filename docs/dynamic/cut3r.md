@@ -1,7 +1,7 @@
 # Continuous 3D Perception Model with Persistent State (CUT3R)
 
 ![CUT3R Method](https://cut3r.github.io/static/images/method1_2-min.jpg)
-*CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruction in a unified coordinate space*
+_CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruction in a unified coordinate space_
 
 ## 📋 Overview
 
@@ -22,18 +22,21 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: Persistent State Model
+
 ```
 Traditional: Process each frame independently
 CUT3R: Maintain evolving state across observations
 ```
 
 ### Architecture Components
+
 - **Base**: ViT encoder for image tokenization
 - **State Representation**: Persistent memory updated with each observation
 - **State Update**: Joint state update and readout for each image
 - **Output**: Metric-scale pointmaps and camera parameters
 
 ### Processing Pipeline
+
 1. **Input**: RGB image stream (video or photo collection)
 2. **Encoding**: ViT encoder converts images to tokens
 3. **State Update**: Recurrent transformer updates persistent state
@@ -71,12 +74,12 @@ CUT3R: Maintain evolving state across observations
 
 **Performance Claims**:
 
-| Task Category | Performance | Key Capability |
-|--------------|-------------|----------------|
-| Online Reconstruction | State-of-the-art | Real-time capable |
-| View Synthesis | Competitive | Can infer unseen regions |
-| Dynamic Scenes | State-of-the-art | Unified static/dynamic handling |
-| Scene Completion | Novel capability | Virtual viewpoint probing |
+| Task Category         | Performance      | Key Capability                  |
+| --------------------- | ---------------- | ------------------------------- |
+| Online Reconstruction | State-of-the-art | Real-time capable               |
+| View Synthesis        | Competitive      | Can infer unseen regions        |
+| Dynamic Scenes        | State-of-the-art | Unified static/dynamic handling |
+| Scene Completion      | Novel capability | Virtual viewpoint probing       |
 
 **Key Achievements**:
 
@@ -97,18 +100,21 @@ CUT3R: Maintain evolving state across observations
 4. **Flexibility**: Adapts to varying input patterns
 
 ### Advantages Over Previous Methods
+
 - **vs. DUSt3R**: Adds temporal reasoning and state persistence
 - **vs. Frame-based**: Maintains scene consistency
 - **vs. Optimization-based**: Real-time online processing
 - **vs. Motion-specific**: Unified approach for all content
 
 ### Novel Capabilities
+
 - **Virtual View Probing**: Infer geometry at unobserved viewpoints
 - **Incremental Building**: Scene grows with observations
 - **Revisiting**: Improves reconstruction with full context
 - **Mixed Content**: Same model for static and dynamic
 
 ### Limitations
+
 - Linear memory growth with sequence length
 - Currently uses parallel encoding (future work: truly sequential)
 - Requires sufficient visual overlap between frames
@@ -117,12 +123,14 @@ CUT3R: Maintain evolving state across observations
 ## 🔗 Related Work
 
 ### Comparison with Dynamic Methods
+
 - **MonST3R**: Per-frame approach, CUT3R uses persistent state
 - **Easi3R**: Training-free, CUT3R requires training but offers richer features
 - **SLAM methods**: CUT3R provides dense reconstruction without explicit mapping
 - **NeRF-based**: CUT3R offers online processing vs. offline optimization
 
 ### Building On
+
 - **Transformer architectures**: Leverages attention mechanisms
 - **Recurrent models**: Adds state persistence
 - **DUSt3R foundation**: Extends to continuous perception
@@ -131,6 +139,7 @@ CUT3R: Maintain evolving state across observations
 ## 📚 Key Takeaways
 
 CUT3R demonstrates that:
+
 1. **Persistent state enables continuous 3D perception**: Moving beyond frame-by-frame processing
 2. **Online reconstruction is achievable**: No need for expensive optimization
 3. **Unified models handle diverse inputs**: One architecture for many scenarios

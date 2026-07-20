@@ -1,7 +1,7 @@
 # Endo3R: Unified Online Reconstruction from Dynamic Monocular Endoscopic Video (arXiv 2025)
 
 ![Endo3R Pipeline](https://wrld.github.io/Endo3R/static/images/pipeline.jpg)
-*Endo3R achieves real-time 3D reconstruction from monocular endoscopy using dual memory architecture for surgical applications*
+_Endo3R achieves real-time 3D reconstruction from monocular endoscopy using dual memory architecture for surgical applications_
 
 ## 📋 Overview
 
@@ -22,6 +22,7 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: Dual Memory Architecture
+
 ```
 Short-term Memory:
 - Captures dynamic surgical changes
@@ -37,16 +38,19 @@ Long-term Memory:
 ### Key Technical Components
 
 #### 1. Uncertainty-aware Token Filtering
+
 - Uses Sampson distance to measure geometric uncertainty
 - Filters unreliable tokens before memory update
 - Crucial for handling specular reflections and occlusions
 
 #### 2. Dynamic-aware Flow Loss
+
 - Novel loss function for surgical dynamics
 - Handles tissue deformation naturally
 - Maintains temporal consistency
 
 #### 3. Online Processing Pipeline
+
 1. Frame pair extraction from video
 2. DUSt3R-based feature encoding
 3. Dual memory update with uncertainty filtering
@@ -54,6 +58,7 @@ Long-term Memory:
 5. Real-time output at 19+ FPS
 
 ### Adaptations from DUSt3R
+
 - **Memory Extension**: Adds temporal reasoning
 - **Uncertainty Modeling**: Critical for medical safety
 - **Dynamic Handling**: Addresses deformable tissues
@@ -64,19 +69,22 @@ Long-term Memory:
 ### Quantitative Performance
 
 #### Depth Estimation (SCARED Dataset)
-| Method | Abs Rel ↓ | Sq Rel ↓ | RMSE ↓ | δ<1.25 ↑ |
-|--------|-----------|----------|---------|-----------|
-| MonoDepth2 | 0.172 | 2.451 | 8.642 | 76.8% |
-| EndoSLAM | 0.098 | 0.872 | 5.128 | 89.2% |
+
+| Method     | Abs Rel ↓ | Sq Rel ↓  | RMSE ↓    | δ<1.25 ↑  |
+| ---------- | --------- | --------- | --------- | --------- |
+| MonoDepth2 | 0.172     | 2.451     | 8.642     | 76.8%     |
+| EndoSLAM   | 0.098     | 0.872     | 5.128     | 89.2%     |
 | **Endo3R** | **0.071** | **0.512** | **3.921** | **93.7%** |
 
 #### Pose Estimation
-| Dataset | ATE ↓ | RPE Trans ↓ | RPE Rot ↓ |
-|---------|--------|-------------|-----------|
-| Hamlyn | **0.042** | **0.018** | **0.021** |
-| SCARED | **0.038** | **0.015** | **0.019** |
+
+| Dataset | ATE ↓     | RPE Trans ↓ | RPE Rot ↓ |
+| ------- | --------- | ----------- | --------- |
+| Hamlyn  | **0.042** | **0.018**   | **0.021** |
+| SCARED  | **0.038** | **0.015**   | **0.019** |
 
 ### Zero-shot Generalization
+
 - Strong performance on unseen datasets
 - Robust to different endoscope types
 - Handles various surgical procedures
@@ -92,18 +100,21 @@ Long-term Memory:
 5. **Real-time Needs**: Optimized for surgical speed
 
 ### Clinical Relevance
+
 - **Intraoperative Guidance**: Real-time 3D visualization
 - **Measurement Accuracy**: Scale-consistent depth
 - **Safety Enhancement**: Uncertainty quantification
 - **Training Tool**: Realistic surgical simulation
 
 ### Technical Advantages
+
 - **End-to-end**: No complex pipeline
 - **Robust**: Handles challenging surgical scenes
 - **Efficient**: Practical for OR deployment
 - **Generalizable**: Works across procedures
 
 ### Limitations
+
 - Monocular only (no stereo endoscopy yet)
 - Requires continuous video stream
 - Memory footprint for long procedures
@@ -112,11 +123,13 @@ Long-term Memory:
 ## 🔗 Related Work
 
 ### Builds On
+
 - **DUSt3R**: Base architecture
 - **Surgical SLAM**: Domain knowledge
 - **Medical Vision**: Clinical requirements
 
 ### Enables Future Work
+
 - Multi-modal fusion (RGB + other sensors)
 - Instrument tracking integration
 - AR surgical overlay
@@ -125,6 +138,7 @@ Long-term Memory:
 ## 📚 Key Takeaways
 
 Endo3R demonstrates that:
+
 1. **Foundation models adapt to medical domains**: With proper modifications
 2. **Real-time is achievable**: 19+ FPS meets surgical needs
 3. **Self-supervision works**: Overcomes lack of medical ground truth

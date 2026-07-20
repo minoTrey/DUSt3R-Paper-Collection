@@ -1,7 +1,7 @@
 # VGGT: Visual Geometry Grounded Transformer (CVPR 2025 Best Paper) (CVPR 2025)
 
 ![VGGT Architecture](https://vgg-t.github.io/resources/architecture_v4.png)
-*VGGT unifies all geometric tasks in a single transformer, achieving 45x speedup over DUSt3R with better performance*
+_VGGT unifies all geometric tasks in a single transformer, achieving 45x speedup over DUSt3R with better performance_
 
 ## 📋 Overview
 
@@ -22,15 +22,17 @@
 ## 🔧 Technical Details
 
 ### Core Innovation: True Unified 3D Vision
+
 ```
 Traditional: Task1 → Task2 → Task3 → Optimization
 VGGT: Images → Transformer → All outputs simultaneously
 ```
 
 ### Architecture (1.2B Parameters)
+
 - **Image Tokenization**: DINOv2 backbone
 - **Camera Tokens**: Appended for parameter prediction
-- **Alternating-Attention (AA)**: 
+- **Alternating-Attention (AA)**:
   - Frame-wise self-attention
   - Global cross-frame attention
   - Efficient multi-view processing
@@ -39,6 +41,7 @@ VGGT: Images → Transformer → All outputs simultaneously
   - DPT head: Depth + Pointmaps + Tracks
 
 ### Joint Estimation Outputs
+
 1. **Camera Parameters**:
    - Intrinsics: Focal length, principal point
    - Extrinsics: Rotation, translation
@@ -49,6 +52,7 @@ VGGT: Images → Transformer → All outputs simultaneously
    - Point tracks across frames
 
 ### Training Strategy
+
 - **Multi-task Loss**: Carefully balanced weights
 - **Scale**: 160K iterations on 64 A100 GPUs
 - **Datasets**: Diverse 3D-annotated data
@@ -58,78 +62,87 @@ VGGT: Images → Transformer → All outputs simultaneously
 
 ### Multi-View Reconstruction (DTU)
 
-| Method | Accuracy ↓ | Completeness ↓ | F-Score ↑ |
-|--------|------------|----------------|-----------|
-| DUSt3R | 2.677 | 0.805 | 0.612 |
-| MASt3R | 0.403 | 0.344 | 0.856 |
-| **VGGT** | **1.338** | **1.896** | **0.721** |
+| Method   | Accuracy ↓ | Completeness ↓ | F-Score ↑ |
+| -------- | ---------- | -------------- | --------- |
+| DUSt3R   | 2.677      | 0.805          | 0.612     |
+| MASt3R   | 0.403      | 0.344          | 0.856     |
+| **VGGT** | **1.338**  | **1.896**      | **0.721** |
 
 ### Camera Pose Estimation
 
-| Dataset | ATE ↓ | ARE ↓ | Speed (FPS) |
-|---------|-------|-------|-------------|
-| Sintel | 0.167 | 4.32 | 43.2 |
-| TUM RGB-D | 0.089 | 2.14 | 38.7 |
+| Dataset   | ATE ↓ | ARE ↓ | Speed (FPS) |
+| --------- | ----- | ----- | ----------- |
+| Sintel    | 0.167 | 4.32  | 43.2        |
+| TUM RGB-D | 0.089 | 2.14  | 38.7        |
 
 ### Speed Comparison
-| Method | Time | Speedup | Post-processing |
-|--------|------|---------|-----------------|
-| DUSt3R | 7-10s | 1× | Required |
-| MASt3R | 5-7s | ~1.5× | Required |
-| **VGGT** | **0.2s** | **45×** | **None** |
+
+| Method   | Time     | Speedup | Post-processing |
+| -------- | -------- | ------- | --------------- |
+| DUSt3R   | 7-10s    | 1×      | Required        |
+| MASt3R   | 5-7s     | ~1.5×   | Required        |
+| **VGGT** | **0.2s** | **45×** | **None**        |
 
 ### Quality Metrics
 
 #### Camera Pose (RealEstate10K)
-| Method | AUC@30 ↑ | AUC@10 ↑ | AUC@5 ↑ |
-|--------|----------|----------|---------|
-| DUSt3R | 71.2% | 52.3% | 38.1% |
+
+| Method   | AUC@30 ↑  | AUC@10 ↑  | AUC@5 ↑   |
+| -------- | --------- | --------- | --------- |
+| DUSt3R   | 71.2%     | 52.3%     | 38.1%     |
 | **VGGT** | **85.3%** | **68.7%** | **54.2%** |
 
 #### 3D Reconstruction (ETH3D)
-| Method | Chamfer ↓ | F-Score ↑ | Time |
-|--------|-----------|-----------|------|
-| COLMAP | 0.812 | 0.721 | Minutes |
-| DUSt3R | 0.923 | 0.689 | 10s |
+
+| Method   | Chamfer ↓ | F-Score ↑ | Time     |
+| -------- | --------- | --------- | -------- |
+| COLMAP   | 0.812     | 0.721     | Minutes  |
+| DUSt3R   | 0.923     | 0.689     | 10s      |
 | **VGGT** | **0.677** | **0.798** | **0.2s** |
 
 ### Scalability
+
 | Views | DUSt3R | VGGT | Memory (VGGT) |
-|-------|---------|------|---------------|
-| 32 | ✅ | ✅ | 8.2 GB |
-| 64 | OOM | ✅ | 15.4 GB |
-| 128 | OOM | ✅ | 28.7 GB |
-| 200+ | OOM | ✅ | 40.6 GB |
+| ----- | ------ | ---- | ------------- |
+| 32    | ✅     | ✅   | 8.2 GB        |
+| 64    | OOM    | ✅   | 15.4 GB       |
+| 128   | OOM    | ✅   | 28.7 GB       |
+| 200+  | OOM    | ✅   | 40.6 GB       |
 
 ## 💡 Insights & Impact
 
 ### Paradigm Shift in 3D Vision
 
 **Before VGGT**:
+
 - Separate models for each task
 - Complex pipelines
 - Iterative optimization
 - Limited scalability
 
 **With VGGT**:
+
 - Single unified model
 - Direct prediction
 - No optimization
 - Extreme scalability
 
 ### Why VGGT Succeeds
+
 1. **Shared Representation**: Joint learning improves all tasks
 2. **Transformer Power**: Attention captures global relationships
 3. **End-to-End Training**: Holistic optimization
 4. **Minimal Bias**: Learns from data, not hand-crafted rules
 
 ### Unique Capabilities
+
 - **Single Image**: Works where DUSt3R fails
 - **Non-overlapping Views**: Handles disjoint cameras
 - **Artistic Images**: Generalizes to paintings/drawings
 - **Extreme Efficiency**: Real-time applications possible
 
 ### Applications
+
 - **Instant 3D Capture**: Consumer devices
 - **Robotics**: Real-time scene understanding
 - **AR/VR**: Live environment mapping
@@ -139,15 +152,17 @@ VGGT: Images → Transformer → All outputs simultaneously
 ## 🔗 Related Work
 
 ### Evolution from DUSt3R
-| Aspect | DUSt3R | VGGT |
-|--------|---------|------|
-| Tasks | 3D only | All geometric |
-| Speed | 10s | 0.2s |
-| Scale | ~32 views | 200+ views |
-| Architecture | Specialized | Unified |
-| Post-process | Required | None |
+
+| Aspect       | DUSt3R      | VGGT          |
+| ------------ | ----------- | ------------- |
+| Tasks        | 3D only     | All geometric |
+| Speed        | 10s         | 0.2s          |
+| Scale        | ~32 views   | 200+ views    |
+| Architecture | Specialized | Unified       |
+| Post-process | Required    | None          |
 
 ### Comparison with Other Extensions
+
 - **MUSt3R**: Memory for scale → VGGT: Direct scale
 - **Fast3R**: Speed focus → VGGT: Speed + quality
 - **Test3R**: Test-time adapt → VGGT: Direct generalization
@@ -155,6 +170,7 @@ VGGT: Images → Transformer → All outputs simultaneously
 ## 📚 Key Takeaways
 
 VGGT represents a breakthrough by:
+
 1. **Unifying all geometric tasks**: Camera, depth, 3D, tracking
 2. **Achieving extreme speed**: 45x faster than predecessors
 3. **Scaling beyond limits**: 200+ views easily

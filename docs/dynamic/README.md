@@ -17,6 +17,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ## 📚 Paper List (11 papers)
 
 ### 🏃 Motion Modeling & Tracking
+
 1. [**POMATO**: Pointmap Matching with Temporal Motion for Dynamic Scene Reconstruction](pomato.md)
    - **Venue**: ICCV 2025
    - **Innovation**: Unified framework for pointmap matching + motion
@@ -38,6 +39,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
    - **Key**: Direct 4D reconstruction
 
 ### ⏱️ Temporal Consistency
+
 5. [**CUT3R**: Continuous 3D Perception via Memory](cut3r.md)
    - **Venue**: CVPR 2025
    - **Innovation**: Persistent 3D state across time
@@ -54,13 +56,14 @@ Dynamic scenes introduce complexity beyond static reconstruction:
    - **Key**: Memory-efficient design
 
 ### 👥 Specialized Applications
+
 8. [**ODHSR**: One-shot Deformable Human and Scene Reconstruction](odhsr.md)
    - **Venue**: CVPR 2025
    - **Innovation**: Joint human-scene understanding
    - **Key**: Handles human-object interaction
 
 9. [**Geo4D**: Learning 4D Geometric Representations](geo4d.md)
-   - **Venue**: ICCV 2025  
+   - **Venue**: ICCV 2025
    - **Innovation**: Video generators for 4D
    - **Key**: Generative 4D modeling
 
@@ -79,6 +82,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ### 1. **Temporal Extension Strategies**
 
 **Architecture Modifications**:
+
 - **Temporal Attention**: Cross-frame feature correlation (MonST3R, CUT3R)
 - **Recurrent Processing**: Memory-based architectures (CUT3R)
 - **4D Representations**: Joint space-time modeling (D²USt3R, Dynamic Point Maps)
@@ -88,6 +92,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ### 2. **Motion Disentanglement Methods**
 
 **Decomposition Strategies**:
+
 - **Two-stream Networks**: Separate camera and object motion (POMATO)
 - **Attention-based**: Motion from self-attention patterns (Easi3R)
 - **Scene Flow**: Dense 3D motion fields (Stereo4D)
@@ -97,6 +102,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ### 3. **Consistency Enforcement Techniques**
 
 **Temporal Coherence**:
+
 - **Cross-frame Constraints**: Enforcing geometric consistency (Align3R)
 - **Scale Anchoring**: Preventing drift over time (MonST3R)
 - **Memory Networks**: Maintaining persistent state (CUT3R)
@@ -106,14 +112,16 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ## 🔧 Performance & Trade-offs
 
 ### Speed vs Accuracy
-| Method | FPS | Temporal Window | Key Trade-off |
-|--------|-----|-----------------|---------------|
-| Easi3R | 30+ | Single frame | Fast but limited context |
-| MonST3R | 10-15 | 5-10 frames | Balanced performance |
-| CUT3R | 5-10 | Unlimited | Full consistency, slower |
-| D²USt3R | 1-5 | Full video | Highest quality, offline |
+
+| Method  | FPS   | Temporal Window | Key Trade-off            |
+| ------- | ----- | --------------- | ------------------------ |
+| Easi3R  | 30+   | Single frame    | Fast but limited context |
+| MonST3R | 10-15 | 5-10 frames     | Balanced performance     |
+| CUT3R   | 5-10  | Unlimited       | Full consistency, slower |
+| D²USt3R | 1-5   | Full video      | Highest quality, offline |
 
 ### Memory Requirements
+
 - **Frame-based**: O(1) memory (Easi3R)
 - **Window-based**: O(k) memory (MonST3R, POMATO)
 - **Full sequence**: O(n) memory (D²USt3R, CUT3R)
@@ -121,6 +129,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ## 🎯 Applications & Use Cases
 
 ### Current Applications
+
 1. **Autonomous Navigation**: Understanding dynamic environments
 2. **AR/VR Content**: Creating immersive experiences
 3. **Video Editing**: 3D-aware video manipulation
@@ -128,6 +137,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 5. **Medical Imaging**: Tracking organ motion
 
 ### Enabled Capabilities
+
 - **Novel View Synthesis**: Of dynamic scenes
 - **4D Reconstruction**: Complete spatiotemporal models
 - **Motion Prediction**: Anticipating future states
@@ -136,32 +146,36 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ## 📊 Benchmarks & Evaluation
 
 ### Standard Datasets
-| Dataset | Type | Metrics | Focus |
-|---------|------|---------|-------|
-| **Dynamic Replica** | Synthetic | Accuracy, completeness | Indoor dynamics |
-| **TartanAir** | Synthetic | Trajectory error | Outdoor navigation |
-| **KITTI** | Real | Depth, flow accuracy | Autonomous driving |
-| **Sintel** | Synthetic | Optical flow EPE | Complex motion |
-| **DyCheck** | Real | Novel view quality | View synthesis |
+
+| Dataset             | Type      | Metrics                | Focus              |
+| ------------------- | --------- | ---------------------- | ------------------ |
+| **Dynamic Replica** | Synthetic | Accuracy, completeness | Indoor dynamics    |
+| **TartanAir**       | Synthetic | Trajectory error       | Outdoor navigation |
+| **KITTI**           | Real      | Depth, flow accuracy   | Autonomous driving |
+| **Sintel**          | Synthetic | Optical flow EPE       | Complex motion     |
+| **DyCheck**         | Real      | Novel view quality     | View synthesis     |
 
 ### Performance Results
 
 #### Dynamic Scene Reconstruction
-| Method | Dataset | Depth Error ↓ | Temporal Consistency ↑ | FPS |
-|--------|---------|--------------|------------------------|-----|
-| MonST3R | Dynamic Replica | 0.045 | 94.3% | 15 |
-| D²USt3R | KITTI | 0.032 | 96.1% | 5 |
-| CUT3R | TartanAir | 0.051 | 95.8% | 10 |
-| Align3R | Sintel | 0.038 | 97.2% | 8 |
+
+| Method  | Dataset         | Depth Error ↓ | Temporal Consistency ↑ | FPS |
+| ------- | --------------- | ------------- | ---------------------- | --- |
+| MonST3R | Dynamic Replica | 0.045         | 94.3%                  | 15  |
+| D²USt3R | KITTI           | 0.032         | 96.1%                  | 5   |
+| CUT3R   | TartanAir       | 0.051         | 95.8%                  | 10  |
+| Align3R | Sintel          | 0.038         | 97.2%                  | 8   |
 
 #### Motion Estimation
-| Method | Optical Flow EPE ↓ | Scene Flow Error ↓ | Real-time |
-|--------|-------------------|-------------------|-----------|
-| POMATO | 2.31 | 0.145 | ✅ |
-| Stereo4D | 2.45 | 0.152 | ✅ |
-| Easi3R | 2.89 | 0.201 | ✅ |
+
+| Method   | Optical Flow EPE ↓ | Scene Flow Error ↓ | Real-time |
+| -------- | ------------------ | ------------------ | --------- |
+| POMATO   | 2.31               | 0.145              | ✅        |
+| Stereo4D | 2.45               | 0.152              | ✅        |
+| Easi3R   | 2.89               | 0.201              | ✅        |
 
 ### Evaluation Metrics
+
 - **Geometric**: Depth accuracy, trajectory error
 - **Motion**: Flow endpoint error, tracking accuracy
 - **Temporal**: Consistency scores, drift metrics
@@ -170,6 +184,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 ## 🚀 Getting Started
 
 ### Quick Start with MonST3R
+
 ```python
 # Install dependencies
 pip install monst3r torch torchvision
@@ -203,30 +218,35 @@ trajectories = results['trajectories']  # Camera trajectory
 motion_fields = results['motion']  # Scene flow
 ```
 
-### Choose Your Method:
+### Choose Your Method
 
 **For Video Processing** 🎬:
+
 - **MonST3R**: Best overall performance
 - **D²USt3R**: Direct 4D reconstruction
 - **Align3R**: Scale-consistent depth
 
 **For Real-time** ⚡:
+
 - **Easi3R**: Fastest (30+ FPS)
 - **POMATO**: Balanced speed/quality
 
 **For Long Sequences** 📹:
+
 - **CUT3R**: Memory-efficient
 - **Dynamic Point Maps**: Scalable representation
 
 ## 🔮 Future Directions
 
 ### Near-term Goals
+
 1. **Real-time 4D**: Achieving 30+ FPS for all methods
 2. **Longer Videos**: Handling hour-long sequences
 3. **Better Motion**: Non-rigid and articulated objects
 4. **Uncertainty**: Quantifying temporal predictions
 
 ### Long-term Vision
+
 1. **Unified 4D Foundation Models**: One model for all spatiotemporal tasks
 2. **Physics Integration**: Incorporating physical priors and constraints
 3. **Language-guided 4D**: "Show me when the person picks up the cup"
@@ -236,11 +256,13 @@ motion_fields = results['motion']  # Scene flow
 ## 🔗 Relationship to DUSt3R Ecosystem
 
 **Building on Foundation**:
+
 - Extends DUSt3R's feed-forward paradigm to time
 - Leverages pretrained spatial understanding
 - Maintains uncalibrated, accessible approach
 
 **Synergies with Other Categories**:
+
 - **Gaussian Splatting**: 4D Gaussians for dynamics
 - **Understanding**: Semantic motion analysis
 - **Robotics**: Perception for manipulation
@@ -248,4 +270,4 @@ motion_fields = results['motion']  # Scene flow
 
 ---
 
-*Dynamic Scene Reconstruction represents the frontier of 4D vision, extending DUSt3R's revolutionary approach from spatial to spatiotemporal understanding. These methods are paving the way for AI systems that truly understand how the world moves and changes.*
+_Dynamic Scene Reconstruction represents the frontier of 4D vision, extending DUSt3R's revolutionary approach from spatial to spatiotemporal understanding. These methods are paving the way for AI systems that truly understand how the world moves and changes._
