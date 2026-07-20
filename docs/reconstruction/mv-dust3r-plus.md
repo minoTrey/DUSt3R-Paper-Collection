@@ -9,8 +9,10 @@ _MV-DUSt3R+ achieves single-stage multi-view reconstruction in ~2 seconds using 
 
 - **Authors**: Zhenggang Tang¹,², Yuchen Fan¹, Dilin Wang¹, Hongyu Xu¹, Rakesh Ranjan¹, Alexander Schwing², Zhicheng Yan¹
 - **Institution**: University of Toronto, Shanghai AI Laboratory
-- **Venue**: CVPR 2025 (Oral Presentation)
+- **Venue**: CVPR 2025
+- **Award**: Oral Presentation
 - **Links**: [Paper](https://arxiv.org/abs/2412.06974) | [Code](https://github.com/facebookresearch/mvdust3r) | [Project Page](https://mv-dust3rp.github.io/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Single-stage multi-view reconstruction that processes all views simultaneously, achieving full scene reconstruction in ~2 seconds from sparse views.
 
 ## 🎯 Key Contributions

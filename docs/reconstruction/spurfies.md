@@ -1,4 +1,4 @@
-# Spurfies: Sparse Surface Reconstruction using Local Geometry Priors (arXiv 2024)
+# Spurfies: Sparse Surface Reconstruction using Local Geometry Priors (3DV 2025)
 
 ![Spurfies Pipeline](https://geometric-rl.mpi-inf.mpg.de/spurfies/static/images/teaser.png)
 _Spurfies reconstructs high-quality surfaces from sparse point clouds by leveraging local geometry priors and neural implicit representations_
@@ -7,8 +7,9 @@ _Spurfies reconstructs high-quality surfaces from sparse point clouds by leverag
 
 - **Authors**: Kevin Raj, Christopher Wewer, Raza Yunus, Eddy Ilg, Jan Eric Lenssen
 - **Institution**: University of Siegen, Germany
-- **Venue**: arXiv preprint (2024)
+- **Venue**: 3DV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2408.16544) | [Project Page](https://geometric-rl.mpi-inf.mpg.de/spurfies/) | [Code](https://github.com/kevinYitshak/spurfies)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Neural surface reconstruction from sparse point clouds using local geometry priors, achieving high-quality mesh generation without dense point cloud inputs.
 
 ## 🎯 Key Contributions

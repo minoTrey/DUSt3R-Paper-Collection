@@ -7,8 +7,10 @@ _MonST3R extends DUSt3R to dynamic scenes with per-timestep geometry estimation,
 
 - **Authors**: Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Trevor Darrell, Forrester Cole, Deqing Sun, Ming-Hsuan Yang
 - **Institutions**: UC Berkeley, Google DeepMind, Stability AI, UC Merced
-- **Venue**: ICLR 2025 (Spotlight)
+- **Venue**: ICLR 2025
+- **Award**: Spotlight
 - **Links**: [Paper](https://arxiv.org/abs/2410.03825) | [Code](https://github.com/Junyi42/monst3r) | [Project Page](https://monst3r-project.github.io/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Adapts DUSt3R for dynamic scenes by simply estimating per-timestep pointmaps, avoiding complex motion modeling while achieving SOTA results.
 
 ## 🎯 Key Contributions

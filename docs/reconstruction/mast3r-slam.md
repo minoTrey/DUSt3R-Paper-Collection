@@ -1,4 +1,4 @@
-# MASt3R-SLAM: Real-Time Dense SLAM with 3D Reconstruction Priors (arXiv 2024)
+# MASt3R-SLAM: Real-Time Dense SLAM with 3D Reconstruction Priors (CVPR 2025)
 
 ![MASt3R-SLAM Demo](https://raw.githubusercontent.com/rmurai0610/MASt3R-SLAM/main/media/teaser.gif)
 _Real-time monocular dense SLAM system that leverages MASt3R priors for robust performance on in-the-wild video sequences_
@@ -7,8 +7,9 @@ _Real-time monocular dense SLAM system that leverages MASt3R priors for robust p
 
 - **Authors**: Riku Murai, Eric Dexheimer, Andrew J. Davison
 - **Institution**: Imperial College London
-- **Venue**: CVPR 2025 (Best Demo Honorable Mention)
+- **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2412.12392) | [Code](https://github.com/rmurai0610/MASt3R-SLAM) | [Project Page](https://edexheim.github.io/mast3r-slam/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: First pipeline to fully integrate MASt3R's two-view 3D reconstruction priors into real-time incremental SLAM, achieving 15 FPS with globally consistent poses and dense geometry.
 
 ## 🎯 Key Contributions
@@ -151,7 +152,7 @@ _MASt3R-SLAM_ denotes uncalibrated setting
 - **GPU Memory**: 8-12 GB (scene dependent)
 - **Robustness**: Works on in-the-wild video sequences
 - **Flexibility**: Supports time-varying camera models
-- **Award**: CVPR 2025 Best Demo Honorable Mention
+- **Award**: Best Demo Honorable Mention
 
 ### Supported Configurations
 

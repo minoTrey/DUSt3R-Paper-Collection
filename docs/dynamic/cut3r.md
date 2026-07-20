@@ -1,4 +1,4 @@
-# Continuous 3D Perception Model with Persistent State (CUT3R)
+# Continuous 3D Perception Model with Persistent State (CVPR 2025)
 
 ![CUT3R Method](https://cut3r.github.io/static/images/method1_2-min.jpg)
 _CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruction in a unified coordinate space_
@@ -7,8 +7,10 @@ _CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruc
 
 - **Authors**: Qianqian Wang*, Yifei Zhang*, Aleksander Holynski, Alexei A. Efros, Angjoo Kanazawa (*Equal contribution)
 - **Institutions**: UC Berkeley, Google DeepMind
-- **Venue**: CVPR 2025 (Oral) | arXiv preprint (submitted January 2025)
+- **Venue**: CVPR 2025
+- **Award**: Oral
 - **Links**: [Paper](https://arxiv.org/abs/2501.12387) | [Code](https://github.com/CUT3R/CUT3R) | [Project Page](https://cut3r.github.io/)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: A stateful recurrent transformer that incrementally reconstructs dynamic 3D scenes from streams of images in a unified coordinate space, enabling continuous online 3D perception.
 
 ## 🎯 Key Contributions

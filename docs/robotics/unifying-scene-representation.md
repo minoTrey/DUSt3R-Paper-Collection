@@ -1,4 +1,4 @@
-# Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models (RAL 2024)
+# Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models (RA-L 2024)
 
 ![Unified Framework Overview](https://arxiv.org/html/2404.11683v1/extracted/2404.11683v1/fig1.png)
 _Unified framework for joint scene representation and hand-eye calibration using 3D foundation models without external markers_
@@ -7,8 +7,12 @@ _Unified framework for joint scene representation and hand-eye calibration using
 
 - **Authors**: Weiming Zhi, Haozhan Tang, Tianyi Zhang, Matthew Johnson-Roberson
 - **Institution**: Carnegie Mellon University, University of Michigan
-- **Venue**: IEEE Robotics and Automation Letters (RAL) 2024
-- **Links**: [Paper](https://arxiv.org/abs/2404.11683) | Project Page (TBD) | Code (TBD)
+- **Venue**: RA-L 2024
+- **Note**: 게재본 제목은 "Unifying Representation and Calibration With 3D Foundation Models"로
+  arXiv 프리프린트와 다르다. RA-L 9(10):8953-8960, DOI
+  [10.1109/LRA.2024.3451396](https://doi.org/10.1109/LRA.2024.3451396). ICRA 2025에서 발표.
+- **Links**: [Paper](https://arxiv.org/abs/2404.11683) | [Published (IEEE)](https://ieeexplore.ieee.org/document/10659118/) | [Code](https://github.com/tomtang502/arm_3d_reconstruction)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Unified framework that simultaneously performs scene representation learning and hand-eye calibration using 3D foundation models for improved robotic perception and manipulation.
 
 ## 🎯 Key Contributions

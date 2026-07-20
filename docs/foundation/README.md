@@ -102,19 +102,19 @@ The Foundation Models category represents the seminal works that established the
 
 ### 🏆 Core Innovation
 
-3. [**DUSt3R**: Geometric 3D Vision Made Easy](dust3r.md) ⭐ **SEMINAL WORK**
+1. [**DUSt3R**: Geometric 3D Vision Made Easy](dust3r.md) ⭐ **SEMINAL WORK**
    - **Venue**: CVPR 2024
    - **Key**: End-to-end 3D from uncalibrated images
    - **Impact**: Spawned 50+ follow-up papers
 
 ### 🔧 Advanced Extensions
 
-4. [**MASt3R**: Matching And Stereo 3D Reconstruction](mast3r.md)
+1. [**MASt3R**: Matching And Stereo 3D Reconstruction](mast3r.md)
    - **Venue**: ECCV 2024
    - **Key**: 3D-aware feature matching
    - **Impact**: State-of-the-art matching accuracy
 
-5. [**MASt3R-SfM**: A Fully-Integrated Solution for Unconstrained Structure-from-Motion](mast3r-sfm.md)
+2. [**MASt3R-SfM**: A Fully-Integrated Solution for Unconstrained Structure-from-Motion](mast3r-sfm.md)
    - **Venue**: 3DV 2025
    - **Key**: Linear complexity SfM
    - **Impact**: 100% registration on challenging datasets

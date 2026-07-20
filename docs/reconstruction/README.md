@@ -122,30 +122,30 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 ### ⚡ Real-time Systems
 
-4. [**SLAM3R**: Real-Time Dense Scene Reconstruction](slam3r.md)
-5. [**Fast3R**: 3D Reconstruction of 1000+ Images](fast3r.md)
-6. [**MASt3R-SLAM**: Real-Time Dense SLAM](mast3r-slam.md)
-7. [**MV-DUSt3R+**: Single-Stage Scene Reconstruction](mv-dust3r-plus.md) - 13.8× faster
+1. [**SLAM3R**: Real-Time Dense Scene Reconstruction](slam3r.md)
+2. [**Fast3R**: 3D Reconstruction of 1000+ Images](fast3r.md)
+3. [**MASt3R-SLAM**: Real-Time Dense SLAM](mast3r-slam.md)
+4. [**MV-DUSt3R+**: Single-Stage Scene Reconstruction](mv-dust3r-plus.md) - 13.8× faster
 
 ### 🌍 Large-scale & Multi-view
 
-8. [**MUSt3R**: Multi-view Stereo 3D Reconstruction (O(N) complexity)](must3r.md)
-9. [**Spann3R**: 3D Reconstruction with Spatial Memory](spann3r.md)
-10. [**Pow3R**: Universal 3D Reconstruction with Any Auxiliary Inputs](pow3r.md) - CVPR'25
-11. [**REGIST3R**: Incremental Registration](regist3r.md)
+1. [**MUSt3R**: Multi-view Stereo 3D Reconstruction (O(N) complexity)](must3r.md)
+2. [**Spann3R**: 3D Reconstruction with Spatial Memory](spann3r.md)
+3. [**Pow3R**: Universal 3D Reconstruction with Any Auxiliary Inputs](pow3r.md) - CVPR'25
+4. [**REGIST3R**: Incremental Registration](regist3r.md)
 
 ### 🎨 Quality Enhancement
 
-1.  [**MoGe**: Monocular Geometry Estimation](moge.md)
-2.  [**LoRA3D**: Low-Rank Self-Calibration](lora3d.md)
-3.  [**Test3R**: Learning to Reconstruct at Test Time](test3r.md)
-4.  [**SPARS3R**: Semantic Prior Alignment](spars3r.md)
+1. [**MoGe**: Monocular Geometry Estimation](moge.md)
+2. [**LoRA3D**: Low-Rank Self-Calibration](lora3d.md)
+3. [**Test3R**: Learning to Reconstruct at Test Time](test3r.md)
+4. [**SPARS3R**: Semantic Prior Alignment](spars3r.md)
 
 ### 🔧 Specialized Methods
 
-1.  [**Light3R-SfM**: Feed-forward Structure-from-Motion](light3r-sfm.md)
-2.  [**ReconX**: Video Diffusion for Sparse Views](reconx.md)
-3.  [**Spurfies**: Sparse Surface Reconstruction](spurfies.md)
+1. [**Light3R-SfM**: Feed-forward Structure-from-Motion](light3r-sfm.md)
+2. [**ReconX**: Video Diffusion for Sparse Views](reconx.md)
+3. [**Spurfies**: Sparse Surface Reconstruction](spurfies.md)
 
 ## 💡 Key Insights & Trends
 

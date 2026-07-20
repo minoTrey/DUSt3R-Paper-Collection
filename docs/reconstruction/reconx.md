@@ -1,4 +1,4 @@
-# ReconX: Reconstruct Any Scene from Sparse Views with Video Diffusion Model (arXiv 2024)
+# ReconX: Reconstruct Any Scene from Sparse Views with Video Diffusion Model (IEEE TIP 2026)
 
 ![ReconX Pipeline](https://liuff19.github.io/ReconX/static/images/teaser.png)
 _ReconX leverages video diffusion models to reconstruct complete 3D scenes from just a few input views, generating missing viewpoints through learned priors_
@@ -7,8 +7,9 @@ _ReconX leverages video diffusion models to reconstruct complete 3D scenes from 
 
 - **Authors**: Fangfu Liu, Wenqiang Sun, Hanyang Wang, Yikai Wang, Haowen Sun, Junliang Ye, Jun Zhang, Yueqi Duan
 - **Institution**: Tsinghua University, Shanghai AI Laboratory
-- **Venue**: arXiv preprint (2024)
+- **Venue**: IEEE TIP 2026
 - **Links**: [Paper](https://arxiv.org/abs/2408.16767) | [Project Page](https://liuff19.github.io/ReconX/) | Code (coming soon)
+- **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Novel 3D reconstruction approach that uses video diffusion models to generate missing viewpoints from sparse input views, enabling high-quality scene reconstruction.
 
 ## 🎯 Key Contributions

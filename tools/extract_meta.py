@@ -26,8 +26,13 @@ def parse(p):
             if fm:
                 fields[fm.group('k').strip()] = fm.group('v').strip()
     rec['fields'] = fields
-    am = ARXIV.search(txt)
+    # ⚠️ arXiv ID는 반드시 Overview의 Links 필드에서만 뽑는다.
+    # 문서 전체를 훑으면 Related Work에 인용된 *다른* 논문의 arXiv를 잡는다.
+    # 실제로 slam3r.md가 초전도 회로 논문(2404.18774)으로,
+    # largespatialmodel.md가 의료 진단 논문(2410.15403)으로 오인식된 적이 있다.
+    am = ARXIV.search(fields.get('Links', ''))
     rec['arxiv_id'] = am.group(1) if am else None
+    rec['arxiv_id_source'] = 'Links' if am else None
     rec['sections'] = re.findall(r'^##\s+(.+)$', txt, re.M)
     rec['bytes'] = len(txt)
     return rec

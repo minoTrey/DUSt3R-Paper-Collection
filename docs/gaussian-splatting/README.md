@@ -59,44 +59,44 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 ### 🎨 Quality Enhancement
 
-4. [**LM-Gaussian**: Boost Sparse-view 3D Gaussian Splatting with Large Model Priors](lm-gaussian.md)
+1. [**LM-Gaussian**: Boost Sparse-view 3D Gaussian Splatting with Large Model Priors](lm-gaussian.md)
    - **Venue**: arXiv 2024
    - **Innovation**: Foundation model priors for quality
    - **Key**: Significant quality boost with few views
 
-5. [**Dust-GS**: Dense Point Clouds Matter for Scene Reconstruction](dust-gs.md)
+2. [**Dust-GS**: Dense Point Clouds Matter for Scene Reconstruction](dust-gs.md)
    - **Venue**: arXiv 2024
    - **Innovation**: Dense initialization from DUSt3R
    - **Key**: Better than sparse SfM points
 
-6. [**Dust to Tower**: Coarse-to-Fine Photo-Realistic Scene Reconstruction](dust-to-tower.md)
+3. [**Dust to Tower**: Coarse-to-Fine Photo-Realistic Scene Reconstruction](dust-to-tower.md)
    - **Venue**: arXiv 2024
    - **Innovation**: Progressive refinement strategy
    - **Key**: Coarse-to-fine optimization
 
 ### 🌊 Advanced Techniques
 
-7. [**FlowR**: Flowing from Sparse to Dense 3D Reconstructions](flowr.md)
+1. [**FlowR**: Flowing from Sparse to Dense 3D Reconstructions](flowr.md)
    - **Venue**: arXiv 2025
    - **Innovation**: Flow-based densification
    - **Key**: Smooth transition sparse→dense
 
-8. [**DAS3R**: Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction](das3r.md)
+2. [**DAS3R**: Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction](das3r.md)
    - **Venue**: arXiv 2024
    - **Innovation**: Filtering dynamic elements
    - **Key**: Clean static reconstruction
 
 ### 🎭 Creative Applications
 
-9. [**Styl3R**: Instant 3D Stylized Reconstruction](styl3r.md)
+1. [**Styl3R**: Instant 3D Stylized Reconstruction](styl3r.md)
    - **Venue**: arXiv 2025
    - **Innovation**: Style transfer in 3D
    - **Key**: Arbitrary style application
 
-10. [**Avat3R**: Large Animatable Gaussian Reconstruction Model](avat3r.md)
-    - **Venue**: ICCV 2025
-    - **Innovation**: High-fidelity head avatars
-    - **Key**: Animatable Gaussians
+2. [**Avat3R**: Large Animatable Gaussian Reconstruction Model](avat3r.md)
+   - **Venue**: ICCV 2025
+   - **Innovation**: High-fidelity head avatars
+   - **Key**: Animatable Gaussians
 
 ## 💡 Key Insights & Impact
 
