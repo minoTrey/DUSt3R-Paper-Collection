@@ -23,7 +23,7 @@ _Amodal3R reconstructs complete 3D objects from partially occluded views using c
 
 ### Core Innovation: Amodal 3D Understanding
 
-```
+```text
 Traditional: Visible parts only → Incomplete reconstruction
 Amodal3R: Partial observations → Complete 3D shape reasoning
 ```
@@ -39,7 +39,7 @@ Amodal3R: Partial observations → Complete 3D shape reasoning
 
 #### 2. Occlusion-Aware Pipeline
 
-```
+```text
 Input: Occluded 2D images {I₁, I₂, ..., Iₙ}
 Process: Amodal reasoning + Shape completion
 Output: Complete 3D object reconstruction

@@ -33,7 +33,7 @@ Sparse-view reconstruction faces a dilemma:
 
 #### Stage 1: Global Fusion Alignment
 
-```
+```text
 1. Dense cloud from DUSt3R/MASt3R
 2. Sparse cloud from COLMAP
 3. RANSAC-based Procrustes alignment
@@ -42,7 +42,7 @@ Sparse-view reconstruction faces a dilemma:
 
 #### Stage 2: Semantic Outlier Alignment
 
-```
+```text
 1. Identify outliers from global alignment
 2. Generate semantic masks (SAM)
 3. Local transform per semantic region

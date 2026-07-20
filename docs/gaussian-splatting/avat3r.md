@@ -23,7 +23,7 @@ _AVAT3R creates animatable 3D head avatars from just 4 smartphone images using p
 
 ### Core Innovation: Animatable Gaussian Reconstruction
 
-```
+```text
 Traditional: Studio setup → Multi-view capture → Hours of optimization
 AVAT3R: 4 phone images → Forward pass → Animatable avatar in minutes
 ```

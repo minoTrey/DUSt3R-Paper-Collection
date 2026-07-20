@@ -24,7 +24,7 @@ _Dynamic Point Maps extend standard point maps to support 4D tasks by predicting
 
 ### Core Innovation: Dynamic Point Representation
 
-```
+```text
 Traditional: Task-specific dynamic representations
 Dynamic Point Maps: Unified point-based representation for all tasks
 ```
@@ -40,7 +40,7 @@ Dynamic Point Maps: Unified point-based representation for all tasks
 
 #### 2. Dynamic Modeling
 
-```
+```text
 Input: Video sequence {I₁, I₂, ..., Iₜ}
 Representation: Dynamic point cloud P(t) = {p₁(t), p₂(t), ..., pₙ(t)}
 Features: F(t) = {geometry, appearance, motion, semantics}

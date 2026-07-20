@@ -224,7 +224,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 
 ### Backups Created
 
-```
+```text
 docs/dynamic/adapt3r.md.backup
 docs/dynamic/align3r.md.backup
 docs/dynamic/cut3r.md.backup
@@ -232,7 +232,7 @@ docs/dynamic/cut3r.md.backup
 
 ### Files Fixed
 
-```
+```text
 docs/dynamic/adapt3r.md     - Critical fixes applied
 docs/dynamic/align3r.md     - Warning fixes applied
 docs/dynamic/cut3r.md       - Warning fixes applied
@@ -240,7 +240,7 @@ docs/dynamic/cut3r.md       - Warning fixes applied
 
 ### New Documentation
 
-```
+```text
 docs/dynamic/VERIFICATION_REPORT.md    - This report
 .claude/skills/verify-paper-docs.md    - Verification skill
 .claude/skills/fix-paper-docs.md       - Fix skill

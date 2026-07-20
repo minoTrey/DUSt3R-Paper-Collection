@@ -23,7 +23,7 @@ _Easi3R extracts motion information from DUSt3R's attention maps without any add
 
 ### Core Innovation: Attention Mining
 
-```
+```text
 DUSt3R attention → Motion information already exists
 Easi3R → Extract and disentangle without training
 ```

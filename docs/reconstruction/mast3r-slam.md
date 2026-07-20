@@ -24,7 +24,7 @@ _Real-time monocular dense SLAM system that leverages MASt3R priors for robust p
 
 ### Core Innovation: Prior-based SLAM
 
-```
+```text
 Traditional SLAM: Feature extraction → Matching → Optimization
 MASt3R-SLAM: 3D Prior → Fast ray matching → Gauss-Newton optimization
 ```

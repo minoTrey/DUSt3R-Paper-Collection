@@ -23,7 +23,7 @@ _Pos3R leverages 3D foundation models for zero-shot 6D pose estimation without a
 
 ### Core Innovation: 3D Foundation for Pose
 
-```
+```text
 Traditional: Train per object category → Limited generalization
 Pos3R: 3D foundation model → Works on any object
 ```
@@ -39,7 +39,7 @@ Pos3R: 3D foundation model → Works on any object
 
 #### 2. Template Selection Innovation
 
-```
+```text
 Problem: 2D models struggle with template pose selection
 Solution: 3D models naturally distinguish between poses
 Result: More accurate initial pose estimates

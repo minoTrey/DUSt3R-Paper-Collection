@@ -20,7 +20,7 @@
 
 ### Core Innovation: [Main Technical Innovation]
 
-```
+```text
 Traditional: [Previous approach]
 [This Paper]: [New approach]
 ```

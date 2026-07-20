@@ -30,7 +30,7 @@ _Left: DAVIS dataset results showing dynamic object removal. Right: Sintel datas
 
 ### Core Innovation: Dynamics-Aware Gaussian Splatting
 
-```
+```text
 Problem: Videos contain moving objects → Corrupted static reconstruction
 Traditional: Manual masking or post-processing
 DAS3R: Automatic dynamic filtering during reconstruction

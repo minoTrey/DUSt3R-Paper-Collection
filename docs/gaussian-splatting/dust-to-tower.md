@@ -23,7 +23,7 @@ _Dust to Tower achieves photo-realistic scene reconstruction through a coarse-to
 
 ### Core Innovation: Progressive Scene Building
 
-```
+```text
 Traditional: Single-stage reconstruction → Limited quality/robustness
 Dust to Tower: Coarse → Medium → Fine → Photo-realistic results
 ```
@@ -39,7 +39,7 @@ Dust to Tower: Coarse → Medium → Fine → Photo-realistic results
 
 #### 2. Coarse-to-Fine Architecture
 
-```
+```text
 Input: Sparse uncalibrated images {I₁, I₂, ..., Iₙ}
 Stage 1: Coarse geometry + camera estimation
 Stage 2: Medium detail refinement

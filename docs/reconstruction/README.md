@@ -6,7 +6,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 ## 📈 Research Timeline
 
-```
+```text
 2024: Foundation laid with MASt3R-SLAM and early extensions
 2025: Explosive growth with breakthrough methods
 - Jan: VGGT introduces unified geometry (partial permutation equivariance)
@@ -165,7 +165,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 ### Performance Evolution
 
-```
+```text
 2024: DUSt3R baseline (~10s per pair, limited scale)
 2025 Q1: VGGT (43.2 FPS, unified geometry, partial permutation equivariance)
 2025 Q2: π³ (57.4 FPS, true permutation equivariance, current SOTA)

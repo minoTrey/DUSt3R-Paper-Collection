@@ -25,7 +25,7 @@ _FlowR uses flow matching to generate high-quality additional views, bridging th
 
 ### Core Innovation: Flow-Based Densification
 
-```
+```text
 Traditional: Static sparse reconstruction → Limited detail
 FlowR: Sparse → Flow-guided densification → Dense reconstruction
 ```
@@ -41,7 +41,7 @@ FlowR: Sparse → Flow-guided densification → Dense reconstruction
 
 #### 2. Sparse-to-Dense Pipeline
 
-```
+```text
 Input: Sparse 3D points from DUSt3R/similar
 Flow: Guided densification process
 Output: Dense 3D Gaussian representation

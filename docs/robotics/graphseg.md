@@ -24,7 +24,7 @@ _GraphSeg generates consistent 3D object segmentations from sparse 2D images via
 
 ### Core Innovation: Graph Operations for 3D Segmentation
 
-```
+```text
 Traditional: 2D segmentation → Inconsistent across views
 GraphSeg: Graph edge addition + contraction → Consistent 3D segments
 ```
@@ -40,7 +40,7 @@ GraphSeg: Graph edge addition + contraction → Consistent 3D segments
 
 #### 2. Two-Stage Process
 
-```
+```text
 Stage 1: Edge Addition - Connect related segments across views
 Stage 2: Graph Contraction - Merge connected components
 Result: Consistent 3D object-level segments

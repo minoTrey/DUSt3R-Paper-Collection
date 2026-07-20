@@ -23,7 +23,7 @@ _PreF3R enables feed-forward 3D Gaussian Splatting using spatial memory networks
 
 ### Core Innovation: Sequential Memory-based Gaussians
 
-```
+```text
 Traditional: Images → SfM → Optimization → Gaussians
 PreF3R: Images → Memory Network → Direct Gaussians
 ```

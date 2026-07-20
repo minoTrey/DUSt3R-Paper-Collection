@@ -24,7 +24,7 @@ _Test3R improves 3D reconstruction through test-time adaptation using cross-pair
 
 ### Core Innovation: Test-time Optimization
 
-```
+```text
 Given triplet (I₁, I₂, I₃):
 1. Generate reconstructions:
    - R₁₂ from (I₁, I₂)

@@ -25,7 +25,7 @@ _CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruc
 
 ### Core Innovation: Persistent State Model
 
-```
+```text
 Traditional: Process each frame independently
 CUT3R: Maintain evolving state across observations
 ```

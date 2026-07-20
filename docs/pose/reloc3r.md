@@ -23,7 +23,7 @@ _ReLoc3R achieves 40 FPS visual localization through simplified DUSt3R-based arc
 
 ### Core Innovation: Scale + Simplicity
 
-```
+```text
 Traditional: Scene-specific models or complex pipelines
 Reloc3r: One model trained on massive diverse data → Universal localization
 ```
@@ -87,7 +87,7 @@ Reloc3r: One model trained on massive diverse data → Universal localization
 
 ### Speed Analysis
 
-```
+```text
 Feature Matching (HLoc): ~100-200ms per pair
 DUSt3R + Optimization: ~500ms
 Reloc3r-512: 25ms (40 FPS)
@@ -117,14 +117,14 @@ Speedup: 8-20× faster
 
 **Traditional Pipeline**:
 
-```
+```text
 Images → Features → Matching → RANSAC → PnP → Pose
 (Complex, scene-specific, slow)
 ```
 
 **Reloc3r**:
 
-```
+```text
 Image Pair → Network → Pose
 (Simple, universal, fast)
 ```

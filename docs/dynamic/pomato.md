@@ -23,7 +23,7 @@ _POMATO combines explicit pointmap matching with temporal motion modeling for dy
 
 ### Core Innovation: Explicit Matching + Temporal Motion
 
-```
+```text
 DUSt3R: Implicit matching → Limited to static scenes
 POMATO: Explicit 3D matching + Temporal module → Dynamic scenes
 ```

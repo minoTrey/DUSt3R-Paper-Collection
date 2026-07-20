@@ -24,7 +24,7 @@ _RaySt3R recasts object completion as novel view depth prediction, achieving 44%
 
 ### Core Innovation: Completion via View Synthesis
 
-```
+```text
 Traditional: RGB-D → Direct 3D completion
 RaySt3R: RGB-D → Novel view depths → Complete 3D
 ```

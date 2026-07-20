@@ -23,7 +23,7 @@ _Dens3R provides unified geometric dense prediction for high-quality 3D reconstr
 
 ### Core Innovation: Unified Dense Prediction
 
-```
+```text
 Traditional: Separate models for depth, normals, point maps → Inconsistent geometry
 Dens3R: Joint geometric prediction → Consistent, coupled geometric understanding
 ```
@@ -46,7 +46,7 @@ Dens3R: Joint geometric prediction → Consistent, coupled geometric understandi
 
 #### 2. Unified Architecture
 
-```
+```text
 Input: Unposed images {I₁, I₂, ..., Iₙ}
 Encoder: Lightweight shared backbone
 Decoder: Multi-head geometric prediction

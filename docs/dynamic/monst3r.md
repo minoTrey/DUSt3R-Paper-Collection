@@ -25,7 +25,7 @@ _MonST3R extends DUSt3R to dynamic scenes with per-timestep geometry estimation,
 
 ### Core Innovation: Per-Timestep Pointmaps
 
-```
+```text
 Static DUSt3R: One pointmap across all frames
 MonST3R: Separate pointmap for each timestep
 ```

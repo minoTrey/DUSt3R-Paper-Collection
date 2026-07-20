@@ -6,7 +6,7 @@ The Medical and Specialized Applications category showcases adaptations of DUSt3
 
 ## 📈 Research Focus
 
-```
+```text
 Medical adaptations address:
 - Monocular endoscopic video reconstruction
 - Dynamic surgical scenes with deformable tissues

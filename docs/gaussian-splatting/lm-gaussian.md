@@ -23,7 +23,7 @@ _LM-Gaussian leverages large model priors to enhance sparse-view 3D Gaussian spl
 
 ### Core Innovation: Foundation Model Priors for 3DGS
 
-```
+```text
 Traditional 3DGS: Limited views → Poor reconstruction quality
 LM-Gaussian: Limited views + Large model priors → High-quality reconstruction
 ```
@@ -39,7 +39,7 @@ LM-Gaussian: Limited views + Large model priors → High-quality reconstruction
 
 #### 2. Enhanced 3DGS Pipeline
 
-```
+```text
 Input: Sparse views {I₁, I₂, ..., Iₙ} (n < 10)
 Priors: Depth maps, semantic features, geometric constraints
 Process: Prior-guided Gaussian optimization

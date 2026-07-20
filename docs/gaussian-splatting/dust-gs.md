@@ -24,7 +24,7 @@ _Dust-GS framework estimates camera poses and registers point clouds using DUSt3
 
 ### Core Innovation: Dense Points + Gaussian Splatting
 
-```
+```text
 Traditional 3DGS: Sparse SfM points → Limited quality with sparse views
 Dust-GS: DUSt3R dense points → High-quality sparse-view reconstruction
 ```
@@ -40,7 +40,7 @@ Dust-GS: DUSt3R dense points → High-quality sparse-view reconstruction
 
 #### 2. Enhanced Initialization
 
-```
+```text
 Input: Sparse images {I₁, I₂, ..., Iₙ}
 Step 1: DUSt3R → Dense point cloud + features
 Step 2: Point-to-Gaussian conversion

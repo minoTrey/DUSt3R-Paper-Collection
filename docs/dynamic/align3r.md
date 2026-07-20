@@ -23,7 +23,7 @@ _Align3R combines monocular depth estimation with DUSt3R to achieve temporally c
 
 ### Core Innovation: Depth-Enhanced DUSt3R
 
-```
+```text
 Problem: Monocular depth → Frame-by-frame inconsistency
          DUSt3R → Lacks fine details
 Align3R: Monocular + DUSt3R → Consistent detailed depth

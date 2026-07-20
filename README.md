@@ -2,8 +2,8 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Papers](https://img.shields.io/badge/Papers-55-green.svg)](#papers-database)
-[![Last Updated](https://img.shields.io/badge/Last%20Updated-July%202025-orange.svg)](#)
+[![Papers](https://img.shields.io/badge/Papers-55-green.svg)](docs/papers-list.md)
+[![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--07-orange.svg)](log.md)
 
 > **A curated collection of 55+ research papers on DUSt3R and feed-forward 3D reconstruction**
 
@@ -16,14 +16,14 @@ This paper collection tracks the explosive growth of the DUSt3R ecosystem, docum
 ## 🚀 Quick Start
 
 - **New to DUSt3R?** → Start with [📚 Foundation Papers](docs/foundation/README.md)
-- **Looking for specific applications?** → Browse by [🏷️ Categories](#research-categories)
+- **Looking for specific applications?** → Browse by [🏷️ Categories](#️-research-categories)
 - **Want full list?** → See [📄 Complete Papers List](docs/papers-list.md)
 
 ## 📈 Research Landscape
 
 DUSt3R has catalyzed a paradigm shift in 3D reconstruction, moving from traditional iterative pipelines to **end-to-end feed-forward models**. This survey tracks the explosive growth of this field:
 
-```
+```text
 2022 ██ 1 paper   (CroCo - NeurIPS)
 2023 ██ 1 paper   (CroCo v2 - ICCV)
 2024 ████████████████████ 55 papers
@@ -332,7 +332,7 @@ pts3d = output['pts3d']  # Your 3D points!
 ### 📖 Additional Resources
 
 - [📊 Complete Papers List](docs/papers-list.md) - All 55 papers with summaries
-- [🔍 Search by Topic](#research-categories) - Find specific applications
+- [🔍 Search by Topic](#️-research-categories) - Find specific applications
 - [💻 Code Examples](https://github.com/naver/dust3r) - Official tutorials
 
 ## 🤝 Contributing
