@@ -23,7 +23,7 @@ _Light3R achieves 49× speedup in SfM through learnable global alignment, recons
 
 ### Core Innovation: Attention-based Global Alignment
 
-```
+```text
 Traditional SfM: Images → Features → Matching → RANSAC → Bundle Adjustment → 3D
 Light3R-SfM: Images → Encoder → Latent Alignment → Decoder → Direct 3D
 ```

@@ -23,7 +23,7 @@ _Adapt3R synthesizes RGBD observations into robust 3D representations for domain
 
 ### Core Innovation: Adaptive 3D for Robotics
 
-```
+```text
 Traditional: Fixed 3D representations → Poor domain transfer
 Adapt3R: Adaptive 3D representations → Robust domain transfer
 ```
@@ -39,7 +39,7 @@ Adapt3R: Adaptive 3D representations → Robust domain transfer
 
 #### 2. Domain Transfer Pipeline
 
-```
+```text
 Source Domain: Expert demonstrations + 3D scenes
 Target Domain: New visual conditions + Same tasks
 Adaptation: Adaptive 3D representation learning

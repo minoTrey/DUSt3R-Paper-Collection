@@ -24,7 +24,7 @@ _Spurfies reconstructs high-quality surfaces from sparse point clouds by leverag
 
 ### Core Innovation: Sparse-to-Surface
 
-```
+```text
 Traditional: Dense point cloud → Surface reconstruction
 Spurfies: Sparse point cloud + Geometry priors → High-quality surface
 ```
@@ -40,7 +40,7 @@ Spurfies: Sparse point cloud + Geometry priors → High-quality surface
 
 #### 2. Neural Implicit Surface
 
-```
+```text
 Input: Sparse point cloud P = {p₁, p₂, ..., pₙ}
 Process: Local geometry analysis + Neural field
 Output: Continuous surface S(x) = 0

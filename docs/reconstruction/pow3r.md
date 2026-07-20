@@ -26,7 +26,7 @@ _Pow3R conditions on any combination of camera intrinsics, poses, and depth for 
 
 **Traditional Approaches**:
 
-```
+```text
 Separate models for each scenario:
 - Known camera → Metric3D
 - Unknown camera → DUSt3R
@@ -36,7 +36,7 @@ Separate models for each scenario:
 
 **Pow3R's Innovation**:
 
-```
+```text
 One model for all scenarios:
 - Any combination of inputs → Optimal reconstruction
 - Graceful degradation when information missing

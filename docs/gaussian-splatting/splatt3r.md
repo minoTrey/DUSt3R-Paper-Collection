@@ -32,7 +32,7 @@ _Splatt3R enables instant 3D Gaussian Splatting from uncalibrated image pairs by
 
 ### Two-Stage Training Strategy
 
-```
+```text
 Stage 1: Geometry Optimization
 - Train 3D point cloud prediction
 - Use MASt3R's geometric losses

@@ -6,7 +6,7 @@ The Foundation Models category represents the seminal works that established the
 
 ## 📈 Research Timeline
 
-```
+```text
 2022: [CroCo]      - Cross-view completion pretraining (NeurIPS 2022)
       ↓
 2023: [CroCo v2]   - Enhanced stereo and optical flow (ICCV 2023)

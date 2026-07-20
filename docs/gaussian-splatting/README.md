@@ -6,7 +6,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 ## 📈 Research Timeline
 
-```
+```text
 2024: Early Integration
 - First pose-free Gaussian Splatting methods
 - Eliminating SfM dependency

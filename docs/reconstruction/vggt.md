@@ -25,7 +25,7 @@ _VGGT unifies all geometric tasks in a single transformer, achieving 45x speedup
 
 ### Core Innovation: True Unified 3D Vision
 
-```
+```text
 Traditional: Task1 → Task2 → Task3 → Optimization
 VGGT: Images → Transformer → All outputs simultaneously
 ```

@@ -23,7 +23,7 @@ _LaRI models multiple surface layers along camera rays, enabling reasoning about
 
 ### Core Innovation: Layered Ray Intersections
 
-```
+```text
 Traditional: Single image → One depth/surface
 LaRI: Single image → Multiple surfaces along each ray
 ```

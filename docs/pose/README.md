@@ -124,7 +124,7 @@ Pose estimation is fundamental for:
 
 ### Evolution from DUSt3R
 
-```
+```text
 DUSt3R: Full 3D reconstruction → Extract poses
 Reloc3R/Pos3R: Direct pose estimation → Faster & specialized
 ```

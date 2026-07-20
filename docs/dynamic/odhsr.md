@@ -23,7 +23,7 @@ _ODHSR achieves unified online reconstruction of humans and scenes from monocula
 
 ### Core Innovation: Joint Human-Scene Optimization
 
-```
+```text
 Traditional: Separate human/scene reconstruction → Integration challenges
 ODHSR: Joint optimization → Consistent human-scene interaction
 ```

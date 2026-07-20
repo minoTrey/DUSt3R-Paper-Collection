@@ -25,7 +25,7 @@
 
 ### Architecture Differences from DUSt3R
 
-```
+```text
 DUSt3R:
 - Single encoder for both images
 - Dual regression heads

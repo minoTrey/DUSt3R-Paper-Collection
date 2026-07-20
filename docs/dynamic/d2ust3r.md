@@ -23,7 +23,7 @@ _D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspo
 
 ### Core Innovation: 3D → 4D Extension
 
-```
+```text
 DUSt3R: (X, Y, Z) pointmaps for static scenes
 D²USt3R: (X, Y, Z, T) pointmaps for dynamic scenes
 ```

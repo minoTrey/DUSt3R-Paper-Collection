@@ -23,7 +23,7 @@ _InstantSplat achieves 30× speedup for 3D reconstruction by combining DUSt3R in
 
 ### Core Innovation: Fast Stereo-Initialized Gaussians
 
-```
+```text
 Traditional: SfM (hours) → Gaussian training (hours)
 InstantSplat: DUSt3R (seconds) → Fast Gaussians (seconds)
 ```

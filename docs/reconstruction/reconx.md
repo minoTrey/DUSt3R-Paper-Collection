@@ -24,7 +24,7 @@ _ReconX leverages video diffusion models to reconstruct complete 3D scenes from 
 
 ### Core Innovation: Diffusion-Driven Reconstruction
 
-```
+```text
 Traditional: Sparse views → Direct 3D reconstruction (limited quality)
 ReconX: Sparse views → Video diffusion → Dense views → High-quality 3D
 ```
@@ -40,7 +40,7 @@ ReconX: Sparse views → Video diffusion → Dense views → High-quality 3D
 
 #### 2. Sparse-to-Dense Pipeline
 
-```
+```text
 Input: Sparse views {I₁, I₂, ..., Iₙ}
 Step 1: Video diffusion generates intermediate views
 Step 2: Dense view set reconstruction

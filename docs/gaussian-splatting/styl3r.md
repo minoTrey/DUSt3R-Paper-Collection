@@ -24,7 +24,7 @@ _Styl3R achieves instant 3D stylized reconstruction from sparse unposed images a
 
 ### Core Innovation: 3D-Aware Style Transfer
 
-```
+```text
 Traditional: 3D reconstruction → Post-process stylization → Inconsistencies
 Styl3R: Style-aware 3D reconstruction → Consistent stylized 3D
 ```
@@ -40,7 +40,7 @@ Styl3R: Style-aware 3D reconstruction → Consistent stylized 3D
 
 #### 2. Stylization Pipeline
 
-```
+```text
 Input: Images + Style reference
 Process: Style-aware 3D reconstruction
 Output: Stylized 3D scene representation

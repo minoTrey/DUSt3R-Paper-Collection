@@ -66,7 +66,7 @@ tokens = DINOv2(images)  # Only content, no positions
 
 π³ uses a carefully designed composite loss function:
 
-```
+```text
 L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 ```
 
@@ -240,7 +240,7 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 
 3. **Mathematical Guarantee**
 
-   ```
+   ```text
    f(π(X)) = π(f(X)) for any permutation π
    ```
 

@@ -23,7 +23,7 @@ _MEt3R uses DUSt3R for geometry-aware warping and DINO features to measure multi
 
 ### Core Innovation: Geometry-Aware Consistency Metric
 
-```
+```text
 Traditional: Pixel/feature comparison → View-dependent artifacts
 MEt3R: DUSt3R warping + DINO features → View-invariant consistency
 ```

@@ -29,7 +29,7 @@ _Stereo4D mines 100,000+ real-world 4D scenes from internet stereo videos to tra
 
 ### Core Innovation: Real-World 4D from Stereo
 
-```
+```text
 Problem: Synthetic data → Poor real-world generalization
 Solution: Internet VR180 videos → Diverse real 4D scenes
 Result: Superior motion prediction on real videos
@@ -73,7 +73,7 @@ for video in vr180_videos:
 
 #### Extension: Motion Head
 
-```
+```text
 Input: Frame pairs (t1, t2)
 DUSt3R head → 3D points at t1, t2
 Motion head → 3D displacement vectors

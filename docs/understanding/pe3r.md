@@ -24,7 +24,7 @@ _PE3R achieves 9× speedup by integrating semantic understanding into 3D reconst
 
 ### Core Innovation: Semantic-Aware 3D Reconstruction
 
-```
+```text
 DUSt3R: Geometry only → Limited understanding
 PE3R: Geometry + Semantics → Full scene comprehension
 ```

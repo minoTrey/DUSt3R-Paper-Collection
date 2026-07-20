@@ -25,7 +25,7 @@ _Endo3R achieves real-time 3D reconstruction from monocular endoscopy using dual
 
 ### Core Innovation: Dual Memory Architecture
 
-```
+```text
 Short-term Memory:
 - Captures dynamic surgical changes
 - Handles instrument motion

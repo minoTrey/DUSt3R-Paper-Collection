@@ -23,7 +23,7 @@ _Spann3R achieves real-time 3D reconstruction using dual spatial memory for glob
 
 ### Core Innovation: Dual Memory System
 
-```
+```text
 Dense Working Memory: Recent 5 frames with redundancy checks
 Sparse Long-term Memory: Accumulated features with sparsification
 ```

@@ -23,7 +23,7 @@ _LargeSpatialModel creates semantic 3D representations directly from unposed ima
 
 ### Core Innovation: Unposed to Semantic 3D
 
-```
+```text
 Traditional: Images → SfM → Poses → 3D reconstruction → Semantics
 LargeSpatialModel: Unposed images → End-to-end → Semantic 3D
 ```
@@ -39,7 +39,7 @@ LargeSpatialModel: Unposed images → End-to-end → Semantic 3D
 
 #### 2. Spatial Understanding Module
 
-```
+```text
 Input: Unposed image collection {I₁, I₂, ..., Iₙ}
 Process: Spatial relationship learning + Semantic understanding
 Output: Semantic 3D scene representation S(x,y,z) = {geometry, semantics}

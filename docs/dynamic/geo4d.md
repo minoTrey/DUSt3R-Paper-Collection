@@ -23,7 +23,7 @@ _Geo4D leverages video diffusion models to achieve state-of-the-art 4D reconstru
 
 ### Core Innovation: Video Priors for 4D
 
-```
+```text
 Traditional: Image-based methods → Limited temporal understanding
 Geo4D: Video diffusion model → Rich temporal-geometric priors
 ```

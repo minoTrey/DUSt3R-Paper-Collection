@@ -23,7 +23,7 @@ _Fast3R enables efficient 3D reconstruction from 1000+ images in a single forwar
 
 ### Core Innovation: True Multi-View Processing
 
-```
+```text
 Traditional: O(N²) pairwise matching → Global alignment → Hours
 Fast3R: Single pass with all N views → Direct 3D output → Seconds
 ```

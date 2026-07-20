@@ -25,7 +25,7 @@ _LoRA3D self-calibrates 3D foundation models through robust optimization and LoR
 
 ### Core Innovation: Self-Calibration via Optimization
 
-```
+```text
 Traditional: Pre-trained model → Direct inference → Limited accuracy
 LoRA3D: Pre-trained → Robust optimization → Pseudo-labels → LoRA fine-tuning → High accuracy
 ```
@@ -43,7 +43,7 @@ LoRA3D: Pre-trained → Robust optimization → Pseudo-labels → LoRA fine-tuni
 - **Objective**: Minimize reprojection error with confidence weighting
 - **Key Innovation**: Robust loss function handling outliers
 
-```
+```text
 min Σ ρ(||p_ij - π(T_j^(-1) * P_i)||) * c_ij
 ```
 

@@ -27,7 +27,7 @@ _Unified framework for joint scene representation and hand-eye calibration using
 
 ### Core Innovation: Joint Optimization
 
-```
+```text
 Traditional: Separate calibration → Scene representation → Manual alignment
 Unified: Joint optimization → Automatic alignment → Robust performance
 ```
@@ -43,7 +43,7 @@ Unified: Joint optimization → Automatic alignment → Robust performance
 
 #### 2. Hand-Eye Calibration Integration
 
-```
+```text
 Input: Robot poses + Camera images
 Foundation Model: 3D scene understanding
 Joint Optimization: Representation + Calibration parameters
