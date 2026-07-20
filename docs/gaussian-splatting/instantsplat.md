@@ -6,7 +6,7 @@ _InstantSplat achieves 30× speedup for 3D reconstruction by combining DUSt3R in
 ## 📋 Overview
 
 - **Authors**: Zhiwen Fan, Wenyan Cong, Kairun Wen, Kevin Wang, Jian Zhang, Xinghao Ding, Danfei Xu, Boris Ivanovic, Marco Pavone, Georgios Pavlakos, Zhangyang Wang, Yue Wang
-- **Institutions**: UT Austin, NVIDIA Research, Xiamen University, Georgia Tech, Stanford, USC
+- **Institution**: UT Austin, NVIDIA Research, Xiamen University, Georgia Tech, Stanford, USC
 - **Venue**: arXiv 2024, CVPR NRI 2024
 - **Links**: [Paper](https://arxiv.org/abs/2403.20309) | [Code](https://github.com/NVlabs/InstantSplat) | [Project Page](https://instantsplat.github.io/)
 - **TL;DR**: Achieves 30× speedup (40 seconds) for pose-free 3D reconstruction from sparse views by combining DUSt3R/MASt3R initialization with fast Gaussian optimization.

@@ -58,6 +58,46 @@ The end-to-end reconstruction process:
 
 The cross-reference mechanism addresses the reference view selection problem by treating it as an ensemble prediction task rather than a discrete selection problem.
 
+### 🚀 Applications
+
+#### Ideal Use Cases
+
+- **Mobile AR/VR**: Real-time room capture for games and furniture placement
+- **Robotics**: Fast 3D perception for navigation and manipulation
+- **Content Creation**: Instant 3D scanning with immediate feedback
+- **Architecture**: Site documentation and progress monitoring
+
+#### Best Practices
+
+- **Optimal**: 8-12 views for quality/speed balance
+- **Coverage**: 30-50% image overlap recommended
+- **Limitations**: Performance drops beyond 20 views
+
+### 🧠 Technical Innovation
+
+#### Core Paradigm Shift
+
+- **From**: Correspondence + optimization (O(N²))
+- **To**: Direct regression with learned priors (O(N))
+
+#### Cross-Reference Fusion
+
+- Addresses non-differentiable reference selection
+- Softmax-weighted aggregation of multiple predictions
+- 75.7% improvement at 24 views validates effectiveness
+
+### 🔬 Implementation
+
+#### Modified Attention Pattern
+
+- Q from each view, K,V from reference → O(N) complexity
+- Enables parallel processing while maintaining coherence
+
+#### Training Insights
+
+- 8-view training critical for 4-24 view generalization
+- 4-view training fails beyond 12 views
+
 ## 📊 Results
 
 ### Single-Stage Multi-View Performance
@@ -203,114 +243,6 @@ _Note: Impact of adding Gaussian (GS) heads on MVS reconstruction performance on
 - **Cross-Reference Impact**: Up to 75.7% relative improvement at 24 views
 - **Memory**: Linear O(N) growth enables 100+ view processing
 
-## 💡 Critical Analysis
-
-### Strengths
-
-- **O(N) Complexity**: Enables real-time processing with linear scaling
-- **Cross-Reference Fusion**: Mitigates reference view bias, especially effective at scale
-- **Training Strategy**: 8-view training generalizes well to 4-24 views
-
-### Limitations
-
-- **Performance Degradation**: Sharp drop beyond 20 views (29.5% decrease from 12→24 views)
-- **Dataset Sensitivity**: 26.9% performance gap between synthetic (HM3D) and real (ScanNet) data
-- **Gaussian Head Trade-off**: Slight accuracy decrease when adding rendering capabilities
-
-### Key Experimental Findings
-
-1. **Oracle Gap**: 10-20% performance gap suggests room for better reference selection
-2. **Limited Baselines**: Missing comparisons with MASt3R, COLMAP
-3. **Scale Testing**: Only tested up to 24 views despite 100+ claims
-
-## 🚀 Applications
-
-### Ideal Use Cases
-
-- **Mobile AR/VR**: Real-time room capture for games and furniture placement
-- **Robotics**: Fast 3D perception for navigation and manipulation
-- **Content Creation**: Instant 3D scanning with immediate feedback
-- **Architecture**: Site documentation and progress monitoring
-
-### Best Practices
-
-- **Optimal**: 8-12 views for quality/speed balance
-- **Coverage**: 30-50% image overlap recommended
-- **Limitations**: Performance drops beyond 20 views
-
-## 🧠 Technical Innovation
-
-### Core Paradigm Shift
-
-- **From**: Correspondence + optimization (O(N²))
-- **To**: Direct regression with learned priors (O(N))
-
-### Cross-Reference Fusion
-
-- Addresses non-differentiable reference selection
-- Softmax-weighted aggregation of multiple predictions
-- 75.7% improvement at 24 views validates effectiveness
-
-## 🔬 Implementation
-
-### Modified Attention Pattern
-
-- Q from each view, K,V from reference → O(N) complexity
-- Enables parallel processing while maintaining coherence
-
-### Training Insights
-
-- 8-view training critical for 4-24 view generalization
-- 4-view training fails beyond 12 views
-
-## 🔗 Position in 3D Reconstruction Research
-
-### Evolution of DUSt3R-based Methods
-
-```text
-DUSt3R (CVPR'24)     → Foundation: Dense pairwise matching + global optimization
-  ↓                    Complexity: O(N²), requires iterative refinement
-
-MASt3R (ECCV'24)     → Enhancement: Improved feature matching, better accuracy
-  ↓                    Still limited by O(N²) pairwise processing
-
-MUSt3R (arxiv'25)    → Alternative: Memory-efficient architecture
-  ↓                    Different approach: O(N) via sequential processing
-
-MV-DUSt3R            → Paradigm shift: Single-stage multi-view processing
-  ↓                    Breakthrough: O(N) parallel computation
-
-MV-DUSt3R+           → Robustness: Cross-reference fusion mechanism
-                       Addresses reference view selection problem
-```
-
-### Method Comparison (12 views)
-
-| Method         | Speed     | DAc       | Architecture   |
-| -------------- | --------- | --------- | -------------- |
-| DUSt3R         | 8.28s     | 30.7%     | O(N²) pairwise |
-| Spann3R        | 1.34s     | 0.0%      | Sequential     |
-| MV-DUSt3R      | 0.15s     | 79.5%     | Single-stage   |
-| **MV-DUSt3R+** | **0.89s** | **91.5%** | **+ Fusion**   |
-
-## 📚 Conclusions
-
-### Key Achievements
-
-1. **13.8× speedup** through O(N) architecture
-2. **3× quality improvement** with simultaneous speed gains
-3. **Linear scaling** enables mobile to server deployment
-
-### Impact
-
-- **Consumer**: Democratizes 3D capture for AR/VR and social media
-- **Professional**: Enables real-time workflows in architecture, film, and robotics
-- **Research**: Foundation for neural rendering and embodied AI
-
-### Significance
-
-MV-DUSt3R+ proves that architectural innovation can overcome computational bottlenecks. By reformulating reconstruction as direct regression, it achieves real-time performance with state-of-the-art quality, establishing single-stage processing as a viable paradigm for multi-view understanding.
-
 ## 💡 Insights & Impact
 
 ### Technical Innovation
@@ -330,9 +262,79 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 - Integration with other modalities
 - Mobile deployment optimization
 
+### 💡 Critical Analysis
+
+#### Strengths
+
+- **O(N) Complexity**: Enables real-time processing with linear scaling
+- **Cross-Reference Fusion**: Mitigates reference view bias, especially effective at scale
+- **Training Strategy**: 8-view training generalizes well to 4-24 views
+
+#### Limitations
+
+- **Performance Degradation**: Sharp drop beyond 20 views (29.5% decrease from 12→24 views)
+- **Dataset Sensitivity**: 26.9% performance gap between synthetic (HM3D) and real (ScanNet) data
+- **Gaussian Head Trade-off**: Slight accuracy decrease when adding rendering capabilities
+
+#### Key Experimental Findings
+
+1. **Oracle Gap**: 10-20% performance gap suggests room for better reference selection
+2. **Limited Baselines**: Missing comparisons with MASt3R, COLMAP
+3. **Scale Testing**: Only tested up to 24 views despite 100+ claims
+
+## 🔗 Related Work
+
+### 🔗 Position in 3D Reconstruction Research
+
+#### Evolution of DUSt3R-based Methods
+
+```text
+DUSt3R (CVPR'24)     → Foundation: Dense pairwise matching + global optimization
+  ↓                    Complexity: O(N²), requires iterative refinement
+
+MASt3R (ECCV'24)     → Enhancement: Improved feature matching, better accuracy
+  ↓                    Still limited by O(N²) pairwise processing
+
+MUSt3R (arxiv'25)    → Alternative: Memory-efficient architecture
+  ↓                    Different approach: O(N) via sequential processing
+
+MV-DUSt3R            → Paradigm shift: Single-stage multi-view processing
+  ↓                    Breakthrough: O(N) parallel computation
+
+MV-DUSt3R+           → Robustness: Cross-reference fusion mechanism
+                       Addresses reference view selection problem
+```
+
+#### Method Comparison (12 views)
+
+| Method         | Speed     | DAc       | Architecture   |
+| -------------- | --------- | --------- | -------------- |
+| DUSt3R         | 8.28s     | 30.7%     | O(N²) pairwise |
+| Spann3R        | 1.34s     | 0.0%      | Sequential     |
+| MV-DUSt3R      | 0.15s     | 79.5%     | Single-stage   |
+| **MV-DUSt3R+** | **0.89s** | **91.5%** | **+ Fusion**   |
+
 ## 📚 Key Takeaways
 
 1. **Main Innovation**: Novel approach that significantly improves upon existing methods
 2. **Performance**: State-of-the-art results on standard benchmarks
 3. **Practical Impact**: Enables new applications and use cases
 4. **Future Work**: Opens new research directions in the field
+
+### 📚 Conclusions
+
+#### Key Achievements
+
+1. **13.8× speedup** through O(N) architecture
+2. **3× quality improvement** with simultaneous speed gains
+3. **Linear scaling** enables mobile to server deployment
+
+#### Impact
+
+- **Consumer**: Democratizes 3D capture for AR/VR and social media
+- **Professional**: Enables real-time workflows in architecture, film, and robotics
+- **Research**: Foundation for neural rendering and embodied AI
+
+#### Significance
+
+MV-DUSt3R+ proves that architectural innovation can overcome computational bottlenecks. By reformulating reconstruction as direct regression, it achieves real-time performance with state-of-the-art quality, establishing single-stage processing as a viable paradigm for multi-view understanding.

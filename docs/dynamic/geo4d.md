@@ -6,7 +6,7 @@ _Geo4D leverages video diffusion models to achieve state-of-the-art 4D reconstru
 ## 📋 Overview
 
 - **Authors**: Zeren Jiang, Chuanxia Zheng, Iro Laina, Diane Larlus, Andrea Vedaldi
-- **Institutions**: Visual Geometry Group (Oxford), Naver Labs Europe
+- **Institution**: Visual Geometry Group (Oxford), Naver Labs Europe
 - **Venue**: ICCV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2504.07961) | [Code](https://github.com/jzr99/Geo4D) | [Project Page](https://geo4d.github.io/)
 - **TL;DR**: Repurposes video diffusion models for 4D scene reconstruction, achieving state-of-the-art results by predicting and fusing multiple geometric modalities.

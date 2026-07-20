@@ -144,9 +144,9 @@ Memory features:
 - Faster processing time
 - Better scalability
 
-## 📊 Experimental Results
+### 📊 Experimental Results
 
-### Table 1: Visual Odometry on TUM RGB-D Dataset (ATE RMSE in cm)
+#### Table 1: Visual Odometry on TUM RGB-D Dataset (ATE RMSE in cm)
 
 | Method      | Type  | fr1/360 | fr1/desk | fr1/desk2 | fr1/plant | fr1/room | fr1/rpy | fr1/teddy | fr1/xyz | fr2/xyz | fr2/desk | fr3/long | Avg     | FPS     |
 | ----------- | ----- | ------- | -------- | --------- | --------- | -------- | ------- | --------- | ------- | ------- | -------- | -------- | ------- | ------- |
@@ -167,7 +167,7 @@ Memory features:
 
 _S: Sparse, D: Dense, U: Dense Unconstrained. (_) Model re-run without Loop Closure and global bundle adjustment.*
 
-### Table 2: TUM RGB-D Tracking Accuracy by Category (ATE RMSE in cm)
+#### Table 2: TUM RGB-D Tracking Accuracy by Category (ATE RMSE in cm)
 
 | Method     | Test         | Handheld     | Robot          | Structure    | Dynamic        | 3D Objects    | Avg           |
 | ---------- | ------------ | ------------ | -------------- | ------------ | -------------- | ------------- | ------------- |
@@ -177,7 +177,7 @@ _S: Sparse, D: Dense, U: Dense Unconstrained. (_) Model re-run without Loop Clos
 
 _Mean (median) RMSE values reported per category._
 
-### Table 3: Comparison of Vertical FoV Errors (degrees) for Spann3R and MUSt3R across TUM RGB-D Scenes
+#### Table 3: Comparison of Vertical FoV Errors (degrees) for Spann3R and MUSt3R across TUM RGB-D Scenes
 
 | Method     | freiburg1 |          |          |          |          |          |          |          | freiburg2 |          | freiburg3   |          |          |
 | ---------- | --------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | --------- | -------- | ----------- | -------- | -------- |
@@ -185,7 +185,7 @@ _Mean (median) RMSE values reported per category._
 | Spann3R    | 12.13     | 12.77    | 12.16    | 12.68    | 12.12    | 11.64    | 12.81    | 12.36    | 11.79     | 12.74    | 9.49        | 12.06    | 12.16    |
 | **MUSt3R** | **6.42**  | **2.64** | **3.36** | **6.56** | **4.32** | **4.04** | **5.65** | **0.11** | **5.06**  | **6.28** | **3.04**    | **4.32** | **4.32** |
 
-### Table 4: Scale Estimation Error (% of ground truth scale) on TUM RGB-D
+#### Table 4: Scale Estimation Error (% of ground truth scale) on TUM RGB-D
 
 | Method     | freiburg1 |         |         |         |         |          |          |         | freiburg2 |         | freiburg3   |          |         |
 | ---------- | --------- | ------- | ------- | ------- | ------- | -------- | -------- | ------- | --------- | ------- | ----------- | -------- | ------- |
@@ -193,7 +193,7 @@ _Mean (median) RMSE values reported per category._
 | MUSt3R-C   | 26.9      | 3.3     | 9.8     | 1.0     | 7.9     | 85.9     | 14.1     | 3.7     | 1.2       | 2.4     | 5.5         | 14.7     | 5.5     |
 | **MUSt3R** | **21.1**  | **2.1** | **9.3** | **2.9** | **7.7** | **86.3** | **15.2** | **0.2** | **1.7**   | **1.7** | **4.6**     | **13.9** | **4.6** |
 
-### Table 5: ETH3D SLAM Tracking Accuracy ATE RMSE [cm] on ETH3D benchmark
+#### Table 5: ETH3D SLAM Tracking Accuracy ATE RMSE [cm] on ETH3D benchmark
 
 | Methods    | cables1  | camshake1 | einstein1 | plant1  | plant2  | sofa1    | table3   | table7  | Avg      | FPS     |
 | ---------- | -------- | --------- | --------- | ------- | ------- | -------- | -------- | ------- | -------- | ------- |
@@ -201,7 +201,7 @@ _Mean (median) RMSE values reported per category._
 | MUSt3R-C   | 20.7     | 5.6       | 15.4      | 2.3     | 2.7     | 15.8     | 17.6     | 9.5     | 11.2     | 11.8    |
 | **MUSt3R** | **20.7** | **5.3**   | **11.2**  | **1.8** | **2.7** | **15.5** | **17.3** | **5.5** | **10.0** | **8.7** |
 
-### Table 6: Reconstruction Benchmarks on 7 Scenes, NRGBD and DTU datasets
+#### Table 6: Reconstruction Benchmarks on 7 Scenes, NRGBD and DTU datasets
 
 | Methods    | 7 Scenes          |                   |               | NRGBD             |                   |               | DTU           |                   |               | FPS           | Mem   |
 | ---------- | ----------------- | ----------------- | ------------- | ----------------- | ----------------- | ------------- | ------------- | ----------------- | ------------- | ------------- | ----- |
@@ -213,7 +213,7 @@ _Mean (median) RMSE values reported per category._
 | MUSt3R-224 | 0.028 (0.012)     | 0.027 (0.010)     | 0.665 (0.758) | 0.062 (0.025)     | 0.031 (0.012)     | 0.788 (0.930) | 3.256 (1.863) | 2.193 (0.995)     | 0.715 (0.815) | 40.41         | 4.1G  |
 | MUSt3R-512 | **0.026 (0.009)** | **0.027 (0.009)** | 0.617 (0.682) | **0.048 (0.022)** | **0.020 (0.008)** | 0.768 (0.911) | 3.261 (1.681) | **1.965 (0.765)** | 0.661 (0.741) | 12.10         | 8.1G  |
 
-### Table 7: Multi-view pose regression on CO3Dv2 and RealEstate10K
+#### Table 7: Multi-view pose regression on CO3Dv2 and RealEstate10K
 
 | Method           | CO3Dv2   |          |          | RealEstate10K | Speed (FPS) |
 | ---------------- | -------- | -------- | -------- | ------------- | ----------- |
@@ -225,7 +225,7 @@ _Mean (median) RMSE values reported per category._
 | MUSt3R-512       | **97.0** | **92.7** | **84.1** | **75.1**      | 4.1         |
 | MUSt3R-512 (Pro) | 95.5     | 88.9     | 78.3     | 65.5          | 32.9        |
 
-### Table 8: Multi-view depth evaluation with no poses nor intrinsics
+#### Table 8: Multi-view depth evaluation with no poses nor intrinsics
 
 | Methods    | KITTI   |          | ScanNet |        | ETH3D   |          | DTU     |          | T&T   |        | Avg     |          |           |
 | ---------- | ------- | -------- | ------- | ------ | ------- | -------- | ------- | -------- | ----- | ------ | ------- | -------- | --------- |
@@ -238,7 +238,7 @@ _Mean (median) RMSE values reported per category._
 
 _Note: Values in parentheses indicate results on a subset of the dataset._
 
-### Table 9: Analysis of the effects of proposed simplifications on DUSt3R in the pairwise setting
+#### Table 9: Analysis of the effects of proposed simplifications on DUSt3R in the pairwise setting
 
 | Architecture     | Regression Loss↓ |
 | ---------------- | ---------------- |
@@ -247,7 +247,7 @@ _Note: Values in parentheses indicate results on a subset of the dataset._
 | Symmetric(none)  | 0.560            |
 | Symmetric(embed) | **0.192**        |
 
-### Table 10: Comparison with Spann3R
+#### Table 10: Comparison with Spann3R
 
 | Methods    |     |     | 7-Scenes  |           |           |           |           |           | NRGBD     |           |           |           |       |       | DTU   |       |           |           |       |       | FPS           | Mem   |
 | ---------- | --- | --- | --------- | --------- | --------- | --------- | --------- | --------- | --------- | --------- | --------- | --------- | ----- | ----- | ----- | ----- | --------- | --------- | ----- | ----- | ------------- | ----- |
@@ -269,7 +269,7 @@ _Note: Values in parentheses indicate results on a subset of the dataset._
 
 _Note: We evaluate MUSt3R for different maximum size of memory (n) and different number of images at once when updating the memory (s). For s=1, we initialize with two images to match the training configuration. FPS numbers in parenthesis are from [67]. For DUSt3R, our FPS and GPU memory numbers were obtained with the 224 linear model and a complete graph._
 
-### Table 11: Detailed results on TUM RGBD [58] (34 sequences not included in Tab. 1)
+#### Table 11: Detailed results on TUM RGBD [58] (34 sequences not included in Tab. 1)
 
 | Method                                | Type | fr1      |          |          |          |          |          |          |          |          |          |          |          |           |           | fr2      |          |          |           |            |            |             |          |          |          |          |            |             |             |              |          |           |          |           | Avg      |          |
 | ------------------------------------- | ---- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | --------- | --------- | -------- | -------- | -------- | --------- | ---------- | ---------- | ----------- | -------- | -------- | -------- | -------- | ---------- | ----------- | ----------- | ------------ | -------- | --------- | -------- | --------- | -------- | -------- |
@@ -291,7 +291,7 @@ _Note: We evaluate MUSt3R for different maximum size of memory (n) and different
 
 _Note: One Dense (D) versus dense unconstrained (U) methods on TUM-RGBD SLAM benchmark. (_) GlORIE-SLAM was re-run without Loop Closure and global Bundle Adjustment.*
 
-### Table 12: Detailed results on ETH3D SLAM [53] (32 sequences not included in Table 5)
+#### Table 12: Detailed results on ETH3D SLAM [53] (32 sequences not included in Table 5)
 
 | Method                                | cash1    | cash2    | cei1     | de3      | dech1    | eiflli    | eillc1   | eillc2   | eiglc3   | mq1      | mq4      | mqfa1     | mqfa2    | mqhe     | mo1      | plr2     | plt3     | plt4     | plt5     | pltsc1   | ref1     | rep      | sfmbe    | sfmgr    | sfmhl    | sfmlr1   | sf2      | sf3      | sfsh     | vili1    | vili2    | Avg      |
 | ------------------------------------- | -------- | -------- | -------- | -------- | -------- | --------- | -------- | -------- | -------- | -------- | -------- | --------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
@@ -310,16 +310,35 @@ _Note: One Dense (D) versus dense unconstrained (U) methods on TUM-RGBD SLAM ben
 
 _Note: RMSE ATE, Vertical FoV and Scale errors for three dense unconstrained (U) methods._
 
-### Computational Efficiency
+#### Computational Efficiency
 
 - **Inference Time**: 120ms per view @ 512px (8.4 FPS)
 - **Memory Usage**: 4.1GB for 50 views @ 224px
 - **Scaling**: Linear with number of views
 - **Hardware**: Single NVIDIA GPU sufficient
 
-## 💡 Critical Analysis
+## 💡 Insights & Impact
 
-### Strengths from Experimental Evidence
+### Technical Innovation
+
+This work advances the field by introducing novel approaches to 3D reconstruction that overcome previous limitations.
+
+### Applications
+
+- Real-time 3D reconstruction
+- Robotics and autonomous navigation
+- AR/VR applications
+- 3D content creation
+
+### Future Directions
+
+- Extension to dynamic scenes
+- Integration with other modalities
+- Mobile deployment optimization
+
+### 💡 Critical Analysis
+
+#### Strengths from Experimental Evidence
 
 1. **Scalability Breakthrough**
    - Processes 1000+ images vs DUSt3R's 10-20 limit
@@ -336,7 +355,7 @@ _Note: RMSE ATE, Vertical FoV and Scale errors for three dense unconstrained (U)
    - Symmetric design simplifies implementation
    - Memory mechanism enables streaming applications
 
-### Technical Trade-offs and Limitations
+#### Technical Trade-offs and Limitations
 
 1. **Training-Test Gap**
    - Trained on 10 views but tested on 1000+
@@ -353,7 +372,7 @@ _Note: RMSE ATE, Vertical FoV and Scale errors for three dense unconstrained (U)
    - Memory operations add latency
    - Not yet real-time for high resolutions
 
-### Comparison Gaps and Missing Evaluations
+#### Comparison Gaps and Missing Evaluations
 
 1. **Missing Comparisons**
    - No comparison with recent neural SLAM methods
@@ -365,7 +384,7 @@ _Note: RMSE ATE, Vertical FoV and Scale errors for three dense unconstrained (U)
    - No evaluation on very large scenes (>1000 images)
    - Runtime breakdown not provided
 
-### Real-World Applicability
+#### Real-World Applicability
 
 **Best Use Cases**:
 
@@ -415,25 +434,6 @@ _Note: RMSE ATE, Vertical FoV and Scale errors for three dense unconstrained (U)
 | MASt3R     | Matching        | Best accuracy   | Still pairwise |
 | Spann3R    | Speed           | 47.9 FPS        | Lower quality  |
 | **MUSt3R** | **Scalability** | **1000+ views** | **8.4 FPS**    |
-
-## 💡 Insights & Impact
-
-### Technical Innovation
-
-This work advances the field by introducing novel approaches to 3D reconstruction that overcome previous limitations.
-
-### Applications
-
-- Real-time 3D reconstruction
-- Robotics and autonomous navigation
-- AR/VR applications
-- 3D content creation
-
-### Future Directions
-
-- Extension to dynamic scenes
-- Integration with other modalities
-- Mobile deployment optimization
 
 ## 📚 Key Takeaways
 

@@ -6,7 +6,7 @@ _D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspo
 ## 📋 Overview
 
 - **Authors**: Jisang Han, Honggyu An, Jaewoo Jung, Takuya Narihira, Junyoung Seo, Kazumi Fukuda, Chaehyun Kim, Sunghwan Hong, Yuki Mitsufuji, Seungryong Kim
-- **Institutions**: KAIST AI, Sony AI, Korea University
+- **Institution**: KAIST AI, Sony AI, Korea University
 - **Venue**: arXiv preprint
 - **Links**: [Paper](https://arxiv.org/abs/2504.06264) | [Code](https://github.com/cvlab-kaist/DDUSt3R) | [Project Page](https://cvlab-kaist.github.io/DDUSt3R/)
 - **TL;DR**: Extends DUSt3R from 3D to 4D pointmaps, enabling accurate reconstruction of dynamic scenes through spatio-temporal correspondence.

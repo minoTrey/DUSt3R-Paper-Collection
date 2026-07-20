@@ -169,9 +169,24 @@ _MASt3R-SLAM_ denotes uncalibrated setting
 - ✅ Robust on in-the-wild videos
 - ✅ No scene-specific training
 
-## 💡 Insights & Critical Analysis
+## 💡 Insights & Impact
 
-### Strengths from Experimental Evidence
+### Technical Advantages
+
+1. **Efficiency**: Significant improvements in processing speed and memory usage
+2. **Accuracy**: Enhanced reconstruction quality and robustness
+3. **Scalability**: Better handling of large-scale scenarios
+
+### Applications
+
+- Real-time 3D reconstruction
+- Robotics and autonomous navigation
+- AR/VR applications
+- 3D content creation
+
+### 💡 Insights & Critical Analysis
+
+#### Strengths from Experimental Evidence
 
 1. **Superior Tracking Robustness** (Table 1):
    - MASt3R-SLAM succeeds on all TUM sequences (100% success rate)
@@ -193,7 +208,7 @@ _MASt3R-SLAM_ denotes uncalibrated setting
    - Significant gains in both calibrated and uncalibrated settings
    - Essential for large-scale consistency
 
-### Technical Trade-offs Revealed
+#### Technical Trade-offs Revealed
 
 1. **Calibration Dependency**:
    - Calibrated: Best overall performance (Tables 1-2)
@@ -210,9 +225,9 @@ _MASt3R-SLAM_ denotes uncalibrated setting
    - Recent fusion worst (0.160 ATE)
    - Shows importance of temporal integration
 
-### Limitations & Critical Analysis
+#### Limitations & Critical Analysis
 
-#### Performance Gaps
+##### Performance Gaps
 
 1. **Not Always Best** (Tables 2-3):
    - DROID-SLAM better on Chess scene (0.036 vs 0.053)
@@ -231,7 +246,7 @@ _MASt3R-SLAM_ denotes uncalibrated setting
    - 8-12GB GPU memory requirement
    - Not suitable for embedded devices
 
-#### Methodological Concerns
+##### Methodological Concerns
 
 1. **Cherry-picked Comparisons**:
    - No comparison with recent neural SLAM (NICE-SLAM, Vox-Fusion)
@@ -249,15 +264,15 @@ _MASt3R-SLAM_ denotes uncalibrated setting
    - Claims "arbitrary cameras" but needs central model
    - Claims "real-time" but requires high-end GPU
 
-### Real-World Applicability
+#### Real-World Applicability
 
-#### Best Use Cases
+##### Best Use Cases
 
 - **Controlled Indoor Environments**: Where calibration available
 - **High-End Robotics**: With powerful GPUs
 - **Research Platforms**: For exploring prior-based SLAM
 
-#### Not Suitable For
+##### Not Suitable For
 
 - **Mobile Devices**: Too computationally intensive
 - **Large-Scale Outdoor**: Memory and accuracy limitations
@@ -277,21 +292,6 @@ _MASt3R-SLAM_ denotes uncalibrated setting
 - Future prior-based SLAM systems
 - Integration with other foundation models
 - Multi-modal SLAM approaches
-
-## 💡 Insights & Impact
-
-### Technical Advantages
-
-1. **Efficiency**: Significant improvements in processing speed and memory usage
-2. **Accuracy**: Enhanced reconstruction quality and robustness
-3. **Scalability**: Better handling of large-scale scenarios
-
-### Applications
-
-- Real-time 3D reconstruction
-- Robotics and autonomous navigation
-- AR/VR applications
-- 3D content creation
 
 ## 📚 Key Takeaways
 

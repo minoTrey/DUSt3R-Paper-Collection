@@ -6,7 +6,7 @@ _RaySt3R recasts object completion as novel view depth prediction, achieving 44%
 ## 📋 Overview
 
 - **Authors**: Bardienus P. Duisterhof, Jan Oberst, Bowen Wen, Stan Birchfield, Deva Ramanan, Jeffrey Ichnowski
-- **Institutions**: Carnegie Mellon University, Karlsruhe Institute of Technology, NVIDIA
+- **Institution**: Carnegie Mellon University, Karlsruhe Institute of Technology, NVIDIA
 - **Venue**: NeurIPS 2025
 - **Links**: [Paper](https://arxiv.org/abs/2506.05285) | [Code](https://github.com/Duisterhof/rayst3r) | [Project Page](https://rayst3r.github.io/)
 - **Verification**: CONFIRMED (2026-07-20)

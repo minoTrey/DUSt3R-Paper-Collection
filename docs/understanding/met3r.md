@@ -6,7 +6,7 @@ _MEt3R uses DUSt3R for geometry-aware warping and DINO features to measure multi
 ## 📋 Overview
 
 - **Authors**: Mohammad Asim, Christopher Wewer, Thomas Wimmer, Bernt Schiele, Jan Eric Lenssen
-- **Institutions**: Max Planck Institute for Informatics, Saarland Informatics Campus; ETH Zurich
+- **Institution**: Max Planck Institute for Informatics, Saarland Informatics Campus; ETH Zurich
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2501.06336) | [Code](https://github.com/mohammadasim98/met3r) | [Project Page](https://geometric-rl.mpi-inf.mpg.de/met3r/)
 - **TL;DR**: Pose-free metric leveraging DUSt3R to evaluate multi-view consistency in generated images, enabling robust assessment of generative models for 3D tasks.

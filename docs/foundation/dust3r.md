@@ -135,7 +135,7 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 3. **Large Scenes**: Not designed for city-scale reconstruction
 4. **Training Data**: Requires diverse 3D training data
 
-## 🔗 Impact on Research
+## 🔗 Related Work
 
 ### Direct Extensions
 

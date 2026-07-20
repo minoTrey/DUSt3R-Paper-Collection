@@ -78,9 +78,9 @@ Output: Stylized 3D scene representation
 | Neural 3D Style | 0.142     | 38.7     | 3.8/5      |
 | **Styl3R**      | **0.098** | **31.2** | **4.3/5**  |
 
-## 📊 Expected Results
+### 📊 Expected Results
 
-### Stylization Quality
+#### Stylization Quality
 
 | Method             | Style Quality | 3D Consistency | Speed    | Versatility   |
 | ------------------ | ------------- | -------------- | -------- | ------------- |
@@ -88,7 +88,7 @@ Output: Stylized 3D scene representation
 | 3D Post-processing | Medium        | Medium         | Slow     | Good          |
 | **Styl3R**         | **High**      | **Excellent**  | **Fast** | **Excellent** |
 
-### Performance Metrics
+#### Performance Metrics
 
 - **Style Transfer Quality**: Maintains artistic fidelity
 - **3D Consistency**: Coherent across viewpoints

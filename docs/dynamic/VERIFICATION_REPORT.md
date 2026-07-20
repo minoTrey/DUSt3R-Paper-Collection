@@ -75,7 +75,7 @@ Systematic verification of papers in `docs/dynamic/` category revealed **signifi
 
 - **Equal Contribution**: Document shows "Jiahao Lu*, Tianyu Huang* (*Equal contribution)" but not confirmed in arXiv
 - **Venue Status**: Claimed "CVPR 2025 (Highlight Paper)" but paper is arXiv preprint from Dec 2024
-- **Institutions**: Listed 7 institutions (HKUST, CUHK, HKU, etc.) but not in abstract
+- **Institution**: Listed 7 institutions (HKUST, CUHK, HKU, etc.) but not in abstract
 - **Performance Numbers**: All benchmark results (Sintel, TUM RGB-D, KITTI) not in abstract
 
 **Fixes Applied**:
