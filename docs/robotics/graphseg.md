@@ -62,29 +62,48 @@ Result: Consistent 3D object-level segments
 
 ## 📊 Results
 
-### 3D Segmentation Performance
+### 3D Segmentation on GraspNet-1B
 
-| Method             | IoU      | Consistency | Views Needed | 3D Training |
-| ------------------ | -------- | ----------- | ------------ | ----------- |
-| 2D→3D Projection   | 45.2     | Poor        | Many         | No          |
-| Multi-view Methods | 62.8     | Medium      | Many         | Yes         |
-| **GraphSeg**       | **78.4** | **High**    | **Few**      | **No**      |
+원논문 TABLE I. GraphSeg⁻는 3D graph 확장·수축 단계를 뺀 ablation이다.
+IOU/F1/IoU_sel은 높을수록, d_chamfer는 낮을수록 좋다.
 
-### Cross-View Consistency
+#### GraspNet-1B-main / -similar
 
-| Metric              | Baseline | GraphSeg  | Improvement |
-| ------------------- | -------- | --------- | ----------- |
-| View Consistency    | 52.3%    | **87.6%** | +35.3%      |
-| Object Completeness | 61.4%    | **91.2%** | +29.8%      |
-| Over-segmentation   | High     | **Low**   | Significant |
+| Method           | main IOU ↑ | main F1 ↑  | main d_ch ↓ | main IoU_sel ↑ | sim. IOU ↑ | sim. F1 ↑  | sim. d_ch ↓ | sim. IoU_sel ↑ |
+| ---------------- | ---------- | ---------- | ----------- | -------------- | ---------- | ---------- | ----------- | -------------- |
+| SAM3D            | 0.319      | 0.4484     | 0.0556      | 0.317          | 0.3721     | 0.4877     | 0.0539      | 0.3708         |
+| MaskClustering   | 0.0137     | 0.0311     | 0.0421      | 0.0125         | 0.0133     | 0.0309     | 0.0337      | 0.0138         |
+| GraphSeg⁻ (ours) | 0.3916     | 0.5904     | **0.0042**  | 0.3549         | 0.3966     | 0.5814     | **0.0031**  | 0.3656         |
+| **GraphSeg**     | **0.5945** | **0.7595** | 0.0142      | **0.5816**     | **0.6522** | **0.7997** | 0.0131      | **0.6418**     |
+
+#### GraspNet-1B-unseen
+
+| Method           | IOU ↑      | F1 ↑      | d_chamfer ↓ | IoU_sel ↑  |
+| ---------------- | ---------- | --------- | ----------- | ---------- |
+| SAM3D            | 0.346      | 0.4814    | 0.0625      | 0.3444     |
+| MaskClustering   | 0.0132     | 0.0315    | 0.0461      | 0.0109     |
+| GraphSeg⁻ (ours) | 0.373      | 0.5563    | **0.0027**  | 0.348      |
+| **GraphSeg**     | **0.7308** | **0.848** | 0.0065      | **0.7281** |
+
+### Segmentation Precision
+
+원논문 TABLE II. 각 방법이 저신뢰 픽셀을 걸러내는 비율이 달라, 필터링된 점 개수에
+둔감한 precision으로 평가한 결과.
+
+| Dataset             | SAM3D  | MaskClustering | **GraphSeg** |
+| ------------------- | ------ | -------------- | ------------ |
+| GraspNet-1B-main    | 0.3714 | 0.3815         | **0.6982**   |
+| GraspNet-1B-similar | 0.4146 | 0.3971         | **0.743**    |
+| GraspNet-1B-unseen  | 0.3864 | 0.4025         | **0.8121**   |
 
 ### Key Achievements
 
-- ✅ State-of-the-art 3D segmentation from sparse views
-- ✅ High cross-view consistency without 3D supervision
-- ✅ Effective handling of occlusions and viewpoint changes
-- ✅ Practical for real-world robotic applications
-- ✅ Works with existing 2D segmentation models
+- ✅ 세 split 모두에서 IOU·F1·precision 전부 baseline 대비 최고 (unseen에서 IOU 0.7308,
+  SAM3D 0.346의 2배 이상)
+- ✅ 3D 학습 없이 2D foundation model만으로 달성
+- ✅ SAM3D의 under-segmentation과 MaskClustering의 over-segmentation을 모두 회피
+- ✅ GraphSeg⁻ ablation은 d_chamfer만 좋고 IoU_sel이 낮다 — 3D graph 단계가
+  객체 완결성에 기여함을 보인다
 
 ## 💡 Insights & Impact
 

@@ -204,7 +204,7 @@ _π³ outperforms larger models while maintaining true view-order independence._
 | ------------------------------------------- | ---- | ------- | --------------------- | ------------------------- |
 | [CroCo](docs/foundation/croco.md)           | 2022 | NeurIPS | Cross-view MAE        | Pre-training foundation   |
 | [CroCo v2](docs/foundation/croco-v2.md)     | 2023 | ICCV    | Enhanced architecture | 1.25 EPE on Spring (SOTA) |
-| [DUSt3R](docs/foundation/dust3r.md)         | 2024 | CVPR    | Direct 3D prediction  | 300× faster than COLMAP   |
+| [DUSt3R](docs/foundation/dust3r.md)         | 2024 | CVPR    | Direct 3D prediction  | COLMAP 대비 "much faster" |
 | [MASt3R](docs/foundation/mast3r.md)         | 2024 | ECCV    | 3D-aware matching     | 93.3% VCRE AUC            |
 | [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 2025 | 3DV     | Linear complexity     | 100% registration         |
 
@@ -303,7 +303,7 @@ pts3d = output['pts3d']  # Your 3D points!
 | **[Dens3R](docs/reconstruction/dens3r.md)**             | Unified dense prediction (depth+normals)                 | 72.2% δ<11.25° on iBims                               |
 | **[Fast3R](docs/reconstruction/fast3r.md)**             | 1500 views in one pass                                   | 320× faster than DUSt3R                               |
 | **[Light3R-SfM](docs/reconstruction/light3r-sfm.md)**   | Feed-forward SfM                                         | 49× faster than MASt3R-SfM                            |
-| **[MV-DUSt3R+](docs/reconstruction/mv-dust3r-plus.md)** | Single-stage multi-view                                  | 13.8× faster with cross-reference fusion              |
+| **[MV-DUSt3R+](docs/reconstruction/mv-dust3r-plus.md)** | Single-stage multi-view                                  | DUSt3R 대비 8~14× (원논문 §1)                         |
 | **[LoRA3D](docs/reconstruction/lora3d.md)**             | Self-calibration pipeline                                | 88% camera error reduction                            |
 | **[MonST3R](docs/dynamic/monst3r.md)**                  | Monocular video tracking                                 | Robust dynamic 3D                                     |
 

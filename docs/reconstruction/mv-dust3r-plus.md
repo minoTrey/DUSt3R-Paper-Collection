@@ -1,4 +1,4 @@
-# MV-DUSt3R+: Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds (CVPR 2025 Oral) (CVPR 2025)
+# MV-DUSt3R+: Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds (CVPR 2025)
 
 ![MV-DUSt3R+ teaser](https://github.com/MV-DUSt3Rp/MV-DUSt3Rp.github.io/blob/main/static/images/tsr_.png?raw=true)
 _MV-DUSt3R+ achieves single-stage multi-view reconstruction in ~2 seconds using novel cross-reference view blocks_
@@ -20,7 +20,7 @@ _MV-DUSt3R+ achieves single-stage multi-view reconstruction in ~2 seconds using 
 1. **Single-Stage Architecture**: Processes all views simultaneously with O(N) complexity instead of O(N²)
 2. **Cross-Reference Fusion**: Aggregates predictions from multiple reference views for robustness
 3. **Direct 3D Output**: Eliminates post-processing by directly regressing pointmaps, poses, and optional Gaussian parameters
-4. **Real-time Performance**: ~2 seconds for full reconstruction (13.8× faster than DUSt3R)
+4. **Real-time Performance**: ~~2 seconds for full reconstruction (원논문 기준 DUSt3R 대비 8~~14×)
 
 ## 🔧 Technical Details
 
@@ -238,7 +238,8 @@ _Note: Impact of adding Gaussian (GS) heads on MVS reconstruction performance on
 
 ### Key Results Summary
 
-- **Speed**: 8.3-13.8× faster than DUSt3R across all view counts
+- **Speed**: DUSt3R 대비 **8~14×** (4~~24 뷰 기준, 원논문 §1). 24뷰에서 14×.
+  MV-DUSt3R(+ 없는 버전)는 48~~78×.
 - **Quality**: 95.2% DAc at 4 views, 91.5% at 12 views, 64.5% at 24 views (HM3D)
 - **Cross-Reference Impact**: Up to 75.7% relative improvement at 24 views
 - **Memory**: Linear O(N) growth enables 100+ view processing
@@ -325,7 +326,7 @@ MV-DUSt3R+           → Robustness: Cross-reference fusion mechanism
 
 #### Key Achievements
 
-1. **13.8× speedup** through O(N) architecture
+1. **8~14× speedup** through O(N) architecture (원논문 §1)
 2. **3× quality improvement** with simultaneous speed gains
 3. **Linear scaling** enables mobile to server deployment
 

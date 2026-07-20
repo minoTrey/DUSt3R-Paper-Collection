@@ -116,7 +116,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 ### 🏆 State-of-the-Art Methods
 
 1. [**π³ (Pi3)**: Scalable Permutation-Equivariant Visual Geometry Learning](pi3.md) ⭐ SOTA (no positional embeddings)
-2. [**VGGT**: Visual Geometry Grounded Transformer](vggt.md) - 45× faster
+2. [**VGGT**: Visual Geometry Grounded Transformer](vggt.md) - ~0.2s 추론 (DUSt3R ~7s)
 3. [**Pow3R**: Empowering Unconstrained 3D Reconstruction](pow3r.md) - Best with auxiliary inputs
 4. [**Dens3R**: Unified Geometric Dense Prediction](dens3r.md)
 
@@ -125,7 +125,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 1. [**SLAM3R**: Real-Time Dense Scene Reconstruction](slam3r.md)
 2. [**Fast3R**: 3D Reconstruction of 1000+ Images](fast3r.md)
 3. [**MASt3R-SLAM**: Real-Time Dense SLAM](mast3r-slam.md)
-4. [**MV-DUSt3R+**: Single-Stage Scene Reconstruction](mv-dust3r-plus.md) - 13.8× faster
+4. [**MV-DUSt3R+**: Single-Stage Scene Reconstruction](mv-dust3r-plus.md) - DUSt3R 대비 8~14×
 
 ### 🌍 Large-scale & Multi-view
 

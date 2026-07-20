@@ -63,46 +63,63 @@ For each 3D point from MASt3R:
 
 ## 📊 Results
 
-### 3D Gaussian Splatting Generation
+### Novel View Synthesis (ScanNet++) — Close / Medium baseline
 
-| Method         | Generation Time | PSNR ↑   | SSIM ↑    | LPIPS ↓   |
-| -------------- | --------------- | -------- | --------- | --------- |
-| NeRF (hours)   | 4-6 hours       | 28.3     | 0.912     | 0.098     |
-| 3DGS (minutes) | 30 min          | 31.2     | 0.945     | 0.067     |
-| InstantNGP     | 5 min           | 29.8     | 0.931     | 0.082     |
-| **Splatt3R**   | **0.5 sec**     | **27.9** | **0.908** | **0.112** |
+원논문 Table 1 (앞 절반). 괄호 안 값은 loss mask 픽셀만 평균한 PSNR/LPIPS다.
 
-### Novel View Synthesis (DTU)
+| Method                   | Close PSNR ↑      | Close SSIM ↑ | Close LPIPS ↓     | Medium PSNR ↑     | Medium SSIM ↑ | Medium LPIPS ↓    |
+| ------------------------ | ----------------- | ------------ | ----------------- | ----------------- | ------------- | ----------------- |
+| **Splatt3R (Ours)**      | **19.66** (14.72) | **0.757**    | **0.234** (0.237) | **19.66** (14.38) | **0.770**     | **0.229** (0.243) |
+| MASt3R (Point Cloud)     | 18.56 (13.57)     | 0.708        | 0.278 (0.283)     | 18.51 (12.96)     | 0.718         | 0.259 (0.280)     |
+| pixelSplat (MASt3R cams) | 15.48 (10.53)     | 0.602        | 0.439 (0.447)     | 15.96 (10.64)     | 0.648         | 0.379 (0.405)     |
+| pixelSplat (GT cams)     | 15.67 (10.71)     | 0.609        | 0.436 (0.443)     | 15.92 (10.61)     | 0.643         | 0.381 (0.407)     |
 
-| Method        | Train Time  | PSNR ↑   | SSIM ↑    | Rendering FPS |
-| ------------- | ----------- | -------- | --------- | ------------- |
-| 3DGS          | 30 min      | 31.8     | 0.953     | 134           |
-| Mip-Splatting | 35 min      | 32.4     | 0.961     | 112           |
-| **Splatt3R**  | **0.5 sec** | **28.2** | **0.915** | **156**       |
+### Novel View Synthesis (ScanNet++) — Wide / Very Wide baseline
 
-### Memory and Speed
+원논문 Table 1 (뒤 절반).
 
-| Views | Processing Time | Memory (GB) | Gaussians |
-| ----- | --------------- | ----------- | --------- |
-| 2     | 0.3 sec         | 2.1         | 50K       |
-| 5     | 0.5 sec         | 3.8         | 120K      |
-| 10    | 0.8 sec         | 6.2         | 250K      |
-| 20    | 1.2 sec         | 9.7         | 480K      |
+| Method                   | Wide PSNR ↑       | Wide SSIM ↑ | Wide LPIPS ↓      | V.Wide PSNR ↑     | V.Wide SSIM ↑ | V.Wide LPIPS ↓    |
+| ------------------------ | ----------------- | ----------- | ----------------- | ----------------- | ------------- | ----------------- |
+| **Splatt3R (Ours)**      | **19.41** (13.72) | **0.783**   | **0.220** (0.247) | **19.18** (12.94) | **0.794**     | **0.209** (0.258) |
+| MASt3R (Point Cloud)     | 18.73 (12.50)     | 0.739       | 0.245 (0.293)     | 18.44 (11.27)     | 0.758         | 0.242 (0.322)     |
+| pixelSplat (MASt3R cams) | 15.94 (10.14)     | 0.675       | 0.343 (0.394)     | 16.46 (10.12)     | 0.708         | 0.302 (0.373)     |
+| pixelSplat (GT cams)     | 16.08 (10.33)     | 0.672       | 0.407 (0.392)     | 16.56 (10.20)     | 0.709         | 0.299 (0.370)     |
 
-### Quantitative Performance (ScanNet++)
+### Ablations (ScanNet++) — Close / Medium baseline
 
-| Method        | PSNR ↑   | SSIM ↑   | LPIPS ↓  | Needs Poses |
-| ------------- | -------- | -------- | -------- | ----------- |
-| MASt3R points | 18.2     | 0.72     | 0.35     | ❌          |
-| pixelSplat    | 22.1     | 0.83     | 0.21     | ❌          |
-| pixelSplat+GT | 23.5     | 0.86     | 0.18     | ✅          |
-| **Splatt3R**  | **24.9** | **0.89** | **0.15** | ❌          |
+원논문 Table 2 (앞 절반). Loss masking 없이 학습하면 렌더링 메모리가 계속 늘어나 학습이 불가능해 N/A다.
 
-### Speed Performance
+| Variant               | Close PSNR ↑  | Close SSIM ↑ | Close LPIPS ↓ | Medium PSNR ↑ | Medium SSIM ↑ | Medium LPIPS ↓ |
+| --------------------- | ------------- | ------------ | ------------- | ------------- | ------------- | -------------- |
+| Ours                  | 19.66 (14.72) | 0.757        | 0.234 (0.237) | 19.66 (14.38) | 0.770         | 0.229 (0.243)  |
+| + Finetune w/ MASt3R  | 20.97 (16.03) | 0.780        | 0.199 (0.201) | 20.41 (15.13) | 0.781         | 0.214 (0.226)  |
+| + Spherical Harmonics | 18.04 (13.10) | 0.730        | 0.254 (0.257) | 18.57 (13.29) | 0.752         | 0.248 (0.259)  |
+| − LPIPS Loss          | 19.62 (14.68) | 0.763        | 0.277 (0.282) | 19.65 (14.37) | 0.776         | 0.261 (0.278)  |
+| − Offsets             | 19.38 (14.44) | 0.757        | 0.249 (0.252) | 19.25 (13.97) | 0.775         | 0.242 (0.256)  |
+| − Loss Masking        | N/A           | N/A          | N/A           | N/A           | N/A           | N/A            |
 
-- **Reconstruction**: 4 FPS at 512×512
-- **Rendering**: Real-time (standard 3DGS)
-- **Total time**: <1 second from images to renderable 3DGS
+### Ablations (ScanNet++) — Wide / Very Wide baseline
+
+원논문 Table 2 (뒤 절반).
+
+| Variant               | Wide PSNR ↑   | Wide SSIM ↑ | Wide LPIPS ↓  | V.Wide PSNR ↑ | V.Wide SSIM ↑ | V.Wide LPIPS ↓ |
+| --------------------- | ------------- | ----------- | ------------- | ------------- | ------------- | -------------- |
+| Ours                  | 19.41 (13.72) | 0.783       | 0.220 (0.247) | 19.18 (12.94) | 0.794         | 0.209 (0.258)  |
+| + Finetune w/ MASt3R  | 20.00 (14.32) | 0.793       | 0.207 (0.232) | 19.69 (13.45) | 0.803         | 0.197 (0.241)  |
+| + Spherical Harmonics | 18.50 (12.82) | 0.768       | 0.236 (0.262) | 18.40 (12.16) | 0.781         | 0.226 (0.272)  |
+| − LPIPS Loss          | 19.41 (13.73) | 0.787       | 0.245 (0.278) | 19.22 (12.98) | 0.797         | 0.230 (0.285)  |
+| − Offsets             | 19.14 (13.46) | 0.792       | 0.225 (0.253) | 19.09 (12.85) | 0.805         | 0.209 (0.255)  |
+| − Loss Masking        | N/A           | N/A         | N/A           | N/A           | N/A           | N/A            |
+
+### Runtime
+
+원논문 Table 3. 단위는 초, pose estimation이 필요한 경우와 scene prediction(encoding)을 나눠 측정했다.
+
+| Method                       | Pose Est. ↓ | Encoding ↓ |
+| ---------------------------- | ----------- | ---------- |
+| Ours                         | —           | 0.268      |
+| MASt3R (Point Cloud)         | —           | 0.263      |
+| pixelSplat (w/ MASt3R poses) | 10.72       | 0.156      |
 
 ### Qualitative Results
 

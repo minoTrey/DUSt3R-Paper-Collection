@@ -65,32 +65,79 @@ PE3R: Geometry + Semantics → Full scene comprehension
 
 ## 📊 Results
 
-### Quantitative Performance
+### 2D-to-3D Open-Vocabulary Segmentation — 소규모 데이터셋 (원논문 Table 1)
 
-#### Speed Comparison
+원논문 Table 1. Mipnerf360(Mip.) / Replica(Rep.).
 
-| Method   | Time (s) ↓ | Speedup | Semantic |
-| -------- | ---------- | ------- | -------- |
-| Baseline | 450        | 1×      | No       |
-| DUSt3R   | 180        | 2.5×    | No       |
-| MASt3R   | 150        | 3×      | No       |
-| **PE3R** | **50**     | **9×**  | **Yes**  |
+| Dataset | Method      | mIoU ↑     | mPA ↑      | mP ↑       |
+| ------- | ----------- | ---------- | ---------- | ---------- |
+| Mip.    | LERF        | 0.2698     | 0.8183     | 0.6553     |
+| Mip.    | F-3DGS      | 0.3889     | 0.8279     | 0.7085     |
+| Mip.    | GS Grouping | 0.4410     | 0.7586     | 0.7611     |
+| Mip.    | LangSplat   | 0.5545     | 0.8071     | 0.8600     |
+| Mip.    | GOI         | 0.8646     | 0.9569     | 0.9362     |
+| Mip.    | **PE3R**    | **0.8951** | **0.9617** | **0.9726** |
+| Rep.    | LERF        | 0.2815     | 0.7071     | 0.6602     |
+| Rep.    | F-3DGS      | 0.4480     | 0.7901     | 0.7310     |
+| Rep.    | GS Grouping | 0.4170     | 0.7370     | 0.7276     |
+| Rep.    | LangSplat   | 0.4703     | 0.7694     | 0.7604     |
+| Rep.    | GOI         | 0.6169     | 0.8367     | 0.8088     |
+| Rep.    | **PE3R**    | **0.6531** | **0.8377** | **0.8444** |
 
-#### Accuracy on Scene Datasets
+### 대규모 데이터셋 ScanNet++ (원논문 Table 3)
 
-| Dataset   | DUSt3R | MASt3R | PE3R     | Improvement |
-| --------- | ------ | ------ | -------- | ----------- |
-| ScanNet   | 0.72   | 0.75   | **0.82** | +9.3%       |
-| MegaDepth | 0.68   | 0.71   | **0.78** | +9.9%       |
-| 3RScan    | 0.65   | 0.69   | **0.77** | +11.6%      |
-| Average   | 0.68   | 0.72   | **0.79** | +9.7%       |
+원논문 Table 3.
 
-### Key Advantages
+| Method        | mIoU ↑     | mPA ↑      | mP ↑       |
+| ------------- | ---------- | ---------- | ---------- |
+| LERF Features | 0.1824     | 0.6024     | 0.5873     |
+| GOI Features  | 0.2101     | 0.6216     | 0.6013     |
+| **PE3R**      | **0.2248** | **0.6542** | **0.6315** |
 
-- **9× faster**: Minutes instead of hours
-- **Better accuracy**: ~10% improvement average
-- **Semantic understanding**: Text-based queries
-- **Zero-shot**: No scene-specific training
+### Running Speed (원논문 Table 2)
+
+원논문 Table 2. Mipnerf360 기준. PE3R는 장면별 학습이 필요 없다.
+
+| Method      | Preprocess | Training | Total     |
+| ----------- | ---------- | -------- | --------- |
+| LERF        | 3mins      | 40mins   | 43mins    |
+| F-3DGS      | 25mins     | 623mins  | 648mins   |
+| GS Grouping | 27mins     | 138mins  | 165mins   |
+| LangSplat   | 50mins     | 99mins   | 149mins   |
+| GOI         | 8mins      | 37mins   | 45mins    |
+| **PE3R**    | **5mins**  | **-**    | **5mins** |
+
+### Multi-View Depth Evaluation (원논문 Table 4)
+
+원논문 Table 4 설정 (e) — 3D 정보를 쓰지 않는 feed-forward 아키텍처.
+`rel`은 낮을수록, `τ`는 높을수록 좋다.
+
+| Method            | KITTI rel ↓ | KITTI τ ↑ | ETH3D rel ↓ | ETH3D τ ↑ | T&T rel ↓ | T&T τ ↑  | Ave. rel ↓ | Ave. τ ↑ |
+| ----------------- | ----------- | --------- | ----------- | --------- | --------- | -------- | ---------- | -------- |
+| DUSt3R            | **9.1**     | 39.5      | 2.9         | 76.9      | 3.2       | 76.7     | 4.7        | 64.5     |
+| DUSt3R (our imp.) | 11.0        | 33.2      | 3.1         | 74.5      | 2.9       | 78.5     | 4.9        | 64.4     |
+| MASt3R (our imp.) | 36.9        | 5.4       | 27.9        | 9.9       | 22.1      | 14.6     | 24.5       | 10.6     |
+| **PE3R**          | 9.4         | **48.6**  | **2.3**     | **82.0**  | **2.1**   | **85.3** | **4.5**    | **68.0** |
+
+### Ablation: Open-Vocabulary Segmentation (원논문 Table 5)
+
+원논문 Table 5. ScanNet++ 기준.
+
+| Method                        | mIoU ↑     | mPA ↑      | mP ↑       |
+| ----------------------------- | ---------- | ---------- | ---------- |
+| PE3R, w/o Multi-Level Disam.  | 0.1624     | 0.5892     | 0.5623     |
+| PE3R, w/o Cross-View Disam.   | 0.1895     | 0.6012     | 0.5923     |
+| PE3R, w/o Global MinMax Norm. | 0.2035     | 0.6253     | 0.6186     |
+| **PE3R**                      | **0.2248** | **0.6542** | **0.6315** |
+
+### Ablation: Semantic Field Reconstruction (원논문 Table 6)
+
+원논문 Table 6. 시간 비용은 거의 늘지 않으면서 성능이 오른다.
+
+| Method                        | rel ↓   | τ ↑      | Run Time     |
+| ----------------------------- | ------- | -------- | ------------ |
+| PE3R, w/o Semantic Field Rec. | 5.3     | 60.2     | **10.4021s** |
+| **PE3R**                      | **4.5** | **68.0** | 11.1934s     |
 
 ## 💡 Insights & Impact
 

@@ -61,35 +61,51 @@ Output: Complete 3D object reconstruction
 
 ## 📊 Results
 
-### Amodal 3D Reconstruction
+### Amodal 3D Reconstruction on GSO
 
-| Occlusion | Visible Acc | Amodal Acc | Completion |
-| --------- | ----------- | ---------- | ---------- |
-| 0-25%     | 92.3%       | 89.7%      | 95.2%      |
-| 25-50%    | 87.4%       | 82.1%      | 88.3%      |
-| 50-75%    | 78.2%       | 71.3%      | 76.4%      |
-| 75-90%    | 62.1%       | 58.7%      | 64.2%      |
+원논문 Table 1. V-num은 입력 뷰 수, 2D-Comp는 전처리로 쓴 2D 완성 방법.
+Amodal3R은 2D 완성 없이 직접 처리한다.
 
-### Comparison with Visible-Only Methods
+| Method           | V-num | 2D-Comp        | FID ↓     | KID(%) ↓ | CLIP ↑   | P-FID ↓  | COV(%) ↑  | MMD(‰) ↓ |
+| ---------------- | ----- | -------------- | --------- | -------- | -------- | -------- | --------- | -------- |
+| GaussianAnything | 1     | pix2gestalt    | 92.26     | 1.30     | 0.74     | 34.69    | 35.92     | 5.03     |
+| Real3D           | 1     | pix2gestalt    | 91.21     | 2.02     | 0.75     | 23.92    | 19.61     | 9.21     |
+| TRELLIS          | 1     | pix2gestalt    | 58.82     | 5.87     | 0.76     | 26.43    | 31.65     | 4.17     |
+| **Amodal3R**     | 1     | –              | 30.64     | 0.35     | 0.81     | 7.69     | **39.61** | 3.62     |
+| LaRa             | 4     | pix2gestalt    | 172.84    | 4.54     | 0.70     | 66.34    | 24.56     | 8.11     |
+| LaRa             | 4     | pix2gestalt+MV | 97.53     | 2.63     | 0.75     | 21.80    | 26.21     | 8.61     |
+| TRELLIS          | 4     | pix2gestalt    | 65.69     | 6.92     | 0.78     | 24.64    | 32.33     | 4.26     |
+| TRELLIS          | 4     | pix2gestalt+MV | 60.37     | 1.85     | 0.83     | 19.68    | 31.75     | 4.21     |
+| **Amodal3R**     | 4     | –              | **26.27** | **0.22** | **0.84** | **5.03** | 38.74     | **3.61** |
 
-| Method       | Visible Parts | Occluded Parts | Full Object |
-| ------------ | ------------- | -------------- | ----------- |
-| DUSt3R       | 89.2%         | 42.3%          | 65.8%       |
-| MASt3R       | 91.7%         | 48.6%          | 70.2%       |
-| **Amodal3R** | **92.3%**     | **71.3%**      | **81.8%**   |
+### Amodal 3D Reconstruction on Toys4K
 
-### 📊 Expected Results
+원논문 Table 2. 설정은 Table 1과 동일하고 데이터셋만 다르다.
 
-#### Amodal Reconstruction Quality
+| Method           | V-num | 2D-Comp        | FID ↓     | KID(%) ↓ | CLIP ↑   | P-FID ↓  | COV(%) ↑  | MMD(‰) ↓ |
+| ---------------- | ----- | -------------- | --------- | -------- | -------- | -------- | --------- | -------- |
+| GaussianAnything | 1     | pix2gestalt    | 57.17     | 1.22     | 0.80     | 21.97    | 33.56     | 7.23     |
+| Real3D           | 1     | pix2gestalt    | 59.92     | 1.63     | 0.79     | 23.31    | 24.35     | 9.53     |
+| TRELLIS          | 1     | pix2gestalt    | 43.05     | 6.83     | 0.80     | 26.04    | 26.28     | 6.87     |
+| **Amodal3R**     | 1     | –              | 23.45     | **0.42** | 0.83     | 5.00     | 37.09     | 5.89     |
+| LaRa             | 4     | pix2gestalt    | 123.52    | 3.61     | 0.75     | 45.91    | 27.89     | 9.67     |
+| LaRa             | 4     | pix2gestalt+MV | 75.33     | 4.14     | 0.80     | 13.00    | 24.82     | 10.93    |
+| TRELLIS          | 4     | pix2gestalt    | 46.34     | 8.77     | 0.81     | 28.76    | 25.35     | 7.13     |
+| TRELLIS          | 4     | pix2gestalt+MV | 43.00     | 7.53     | 0.81     | 24.41    | 26.55     | 7.05     |
+| **Amodal3R**     | 4     | –              | **20.93** | 0.50     | **0.85** | **3.78** | **39.03** | **5.75** |
 
-| Occlusion Level | Traditional | Amodal3R      | Improvement |
-| --------------- | ----------- | ------------- | ----------- |
-| 10-30%          | Good        | **Excellent** | +15%        |
-| 30-50%          | Poor        | **Good**      | +35%        |
-| 50-70%          | Very Poor   | **Fair**      | +50%        |
-| 70%+            | Failed      | **Partial**   | Significant |
+### Ablation: Mask Conditioning Design
 
-#### Applications
+원논문 Table 3. GSO 단일 뷰 기준.
+
+| Method                          | FID ↓     | KID(%) ↓ | COV(%) ↑  | MMD(‰) ↓ |
+| ------------------------------- | --------- | -------- | --------- | -------- |
+| Naive conditioning              | 31.96     | 0.49     | 37.96     | 3.61     |
+| w/ only mask-weighted attention | **30.53** | 0.38     | 36.90     | 3.69     |
+| w/ only occlusion-aware layer   | 31.77     | 0.57     | **40.19** | **3.51** |
+| **Full model (Ours)**           | 30.64     | **0.35** | 39.61     | 3.62     |
+
+### Applications
 
 - **Robotics**: Object manipulation with partial visibility
 - **Autonomous Driving**: Vehicle detection behind obstacles

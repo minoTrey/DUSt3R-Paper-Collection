@@ -31,7 +31,7 @@ The Foundation Models category represents the seminal works that established the
 
 - **Innovation**: Direct regression of 3D pointmaps from image pairs
 - **Impact**: Eliminates need for calibration, SfM, or MVS
-- **Result**: 100x faster than traditional pipelines
+- **Result**: 전통적 SfM+MVS 파이프라인 대비 대폭 빠름 (원논문은 배수를 제시하지 않는다)
 - **Key Components**:
   - Confidence-aware predictions
   - Global alignment optimization
@@ -148,7 +148,7 @@ These foundation models have fundamentally transformed 3D computer vision:
 
 ### Technical Impact
 
-- **Speed**: 300x faster than COLMAP ([DUSt3R](dust3r.md))
+- **Speed**: COLMAP 대비 "much faster" (원논문 §4.3, 배수 미제시)
 - **Accuracy**: 78.5% reduction in DTU error ([MASt3R](mast3r.md))
 - **Robustness**: Works with 3-200+ images
 - **Complexity**: O(N) vs O(N²) scaling ([MASt3R-SfM](mast3r-sfm.md))

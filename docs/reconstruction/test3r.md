@@ -51,48 +51,76 @@ Given triplet (I₁, I₂, I₃):
 
 ## 📊 Results
 
-### Test-Time Adaptation Performance
+### 3D Reconstruction (7Scenes / NRGBD)
 
-| Dataset | Without TTA | With Test3R | Improvement |
-| ------- | ----------- | ----------- | ----------- |
-| NYUv2   | 0.421       | **0.312**   | +26%        |
-| KITTI   | 0.387       | **0.298**   | +23%        |
-| ScanNet | 0.456       | **0.341**   | +25%        |
+원논문 Table 1의 7Scenes 부분. Test3R은 DUSt3R 백본에 test-time training을 얹은 것이다.
 
-### Adaptation Speed
+| Method     | Acc↓ Mean | Acc↓ Med. | Comp↓ Mean | Comp↓ Med. | NC↑ Mean  | NC↑ Med.  |
+| ---------- | --------- | --------- | ---------- | ---------- | --------- | --------- |
+| MASt3R     | 0.189     | 0.109     | 0.211      | 0.110      | 0.687     | 0.766     |
+| MonST3R    | 0.240     | 0.180     | 0.268      | 0.167      | 0.672     | 0.758     |
+| Spann3R    | 0.298     | 0.226     | 0.205      | 0.112      | 0.650     | 0.730     |
+| CUT3R      | 0.126     | **0.047** | 0.154      | **0.031**  | 0.727     | 0.834     |
+| DUSt3R     | 0.146     | 0.078     | 0.181      | 0.067      | 0.736     | 0.839     |
+| **Test3R** | **0.105** | 0.051     | **0.136**  | 0.035      | **0.746** | **0.855** |
 
-| Iterations | Error ↓ | Time (ms) | Quality  |
-| ---------- | ------- | --------- | -------- |
-| 0          | 0.421   | 0         | Baseline |
-| 5          | 0.367   | 45        | Good     |
-| 10         | 0.334   | 90        | Better   |
-| 20         | 0.312   | 180       | Best     |
+원논문 Table 1의 NRGBD 부분.
 
-### Quantitative Performance (7Scenes)
+| Method     | Acc↓ Mean | Acc↓ Med. | Comp↓ Mean | Comp↓ Med. | NC↑ Mean  | NC↑ Med.  |
+| ---------- | --------- | --------- | ---------- | ---------- | --------- | --------- |
+| MASt3R     | 0.085     | 0.033     | **0.063**  | **0.028**  | 0.794     | 0.928     |
+| MonST3R    | 0.272     | 0.114     | 0.287      | 0.110      | 0.758     | 0.843     |
+| Spann3R    | 0.416     | 0.323     | 0.417      | 0.285      | 0.684     | 0.789     |
+| CUT3R      | 0.099     | 0.031     | 0.076      | 0.026      | 0.837     | 0.971     |
+| DUSt3R     | 0.144     | **0.019** | 0.154      | **0.018**  | **0.871** | 0.982     |
+| **Test3R** | **0.083** | 0.021     | 0.079      | 0.019      | 0.870     | **0.983** |
 
-#### Depth Estimation Improvements
+### Multi-view Depth (DTU / ETH3D)
 
-| Base Model | Metric    | Without Test3R | With Test3R | Improvement |
-| ---------- | --------- | -------------- | ----------- | ----------- |
-| MASt3R     | Abs Rel ↓ | 0.142          | **0.118**   | 17%         |
-| MASt3R     | δ<1.25 ↑  | 81.3%          | **87.2%**   | +5.9%       |
-| MonST3R    | Abs Rel ↓ | 0.156          | **0.129**   | 17%         |
+원논문 Table 2에서 GT pose·range·intrinsics를 전혀 쓰지 않는 두 방법만 발췌.
+rel은 Absolute Relative Error, τ는 3% 임계값 inlier ratio, 정렬 방식은 median.
 
-#### 3D Reconstruction Quality
+| Method     | DTU rel ↓ | DTU τ ↑  | ETH3D rel ↓ | ETH3D τ ↑ | AVG rel ↓ | AVG τ ↑  |
+| ---------- | --------- | -------- | ----------- | --------- | --------- | -------- |
+| DUSt3R     | 3.3       | 69.9     | 3.3         | 73.0      | 3.3       | 71.5     |
+| **Test3R** | **2.0**   | **84.1** | **3.2**     | **74.0**  | **2.6**   | **79.1** |
 
-| Method        | Accuracy | Consistency | Overall  |
-| ------------- | -------- | ----------- | -------- |
-| DUSt3R        | Good     | Poor        | Medium   |
-| MASt3R        | Better   | Medium      | Good     |
-| MASt3R+Test3R | **Best** | **Best**    | **Best** |
+### Generalization: 다른 백본에 적용 (7Scenes)
+
+원논문 Table 3. Test3R은 MASt3R·MonST3R에도 그대로 붙는다.
+
+| Method              | Acc↓ Mean | Acc↓ Med. | Comp↓ Mean | Comp↓ Med. | NC↑ Mean  | NC↑ Med.  |
+| ------------------- | --------- | --------- | ---------- | ---------- | --------- | --------- |
+| MASt3R              | 0.189     | 0.109     | 0.211      | 0.110      | 0.687     | 0.766     |
+| MASt3R (w. Test3R)  | **0.179** | **0.108** | **0.177**  | **0.059**  | **0.702** | **0.788** |
+| MonST3R             | 0.240     | 0.180     | 0.268      | 0.167      | 0.672     | 0.758     |
+| MonST3R (w. Test3R) | **0.218** | **0.167** | **0.251**  | **0.160**  | **0.687** | **0.775** |
+
+### Ablation: Visual Prompt 길이
+
+원논문 Table 4. Test3R-S는 프롬프트를 첫 Transformer 레이어에만 넣고 버리는 변형이다.
+프롬프트가 길어질수록 학습 파라미터가 늘어 같은 iteration 안에서 수렴이 어려워진다.
+
+| Variant  | 8 Acc↓    | 8 Comp↓   | 16 Acc↓ | 16 Comp↓ | 32 Acc↓   | 32 Comp↓  | 64 Acc↓ | 64 Comp↓ |
+| -------- | --------- | --------- | ------- | -------- | --------- | --------- | ------- | -------- |
+| Test3R-S | 0.133     | 0.142     | 0.125   | 0.159    | 0.120     | 0.158     | 0.119   | 0.163    |
+| Test3R   | **0.118** | **0.131** | 0.122   | 0.155    | **0.105** | **0.136** | 0.149   | 0.170    |
+
+### 비용 (Office-seq-09)
+
+원논문 Table 5. TTT는 test-time training 시간이다. 프롬프트는 0.79M 파라미터로
+전체 571M 대비 미미하고, 메모리 증가도 약 3MB에 그친다.
+
+| Method     | Acc ↓    | Comp ↓   | NC↑      | TTT  | Total | Params (prompt) | Params (total) | Memory (total) |
+| ---------- | -------- | -------- | -------- | ---- | ----- | --------------- | -------------- | -------------- |
+| DUSt3R     | 0.62     | 0.51     | 0.54     | -    | ~10s  | -               | 571.17M        | 2178.85M       |
+| **Test3R** | **0.14** | **0.20** | **0.69** | ~30s | ~40s  | 0.79M           | 571.96M        | 2181.85M       |
 
 ### Qualitative Improvements
 
-- ✅ More accurate depth boundaries
-- ✅ Better multi-view consistency
-- ✅ Reduced depth artifacts
-- ✅ Improved fine details
-- ✅ Robust across different scenes
+- ✅ Office 장면의 statue, Kitchen 장면의 wall에서 DUSt3R 대비 정확한 재구성 (Figure 4)
+- ✅ CUT3R 대비 outlier 생성이 적어 pointmap이 더 깨끗함
+- ✅ DTU의 흰 배경에서도 장면 문맥을 이해해 배경 깊이를 추정
 
 ## 💡 Insights & Impact
 

@@ -64,31 +64,36 @@ Output: High-quality 3D scene representation
 
 ## 📊 Results
 
-### Quantitative Performance
+### Quantitative Evaluation
 
-| Dataset      | Views | Method      | PSNR↑    | SSIM↑    | LPIPS↓   | Training Time |
-| ------------ | ----- | ----------- | -------- | -------- | -------- | ------------- |
-| Mip-NeRF 360 | 3     | 3DGS        | 18.4     | 0.58     | 0.52     | 30 min        |
-| Mip-NeRF 360 | 3     | RegNeRF     | 21.2     | 0.67     | 0.41     | 8 hours       |
-| Mip-NeRF 360 | 3     | **Dust-GS** | **26.7** | **0.79** | **0.28** | **15 min**    |
-| DTU          | 4     | 3DGS        | 15.8     | 0.52     | 0.58     | 25 min        |
-| DTU          | 4     | **Dust-GS** | **23.1** | **0.74** | **0.31** | **12 min**    |
+원논문 TABLE I. **8 input views** 기준, Mip-NeRF360과 BungeeNeRF 데이터셋.
 
-### Dense Point Cloud Impact
+| Method        | Mip-NeRF360 PSNR ↑ | SSIM ↑    | LPIPS ↓   | BungeeNeRF PSNR ↑ | SSIM ↑    | LPIPS ↓   |
+| ------------- | ------------------ | --------- | --------- | ----------------- | --------- | --------- |
+| 3DGS          | 9.89               | 0.141     | 0.592     | 17.22             | 0.431     | 0.591     |
+| SparseGS      | 10.55              | 0.189     | 0.598     | 18.09             | 0.499     | 0.564     |
+| InstantSplat  | 12.43              | 0.203     | **0.577** | 18.59             | **0.571** | **0.340** |
+| Mip-Splatting | 10.43              | 0.148     | 0.605     | 17.74             | 0.444     | 0.581     |
+| **Dust-GS**   | **12.58**          | **0.210** | 0.583     | **18.60**         | 0.567     | 0.346     |
 
-| Point Source      | Initialization Quality | Final PSNR | Convergence Speed |
-| ----------------- | ---------------------- | ---------- | ----------------- |
-| SfM Points        | Poor                   | 18.4       | Slow              |
-| Random Points     | Very Poor              | 16.2       | Very Slow         |
-| **DUSt3R Points** | **Excellent**          | **26.7**   | **Fast**          |
+### Ablation Studies
+
+원논문 TABLE II. BungeeNeRF 데이터셋, 8 input views.
+
+| Configuration              | PSNR ↑    | SSIM ↑    | LPIPS ↓   |
+| -------------------------- | --------- | --------- | --------- |
+| w/o Depth Correlation Loss | 12.57     | 0.239     | 0.587     |
+| w/o 3D smoothing           | 13.80     | 0.238     | 0.561     |
+| w/o Dynamic depth mask     | 13.75     | 0.236     | 0.563     |
+| **All modules**            | **13.85** | **0.242** | **0.557** |
 
 ### Key Achievements
 
-- ✅ 8+ dB PSNR improvement over vanilla 3DGS
-- ✅ 2x faster convergence than competing methods
-- ✅ Superior quality across all sparse-view scenarios
-- ✅ Maintains real-time rendering capability
-- ✅ Robust across diverse scene types
+- ✅ 8뷰 sparse 설정에서 Mip-NeRF360 PSNR 12.58로 3DGS(9.89) 대비 +2.69 dB
+- ✅ BungeeNeRF에서도 PSNR·최고치(18.60), InstantSplat과 동급
+- ✅ LPIPS는 InstantSplat이 앞선다 — Dust-GS의 우위는 PSNR/SSIM 쪽이다
+- ✅ 세 모듈(depth correlation loss, 3D smoothing, dynamic depth mask) 모두 기여하며,
+  depth correlation loss 제거 시 PSNR이 13.85 → 12.57로 가장 크게 떨어진다
 
 ## 💡 Insights & Impact
 

@@ -61,30 +61,66 @@ Output: Semantic 3D scene representation S(x,y,z) = {geometry, semantics}
 
 ## 📊 Results
 
-### Quantitative Performance
+### Quantitative Comparison on 3D Tasks (ScanNet)
 
-| Dataset  | Task            | Previous SOTA | LargeSpatialModel | Improvement |
-| -------- | --------------- | ------------- | ----------------- | ----------- |
-| ScanNet  | 3D Detection    | 65.2 mAP      | **71.8 mAP**      | +6.6        |
-| S3DIS    | Semantic Seg    | 67.1 mIoU     | **72.4 mIoU**     | +5.3        |
-| Replica  | Reconstruction  | 24.1 PSNR     | **27.3 PSNR**     | +3.2        |
-| 7-Scenes | Pose Estimation | 82.3%         | **89.7%**         | +7.4%       |
+원논문 Table 1. LSM(Ours)만 SfM 전처리가 필요 없다.
+`rel`은 Absolute Relative depth error, `τ`는 threshold 1.03 inlier ratio.
 
-### End-to-End vs Traditional Pipeline
+| Model          | SfM Time ↓ | Per-Scene Time ↓ | Src mIoU ↑ | Src Acc. ↑ | rel ↓    | τ ↑       | Tgt mIoU ↑ | Tgt Acc. ↑ |
+| -------------- | ---------- | ---------------- | ---------- | ---------- | -------- | --------- | ---------- | ---------- |
+| LSeg (2D)      | N/A        | N/A              | **0.5278** | 0.7654     | –        | –         | **0.5281** | 0.7612     |
+| NeRF-DFF       | 20.52s     | 1min2s           | 0.4540     | 0.7173     | 27.68    | 9.61      | 0.4037     | 0.6755     |
+| Feature-3DGS   | 20.52s     | 18min36s         | 0.4453     | 0.7276     | 12.95    | 21.07     | 0.4223     | 0.7174     |
+| pixelSplat     | 20.52s     | 0.064s           | –          | –          | –        | –         | –          | –          |
+| **LSM (Ours)** | **None**   | **0.108s**       | 0.5034     | **0.7740** | **3.38** | **67.77** | 0.5078     | **0.7686** |
 
-| Method                | Pipeline       | Speed    | Accuracy   | Semantics    |
-| --------------------- | -------------- | -------- | ---------- | ------------ |
-| Traditional           | Multi-stage    | Slow     | Good       | Post-process |
-| NeRF + Seg            | Two-stage      | Medium   | Good       | Limited      |
-| **LargeSpatialModel** | **End-to-end** | **Fast** | **Better** | **Rich**     |
+Novel-view synthesis 부분 (같은 Table 1의 Target View 열):
+
+| Model          | PSNR ↑    | SSIM ↑     | LPIPS ↓    |
+| -------------- | --------- | ---------- | ---------- |
+| NeRF-DFF       | 19.86     | 0.6650     | 0.3629     |
+| Feature-3DGS   | 24.49     | 0.8132     | 0.2293     |
+| pixelSplat     | **24.89** | **0.8392** | **0.1641** |
+| **LSM (Ours)** | 24.39     | 0.8072     | 0.2506     |
+
+### Replica Dataset
+
+원논문 Table 4. `None`은 해당 모델이 그 지표를 산출하지 못함을 뜻한다.
+
+| Model          | Offline SfM      | mIoU ↑   | rel ↓    | PSNR ↑    |
+| -------------- | ---------------- | -------- | -------- | --------- |
+| pixelSplat     | Required         | None     | 20.14    | **26.28** |
+| Splatter Image | Required         | None     | None     | 12.37     |
+| **LSM (Ours)** | **Not Required** | **0.51** | **4.91** | 23.10     |
+
+### Ablation: Design Choices
+
+원논문 Table 2. 이 표의 segmentation 지표는 LSeg 결과를 ground-truth로 삼는다.
+
+| Exp ID | Model                                | mIoU ↑     | Acc. ↑     | PSNR ↑    | SSIM ↑     |
+| ------ | ------------------------------------ | ---------- | ---------- | --------- | ---------- |
+| [1]    | Baseline                             | 0.4562     | 0.6940     | 24.00     | 0.7981     |
+| [2]    | [1] + Fuse Encoder Feat.             | 0.5410     | 0.8083     | 23.67     | 0.7876     |
+| [3]    | [1] + Fuse LSeg Feat.                | 0.5586     | 0.8505     | 23.85     | 0.7902     |
+| [4]    | [1] + [2] + [3] + Multi-scale Fusion | **0.6042** | **0.8681** | **24.39** | **0.8072** |
+
+### Inference Time Breakdown
+
+원논문 Table 3.
+
+| Module                           | Inference Time (s) |
+| -------------------------------- | ------------------ |
+| Dense Geometry Prediction (§3.1) | 0.029              |
+| Point-wise Aggregation (§3.2)    | 0.046              |
+| Feature Lifting (§3.3)           | 0.019              |
+| **Total**                        | **0.096**          |
 
 ### Key Achievements
 
-- ✅ First end-to-end unposed to semantic 3D
-- ✅ Superior semantic understanding
-- ✅ Robust to challenging scenes
-- ✅ Efficient single-model inference
-- ✅ Strong generalization across domains
+- ✅ SfM 전처리 없이 end-to-end — 전체 0.108s vs Feature-3DGS의 18분 36초 + SfM 20.52s
+- ✅ Depth에서 압도적: rel 3.38, τ 67.77 (per-scene 최적화 방식들의 12.95 / 21.07 대비)
+- ✅ 2D LSeg에 근접한 segmentation을 view-consistent하게 달성
+- ✅ NVS는 pixelSplat에 근소하게 뒤지지만 pixelSplat은 GT 카메라 파라미터를 요구한다
 
 ## 💡 Insights & Impact
 

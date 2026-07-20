@@ -63,47 +63,84 @@ Output: Complete 3D scene representation
 
 ## 📊 Results
 
-### Video Diffusion for 3D Reconstruction
+### Two-View NVS — Easy Set (원논문 Table I)
 
-| Input Views | PSNR ↑ | SSIM ↑ | LPIPS ↓ | Generation Time |
-| ----------- | ------ | ------ | ------- | --------------- |
-| 2           | 24.3   | 0.812  | 0.187   | 8s              |
-| 5           | 26.8   | 0.867  | 0.142   | 12s             |
-| 10          | 28.2   | 0.895  | 0.118   | 18s             |
+원논문 TABLE I. 입력 시점 각도 변화가 작은 경우, 2뷰 입력 → 3개 novel view 렌더링.
 
-### Novel View Synthesis
+| Method     | RE10K PSNR ↑ | RE10K SSIM ↑ | RE10K LPIPS ↓ | ACID PSNR ↑ | ACID SSIM ↑ | ACID LPIPS ↓ |
+| ---------- | ------------ | ------------ | ------------- | ----------- | ----------- | ------------ |
+| pixelNeRF  | 20.43        | 0.589        | 0.550         | 20.97       | 0.547       | 0.533        |
+| GPNR       | 24.11        | 0.793        | 0.255         | 25.28       | 0.764       | 0.332        |
+| AttnRend   | 24.78        | 0.820        | 0.213         | 26.88       | 0.799       | 0.218        |
+| MuRF       | 26.10        | 0.858        | 0.143         | 28.09       | 0.841       | 0.155        |
+| pixelSplat | 25.89        | 0.858        | 0.142         | 28.14       | 0.839       | 0.150        |
+| MVSplat    | 26.39        | 0.839        | 0.128         | 28.25       | 0.843       | 0.144        |
+| **ReconX** | **28.31**    | **0.912**    | **0.088**     | **28.84**   | **0.891**   | **0.101**    |
 
-| Method     | Quality    | Consistency   | Speed      |
-| ---------- | ---------- | ------------- | ---------- |
-| NeRF       | High       | High          | Slow       |
-| 3DGS       | High       | Medium        | Fast       |
-| **ReconX** | **Medium** | **Very High** | **Medium** |
+### Hard Set & Cross-Dataset 일반화 (원논문 Table II)
 
-### Quantitative Performance
+원논문 TABLE II. Hard Set은 입력 시점 각도 변화가 큰 경우, Cross Set은 학습에
+쓰지 않은 데이터셋으로의 일반화.
 
-| Dataset       | Views | PSNR↑ | SSIM↑ | LPIPS↓ |
-| ------------- | ----- | ----- | ----- | ------ |
-| DTU           | 3     | 24.2  | 0.89  | 0.12   |
-| DTU           | 6     | 26.8  | 0.92  | 0.09   |
-| RealEstate10K | 3     | 22.1  | 0.85  | 0.15   |
-| RealEstate10K | 6     | 24.7  | 0.88  | 0.12   |
+| Split | Method     | Dataset A     | PSNR ↑    | SSIM ↑    | LPIPS ↓   |
+| ----- | ---------- | ------------- | --------- | --------- | --------- |
+| Hard  | pixelSplat | ACID          | 16.83     | 0.476     | 0.494     |
+| Hard  | MVSplat    | ACID          | 16.49     | 0.466     | 0.486     |
+| Hard  | **ReconX** | ACID          | **24.53** | **0.847** | **0.083** |
+| Hard  | pixelSplat | RealEstate10K | 19.62     | 0.730     | 0.270     |
+| Hard  | MVSplat    | RealEstate10K | 19.97     | 0.732     | 0.245     |
+| Hard  | **ReconX** | RealEstate10K | **23.70** | **0.867** | **0.143** |
+| Cross | pixelSplat | LLFF          | 11.42     | 0.312     | 0.611     |
+| Cross | MVSplat    | LLFF          | 11.60     | 0.353     | 0.425     |
+| Cross | **ReconX** | LLFF          | **21.05** | **0.768** | **0.178** |
+| Cross | pixelSplat | DTU           | 12.89     | 0.382     | 0.560     |
+| Cross | MVSplat    | DTU           | 13.94     | **0.473** | **0.385** |
+| Cross | **ReconX** | DTU           | **19.78** | 0.476     | 0.378     |
 
-### Comparison with Baselines
+### Sparse-View 재구성 — 입력 뷰 수에 따른 성능 (원논문 Table III)
 
-| Method     | Approach      | PSNR     | Quality  | Generalization |
-| ---------- | ------------- | -------- | -------- | -------------- |
-| DUSt3R     | Direct        | 21.3     | Good     | Limited        |
-| MVS        | Traditional   | 23.1     | Good     | Medium         |
-| NeRF       | Optimization  | 22.8     | Variable | Poor           |
-| **ReconX** | **Diffusion** | **26.8** | **High** | **Excellent**  |
+원논문 TABLE III에서 PSNR만 발췌 (SSIM/LPIPS는 원논문 참조).
 
-### Key Achievements
+| Dataset          | Method     | 2-view    | 3-view    | 6-view    | 9-view    |
+| ---------------- | ---------- | --------- | --------- | --------- | --------- |
+| Mip-NeRF 360     | 3DGS       | 10.36     | 10.86     | 12.48     | 13.10     |
+| Mip-NeRF 360     | SparseNeRF | 11.47     | 11.67     | 14.79     | 14.90     |
+| Mip-NeRF 360     | DNGaussian | 10.81     | 11.13     | 12.20     | 13.01     |
+| Mip-NeRF 360     | **ReconX** | **13.37** | **16.66** | **18.72** | **18.17** |
+| Tank and Temples | 3DGS       | 9.57      | 10.15     | 11.48     | 12.50     |
+| Tank and Temples | SparseNeRF | 9.23      | 9.55      | 12.24     | 12.74     |
+| Tank and Temples | DNGaussian | 10.23     | 11.25     | 12.92     | 13.01     |
+| Tank and Temples | **ReconX** | **14.28** | **15.38** | **16.27** | **18.38** |
+| DL3DV            | 3DGS       | 9.46      | 10.97     | 13.34     | 14.99     |
+| DL3DV            | SparseNeRF | 9.14      | 10.89     | 12.15     | 12.89     |
+| DL3DV            | DNGaussian | 10.10     | 11.10     | 12.65     | 13.46     |
+| DL3DV            | **ReconX** | **13.60** | **14.97** | **17.45** | **18.59** |
 
-- ✅ Superior quality from minimal views
-- ✅ Robust cross-domain generalization
-- ✅ Consistent multi-view generation
-- ✅ Handles complex scene geometries
-- ✅ Efficient end-to-end processing
+### Mip-NeRF 360 — 생성 기반 방법과의 비교 (원논문 Table IV)
+
+원논문 TABLE IV.
+
+| Method      | 3v PSNR ↑ | 3v LPIPS ↓ | 6v PSNR ↑ | 6v LPIPS ↓ | 9v PSNR ↑ | 9v LPIPS ↓ |
+| ----------- | --------- | ---------- | --------- | ---------- | --------- | ---------- |
+| Zip-NeRF    | 12.77     | 0.705      | 13.61     | 0.663      | 14.30     | 0.633      |
+| ZeroNVS     | 14.44     | 0.680      | 15.51     | 0.663      | 15.99     | 0.655      |
+| ReconFusion | 15.50     | 0.585      | 16.93     | 0.544      | 18.19     | 0.511      |
+| CAT3D       | 16.62     | 0.515      | 17.72     | 0.482      | 18.67     | 0.460      |
+| **ReconX**  | **17.16** | **0.407**  | **19.20** | **0.378**  | **20.13** | **0.356**  |
+
+### Ablation (원논문 Table V)
+
+원논문 TABLE V. RealEstate10K 기준.
+
+| Video diff. | Structure cond. | DUSt3R init. | Conf-aware opt. | LPIPS loss | PSNR ↑    | SSIM ↑    | LPIPS ↓   |
+| ----------- | --------------- | ------------ | --------------- | ---------- | --------- | --------- | --------- |
+| -           | -               | ✓            | -               | -          | 17.34     | 0.527     | 0.259     |
+| ✓           | -               | ✓            | -               | -          | 19.70     | 0.789     | 0.229     |
+| ✓           | -               | ✓            | ✓               | ✓          | 25.13     | 0.901     | 0.131     |
+| ✓           | ✓               | -            | ✓               | ✓          | 27.11     | 0.908     | 0.113     |
+| ✓           | ✓               | ✓            | -               | ✓          | 27.83     | 0.897     | 0.097     |
+| ✓           | ✓               | ✓            | ✓               | -          | 27.47     | 0.906     | 0.111     |
+| ✓           | ✓               | ✓            | ✓               | ✓          | **28.31** | **0.912** | **0.088** |
 
 ## 💡 Insights & Impact
 

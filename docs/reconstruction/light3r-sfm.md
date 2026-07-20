@@ -81,72 +81,128 @@ for block in range(4):
 
 ## 📊 Results
 
-### SfM Performance (ETH3D)
+### Tanks&Temples Multi-View Pose Estimation (원논문 Table 1)
 
-| Method          | Processing Time | Registration Rate ↑ | Pose Error ↓ |
-| --------------- | --------------- | ------------------- | ------------ |
-| COLMAP          | 28 min          | 95.2%               | 0.042        |
-| MASt3R-SfM      | 1.6 min         | 98.7%               | 0.031        |
-| **Light3R-SfM** | **33 sec**      | **99.1%**           | **0.028**    |
+원논문 Table 1. 200-view 서브셋. Align.은 OPT(최적화) vs FFD(feed-forward).
 
-### Speed Comparison (200 images)
+| Method          | Align. | RRA@5 ↑  | RTA@5 ↑  | ATE ↓     | Reg. ↑    | Time [s] ↓ |
+| --------------- | ------ | -------- | -------- | --------- | --------- | ---------- |
+| COLMAP          | OPT    | 64.7     | 57.7     | 0.019     | 97.0      | -          |
+| GLOMAP          | OPT    | 73.5     | 74.8     | 0.016     | **100.0** | 536.7      |
+| ACE0            | OPT    | 55.7     | 57.4     | 0.019     | **100.0** | 4604.4     |
+| DF-SfM          | OPT    | 66.8     | 69.3     | 0.016     | 33.3      | -          |
+| FlowMap         | OPT    | 22.2     | 25.8     | 0.024     | **100.0** | -          |
+| VGGSfM          | OPT    | **84.5** | **86.3** | **0.007** | 47.6      | 1511.6     |
+| MASt3R-SfM      | OPT    | 68.2     | 68.4     | 0.013     | **100.0** | 1609.0     |
+| Spann3R         | FFD    | 22.8     | 28.6     | 0.019     | **100.0** | 60.4       |
+| **Light3R-SfM** | FFD    | 52.4     | 53.1     | 0.016     | **100.0** | **33.4**   |
 
-| Method          | Time       | Speedup | Memory (GB) |
-| --------------- | ---------- | ------- | ----------- |
-| COLMAP          | 28 min     | 1×      | 8.2         |
-| MASt3R-SfM      | 96 sec     | 17.5×   | 24.3        |
-| **Light3R-SfM** | **33 sec** | **49×** | **12.7**    |
+원논문 Table 1. Full-sequence 설정 (COLMAP은 GT 제공 기준이라 수치 없음).
 
-### Tanks & Temples Dataset (Scene-level)
+| Method          | Align. | RRA@5 ↑  | RTA@5 ↑  | ATE ↓ | Reg. ↑    | Time [s] ↓ |
+| --------------- | ------ | -------- | -------- | ----- | --------- | ---------- |
+| GLOMAP          | OPT    | **75.8** | **76.7** | 0.010 | **100.0** | 1977.7     |
+| ACE0            | OPT    | 56.9     | 57.9     | 0.015 | **100.0** | 5499.5     |
+| DF-SfM          | OPT    | 69.6     | 69.3     | 0.014 | 76.2      | -          |
+| FlowMap         | OPT    | 31.7     | 35.7     | 0.017 | 66.7      | -          |
+| VGGSfM          | OPT    | -        | -        | -     | 0.0       | 2134.2     |
+| MASt3R-SfM      | OPT    | 49.2     | 54.0     | 0.011 | **100.0** | 2723.1     |
+| Spann3R         | FFD    | 20.3     | 24.7     | 0.016 | **100.0** | 116.2      |
+| **Light3R-SfM** | FFD    | 52.0     | 52.8     | 0.011 | **100.0** | **63.4**   |
 
-| Views   | Method      | RRA@5° ↑  | RTA@5° ↑  | ATE ↓     | Runtime ↓  |
-| ------- | ----------- | --------- | --------- | --------- | ---------- |
-| **200** | MASt3R-SfM  | ~70%      | ~70%      | 0.012     | 27 min     |
-|         | Spann3R     | 26.8%     | 17.9%     | 0.040     | 3.3 min    |
-|         | **Light3R** | **52.4%** | **53.1%** | **0.016** | **33 sec** |
+### 뷰 수에 따른 확장성 (원논문 Table 1 발췌)
 
-_Note: Light3R achieves 49× speedup with competitive accuracy_
+원논문 Table 1에서 Light3R-SfM와 MASt3R-SfM의 런타임·정확도만 뽑았다.
 
-### CO3Dv2 Dataset (Object-centric)
+| Views | Light3R RRA@5 ↑ | Light3R Time [s] | MASt3R-SfM RRA@5 ↑ | MASt3R-SfM Time [s] |
+| ----- | --------------- | ---------------- | ------------------ | ------------------- |
+| 25    | 50.9            | **4.4**          | 68.0               | 283.2               |
+| 50    | 52.5            | **8.5**          | 69.1               | 503.0               |
+| 100   | 54.3            | **16.8**         | 70.1               | 861.5               |
+| 200   | 52.4            | **33.4**         | 68.2               | 1609.0              |
+| full  | 52.0            | **63.4**         | 49.2               | 2723.1              |
 
-| Views  | Method      | RRA@15° ↑ | RTA@15° ↑ | mAA@30° ↑ |
-| ------ | ----------- | --------- | --------- | --------- |
-| **10** | MASt3R      | 90.1%     | 81.9%     | 86.0%     |
-|        | MASt3R-SfM  | 92.7%     | 91.9%     | 92.3%     |
-|        | Spann3R     | 90.5%     | 81.2%     | 85.8%     |
-|        | **Light3R** | **94.7%** | **85.8%** | **90.3%** |
-| **2**  | MASt3R      | 94.2%     | 86.5%     | 90.3%     |
-|        | **Light3R** | **95.5%** | **88.6%** | **92.0%** |
+### Spann3R와의 상세 비교 (원논문 Table 2)
 
-### Waymo Dataset (Driving Scenes)
+원논문 Table 2. Tanks&Temples 50-image 서브셋.
 
-| Method      | RRA@5° ↑  | RTA@5° ↑  | ATE ↓     | Runtime ↓ |
-| ----------- | --------- | --------- | --------- | --------- |
-| Spann3R     | 55.1%     | 31.5%     | 0.126     | 53.8s     |
-| **Light3R** | **78.3%** | **60.9%** | **0.086** | **8.5s**  |
+| Model           | Images    | RRA@5 ↑  | RTA@5 ↑  | ATE ↓     | Time [s] ↓ |
+| --------------- | --------- | -------- | -------- | --------- | ---------- |
+| Spann3R         | sorted    | 21.1     | 31.4     | 0.037     | 16.7       |
+| Spann3R         | unordered | 12.4     | 19.0     | 0.050     | 18.3       |
+| Spann3R         | all pairs | 25.8     | 33.5     | 0.043     | 306.0      |
+| Light3R-SfM 224 | SPT       | 34.8     | 36.3     | 0.044     | **4.3**    |
+| **Light3R-SfM** | SPT       | **52.5** | **55.2** | **0.032** | 8.5        |
 
-_Light3R shows 42% improvement in accuracy and 6.3× speedup_
+### CO3Dv2 Wide-Baseline Pose Estimation (원논문 Table 3)
 
-### Runtime Breakdown (Courthouse scene, 200 images)
+원논문 Table 3. 10-view 설정.
 
-| Component           | 224×224   | 512×512    |
-| ------------------- | --------- | ---------- |
-| Image Encoding      | 2.3s      | 7.8s       |
-| Latent Alignment    | 3.9s      | 4.1s       |
-| Graph Construction  | 1.5s      | 9.3s       |
-| Pointmap Decoding   | 24.1s     | 103.5s     |
-| Global Accumulation | 1.1s      | 6.3s       |
-| **Total**           | **32.9s** | **131.0s** |
-| GPU Memory          | 8.0 GB    | 25.6 GB    |
+| Method          | Align. | RRA@15 ↑ | RTA@15 ↑ | mAA@30 ↑ |
+| --------------- | ------ | -------- | -------- | -------- |
+| Colmap          | OPT    | 31.6     | 27.3     | 25.3     |
+| Glomap          | OPT    | 45.9     | 40.3     | 37.3     |
+| PixSfM          | OPT    | 33.7     | 32.9     | 30.1     |
+| VGGSfM          | OPT    | 92.1     | 88.3     | 74.0     |
+| DUSt3R-GA       | OPT    | **96.2** | 86.8     | 76.7     |
+| MASt3R-SfM      | OPT    | 96.0     | **93.1** | **88.0** |
+| PoseDiff        | FFD    | 80.5     | 79.8     | 66.5     |
+| RelPose++       | FFD    | 82.3     | 77.2     | 65.1     |
+| Spann3R         | FFD    | 89.5     | 83.2     | 70.3     |
+| MASt3R\*        | FFD    | 94.5     | 80.9     | 68.7     |
+| **Light3R-SfM** | FFD    | **94.7** | **85.8** | **72.8** |
 
-### Scalability Analysis
+원논문 Table 3. 2-view 설정 (모두 FFD).
 
-| Images | Light3R | MASt3R-SfM | Speedup |
-| ------ | ------- | ---------- | ------- |
-| 25     | 4.4s    | 101s       | 23×     |
-| 50     | 8.8s    | 245s       | 28×     |
-| 100    | 17.9s   | 571s       | 32×     |
-| 200    | 32.9s   | 1605s      | 49×     |
+| Method          | RRA@15 ↑ | RTA@15 ↑ | mAA@30 ↑ |
+| --------------- | -------- | -------- | -------- |
+| DUSt3R          | 94.3     | 88.4     | 77.2     |
+| MASt3R          | 94.6     | 91.9     | **81.8** |
+| Spann3R         | 91.9     | 89.9     | 77.6     |
+| **Light3R-SfM** | **95.5** | **93.2** | 81.6     |
+
+### Waymo Driving Scenes (원논문 Table 4)
+
+원논문 Table 4.
+
+| Method          | RRA@5 ↑  | RTA@5 ↑  | ATE ↓     | Runtime (s) ↓ |
+| --------------- | -------- | -------- | --------- | ------------- |
+| MASt3R-SfM      | 75.7     | **63.7** | **0.005** | 1662.0        |
+| Spann3R         | 55.1     | 14.5     | 0.025     | 53.8          |
+| **Light3R-SfM** | **78.3** | 57.7     | 0.019     | **8.5**       |
+
+### Model Ablation (원논문 Table 5)
+
+원논문 Table 5. Tanks&Temples 200 views.
+
+| Backbone Init. | Global Sup. | Latent Align. | Graph Const. | RRA@5 ↑  | RTA@5 ↑  | ATE ↓     |
+| -------------- | ----------- | ------------- | ------------ | -------- | -------- | --------- |
+| MASt3R         | ✗           | ✗             | SPT          | 47.5     | 48.3     | 0.019     |
+| MASt3R         | ✗           | ✓             | SPT          | 50.8     | 48.7     | **0.016** |
+| DUSt3R         | ✓           | ✓             | SPT          | 48.8     | 48.8     | **0.016** |
+| MASt3R         | ✓           | ✓             | Oracle       | **52.8** | **53.8** | **0.016** |
+| MASt3R         | ✓           | ✓             | MST          | 44.4     | 39.5     | 0.017     |
+| MASt3R         | ✓           | ✓             | SPT          | 52.4     | 53.1     | **0.016** |
+
+### Runtime Breakdown (원논문 Table 7)
+
+원논문 Table 7. Courthouse 장면 1106장, NVIDIA V100-32GB. 단위 초.
+
+| Image Resol. | Encoding | Latent Align. | Graph Const. | Pointmap Dec. | Global Accum. | Total | Max GPU VRAM (GB) |
+| ------------ | -------- | ------------- | ------------ | ------------- | ------------- | ----- | ----------------- |
+| 224          | 3.6      | 3.4           | 0.1          | 23.2          | 0.9           | 52.3  | 8.0               |
+| 512          | 12.3     | 7.5           | 1.4          | 68.4          | 1.0           | 135.8 | 25.6              |
+
+### Pointmap Confidence 분석 (원논문 Table 6)
+
+원논문 Table 6. Tanks&Temples.
+
+| Method      | Conf. thr. | Reg. ↑    | RRA@5 ↑  | RTA@5 ↑  | RRA@15 ↑ | RTA@15 ↑ |
+| ----------- | ---------- | --------- | -------- | -------- | -------- | -------- |
+| MASt3R-SfM  | N/A        | **100.0** | **68.0** | **70.3** | 73.8     | 77.3     |
+| Light3R-SfM | 3          | 84.8      | 56.5     | 58.9     | 77.6     | 76.4     |
+| Light3R-SfM | 5          | 83.2      | 63.0     | 62.2     | 80.0     | 78.7     |
+| Light3R-SfM | 7          | 75.8      | 65.2     | 63.7     | **81.3** | **80.2** |
 
 ## 💡 Insights & Impact
 

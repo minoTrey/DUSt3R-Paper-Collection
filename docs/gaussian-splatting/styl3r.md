@@ -62,39 +62,58 @@ Output: Stylized 3D scene representation
 
 ## 📊 Results
 
-### 3D Style Transfer Performance
+### Multi-view Consistency (RE10K)
 
-| Style    | Content Preservation | Style Transfer | Speed |
-| -------- | -------------------- | -------------- | ----- |
-| Artistic | 89.2%                | 85.7%          | 2.3s  |
-| Photo    | 92.4%                | 88.3%          | 2.1s  |
-| Abstract | 84.7%                | 91.2%          | 2.5s  |
+원논문 Table 2. RAFT 광학 흐름으로 이전 프레임을 워핑해 타깃과 비교한 consistency
+지표다. Short-range는 인접 뷰, Long-range는 7프레임 떨어진 뷰 사이. Stylization
+Time은 IO를 제외한 처리 시간이다.
 
-### Quality Metrics
+| Type | Method            | Short LPIPS↓ | Short RMSE↓ | Long LPIPS↓ | Long RMSE↓ | Stylization Time |
+| ---- | ----------------- | ------------ | ----------- | ----------- | ---------- | ---------------- |
+| 2D   | AdaIN             | 0.163        | 0.063       | 0.323       | 0.111      | **0.004 s**      |
+| 2D   | AdaAttN           | 0.224        | 0.071       | 0.331       | 0.098      | 0.024 s          |
+| 2D   | StyTr2            | 0.167        | 0.059       | 0.315       | 0.098      | 0.029 s          |
+| 3D   | StyleRF           | 0.062        | 0.021       | 0.172       | 0.042      | 90 mins          |
+| 3D   | StyleGaussian     | 0.048        | 0.022       | 0.137       | 0.043      | 132 mins         |
+| 3D   | ARF               | 0.093        | 0.038       | 0.217       | 0.070      | 12 mins          |
+| 3D   | **Styl3R (Ours)** | **0.044**    | 0.022       | **0.107**   | **0.038**  | 0.147 s          |
 
-| Method          | LPIPS ↓   | FID ↓    | User Score |
-| --------------- | --------- | -------- | ---------- |
-| 2D StyleGAN     | 0.187     | 42.3     | 3.2/5      |
-| Neural 3D Style | 0.142     | 38.7     | 3.8/5      |
-| **Styl3R**      | **0.098** | **31.2** | **4.3/5**  |
+3D 베이스라인들은 dense posed input과 per-scene(또는 per-style) 최적화를 쓰는 유리한
+조건인데도 Styl3R이 consistency에서 앞선다. 처리 시간은 분 단위 → 0.147초다.
 
-### 📊 Expected Results
+### Novel View Synthesis (RE10K)
 
-#### Stylization Quality
+원논문 Table 3. `*`는 Styl3R과 동일하게 0차 spherical harmonics를 쓴 설정
+(원 NoPoSplat은 4차가 기본). Ours는 stylization fine-tuning 전, Ours-stylization은 후.
 
-| Method             | Style Quality | 3D Consistency | Speed    | Versatility   |
-| ------------------ | ------------- | -------------- | -------- | ------------- |
-| 2D Style Transfer  | High          | Poor           | Fast     | Limited       |
-| 3D Post-processing | Medium        | Medium         | Slow     | Good          |
-| **Styl3R**         | **High**      | **Excellent**  | **Fast** | **Excellent** |
+| Method           | PSNR ↑     | SSIM ↑    | LPIPS ↓   |
+| ---------------- | ---------- | --------- | --------- |
+| pixelSplat       | 23.848     | 0.806     | 0.185     |
+| MVSplat          | 23.977     | 0.811     | 0.176     |
+| NoPoSplat        | **25.033** | **0.838** | **0.160** |
+| NoPoSplat*       | 24.836     | 0.832     | 0.166     |
+| Ours             | 24.871     | 0.837     | 0.165     |
+| Ours-stylization | 24.055     | 0.820     | 0.179     |
 
-#### Performance Metrics
+stylization fine-tuning은 NVS 품질을 약간 희생한다 (PSNR 24.871 → 24.055).
 
-- **Style Transfer Quality**: Maintains artistic fidelity
-- **3D Consistency**: Coherent across viewpoints
-- **Processing Speed**: Real-time capability
-- **Scene Coverage**: Works with diverse scenes
-- **Style Variety**: Supports multiple artistic styles
+### 방법론 비교 (정성)
+
+원논문 Table 1. 수치가 아닌 능력 매트릭스다.
+
+| Method            | Sparse View | Scene Zero-shot | Style Zero-shot | View Consistency | Pose Free | Fast Inference |
+| ----------------- | ----------- | --------------- | --------------- | ---------------- | --------- | -------------- |
+| 2D Methods        | -           | ✓               | ✓               | ✗                | -         | ✓              |
+| StyleRF           | ✗           | ✗               | ✓               | ✓                | ✗         | ✗              |
+| StyleGaussian     | ✗           | ✗               | ✓               | ✓                | ✗         | ✗              |
+| ARF               | ✗           | ✗               | ✗               | ✓                | ✗         | ✗              |
+| **Styl3R (Ours)** | ✓           | ✓               | ✓               | ✓                | ✓         | ✓              |
+
+### Cross-dataset Generalization
+
+원논문 Figure 4 (Tanks and Temples). 수치 표가 아니라 정성 비교다 — per-scene 최적화가
+필요한 StyleRF·StyleGaussian을 능가하고, per-scene 및 per-style 최적화까지 요구하는
+ARF와 대등한 zero-shot 결과를 out-of-distribution 데이터에서 얻는다.
 
 ## 💡 Insights & Impact
 
