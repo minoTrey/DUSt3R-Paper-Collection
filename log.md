@@ -211,6 +211,44 @@ Table 4의 `τ↓`도 본문이 정의한 inlier ratio와 방향이 반대다.
 `dust-to-tower`는 DTU/LLFF 표가 통째로 날조였고(원논문은 T&T/MipNeRF360/CO3D),
 `slam3r`은 TUM RGB-D 표와 ORB-SLAM3 비교가 둘 다 원문에 없었다.
 
+## [2026-07-21] 남은 backlog 3건 처리
+
+**소속 전수 재검증 (부분 일치까지)**
+
+어제는 토큰 무교집합 15편만 봤다. 오늘 부분 일치(핵심어 절반 미만)까지 넓혀
+131편을 전부 대조하니 4편이 더 틀렸다:
+
+- `vggt` — "Meta GenAI, Zhejiang" → **Visual Geometry Group, University of Oxford, Meta AI**
+  (컬렉션 대표 논문의 소속이 틀려 있었다)
+- `pomato`, `largespatialmodel`, `lingbot-map` 교정
+- `align3r`의 `NTU`를 "National Taiwan University"로 확장한 것을 되돌렸다 — 원문에
+  근거가 없는 추측이었다
+  이번 세션 소속 검증 누계: **29편 점검 중 16편 교정.**
+
+**UNKNOWN venue 재확인 (하루 뒤)**
+
+18편 중 3편이 색인됐고(dggt·ilrm → CVPR 2026, segvggt → ECCV 2026), 5편은
+자체 1차 출처가 프리프린트임을 확인했다(deja-view·horizonstream·nopo4d·vipe·s-must3r).
+남은 UNKNOWN 10편은 여전히 1차 출처가 없다.
+함정: `dynamicvggt`(2603.08254)는 `wzzheng/DVGT`(CVPR 2026, 2512.16919)와 다른 논문이다.
+
+**검증 사각지대 3건 중 2건을 도구에서 닫았다**
+
+`verify_benchmarks.py`:
+
+- **`×` 혼재 표.** `SKIP_ROW`가 `×`를 배속으로 오인해, 실제로는 ablation
+  체크마크(`| × | ✓ |`)인 행까지 통째로 버렸다. 그 행의 정확도 수치가 검증에서
+  빠져 있었다. 숫자에 바로 붙은 배속(`4.5×`)만 셀 단위로 제외하도록 고쳤다.
+  → 검증 대상 25,143 → 26,255개(+1,112), 추가분 전부 통과.
+- **정수 지표.** `--int` 모드 추가. mAP·FPS·δ<11° 등 정수 열이 통째로 사각지대였다
+  (dens3r의 정수 열 2개가 그래서 날조인 채 통과했었다). doc·pdf 양쪽에서 정수를
+  대칭으로 모으고, 해상도(`N×N`)·콤마 천단위·연도를 노이즈로 제거.
+  → 정수 포함 27,568개 대조, 미검출 5개(0.02%) 전부 정당한 오탐, **날조 0.**
+
+세 사각지대(색인·×·정수)를 모두 검사한 결과 새 날조는 없었다.
+남은 한계: 산문 속 정수 배속 주장(`45× faster`)은 여전히 표가 아니라 문장이라
+자동 검증 밖이다. `--int`는 표 안의 정수만 본다.
+
 **미해결 backlog**
 
 - PDF는 `docs/papers/`에 있으나 문서 미작성: **MoGe-2, Mono3R, RIG3R**
