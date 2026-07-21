@@ -5,9 +5,9 @@
 - **Authors**: Chong Cheng, Peilin Tao, Nanjie Yao, Guanzhi Ding, Xianda Chen, Yuansen Du, Xiaoyang Guo, Wei Yin, Weiqiang Ren, Qian Zhang, Zhengqing Chen, Hao Wang
 - **Institution**: HKUST(GZ), Horizon Robotics, CASIA, CSU
 - **Venue**: arXiv preprint (2026-05)
-- **Note**: The venue could not be confirmed from any primary source. It should be re-checked before being treated as final.
+- **Note**: 자체 프로젝트 페이지 BibTeX가 arXiv preprint로 명시. <https://3dagentworld.github.io/horizonstream/>
 - **Links**: [Paper](https://arxiv.org/abs/2605.23889) | [Project Page](https://3dagentworld.github.io/horizonstream/)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Verification**: PREPRINT (2026-07-21)
 - **TL;DR**: Formalizes streaming reconstruction as a "geometric evidence influence kernel" and factorizes it — channel-wise decaying linear attention for bounded multi-timescale long-range memory, gated local attention with spatiotemporal RoPE for short-range matching, and metric readout tokens for scale — trained on 48-frame clips and run on sequences beyond 10,000 frames.
 
 ## 🎯 Key Contributions

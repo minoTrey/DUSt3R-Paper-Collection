@@ -5,9 +5,9 @@
 - **Authors**: Jiahui Huang, Qunjie Zhou, Hesam Rabeti, Aleksandr Korovko, Huan Ling, Xuanchi Ren, Tianchang Shen, Jun Gao, Dmitry Slepichev, Chen-Hsuan Lin, Jiawei Ren, Kevin Xie, Joydeep Biswas, Laura Leal-Taixe, Sanja Fidler
 - **Institution**: NVIDIA
 - **Venue**: arXiv preprint (2025-08)
-- **Note**: The venue could not be confirmed from any primary source and should be re-checked.
-- **Links**: [Project Page](https://research.nvidia.com/labs/toronto-ai/vipe/)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Note**: 자체 페이지가 "NVIDIA Research Whitepaper 2025"로 표기 — 학회 논문이 아니다. <https://research.nvidia.com/labs/toronto-ai/vipe/>
+- **Links**: [Paper](https://arxiv.org/abs/2508.10934) | [Project Page](https://research.nvidia.com/labs/toronto-ai/vipe/)
+- **Verification**: PREPRINT (2026-07-21)
 - **TL;DR**: A keyframe-based dense bundle adjustment engine that fuses learned flow, sparse keypoint tracks, and depth priors to annotate unconstrained videos with camera intrinsics, poses, and near-metric depth — used to release ~96 M annotated frames.
 
 ## 🎯 Key Contributions

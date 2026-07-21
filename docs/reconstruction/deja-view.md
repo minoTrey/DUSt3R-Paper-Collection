@@ -5,9 +5,9 @@
 - **Authors**: Alessandro Burzio, Tobias Fischer, Sven Elflein, Qunjie Zhou, Riccardo de Lutio, Jiawei Ren, Jiahui Huang, Shengyu Huang, Marc Pollefeys, Laura Leal-Taixé, Zan Gojcic, Haithem Turki
 - **Institution**: NVIDIA, University of Modena and Reggio Emilia (AImageLab), University of Toronto / Vector Institute, ETH Zürich
 - **Venue**: arXiv preprint (2026-05)
-- **Note**: The venue could not be confirmed from any primary source and should be re-checked.
-- **Links**: [Project Page](https://research.nvidia.com/labs/dvl/projects/dvlt/)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Note**: 자체 프로젝트 페이지 BibTeX가 arXiv preprint로 명시. <https://research.nvidia.com/labs/dvl/projects/dvlt>
+- **Links**: [Paper](https://arxiv.org/abs/2605.30215) | [Project Page](https://research.nvidia.com/labs/dvl/projects/dvlt/)
+- **Verification**: PREPRINT (2026-07-21)
 - **TL;DR**: Applies a _single_ transformer block recurrently for K steps instead of stacking unique layers, matching or beating billion-parameter feed-forward reconstruction models at 117 M parameters, with K exposed as an inference-time compute knob.
 
 ## 🎯 Key Contributions

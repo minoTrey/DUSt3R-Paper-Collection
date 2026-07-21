@@ -1,13 +1,12 @@
-# DGGT: Feedforward 4D Reconstruction of Dynamic Driving Scenes using Unposed Images (arXiv preprint)
+# DGGT: Feedforward 4D Reconstruction of Dynamic Driving Scenes using Unposed Images (CVPR 2026)
 
 ## 📋 Overview
 
 - **Authors**: Xiaoxue Chen, Ziyi Xiong, Yuantao Chen, Gen Li, Nan Wang, Hongcheng Luo, Long Chen, Haiyang Sun, Bing Wang, Guang Chen, Hangjun Ye, Hongyang Li, Ya-Qin Zhang, Hao Zhao
 - **Institution**: AIR Tsinghua University, Xiaomi EV, The University of Hong Kong, Beijing Academy of Artificial Intelligence
-- **Venue**: arXiv preprint (2025-12)
-- **Note**: The venue could not be confirmed from any primary source. It should be re-checked before being cited as published.
+- **Venue**: CVPR 2026
 - **Links**: [Paper](https://arxiv.org/abs/2512.03004) | [Code](https://github.com/xiaomi-research/dggt)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Verification**: CONFIRMED (2026-07-21)
 - **TL;DR**: A pose-free feedforward transformer for dynamic driving scenes that predicts per-frame 3D Gaussian maps, camera parameters, dynamic masks, per-pixel 3D motion, and a per-Gaussian lifespan in a single pass, then refines renderings with a single-step diffusion model.
 
 ## 🎯 Key Contributions

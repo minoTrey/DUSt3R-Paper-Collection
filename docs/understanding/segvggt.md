@@ -1,13 +1,12 @@
-# SegVGGT: Joint 3D Reconstruction and Instance Segmentation from Multi-View Images (arXiv preprint)
+# SegVGGT: Joint 3D Reconstruction and Instance Segmentation from Multi-View Images (ECCV 2026)
 
 ## 📋 Overview
 
 - **Authors**: Jinyuan Qu, Hongyang Li, Lei Zhang
 - **Institution**: Tsinghua University, South China University of Technology, International Digital Economy Academy (IDEA)
-- **Venue**: arXiv preprint (2026-03)
-- **Note**: The venue could not be confirmed from any primary source. It should be re-checked before being cited as published.
+- **Venue**: ECCV 2026
 - **Links**: [Paper](https://arxiv.org/abs/2603.19926)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Verification**: CONFIRMED (2026-07-21)
 - **TL;DR**: Embeds DETR-style object queries directly inside VGGT's 24 transformer layers so instance reasoning co-evolves with multi-view geometry, and fixes the resulting attention dispersion with a Jensen-Shannon frame-visibility alignment term that serves as both matching cost and regularization loss.
 
 ## 🎯 Key Contributions

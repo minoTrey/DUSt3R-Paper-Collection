@@ -5,9 +5,9 @@
 - **Authors**: Matteo Balice, Yanik Künzi, Chenyangguang Zhang, Matteo Matteucci, Marc Pollefeys, Sungwhan Hong
 - **Institution**: Politecnico di Milano, ETH Zürich, ETH AI Center
 - **Venue**: arXiv preprint (2026-05)
-- **Note**: The venue could not be confirmed from any primary source. A secondhand claim of CVPR 2026 acceptance circulates, but neither the project page nor arXiv confirms it, so the venue should be re-checked before being cited as published.
+- **Note**: 자체 프로젝트 페이지 BibTeX가 arXiv preprint. 떠도는 CVPR 2026 주장은 1차 출처가 없다. <https://bralani.github.io/nopo4d_html/>
 - **Links**: [Paper](https://arxiv.org/abs/2605.22190) | [Project Page](https://bralani.github.io/nopo4d_html/)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Verification**: PREPRINT (2026-07-21)
 - **TL;DR**: The first feed-forward system to jointly handle dynamic content, multi-view input, and unknown camera poses, achieved by decomposing Gaussian motion into per-pixel image-plane shifts plus a depth change so that optical flow can supervise motion directly without any differentiable rendering step.
 
 ## 🎯 Key Contributions

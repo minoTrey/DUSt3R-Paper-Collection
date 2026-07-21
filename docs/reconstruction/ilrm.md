@@ -1,13 +1,12 @@
-# iLRM: An Iterative Large 3D Reconstruction Model (arXiv preprint)
+# iLRM: An Iterative Large 3D Reconstruction Model (CVPR 2026)
 
 ## 📋 Overview
 
 - **Authors**: Gyeongjin Kang, Seungtae Nam, Seungkwon Yang, Xiangyu Sun, Sameh Khamis, Abdelrahman Mohamed, Eunbyung Park
 - **Institution**: Sungkyunkwan University, Yonsei University, Rembrand, Meta
-- **Venue**: arXiv preprint (2025-07)
-- **Note**: The venue could not be confirmed from any primary source (no publisher record, no acceptance statement on the project page or in the paper). It should be re-checked before being treated as final.
+- **Venue**: CVPR 2026
 - **Links**: [Paper](https://arxiv.org/abs/2507.23277) | [Project Page](https://gynjn.github.io/iLRM/)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Verification**: CONFIRMED (2026-07-21)
 - **TL;DR**: A feed-forward 3D Gaussian reconstruction transformer that decouples the scene representation from input images, initializing compact viewpoint tokens and iteratively refining them layer by layer through per-view cross-attention with high-resolution image tokens followed by viewpoint self-attention.
 
 ## 🎯 Key Contributions
