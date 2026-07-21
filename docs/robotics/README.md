@@ -18,7 +18,10 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 - Real-time 3D perception
 - Cross-view consistency
 
-## 📚 Paper List (13 papers)
+## ⭐ Featured Papers
+
+> 아래는 큐레이션한 대표 논문이다. **전체 목록은 이 페이지 하단**의
+> "All Papers in This Category"(자동 생성)를 보라.
 
 ### 1. [**GraphSeg**: Segmented 3D Representations via Graph Edge Addition and Contraction](graphseg.md)
 

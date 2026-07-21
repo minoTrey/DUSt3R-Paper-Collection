@@ -86,7 +86,10 @@ The Foundation Models category represents the seminal works that established the
 |                   | [MASt3R](mast3r.md)         | 76.4%     |
 |                   | [MASt3R-SfM](mast3r-sfm.md) | **93.1%** |
 
-## 📚 Paper List (24 papers)
+## ⭐ Featured Papers
+
+> 아래는 큐레이션한 대표 논문이다. **전체 목록은 이 페이지 하단**의
+> "All Papers in This Category"(자동 생성)를 보라.
 
 ### 🌟 Pretraining Foundation
 

@@ -148,13 +148,7 @@ def apply_category(recs: list[dict], check: bool) -> tuple[int, list[str]]:
             )
         else:  # 처음이면 파일 끝(푸터 앞)에 삽입
             new = old.rstrip() + "\n\n" + block + "\n"
-        # 낡은 "(N papers)" 헤더 카운트도 실제 수로
-        n = len(recs_c)
-        new = re.sub(
-            r"(Paper List \()\d+( papers?\))",
-            rf"\g<1>{n}\g<2>",
-            new,
-        )
+        # (구) Paper List 카운트 갱신은 헤더를 Featured Papers로 바꾸며 제거함.
         if new != old:
             changed += 1
             stale.append(cat)

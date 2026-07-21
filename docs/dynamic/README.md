@@ -14,7 +14,10 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 4. **Memory Efficiency**: Handling long videos without exhausting resources
 5. **Real-time Processing**: Achieving online performance for applications
 
-## 📚 Paper List (43 papers)
+## ⭐ Featured Papers
+
+> 아래는 큐레이션한 대표 논문이다. **전체 목록은 이 페이지 하단**의
+> "All Papers in This Category"(자동 생성)를 보라.
 
 ### 🏃 Motion Modeling & Tracking
 

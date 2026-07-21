@@ -24,7 +24,10 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - Single feed-forward architectures
 - Cross-modal understanding
 
-## 📚 Paper List (17 papers)
+## ⭐ Featured Papers
+
+> 아래는 큐레이션한 대표 논문이다. **전체 목록은 이 페이지 하단**의
+> "All Papers in This Category"(자동 생성)를 보라.
 
 ### 1. [**PE3R**: Perception-Efficient 3D Reconstruction](pe3r.md)
 

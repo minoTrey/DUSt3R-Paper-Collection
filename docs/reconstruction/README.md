@@ -111,7 +111,10 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 | Fast3R     | 1500+      | O(N)       | Low            | 251 FPS         | Speed priority        |
 | Spann3R    | Unlimited  | O(N)       | Constant       | Sequential      | Unbounded scenes      |
 
-## 📚 Complete Paper List (110 papers)
+## ⭐ Featured Papers
+
+> 아래는 큐레이션한 대표 논문이다. **전체 목록은 이 페이지 하단**의
+> "All Papers in This Category"(자동 생성)를 보라.
 
 ### 🏆 State-of-the-Art Methods
 
