@@ -1,0 +1,1372 @@
+                                                                            DAGE: Dual-Stream Architecture for
+                                                                      Efficient and Fine-Grained Geometry Estimation
+
+                                                    Tuan Duc Ngo1,† Jiahui Huang2     Seoung Wug Oh2    Kevin Blackburn-Matzen2
+                                                                                  1,3               1
+                                                             Evangelos Kalogerakis      Chuang Gan    Joon-Young Lee2
+                                                                   1
+                                                                     UMass Amherst 2 Adobe Research 3 TU Crete
+                                                                                github.com/dage-site
+arXiv:2603.03744v2 [cs.CV] 22 Mar 2026
+
+
+
+
+                                              High-resolution video   Global metric pointmaps & camera poses               Ours                         Pi3
+                                                                                                                2K reso.                   540p reso.     2K reso.
+
+
+
+
+                                                                                                 100 frames
+
+
+
+                                              Dense multi-view images            Global metric pointmaps & camera poses
+
+
+
+
+                                                                                                               1000 frames
+                                                                                                                                   10.8m
+
+
+
+
+                                                                                                                           17.2m
+
+
+                                         Figure 1. DAGE produces high-resolution, fine-grained, metric-scale and cross-view consistent 3D geometry together with accurate camera
+                                         poses from visual inputs. It runs substantially faster than prior models [96, 103] and scales to long sequences (up to 1000 frames).
+
+                                                                      Abstract                                       injecting global context without disturbing the pretrained
+                                                                                                                     single-frame pathway. This design scales resolution and
+                                         Estimating accurate, view-consistent geometry and camera                    clip length independently, supports inputs up to 2K, and
+                                         poses from uncalibrated multi-view/video inputs remains                     maintains practical inference cost. DAGE delivers sharp
+                                         challenging—especially at high spatial resolutions and over                 depth/pointmaps, strong cross-view consistency, and ac-
+                                         long sequences. We present DAGE, a dual-stream trans-                       curate poses, establishing new state-of-the-art results for
+                                         former whose main novelty is to disentangle global co-                      video geometry estimation and multi-view reconstruction.
+                                         herence from fine detail. A low-resolution stream oper-
+                                         ates on aggressively downsampled frames with alternat-                      1. Introduction
+                                         ing frame/global attention to build a view-consistent rep-
+                                         resentation and estimate cameras efficiently, while a high-                 Estimating 3D geometry and camera poses from multi-
+                                         resolution stream processes the original images per-frame                   view images is a fundamental problem in computer vision.
+                                         to preserve sharp boundaries and small structures. A                        We target the demanding regime of uncalibrated, high-
+                                         lightweight adapter fuses these streams via cross-attention,                resolution inputs with potentially thousands of frames. This
+                                                                                                                     task is particularly challenging, as the model must simul-
+                                            † work done during internship at Adobe Research.                         taneously (i) enforce global consistency across views, (ii)
+preserve fine-grained details at high resolution, and (iii) re-   any resolution (e.g., up to 2K) and leverage priors from
+main tractable in runtime and memory for long sequences.          state-of-the-art single-image models for sharp detail and
+    On one hand, feed-forward visual geometry net-                strong real-world generalization. In contrast to standard
+works [49, 90, 96, 98, 103, 110, 120] have achieved re-           pipelines [96, 103, 110, 120] that couple image resolution
+markable progress in globally consistent multi-view geom-         with sequence length, DAGE decouples the two, enabling
+etry estimation, setting new state-of-the-art results on vari-    independent control over spatial detail and multi-view co-
+ous benchmarks [18, 89], including video depth estimation,        herence, with a tractable runtime (see Fig. 1).
+3D reconstruction, and camera pose prediction. However,               We validate our method and design choices through ex-
+their typically heavy network architectures limit training        tensive experiments. DAGE achieves state-of-the-art per-
+and inference to modest image resolutions (e.g., long side        formance on video geometry and depth-sharpness bench-
+≤ 518px) and a small number of input views, which leads           marks, and is competitive on 3D reconstruction and cam-
+to blurred thin structures and poorly defined object bound-       era pose estimation—while offering higher throughput and
+aries. Several works have adopted post-training accelera-         a lower GPU memory footprint. In summary, our technical
+tion strategies [29, 81, 95] to reduce computational cost and     contributions are twofold:
+support more views during inference, yet they do not ad-          • A dual-stream transformer that couples a per-frame,
+dress the loss of high-frequency details or the tendency to-         high-resolution detail path with a multi-view, low-
+ward oversmoothed surfaces near edges and small objects.             resolution global-attention path.
+    On the other hand, single-view geometry estimators            • A lightweight Adapter that fuses the two streams to pro-
+[8, 99, 100, 111, 112] operate flexibly at high resolution           duce sharp yet globally consistent geometry.
+and produce sharp, detail-rich depth/pointmaps from single
+images, yet they lack temporal and multi-view consistency         2. Related Work
+by design. Attempts to adapt these models to handle videos
+[16, 47, 50, 54, 58, 109] introduce heavy pipelines, and typ-     Single-view Geometry Estimation aims to recover 3D
+ically do not recover accurate camera poses. As a result,         scene geometry from a single image. Early approaches re-
+they fail to assemble a globally consistent 3D scene geom-        lied on handcrafted features and probabilistic models [40,
+etry directly from the feed-forward predictions.                  46, 77, 78]. With deep networks, numerous architectures
+    Based on this observation, we present DAGE, a Dual-           were proposed [4, 26, 30, 55, 94], yet their generalization
+stream Architecture for efficient and fine-grained Geometry       remained limited. The introduction of relative-depth [73]
+Estimation that meets the above criteria. It comprises two        enabled training on large, mixed datasets, leading to strong
+parallel streams and a lightweight fusion adapter. The Low-       zero-shot performance [5, 8, 37, 41, 71, 111, 112, 118].
+Resolution (LR) Stream focuses on extracting globally             However, many such methods require camera intrinsics and
+consistent features and predicting camera poses. It is com-       metric scale to recover absolute 3D geometry. Recent work
+posed of a ViT backbone followed by a global transformer          addresses this by jointly estimating depth and intrinsics
+with alternating frame-global attention [96, 103], which          [8, 71, 117]. A complementary line of research regresses
+processes the entire sequence at a lower spatial resolution.      dense 3D pointmaps directly [99, 100], from which depths
+Although the global transformer is computationally inten-         and intrinsics can be recovered. Despite impressive single-
+sive, operating at low resolution keeps it tractable while        image results, these methods typically exhibit temporal jit-
+preserving global context. The High-Resolution (HR)               ter and inconsistent scale when applied to videos.
+Stream is designed to capture high-frequency details and          Fine-Grained Geometry Estimation targets predicting
+fine-grained features. It employs a ViT [24] that processes       sharper depth/pointmaps with high-frequency detail. Patch-
+each image independently at its native resolution. Finally,       wise fusion methods [60, 66] enhance local detail by com-
+our proposed Lightweight Adapter synchronizes and fuses           bining per-patch estimates, but often introduce stitching ar-
+LR and HR tokens before the dense heads, yielding geome-          tifacts at patch boundaries. Another line of work lever-
+try that is both globally consistent and richly detailed.         ages powerful generative priors [72, 76] to produce highly
+    This decoupled design grants two critical advantages.         detailed depth [31, 32, 38, 48, 70]. Depth Anything V2
+First, it achieves global consistency and tractability. By        [112] improves detail via large-scale, high-quality synthetic
+restricting the computationally-heavy global attention to         data, while DepthPro [8] employs a multi-patch ViT de-
+the LR stream, we alleviate the quadratic scaling bottle-         sign [24] to better capture fine structures. MoGe2 [100]
+neck of global transformers [96, 103]. This significantly         combines synthetic and refined real-world annotations with
+reduces runtime, by 2× and 28× at 540p and 2K reso-               a coarse-to-fine loss [99], achieving strong metric accu-
+lutions, respectively, enabling our model to process thou-        racy and sharp predictions. Concurrently, [108] integrates
+sands of frames. Second, it preserves high-fidelity detail.       foundation-model geometry priors [96, 112] with a cas-
+The HR stream operates per-frame, allowing it to scale to         caded DiT [69], yielding pixel-perfect depth. Nonetheless,
+                                                                                                                       Global metric-scale 3D pointmap
+    High-resolution input                           High-resolution stream
+                                                          Frame N
+                                   Per-frame                Frame 2
+                                    extract                  Frame 1                      Local pointmap
+
+
+
+                                                             ViT        Adapter
+
+
+
+                                         pro
+                                                                                  Conv
+
+
+
+
+                                       ces nden
+                                       ind
+
+                                          sN
+                                           epe
+
+                                               fra y
+               Downsample
+
+
+
+
+                                                  me
+                                                   tl
+                                                                                          Camera poses                                  1.35m
+
+
+
+                                                      s
+                            Globally
+                             extract            Global                            MLP
+                                                                                                               0.58m
+                                              Transformer                                Metric scale factor
+                                                                                  MLP
+   Low-resolution input                Low-resolution stream
+
+Figure 2. Overview of DAGE. Given a set of unposed RGB images, the model predicts per-frame pointmaps and camera poses, plus a
+scene-wise metric scale. The architecture has two parallel streams: (i) a low-resolution stream (lower part) that processes downsampled
+inputs to aggregate global context and regress poses/scene scale; and (ii) a high-resolution stream (upper part) that processes frames
+independently at native resolution to preserve fine detail. A lightweight Adapter fuses LR and HR tokens before the dense geometry head.
+
+these methods are predominantly per-image and fail to en-                            lightweight adapter to fuse these two.
+sure temporal consistency in video setting.
+                                                                                     3. Method
+Video-based Geometry Estimation mitigates temporal jit-
+ter and scale inconsistency by stabilizing per-frame pre-                            3.1. Problem Definition
+dictions with test-time procedures or using video architec-
+                                                                                     Given an uncalibrated set of N RGB images I = {Ii }N       i=1
+tures. Several works regularize single-image depth across
+                                                                                     of a scene, where each Ii ∈ RH×W ×3 , our model aims
+time using geometric consistency or online refinement [52,
+                                                                                     to reconstruct the 3D scene geometry by predicting three
+53, 63, 91], or optimize scale/shift to co-align frames [47].
+                                                                                     components: (1) per-frame pointmaps P = {Pi }N     i=1 , where
+[13, 17, 54] add temporal heads or video transformers on
+                                                                                     Pi ∈ RH×W ×3 represents the 3D coordinates of each pixel
+top of pretrained single-view models, and diffusion-based
+                                                                                     in the local camera coordinate system; (2) camera poses
+pipelines [7, 39, 113] leverage strong video priors for tem-
+                                                                                     G = {Gi }N  i=1 , where Gi ∈ SE(3) encodes each camera’s
+porally consistent depth. Despite impressive performance,
+                                                                                     rotation and translation; and (3) a single global metric scale
+diffusion-based methods are compute-intensive and typi-
+                                                                                     factor s ∈ R+ .
+cally do not recover camera poses.
+                                                                                        State-of-the-art feed-forward approaches [96, 103] are
+Visual Geometry Estimation regresses both camera poses                               constrained by the high computational cost of global atten-
+and the 3D scene structure from uncalibrated images or                               tion. This typically limits their inputs to modest resolutions
+videos. Classical SfM/MVS pipelines [1, 79, 84, 105], are                            (e.g., 518px on the long side) and short sequences (e.g.,
+robust but require multi-stage optimization. [14, 67, 114]                           N < 200). We address this limitation with a dual-stream
+inject motion priors (e.g. optical flow, point tracking) and                         architecture designed to produce high-quality, fine-grained
+then perform bundle adjustment, which reduces manual                                 3D geometry and accurate camera poses while supporting
+engineering but requires per-video optimization. Dust3R                              flexible spatial resolutions and long sequences.
+[101] introduced a learning-based alternative that predicts                             Fig. 2 illustrates the overall architecture of our model.
+pointmaps for image pairs in a shared coordinate frame and                           It consists of a low-resolution (LR) stream (Sec.3.2) and
+stitches multi-view input via a global alignment step. Sub-                          a high-resolution (HR) stream (Sec.3.3), which operate in
+sequent work improves metric-scale recovery [56], extends                            parallel and are synchronized through a lightweight adapter
+to dynamic scenes [15, 28, 62, 119], and scales multi-view                           (Sec.3.4), followed by dense prediction heads (Sec.3.5).
+processing [27, 49, 90, 96, 98, 103, 106, 110, 120, 122].                            The LR stream extracts globally consistent features and es-
+Among these, VGGT [96] and Pi3 [103] demonstrate state-                              timates camera poses, while the HR stream predicts per-
+of-the-art performance with alternating global-frame atten-                          frame pointmaps at the native input resolution. The global
+tion transformers. However, the quadratic cost of global                             features produced by the LR stream are injected into the
+attention imposes tight token budgets, limiting input resolu-                        HR stream via the adapter to enhance geometric consistency
+tion and the number of frames; thus, predicted depth often                           across views. Training details are described in Sec.3.6.
+appears blurred and fine structures are smoothed.
+    In contrast, our dual-stream approach performs feed-                             3.2. Low-Resolution Stream
+forward global aggregation on LR inputs for efficiency                               The low-resolution stream is responsible for enforcing
+while preserving HR detail via a per-frame stream, with a                            global consistency and estimating camera poses. It pro-
+          (a) Global Transformer                                                    (b) Per-frame Adapter
+                                                                                                                                 To overcome these limitations, we adopt a more flexi-
+
+
+
+
+                                                   GlobalAttn
+                       GlobalAttn
+           FrameAttn
+
+
+
+
+                                    FrameAttn
+                                                                                                                              ble cross-attention mechanism that accommodates arbitrary
+
+
+
+
+                                                                                CrossAttn
+
+
+
+
+                                                                                                       CrossAttn
+
+                                                                                                                   SelfAttn
+                                                                                            SelfAttn
+  DINO
+                                                                                                                              token counts from both streams. This fusion is followed
+
+
+
+
+                                                                Training only
+                                                                                                                              by HR self-attention to restore per-frame spatial coherence.
+                                                                                                                              Concretely, for each i-th frame, the fused feature Fifuse is
+         Pi3                                    Proj
+                                                                                                                              computed as:
+                                                                                                                                     Fifuse = CrossAttn Q = Fihr ; K, V = Filr
+                                                                                                                                                                                  
+Figure 3. The Global transformer (left) operates on low-                                                                                                                               (2)
+resolution inputs with alternating global and frame-wise atten-                                                                         fuse     hr                     fuse
+                                                                                                                                                                             
+tion; during training, feature distillation compensates for aggres-                                                                  Fi      = Fi + MLP SelfAttn(Fi )                  (3)
+sive downsampling. The Adapter (right) stacks cross and self-                                                                 Positional encodings are applied before attention to align
+attention blocks to fuse multi-view–consistent LR tokens into the                                                             HR patch coordinates with their LR counterparts, sta-
+HR stream.                                                                                                                    bilizing the cross-scale fusion.        We stack five such
+cesses the entire sequence {Ii } at a fixed low resolution                                                                    [CrossAttn → SelfAttn] blocks.
+(long side ≤ 252px), I lr . These images are passed through                                                                       We employ Rotary Positional Encodings (RoPE) for
+a global transformer to output LR feature tokens F lr ∈                                                                       all attention layers, but with different strategies for self-
+RN ×hlr ×wlr ×C . This global transformer (Fig. 3a) con-                                                                      attention and cross-attention to handle varying resolutions.
+sists of a DINOv2 [68] tokenizer, and alternating blocks                                                                      Self-Attention: Standard RoPE does not extrapolate well
+of frame-wise and global self-attention ([FrameAttn →                                                                         to spatial dimensions larger than those seen during training,
+GlobalAttn]) [96, 103], which is effective for captur-                                                                        which can cause distortion on high-resolution inputs [96,
+ing scene-level structure. We do not use dedicated camera                                                                     98, 103]. Thus, we adopt the interpolated RoPE [12] tech-
+tokens, preserving permutation equivariance [103].                                                                            nique. We define a fixed maximum patch length, lmax . At
+    While low-resolution processing ensures tractability,                                                                     both training and inference, we rescale the angular frequen-
+training the LR stream from scratch often leads to de-                                                                        cies of the positional encoding to this fixed context size,
+graded camera pose accuracy. To address this, we lever-                                                                       which keeps the positional spectrum stable even at very high
+age the rich global representations of a pre-trained teacher                                                                  resolutions. Cross-Attention: A challenge is the large spa-
+model, Pi3 [103], through knowledge distillation. Specif-                                                                     tial mismatch between the LR and HR streams (e.g., 252px
+ically, the teacher processes a higher-resolution input I tea                                                                 vs. 2K). To align them, we “snap” each HR token to its
+(capped at 518px to match [96, 103]) and produces features                                                                    nearest grid cell in the LR feature map. The HR token then
+F tea ∈ RN ×htea ×wtea ×C . These features are then used to                                                                   uses the positional encoding from that corresponding LR
+supervise the LR stream via a feature distillation loss:                                                                      cell. This simple strategy effectively matches patches across
+                                                                                                                              scales and avoids extrapolation, as the LR stream’s spatial
+               Ldis = 1 − sim(pϕ (F lr ), F tea )      (1)                                                                    dimensions are always fixed and within the trained bounds.
+where sim(·, ·) is the cosine similarity function, and pϕ                                                                     Concretely, let R(f , m) be the RoPE function applied to to-
+is a projection network mapping student features to the                                                                       ken f at 2D position m. The modified RoPE functions are:
+teacher’s representation space and spatial dimension.
+                                                                                                                                 Rself f hr , mhr = R f hr , mhr · lmax /lhr ,
+                                                                                                                                                                           
+                                                                                                                                                                                        (4)
+3.3. High-Resolution Stream                                                                                                                                                      
+                                                                                                                                Rcross f hr , mhr = R f hr , sampling mhr , gridlr
+                                                                                                                                                 
+                                                                                                                                                                                        (5)
+The high-resolution stream processes each frame of the in-
+put sequence {Ii } independently at its original resolution.                                                                  where lhr is the side length of the HR grid.
+To preserve fine-grained detail and strong zero-shot gen-                                                                     Adapter Design Discussion. We investigated various
+eralization capabilities, we adopt MoGe2 [100] as the HR                                                                      strategies for fusing the LR and HR tokens, focusing on
+backbone. This model uses a 24-layer ViT encoder [24] to                                                                      where and how to inject the global information. For where
+extract the HR feature tokens F hr ∈ RN ×hhr ×whr ×Chr .                                                                      to insert, one approach is to inject intermediate LR features
+                                                                                                                              into each ViT layer of the HR stream. This mitigates scale
+3.4. Adapter                                                                                                                  drift but fails to enforce cross-view global consistency (see
+The adapter (Fig. 3b) is designed to inject global context                                                                    Sec. 4.6). For how to fuse, we considered alternatives like
+from the LR stream into the per-frame HR stream. A naive                                                                      concatenation and addition with learnable interpolation. We
+solution—such as upsampling LR features via interpolation                                                                     find that the best trade-off is a lightweight adapter after the
+and concatenating them with HR features—often introduces                                                                      HR ViT encoder, comprising cross-attention to inject global
+artifacts and fails to capture meaningful cross-view rela-                                                                    context and self-attention to re-calibrate intra-frame coher-
+tions. Alternative approaches, including pixel-shuffle up-                                                                    ence (see Sec. 4.6). This strategy preserves the HR stream’s
+sampling [19, 108] or CNN-based upsampling [88], allevi-                                                                      original feature space at the start of training, allowing the
+ate such artifacts but rely on a fixed scale factor, which is                                                                 model to gradually learn to incorporate the multi-view con-
+too restrictive for inputs that may vary up to 2K resolution.                                                                 sistent constraints to refine the final geometry.
+                                                                                            N H×W
+3.5. Prediction Heads                                                                   1 X X                    
+                                                                          Lnormal =                ∠ n̂i,j , ni,j ,       (9)
+                                                                                      N HW i=1 j=1
+Dense Geometry. We employ a feature pyramid of con-
+volutional layers [100] to gradually upsample the per-patch      where ∠(·, ·) is the angular difference.
+features F fuse into dense feature maps at the original image    Gradient loss. To improve local geometry, MoGe [99] ap-
+resolution to regress the pointmaps P. This convolutional-       plies a multi-scale affine-invariant pointmap loss by sub-
+style head yields smoother predictions, avoiding the grid-       sampling local regions at several scales and aligning each
+like artifacts observed in [103] (see Fig. 5).                   region to ground truth independently. While this improves
+Camera Pose. We regress the per-frame camera parame-             single-image sharpness, we found that per-region indepen-
+ters using the LR features F lr . This is done for efficiency,   dent alignments introduce patch-wise degrees of freedom
+as camera poses do not require fine-grained features. Fol-       that break cross-view consistency, leading to seams and
+lowing [23, 103], we use average pooling and an MLP              drift—undesirable in our multi-view setting (see Tab. 6b).
+to regress the translation and rotation in a 9D representa-      Instead, we preserve a single global alignment and encour-
+tion [57].                                                       age detail by supervising image gradients of the canonical
+Metric Scale. We add a metric scale token in the video           inverse depth [8] at multiple scales:
+transformer, followed by an MLP to predict a single metric                               N H×W
+                                                                                   1 X X
+scale factor for each scene.                                        Lgradient =                    ∇ dˆi,j − ∇ di,j , (10)
+                                                                                N HW i=1 j=1                        1
+3.6. Training Details
+                                                                 where dˆ and d denote ground-truth and predicted canonical
+3.6.1. Training loss                                             inverse depth, respectively, and ∇ is the Scharr and Laplace
+We train the model with a combination of pointmap, cam-          gradient filters.
+era, scale, normal, gradient, and distillation losses.              Due to the sparsity of real-world depth annotations, we
+Pointmap loss. We predict a per-pixel 3D point p̂i,j up to       only apply the normal and gradient loss on synthetic data.
+a scene-wide scale. Let norm(·) denote a scene normal-           3.6.2. Implementation details
+ization (distance-to-origin) applied to both prediction and      The HR stream uses a frozen 24-layer ViT from
+ground truth. We compute a single alignment scale s∗ using       MoGe2 [100]. Since our training corpus is relatively small,
+the ROE solver [99] and supervise with an ℓ1 loss:               we initialize the LR stream from Pi3 [103] instead of train-
+                  N H×W
+             1 X X             s∗ p̂i,j      pi,j                ing from scratch. The adapter comprises five blocks, each
+  Lpm =                                 −              . (6)     containing a cross-attention and self-attention layer. We
+         N HW i=1 j=1 norm(P̂) norm(P)
+                                                       1         train DAGE on 18 publicly available datasets spanning
+Unlike uncertainty-weighted objectives used in [96, 101],        indoor/outdoor, static/dynamic scenes. The complete list
+we do not attenuate errors with confidences, as we found         of datasets and implementation details are provided in the
+this can suppress hard structures and reduce sharpness.          supplementary.
+Camera loss. Following [103], we supervise relative cam-
+era poses to avoid fixing a global coordinate frame. Let ĝuv    4. Experiments
+and guv denote predicted and ground-truth pairwise poses         This section compares our method to state-of-the-art ap-
+between frames u-th and v-th, the camera loss is defined as:     proaches across four tasks to show its effectiveness.
+                               N
+                       1      X                                 4.1. Video Geometry Estimation
+       Lcamera =                   Lcam ĝuv , guv ,       (7)
+                   N (N − 1) u,v=1
+                                                                 We evaluate on eight datasets spanning diverse condi-
+                               u̸=v
+where Lcam comprises Lrot that minimizes the geodesic dis-       tions—GMU Kitchens [34], ScanNet [20] (indoor RGB-D),
+tance of the rotation part, and Ltrans is the ℓ1 loss of the     KITTI [33] (outdoor driving with LiDAR), Sintel [9] and
+translation part.                                                Monkaa [64] (synthetic with precise depth and challeng-
+                                                                 ing dynamics), and the high-resolution UrbanSyn [35], Un-
+Scale loss. For datasets with metric supervision, we addi-       real4K [92], and Diode [93]-and resolutions from ∼640p
+tionally supervise the predicted metric scale ŝ:                to 2K. Following [99, 109], we report relative point error
+                                                !
+                                  ∗ norm(P)
+                                                                 Relp ↓ and inlier ratio δ p ↑ at a 0.25 threshold, and eval-
+         Lscale = log ŝ − log s                  .    (8)       uate affine-invariant pointmaps by aligning predictions to
+                                    norm(P̂) 2
+                                                                 ground truth with a single, shared scale and shift per video.
+Normal loss. To encourage locally smooth but faithful sur-       We compare against single-image methods [8, 99, 100],
+faces, we supervise normals computed on-the-fly from the         video diffusion-based model [109], and set-based visual-
+pointmap via cross products [99]:                                geometry models [96, 98, 103]. For methods that do not
+Table 1. Video pointmap evaluation. Results are aligned with the ground truth by optimizing a shared scale and shift factor across the
+entire video. “MV/HR/PO” indicate multi-view support, high-resolution input support, and whether the method predicts camera poses. We
+mark best and second-best .
+                            GMU [34] Monkaa [64] Sintel [9] ScanNet [20] KITTI [33] UrbanSyn [35] Unreal4K [92] Diode [93]
+Method            MV HR PO (960 × 512) (960 × 512) (896 × 448) (640 × 512) (768 × 384) (2048 × 1024) (1920 × 1080) (1024 × 768) Rank ↓
+                           Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑
+DepthPro [8]             ✓         9.5    93.9   25.1    58.4    40.8    44.7 9.3        94.9   10.0   94.9      48.9   40.1   74.7   12.0   32.4   59.2   7.9
+MoGe [99]                ✓        20.3    71.2   22.9    61.3    29.4    59.8 13.4       88.0    8.0   95.8      14.9   87.0   38.3   51.5   31.8   52.9   7.4
+MoGe2 [100]              ✓        19.6    72.4   25.0    57.0    29.8    58.4 12.4       89.4    9.0   97.2      13.4   90.0   32.9   59.1   31.0   54.2   6.8
+MoGe2 [100]†     △       ✓        7.1     94.6   21.4    67.6    28.2    62.8 7.8        97.5   10.5   98.4       7.2   97.1   12.6   86.7   15.8   84.1   4.1
+CUT3R [98]       ✓           ✓     8.0    93.7   31.8    47.5    35.8    47.5 5.9        97.9   14.5   87.5      21.6   68.6   16.8   79.6   17.9   78.3   6.8
+VGGT [96]        ✓           ✓     5.4    93.8   13.6    84.4    23.7    73.1 2.9        99.0   7.5    97.4      14.5   87.3    8.6   96.1   13.3   85.9   3.4
+Pi3 [103]        ✓           ✓    5.2     94.2   11.6    90.0    22.0    72.9 2.2        99.4    6.3   97.3      16.8   77.5   19.5   75.3    9.2   95.2   3.3
+GeoCrafter [109] ✓       △        8.3     94.8   15.7    83.4    25.0    69.3 8.3        96.9    5.6   98.8      12.5   91.9   21.6   74.5   12.5   93.0   3.9
+DAGE (ours)      ✓       ✓ ✓      4.9     94.2   10.1    91.0    21.5    75.6 2.1        99.5    5.9   99.0       8.8   96.0   11.9   89.1    9.7   94.4   1.6
+   △: partial support.    † : obtained by multiplying per-frame pointmap by predicted metric scale factor.
+
+            Input video                          VGGT                              Pi3                       GeometryCrafter                 Ours
+
+
+
+
+Figure 4. Visual comparison of video depth on in-the-wild scenes. We convert the depth map to a disparity map for better visualization,
+and zoom-in (red bounding boxes) to emphasize details. DAGE preserves sharp boundaries and fine-grained detail—especially for thin
+structures and small or distant objects, outperforming a diffusion-based baseline [109].
+
+support high-resolution inference [96, 98, 103, 109], inputs                             (including scale-invariant, affine-invariant and video depth
+are downsampled to the model’s native resolution and out-                                estimation) are provided in the supplementary.
+puts are upsampled to the original size to avoid degenerate
+predictions. In Tab. 1, DAGE delivers consistently strong                                4.2. Sharp Depth Estimation
+performance across datasets—achieving state-of-the-art av-                               We assess depth–boundary sharpness on four syn-
+erage rank on Relp and δ p —with pronounced gains on high-                               thetic datasets with high-quality depth annotations
+resolution scenarios. We visualize the disparity map of our                              —Monkaa [64], Sintel [9], UrbanSyn [35], and Un-
+approach and other baselines in Fig. 4. Detailed evaluations                             real4K [92]. Following [8], we report the scale-invariant
+           Input video                  VGGT                            Pi3                                            Ours
+
+
+
+
+           Input images
+    Can model preserve the building’s
+         address and banner?
+
+
+
+
+Figure 5. Visual comparison of 3D reconstruction on in-the-wild scenes. Compared to VGGT [96] and Pi3 [103], DAGE achieves
+comparable multi-view consistency while preserving markedly finer detail (green boxes).
+
+boundary F1↑, which compares occlusion contours induced                            Table 2. Sharpness depth evaluation.
+by neighboring-pixel depth ratios in prediction versus           Method
+                                                                                      Monkaa [64] Sintel [9] UrbanSyn [35] Unreal4K [92]
+                                                                                      F1↑ CPDBE ↓ F1↑ CPDBE ↓ F1↑ CPDBE ↓ F1↑ CPDBE ↓
+ground truth. Because F1 does not reflect temporal sta-
+                                                                 DepthPro [8]     0.19       21.3    0.41    17.0    0.14     12.5      0.07    116.4
+bility, we also measure the pseudo depth boundary error          MoGe2 [100]      0.27       11.6    0.27    10.1    0.09     19.1      0.10    35.2
+(CPDBE ↓) [70], defined as the Chamfer distance between          GeoCrafter [109] 0.19       8.86    0.28    8.1     0.08⋆    33.2⋆     0.06⋆   41.4⋆
+prediction and ground-truth at canny-detected edges.             CUT3R [98]       0.08       20.3    0.11    16.5    0.01     44.0      0.01    63.1
+                                                                 VGGT [96]        0.14       11.1    0.20     9.6    0.02⋆    42.0⋆     0.03⋆   38.1⋆
+For a fair comparison of sharpness detail, we evaluate           Pi3 [103]        0.14       12.7    0.20    8.1     0.01     27.9      0.03     46.9
+methods at each dataset’s native resolution; models that         DAGE (ours)      0.29       10.1    0.34    7.8     0.09     17.8      0.14     33.1
+run out of memory (e.g., [96, 109]) are downsampled to              ⋆
+                                                                        : Input resolution downscaled to prevent out-of-memory (OOM).
+the largest feasible resolution. Results in Tab. 2 show that,
+among methods producing temporally consistent video
+depth [96, 98, 103, 109], DAGE achieves the highest F1 and      port Absolute Trajectory Error (ATE) and Relative Pose Er-
+the lowest PDBE. While DepthPro [8] attains a higher F1         ror for translation/rotation (RPET /RPER ). Predicted cam-
+on some datasets, DAGE yields lower CPDBE —indicating           era trajectories are registered to ground truth with a Sim(3)
+more temporally consistent boundaries in the video setting.     alignment. We summarize the performance in Tab. 4. No-
+                                                                tably, we run the LR stream at 252px (long side) to estimate
+4.3. Multi-view Reconstruction                                  poses efficiently. Competing methods [96, 98, 103] typi-
+Following [98, 103], we evaluate reconstructed multi-view       cally require 518px to achieve accurate predictions. De-
+pointmaps on 7-Scenes [82] and NRGBD [2] under sparse           spite using lower resolution inputs, DAGE matches their
+and dense settings. Predictions are first aligned to ground     performance at their high-res settings—and outperform
+truth via Umeyama Sim(3), then refined with ICP. We             them when evaluated at the same low-res setting.
+report accuracy Acc.↓, completeness Comp.↓, and nor-
+mal consistency NC↑ in Tab. 3. Comparisons include re-
+cent feed-forward visual-geometry methods [49, 96, 98,          4.5. Runtime Comparison
+103, 110, 120]. We also assess metric-scale reconstruction
+by aligning with rigid transformation SE(3), comparing          Tab. 5 reports the FPS and GPU memory consumption av-
+against metric-pointmap methods [49, 98]. Across sparse         eraged over ten 100-frame videos on a single A100 GPU.
+and dense settings, DAGE matches state-of-the-art perfor-       DAGE sustains 65.4 FPS at 540p, which is 2× faster
+mance [96, 103] while recovering metric-accurate geome-         than Pi3, and remains tractable at 5.6 FPS on 2K, where
+try. Fig. 5 shows that our model produces globally consis-      global-attention baselines [96, 103] often run out of mem-
+tent pointmaps while preserving fine-grained details.           ory (OOM). It is consistently faster than multi-view meth-
+                                                                ods [96, 98, 109] and adds only marginal overhead over the
+4.4. Camera Pose Estimation
+                                                                single-view MoGe2 [100]—thanks to the decoupled LR/HR
+We evaluate on the synthetic Sintel [9] and two real-world      design that confines heavy global attention to the LR path,
+datasets, TUM-Dynamics [85] and ScanNet [20]. We re-            keeping runtime largely insensitive to HR input size.
+Table 3. Multi-view reconstruction evaluation. We report the                                 Table 6. Ablation studies (a) different adapter design, (b) effect
+median values on 3 settings, including sparse, dense, and metric.                            of each component on the depth sharpness
+                                     7-Scenes [82]     NRGBD [2]                              Variant             Acc.↓ Comp.↓        Variant                 F1↑ Relp ↓ δ p ↑
+Method             Setting
+                                 Acc.↓ Comp.↓ NC↑ Acc.↓ Comp.↓ NC↑                            A: Aligned MoGe2 0.031      0.028       Pi3 [103]+AnyUp [104] 0.09    24.5   67.8
+                                                                                              B: Interp+SA     0.030      0.024       Ours                  0.34    21.5   75.6
+Fast3R [110]                       0.065     0.089    0.759   0.091      0.104       0.877    C: All-CA        0.021      0.018       − W/o mono. prior     0.27    22.6   73.5
+CUT3R [98]                         0.049     0.051    0.805   0.041      0.031       0.968    D: Alter-Adapter 0.023      0.018       − W/o gradient loss   0.31    21.4   75.5
+                     sparse
+
+
+FLARE [120]                        0.057     0.107    0.780   0.024      0.025       0.988    Ours             0.018      0.016       + With local loss     0.30    20.9   75.1
+VGGT [96]                          0.025     0.033    0.845   0.029      0.038       0.981
+                                                                                             (a) Adapter design (NRGBD [2])               (b) Depth sharpness (Sintel [9])
+Pi3 [103]                          0.029     0.049    0.841   0.015      0.014       0.992
+MapAny [49]                        0.053     0.064    0.83    0.064      0.058       0.946           Table 7. Ablation study on the LR stream resolution
+DAGE (ours)                        0.027     0.042    0.846   0.018      0.016       0.992
+                                                                                                                 Sintel [9] (pose) Sintel [9] (depth) NRGBD [2]
+                                                                                             Reso.                                                              FPS↑
+Fast3R [110]                       0.017     0.018    0.725   0.030      0.016       0.934                     ATE↓ RPET ↓ RPER ↓ Relp ↓ δ p ↑ F1↑ Acc.↓ Comp.↓
+CUT3R [98]                         0.010     0.008    0.764   0.037      0.017       0.953   252px (default) 0.132      0.051     0.406   21.5   75.5 0.34 0.018   0.016   65.4
+                        dense
+
+
+
+
+FLARE [120]                        0.007     0.013    0.785   0.011      0.008       0.986   252px (no distill) 0.111   0.057     0.584   22.9   73.0 0.35 0.019   0.017   65.4
+VGGT [96]                          0.008     0.012    0.760   0.010      0.005       0.988   336px              0.130   0.042     0.307   20.4   76.9 0.35 0.018   0.016   46.6
+Pi3 [103]                          0.007     0.011    0.792   0.008      0.005       0.987   518px              0.117   0.039     0.258   19.7   77.7 0.36 0.016   0.016   22.5
+MapAny [49]                        0.008     0.008    0.780   0.018      0.010       0.970
+DAGE (ours)                        0.007     0.009    0.793   0.009      0.006       0.985
+CUT3R [98]                         0.189     0.186    0.582 0.307        0.253       0.606
+                        metric
+
+
+
+
+MapAny [49]                        0.339     0.109    0.639 0.156        0.108       0.910
+DAGE (ours)                        0.034     0.041    0.847 0.085        0.101       0.923
+
+                    Table 4. Camera pose evaluation                                                  Input                Pi3             W/o mono. prior          Ours
+                     Sintel [9]     TUM-dynamics [85]    ScanNet [20]                        Figure 6. Comparison on disparity quality on Pi3, our variant with-
+Method
+                ATE↓ RPET ↓ RPER ↓ ATE↓ RPET ↓ RPER ↓ ATE↓ RPET ↓ RPER ↓
+                                                                                             out monocular prior, and our full model.
+Fast3R [110]    0.371      0.298     13.75   0.090   0.101   1.425   0.155   0.123   3.491
+CUT3R [98]      0.217      0.070     0.636   0.047   0.015   0.451   0.094   0.022   0.629   facts and improving cross-view coherence.
+FLARE [120]     0.207      0.090     3.015   0.026   0.013   0.475   0.064   0.023   0.971
+VGGT [96]       0.167      0.062     0.491   0.012   0.010   0.311   0.035   0.015   0.382   Ablation on sharpness depth. Tab. 6b ablates the contri-
+Pi3 [103]       0.074      0.040     0.282   0.014   0.009   0.312   0.031   0.013   0.347
+VGGT (252px) 0.228 0.095              1.03 0.053 0.028       0.652 0.109 0.039       1.357
+                                                                                             bution of the monocular prior [100] and the gradient loss;
+Pi3 (252px)  0.153 0.088             0.684 0.025 0.019       0.370 0.045 0.017       0.438   Fig. 6 shows qualitative results with and without the prior.
+DAGE (ours) 0.132 0.051              0.406 0.014 0.010       0.323 0.031 0.014       0.389
+                                                                                             Ablation on LR-stream resolution. We vary the LR
+Table 5. Throughput comparison. FPS↑ / GPU memory↓ (GB)                                      stream resolution in Tab. 7. In general, increasing LR res-
+measured on 100-frame clips per resolution.                                                  olution slightly improves performance but significantly re-
+                MoGe2† GeoCrafter CUT3R    VGGT       Pi3    DAGE                            duces the FPS.
+Resolution
+               FPS Mem. FPS Mem. FPS Mem. FPS Mem. FPS Mem. FPS Mem.
+540×360 79.4 8.1 3.1 17.3 27.2 16.5 30.1 17.3 36.3 17.2 65.4 10.1                            5. Conclusion
+960×512 30.0 15.3 1.7 24.1 20.3 19.0 2.1 26.9 3.1 23.1 28.9 18.3
+2048×1024 6.1 22.1  OOM     4.5 33.2   OOM     0.2 66.7 5.6 27.9
+                                                                                             We introduced DAGE, a dual-stream visual geometry trans-
+ †
+     : Methods that do not produce temporally consistent geometry.                           former. A low-resolution stream efficiently estimates cam-
+4.6. Ablation Study                                                                          eras and enforces cross-view consistency, while a high-
+                                                                                             resolution stream preserves sharp details; a lightweight
+Ablation on Adapter. We investigate strategies to fuse                                       adapter fuses them. This decouples resolution from se-
+multi-view–consistent LR tokens into high-resolution, fine-                                  quence length, supporting 2K inputs and long videos
+grained HR tokens (Tab. 6a). Setting A (post-align): per-                                    at practical costs. Empirically, DAGE yields sharper
+frame MoGe2 [100] with post hoc alignment to a multi-                                        pointmaps and outperforms prior video geometry meth-
+view–consistent pointmap from a visual-geometry model                                        ods. It matches the 3D reconstruction and pose accuracy
+(e.g., [103]), termed aligned MoGe2; this improves detail                                    of state-of-the-art models [96, 103] while running signif-
+but leaves layering/stitching artifacts (see Supp.). Setting                                 icantly faster. Limitations. Performance can drop under
+B (interp+SA): LR tokens interpolated to the HR grid,                                        extremely low overlap or rapid non-rigid motion; the HR
+concatenated with HR tokens, then fused via several HR                                       path is memory-intensive at very high resolutions; and the
+self-attention layers. Setting C (all-CA): adapter blocks                                    current method does not recover dynamic motion.
+use cross-attention only, with HR queries attending to LR
+keys/values at every block. Setting D (Alter-Adapter): a                                     Acknowledgements Evangelos Kalogerakis has received
+cross/self-attention module inserted after each of the last                                  funding from the European Research Council (ERC) un-
+5 ViT blocks in the HR stream. Overall, the proposed                                         der the Horizon research and innovation programme (Grant
+CrossAttn − SelfAttn adapter, inserted after the HR-stream                                   agreement No. 101124742).
+ViT, consistently outperforms these variants, reducing arti-
+References                                                               videos. In Proceedings of the Computer Vision and Pattern
+                                                                         Recognition Conference, pages 22831–22840, 2025. 3
+ [1] Sameer Agarwal, Yasutaka Furukawa, Noah Snavely, Ian
+                                                                    [14] Weirong Chen, Le Chen, Rui Wang, and Marc Pollefeys.
+     Simon, Brian Curless, Steven M Seitz, and Richard
+                                                                         Leap-vo: Long-term effective any point tracking for visual
+     Szeliski. Building rome in a day. Communications of the
+                                                                         odometry. 2024 IEEE/CVF Conference on Computer Vi-
+     ACM, 54(10):105–112, 2011. 3
+                                                                         sion and Pattern Recognition (CVPR), pages 19844–19853,
+ [2] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman,
+                                                                         2024. 3, 2
+     Matthias Nießner, and Justus Thies. Neural rgb-d surface
+                                                                    [15] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and
+     reconstruction. In Proceedings of the IEEE/CVF Confer-
+                                                                         Anpei Chen. Easi3r: Estimating disentangled motion from
+     ence on Computer Vision and Pattern Recognition, pages
+                                                                         dust3r without training. arXiv preprint arXiv:2503.24391,
+     6290–6301, 2022. 7, 8, 2
+                                                                         2025. 3
+ [3] Gilad Baruch, Zhuoyuan Chen, Afshin Dehghan, Tal
+                                                                    [16] Seokju Cho, Jiahui Huang, Seungryong Kim, and Joon-
+     Dimry, Yuri Feigin, Peter Fu, Thomas Gebauer, Brandon
+                                                                         Young Lee. Seurat: From moving points to depth. 2025
+     Joffe, Daniel Kurz, Arik Schwartz, et al. Arkitscenes: A di-
+                                                                         IEEE/CVF Conference on Computer Vision and Pattern
+     verse real-world dataset for 3d indoor scene understanding
+                                                                         Recognition (CVPR), pages 7211–7221, 2025. 2
+     using mobile rgb-d data. arXiv preprint arXiv:2111.08897,
+     2021. 1                                                        [17] Gene Chou, Wenqi Xian, Guandao Yang, Mohamed Ab-
+ [4] Shariq Farooq Bhat, Ibraheem Alhashim, and Peter Wonka.             delfattah, Bharath Hariharan, Noah Snavely, Ning Yu,
+     Adabins: Depth estimation using adaptive bins. In Pro-              and Paul Debevec. Flashdepth: Real-time streaming
+     ceedings of the IEEE/CVF conference on computer vision              video depth estimation at 2k resolution. arXiv preprint
+     and pattern recognition, pages 4009–4018, 2021. 2                   arXiv:2504.07093, 2025. 3
+ [5] Shariq Farooq Bhat, Reiner Birkl, Diana Wofk, Peter            [18] Wenyan Cong, Yiqing Liang, Yancheng Zhang, Ziyi Yang,
+     Wonka, and Matthias Muller. Zoedepth: Zero-shot trans-              Yan Wang, Boris Ivanovic, Marco Pavone, Chen Chen,
+     fer by combining relative and metric depth.          ArXiv,         Zhangyang Wang, and Zhiwen Fan. E3d-bench: A bench-
+     abs/2302.12288, 2023. 2                                             mark for end-to-end 3d geometric foundation models. arXiv
+ [6] Michael J Black, Priyanka Patel, Joachim Tesch, and Jin-            preprint arXiv:2506.01933, 2025. 2
+     long Yang. Bedlam: A synthetic dataset of bodies exhibit-      [19] Katherine Crowson, Stefan Andreas Baumann, Alex Birch,
+     ing detailed lifelike animated motion. In Proceedings of            Tanishq Mathew Abraham, Daniel Z Kaplan, and Enrico
+     the IEEE/CVF Conference on Computer Vision and Pattern              Shippole. Scalable high-resolution pixel-space image syn-
+     Recognition, pages 8726–8737, 2023. 1                               thesis with hourglass diffusion transformers. In Forty-first
+ [7] Andreas Blattmann, Tim Dockhorn, Sumith Kulal, Daniel               International Conference on Machine Learning, 2024. 4
+     Mendelevitch, Maciej Kilian, Dominik Lorenz, Yam Levi,         [20] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Hal-
+     Zion English, Vikram Voleti, Adam Letts, et al. Stable              ber, Thomas A. Funkhouser, and Matthias Nießner. Scan-
+     video diffusion: Scaling latent video diffusion models to           net: Richly-annotated 3d reconstructions of indoor scenes.
+     large datasets. arXiv preprint arXiv:2311.15127, 2023. 3            2017 IEEE Conference on Computer Vision and Pattern
+ [8] Aleksei Bochkovskii, AmaÃcGl Delaunoy, Hugo Germain,               Recognition (CVPR), pages 2432–2443, 2017. 5, 6, 7, 8,
+     Marcel Santos, Yichao Zhou, Stephan R Richter, and                  1, 2, 3, 4
+     Vladlen Koltun. Depth pro: Sharp monocular metric depth        [21] Tri Dao. Flashattention-2: Faster attention with bet-
+     in less than a second. arXiv preprint arXiv:2410.02073,             ter parallelism and work partitioning. arXiv preprint
+     2024. 2, 5, 6, 7, 3, 4                                              arXiv:2307.08691, 2023. 1
+ [9] Daniel J. Butler, Jonas Wulff, Garrett B. Stanley, and         [22] Tri Dao, Dan Fu, Stefano Ermon, Atri Rudra, and Christo-
+     Michael J. Black. A naturalistic open source movie for op-          pher Ré. Flashattention: Fast and memory-efficient exact
+     tical flow evaluation. In European Conference on Computer           attention with io-awareness. Advances in neural informa-
+     Vision, 2012. 5, 6, 7, 8, 2, 3, 4                                   tion processing systems, 35:16344–16359, 2022. 1
+[10] Yohann Cabon, Naila Murray, and Martin Humenberger.            [23] Siyan Dong, Shuzhe Wang, Shaohui Liu, Lulu Cai, Qing-
+     Virtual kitti 2. arXiv preprint arXiv:2001.10773, 2020. 1           nan Fan, Juho Kannala, and Yanchao Yang. Reloc3r:
+[11] Angel Chang, Angela Dai, Thomas Funkhouser, Maciej                  Large-scale training of relative camera pose regression for
+     Halber, Matthias Niessner, Manolis Savva, Shuran Song,              generalizable, fast, and accurate visual localization. 2025
+     Andy Zeng, and Yinda Zhang. Matterport3d: Learning                  IEEE/CVF Conference on Computer Vision and Pattern
+     from rgb-d data in indoor environments. arXiv preprint              Recognition (CVPR), pages 16739–16752, 2024. 5
+     arXiv:1709.06158, 2017. 1                                      [24] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov,
+[12] Shouyuan Chen, Sherman Wong, Liangjian Chen, and                    Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner,
+     Yuandong Tian. Extending context window of large                    Mostafa Dehghani, Matthias Minderer, Georg Heigold,
+     language models via positional interpolation.        ArXiv,         Sylvain Gelly, Jakob Uszkoreit, and Neil Houlsby. An im-
+     abs/2306.15595, 2023. 4, 5                                          age is worth 16x16 words: Transformers for image recog-
+[13] Sili Chen, Hengkai Guo, Shengnan Zhu, Feihu Zhang,                  nition at scale. ArXiv, abs/2010.11929, 2020. 2, 4
+     Zilong Huang, Jiashi Feng, and Bingyi Kang. Video              [25] Laura Downs, Anthony Francis, Nate Koenig, Brandon
+     depth anything: Consistent depth estimation for super-long          Kinman, Ryan Hickman, Krista Reymann, Thomas B
+     McHugh, and Vincent Vanhoucke. Google scanned objects:               Computer Vision and Pattern Recognition (CVPR), pages
+     A high-quality dataset of 3d scanned household items. In             2482–2491, 2019. 3, 5
+     2022 International Conference on Robotics and Automa-           [37] Vitor Campanholo Guizilini, Igor Vasiljevic, Di Chen,
+     tion (ICRA), pages 2553–2560. Ieee, 2022. 3, 5                       Rares Ambrus, and Adrien Gaidon. Towards zero-shot
+[26] David Eigen, Christian Puhrsch, and Rob Fergus. Depth                scale-aware monocular depth estimation. 2023 IEEE/CVF
+     map prediction from a single image using a multi-scale               International Conference on Computer Vision (ICCV),
+     deep network. Advances in neural information processing              pages 9199–9209, 2023. 2
+     systems, 27, 2014. 2                                            [38] Jing He, Haodong Li, Wei Yin, Yixun Liang, Leheng Li,
+[27] Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu                Kaiqiang Zhou, Hongbo Zhang, Bingbing Liu, and Ying-
+     Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang, Xi-                   Cong Chen. Lotus: Diffusion-based visual foundation
+     aokang Yang, Yichao Yan, and Chengfei Lyu. Dens3r:                   model for high-quality dense prediction. arXiv preprint
+     A foundation model for 3d geometry prediction. ArXiv,                arXiv:2409.18124, 2024. 2
+     abs/2507.16290, 2025. 3                                         [39] Jonathan Ho, William Chan, Chitwan Saharia, Jay Whang,
+[28] Haiwen Feng, Junyi Zhang, Qianqian Wang, Yufei Ye,                   Ruiqi Gao, Alexey Gritsenko, Diederik P Kingma, Ben
+     Pengcheng Yu, Michael J Black, Trevor Darrell, and                   Poole, Mohammad Norouzi, David J Fleet, et al. Ima-
+     Angjoo Kanazawa. St4rtrack: Simultaneous 4d recon-                   gen video: High definition video generation with diffusion
+     struction and tracking in the world.         arXiv preprint          models. arXiv preprint arXiv:2210.02303, 2022. 3
+     arXiv:2504.13152, 2025. 3                                       [40] Derek Hoiem, Alexei A Efros, and Martial Hebert. Recov-
+[29] Weilun Feng, Haotong Qin, Mingqiang Wu, Chuanguang                   ering surface layout from an image. International Journal
+     Yang, Yuqi Li, Xiangqi Li, Zhulin An, Libo Huang, Yulun              of Computer Vision, 75(1):151–172, 2007. 2
+     Zhang, Michele Magno, et al. Quantized visual geometry          [41] Mu Hu, Wei Yin, China. Xiaoyan Zhang, Zhipeng Cai, Xi-
+     grounded transformer. arXiv preprint arXiv:2509.21302,               aoxiao Long, Hao Chen, Kaixuan Wang, Gang Yu, Chun-
+     2025. 2                                                              hua Shen, and Shaojie Shen. Metric3d v2: A versatile
+[30] Huan Fu, Mingming Gong, Chaohui Wang, Kayhan Bat-                    monocular geometric foundation model for zero-shot met-
+     manghelich, and Dacheng Tao. Deep ordinal regression                 ric depth and surface normal estimation. IEEE Transactions
+     network for monocular depth estimation. In Proceedings of            on Pattern Analysis and Machine Intelligence, 46:10579–
+     the IEEE conference on computer vision and pattern recog-            10596, 2024. 2
+     nition, pages 2002–2011, 2018. 2                                [42] Po-Han Huang, Kevin Matzen, Johannes Kopf, Narendra
+[31] Xiao Fu, Wei Yin, Mu Hu, Kaixuan Wang, Yuexin Ma, Ping               Ahuja, and Jia-Bin Huang. Deepmvs: Learning multi-
+     Tan, Shaojie Shen, Dahua Lin, and Xiaoxiao Long. Ge-                 view stereopsis. In Proceedings of the IEEE conference on
+     owizard: Unleashing the diffusion priors for 3d geometry             computer vision and pattern recognition, pages 2821–2830,
+     estimation from a single image. In European Conference               2018. 1
+     on Computer Vision, pages 241–258. Springer, 2024. 2            [43] Zhiyu Jin, Xuli Shen, Bin Li, and Xiangyang Xue.
+[32] Gonzalo Martin Garcia, Karim Abou Zeid, Christian                    Training-free diffusion model adaptation for variable-sized
+     Schmidt, Daan De Geus, Alexander Hermans, and Bastian                text-to-image synthesis. Advances in Neural Information
+     Leibe. Fine-tuning image-conditional diffusion models is             Processing Systems, 36:70847–70860, 2023. 5
+     easier than you think. In 2025 IEEE/CVF Winter Confer-          [44] HyunJun Jung, Patrick Ruhkamp, Guangyao Zhai, Nikolas
+     ence on Applications of Computer Vision (WACV), pages                Brasch, Yitong Li, Yannick Verdie, Jifei Song, Yiren Zhou,
+     753–762. IEEE, 2025. 2                                               Anil Armagan, Slobodan Ilic, et al. On the importance of
+[33] Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel           accurate geometry data for dense 3d vision tasks. In Pro-
+     Urtasun. Vision meets robotics: The kitti dataset. The In-           ceedings of the IEEE/CVF Conference on Computer Vision
+     ternational Journal of Robotics Research, 32:1231 – 1237,            and Pattern Recognition, pages 780–791, 2023. 3, 5
+     2013. 5, 6, 2, 3, 4                                             [45] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia
+[34] Georgios Georgakis, Md. Alimoor Reza, Arsalan Mousa-                 Neverova, Andrea Vedaldi, and Christian Rupprecht. Dy-
+     vian, Phi Hung Le, and Jana Kosecka. Multiview rgb-d                 namicstereo: Consistent dynamic depth from stereo videos.
+     dataset for object instance detection. 2016 Fourth Inter-            In Proceedings of the IEEE/CVF Conference on Computer
+     national Conference on 3D Vision (3DV), pages 426–434,               Vision and Pattern Recognition, pages 13229–13239, 2023.
+     2016. 5, 6, 2, 3, 4                                                  1
+[35] Jos’e L. G’omez, Manuel Silva, Antonio Seoane, Agnes            [46] Kevin Karsch, Ce Liu, and Sing Bing Kang. Depth Trans-
+     Borr’as, Mario Noriega, Germ’an Ros, Jose A. Iglesias-               fer: Depth Extraction from Video Using Non-Parametric
+     Guitian, and Antonio M. L’opez. All for one, and one for             Sampling . IEEE Transactions on Pattern Analysis & Ma-
+     all: Urbansyn dataset, the third musketeer of synthetic driv-        chine Intelligence, 36(11):2144–2158, 2014. 2
+     ing scenes. ArXiv, abs/2312.12176, 2023. 5, 6, 7, 2, 3,         [47] Bingxin Ke, Dominik Narnhofer, Shengyu Huang, Lei Ke,
+     4                                                                    Torben Peters, Katerina Fragkiadaki, Anton Obukhov, and
+[36] Vitor Campanholo Guizilini, Rares Ambrus, Sudeep Pillai,             Konrad Schindler. Video depth without video models. 2025
+     and Adrien Gaidon. 3d packing for self-supervised monoc-             IEEE/CVF Conference on Computer Vision and Pattern
+     ular depth estimation. 2020 IEEE/CVF Conference on                   Recognition (CVPR), pages 7233–7243, 2024. 2, 3
+[48] Bingxin Ke, Anton Obukhov, Shengyu Huang, Nando Met-                resolution monocular metric depth estimation. In Proceed-
+     zger, Rodrigo Caye Daudt, and Konrad Schindler. Re-                 ings of the IEEE/CVF Conference on Computer Vision and
+     purposing diffusion-based image generators for monocular            Pattern Recognition, pages 10016–10025, 2024. 2
+     depth estimation. In Proceedings of the IEEE/CVF con-          [61] Ilya Loshchilov, Frank Hutter, et al. Fixing weight decay
+     ference on computer vision and pattern recognition, pages           regularization in adam. arXiv preprint arXiv:1711.05101,
+     9492–9502, 2024. 2                                                  5(5):5, 2017. 1
+[49] Nikhil Keetha, Norman Müller, Johannes Schönberger,          [62] Jiahao Lu, Tianyu Huang, Peng Li, Zhiyang Dou, Cheng
+     Lorenzo Porzi, Yuchen Zhang, Tobias Fischer, Arno                   Lin, Zhiming Cui, Zhen Dong, Sai-Kit Yeung, Wenping
+     Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes,               Wang, and Yuan Liu. Align3r: Aligned monocular depth
+     Jonathon Luiten, Manuel López-Antequera, Samuel Rota               estimation for dynamic videos. In Proceedings of the Com-
+     Bulò, Christian Richardt, Deva Ramanan, Sebastian                  puter Vision and Pattern Recognition Conference, pages
+     Scherer, and Peter Kontschieder. Mapanything: Uni-                  22820–22830, 2025. 3
+     versal feed-forward metric 3d reconstruction.         ArXiv,   [63] Xuan Luo, Jia-Bin Huang, Richard Szeliski, Kevin Matzen,
+     abs/2509.13414, 2025. 2, 3, 7, 8, 1, 4                              and Johannes Kopf. Consistent video depth estimation.
+[50] Numair Khan, Eric Penner, Douglas Lanman, and Lei Xiao.             ACM Transactions on Graphics (ToG), 39(4):71–1, 2020.
+     Temporally consistent online depth estimation using point-          3
+     based fusion. 2023 IEEE/CVF Conference on Computer
+                                                                    [64] Nikolaus Mayer, Eddy Ilg, Philip Häusser, Philipp Fischer,
+     Vision and Pattern Recognition (CVPR), pages 9119–9129,
+                                                                         Daniel Cremers, Alexey Dosovitskiy, and Thomas Brox. A
+     2023. 2
+                                                                         large dataset to train convolutional networks for disparity,
+[51] Tobias Koch, Lukas Liebel, Friedrich Fraundorfer, and
+                                                                         optical flow, and scene flow estimation. 2016 IEEE Confer-
+     Marco Korner. Evaluation of cnn-based single-image depth
+                                                                         ence on Computer Vision and Pattern Recognition (CVPR),
+     estimation methods. In Proceedings of the European Con-
+                                                                         pages 4040–4048, 2015. 5, 6, 7, 2, 3, 4
+     ference on Computer Vision (ECCV) Workshops, pages 0–0,
+     2018. 2, 3, 5                                                  [65] Lukas Mehl, Jenny Schmalfuss, Azin Jahedi, Yaroslava
+                                                                         Nalivayko, and Andrés Bruhn. Spring: A high-resolution
+[52] Johannes Kopf, Xuejian Rong, and Jia-Bin Huang. Ro-
+                                                                         high-detail dataset and benchmark for scene flow, optical
+     bust consistent video depth estimation. In Proceedings of
+                                                                         flow and stereo. In Proceedings of the IEEE/CVF Confer-
+     the IEEE/CVF Conference on Computer Vision and Pattern
+                                                                         ence on Computer Vision and Pattern Recognition, pages
+     Recognition, pages 1611–1621, 2021. 3
+                                                                         4981–4991, 2023. 1
+[53] Wei-Sheng Lai, Jia-Bin Huang, Oliver Wang, Eli Shecht-
+     man, Ersin Yumer, and Ming-Hsuan Yang. Learning blind          [66] S Mahdi H Miangoleh, Sebastian Dille, Long Mai, Sylvain
+     video temporal consistency. In Proceedings of the Euro-             Paris, and Yagiz Aksoy. Boosting monocular depth estima-
+     pean conference on computer vision (ECCV), pages 170–               tion models to high-resolution via content-adaptive multi-
+     185, 2018. 3                                                        resolution merging. In Proceedings of the IEEE/CVF Con-
+[54] Zihang Lai and Andrea Vedaldi. Tracktention: Leverag-               ference on Computer Vision and Pattern Recognition, pages
+     ing point tracking to attend videos faster and better. 2025         9685–9694, 2021. 2
+     IEEE/CVF Conference on Computer Vision and Pattern             [67] T.D. Ngo, Peiye Zhuang, Chuang Gan, Evangelos Kaloger-
+     Recognition (CVPR), pages 22809–22819, 2025. 2, 3                   akis, Sergey Tulyakov, Hsin-Ying Lee, and Chaoyang
+[55] Jin Han Lee, Myung-Kyu Han, Dong Wook Ko, and                       Wang. Delta: Dense efficient long-range 3d tracking for
+     Il Hong Suh. From big to small: Multi-scale local planar            any video. ArXiv, abs/2410.24211, 2024. 3
+     guidance for monocular depth estimation. arXiv preprint        [68] Maxime Oquab, Timothée Darcet, Théo Moutakanni,
+     arXiv:1907.10326, 2019. 2                                           Huy Q. Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernan-
+[56] Vincent Leroy, Yohann Cabon, and Jérôme Revaud.                   dez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby,
+     Grounding image matching in 3d with mast3r. In European             Mahmoud Assran, Nicolas Ballas, Wojciech Galuba, Russ
+     Conference on Computer Vision, 2024. 3                              Howes, Po-Yao (Bernie) Huang, Shang-Wen Li, Ishan
+[57] Jake Levinson, Carlos Esteves, Kefan Chen, Noah Snavely,            Misra, Michael G. Rabbat, Vasu Sharma, Gabriel Syn-
+     Angjoo Kanazawa, Afshin Rostamizadeh, and Ameesh                    naeve, Huijiao Xu, Hervé Jégou, Julien Mairal, Patrick
+     Makadia. An analysis of svd for deep rotation estimation.           Labatut, Armand Joulin, and Piotr Bojanowski. Dinov2:
+     ArXiv, abs/2006.14616, 2020. 5                                      Learning robust visual features without supervision. ArXiv,
+[58] Haodong Li, Chen Wang, Jiahui Lei, Kostas Daniilidis, and           abs/2304.07193, 2023. 4
+     Lingjie Liu. Stereodiff: Stereo-diffusion synergy for video    [69] William Peebles and Saining Xie. Scalable diffusion mod-
+     depth estimation. arXiv preprint arXiv:2506.20756, 2025.            els with transformers. In Proceedings of the IEEE/CVF
+     2                                                                   international conference on computer vision, pages 4195–
+[59] Zhengqi Li and Noah Snavely. Megadepth: Learning                    4205, 2023. 2
+     single-view depth prediction from internet photos. In Pro-     [70] Duc-Hai Pham, Tung Do, Phong Nguyen, Binh-Son Hua,
+     ceedings of the IEEE conference on computer vision and              Khoi Nguyen, and Rang Nguyen. Sharpdepth: Sharpen-
+     pattern recognition, pages 2041–2050, 2018. 1                       ing metric depth predictions using diffusion distillation. In
+[60] Zhenyu Li, Shariq Farooq Bhat, and Peter Wonka. Patch-              Proceedings of the Computer Vision and Pattern Recogni-
+     fusion: An end-to-end tile-based framework for high-                tion Conference, pages 17060–17069, 2025. 2, 7
+[71] Luigi Piccinelli, Yung-Hsu Yang, Christos Sakaridis, Mat-            rgbd images. In European conference on computer vision,
+     tia Segu, Siyuan Li, Luc van Gool, and Fisher Yu.                    pages 746–760. Springer, 2012. 3, 5
+     Unidepth: Universal monocular metric depth estimation.          [84] Noah Snavely, Steven M Seitz, and Richard Szeliski. Photo
+     2024 IEEE/CVF Conference on Computer Vision and Pat-                 tourism: exploring photo collections in 3d. In ACM sig-
+     tern Recognition (CVPR), pages 10106–10116, 2024. 2                  graph 2006 papers, pages 835–846. 2006. 3
+[72] Dustin Podell, Zion English, Kyle Lacey, Andreas                [85] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram
+     Blattmann, Tim Dockhorn, Jonas Müller, Joe Penna, and               Burgard, and Daniel Cremers. A benchmark for the evalu-
+     Robin Rombach. Sdxl: Improving latent diffusion mod-                 ation of rgb-d slam systems. 2012 IEEE/RSJ International
+     els for high-resolution image synthesis. arXiv preprint              Conference on Intelligent Robots and Systems, pages 573–
+     arXiv:2307.01952, 2023. 2                                            580, 2012. 7, 8, 2
+[73] René Ranftl, Katrin Lasinger, David Hafner, Konrad             [86] Jianlin Su, Yu Lu, Shengfeng Pan, Bo Wen, and Yunfeng
+     Schindler, and Vladlen Koltun. Towards robust monocu-                Liu. Roformer: Enhanced transformer with rotary position
+     lar depth estimation: Mixing datasets for zero-shot cross-           embedding. ArXiv, abs/2104.09864, 2021. 4
+     dataset transfer. IEEE transactions on pattern analysis and     [87] Pei Sun, Henrik Kretzschmar, Xerxes Dotiwalla, Aure-
+     machine intelligence, 44(3):1623–1637, 2020. 2                       lien Chouard, Vijaysai Patnaik, Paul Tsui, James Guo, Yin
+[74] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler,               Zhou, Yuning Chai, Benjamin Caine, et al. Scalability in
+     Luca Sbordone, Patrick Labatut, and David Novotny. Com-              perception for autonomous driving: Waymo open dataset.
+     mon objects in 3d: Large-scale learning and evaluation of            In Proceedings of the IEEE/CVF conference on computer
+     real-life 3d category reconstruction. In Proceedings of the          vision and pattern recognition, pages 2446–2454, 2020. 1
+     IEEE/CVF international conference on computer vision,           [88] Saksham Suri, Matthew Walmer, Kamal Gupta, and Abhi-
+     pages 10901–10911, 2021. 1                                           nav Shrivastava. Lift: A surprisingly simple lightweight
+[75] Mike Roberts, Jason Ramapuram, Anurag Ranjan, At-                    feature transform for dense vit descriptors. In European
+     ulit Kumar, Miguel Angel Bautista, Nathan Paczan, Russ               Conference on Computer Vision, 2024. 4
+     Webb, and Joshua M Susskind. Hypersim: A photorealistic         [89] Jeff Tan, Nikhil Varma Keetha, Yifei Liu, Shubham Tul-
+     synthetic dataset for holistic indoor scene understanding. In        siani, and Deva Ramanan. Benchmarking stereo geometry
+     Proceedings of the IEEE/CVF international conference on              estimation in the wild. 2025. 2
+     computer vision, pages 10912–10922, 2021. 1                     [90] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu,
+[76] Robin Rombach, Andreas Blattmann, Dominik Lorenz,                    Rakesh Ranjan, Alexander Schwing, and Zhicheng Yan.
+     Patrick Esser, and Björn Ommer. High-resolution image               Mv-dust3r+: Single-stage scene reconstruction from sparse
+     synthesis with latent diffusion models, 2021. 2                      views in 2 seconds. In Proceedings of the Computer Vision
+[77] Ashutosh Saxena, Sung Chung, and Andrew Ng. Learning                 and Pattern Recognition Conference, pages 5283–5293,
+     depth from single monocular images. Advances in neural               2025. 2, 3
+     information processing systems, 18, 2005. 2                     [91] Zachary Teed and Jia Deng. Droid-slam: Deep visual slam
+[78] Ashutosh Saxena, Min Sun, and Andrew Y Ng. Make3d:                   for monocular, stereo, and rgb-d cameras. Advances in
+     Learning 3d scene structure from a single still image. IEEE          neural information processing systems, 34:16558–16569,
+     transactions on pattern analysis and machine intelligence,           2021. 3
+     31(5):824–840, 2008. 2                                          [92] Fabio Tosi, Yiyi Liao, Carolin Schmitt, and Andreas
+[79] Johannes L Schonberger and Jan-Michael Frahm.                        Geiger. Smd-nets: Stereo mixture density networks. 2021
+     Structure-from-motion revisited.         In Proceedings of           IEEE/CVF Conference on Computer Vision and Pattern
+     the IEEE conference on computer vision and pattern                   Recognition (CVPR), pages 8938–8948, 2021. 5, 6, 7, 2,
+     recognition, pages 4104–4113, 2016. 3                                3, 4
+[80] Thomas Schops, Johannes L Schonberger, Silvano Galliani,        [93] Igor Vasiljevic, Nicholas I. Kolkin, Shanyi Zhang, Ruotian
+     Torsten Sattler, Konrad Schindler, Marc Pollefeys, and An-           Luo, Haochen Wang, Falcon Z. Dai, Andrea F. Daniele,
+     dreas Geiger. A multi-view stereo benchmark with high-               Mohammadreza Mostajabi, Steven Basart, Matthew R.
+     resolution images and multi-camera videos. In Proceed-               Walter, and Gregory Shakhnarovich. Diode: A dense in-
+     ings of the IEEE conference on computer vision and pattern           door and outdoor depth dataset. ArXiv, abs/1908.00463,
+     recognition, pages 3260–3269, 2017. 3, 5                             2019. 5, 6, 2, 3, 4
+[81] You Shen, Zhipeng Zhang, Yansong Qu, and Liujuan Cao.           [94] Chaoyang Wang, José Miguel Buenaposada, Rui Zhu, and
+     Fastvggt: Training-free acceleration of visual geometry              Simon Lucey. Learning depth from monocular videos using
+     transformer. arXiv preprint arXiv:2509.02560, 2025. 2                direct methods. In Proceedings of the IEEE conference on
+[82] Jamie Shotton, Ben Glocker, Christopher Zach, Shahram                computer vision and pattern recognition, pages 2022–2030,
+     Izadi, Antonio Criminisi, and Andrew Fitzgibbon. Scene               2018. 2
+     coordinate regression forests for camera relocalization in      [95] Chung-Shien Brian Wang, Christian Schmidt, Jens Pieken-
+     rgb-d images. In Proceedings of the IEEE conference on               brinck, and Bastian Leibe. Faster vggt with block-sparse
+     computer vision and pattern recognition, pages 2930–2937,            global attention. arXiv preprint arXiv:2509.07120, 2025.
+     2013. 7, 8, 2                                                        2, 5
+[83] Nathan Silberman, Derek Hoiem, Pushmeet Kohli, and Rob          [96] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+     Fergus. Indoor segmentation and support inference from               Vedaldi, Christian Rupprecht, and David Novotny. Vggt:
+      Visual geometry grounded transformer. In Proceedings of         [109] Tian-Xing Xu, Xiangjun Gao, Wenbo Hu, Xiaoyu Li, Song-
+      the Computer Vision and Pattern Recognition Conference,               Hai Zhang, and Ying Shan. Geometrycrafter: Consistent
+      pages 5294–5306, 2025. 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16          geometry estimation for open-world videos with diffusion
+ [97] Kaixuan Wang and Shaojie Shen. Flow-motion and depth                  priors. arXiv preprint arXiv:2504.01016, 2025. 2, 5, 6, 7,
+      network for monocular stereo and beyond. IEEE Robotics                1, 3, 4, 8, 9
+      and Automation Letters, 5(2):3307–3314, 2020. 1                 [110] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael
+ [98] Qianqian Wang, Yifei Zhang, Aleksander Holynski,                      Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier,
+      Alexei A Efros, and Angjoo Kanazawa. Continuous 3d                    and Matt Feiszli. Fast3r: Towards 3d reconstruction of
+      perception model with persistent state. In Proceedings of             1000+ images in one forward pass. In Proceedings of
+      the Computer Vision and Pattern Recognition Conference,               the Computer Vision and Pattern Recognition Conference,
+      pages 10510–10522, 2025. 2, 3, 4, 5, 6, 7, 8, 1                       pages 21924–21935, 2025. 2, 3, 7, 8
+ [99] Ruicheng Wang, Sicheng Xu, Cassie Dai, Jianfeng Xiang,          [111] Lihe Yang, Bingyi Kang, Zilong Huang, Xiaogang Xu, Ji-
+      Yu Deng, Xin Tong, and Jiaolong Yang. Moge: Unlocking                 ashi Feng, and Hengshuang Zhao. Depth anything: Un-
+      accurate monocular geometry estimation for open-domain                leashing the power of large-scale unlabeled data. In Pro-
+      images with optimal training supervision. In Proceedings of           ceedings of the IEEE/CVF conference on computer vision
+      the Computer Vision and Pattern Recognition Conference,               and pattern recognition, pages 10371–10381, 2024. 2
+      pages 5261–5271, 2025. 2, 5, 6, 1, 3, 4                         [112] Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao, Xiao-
+[100] Ruicheng Wang, Sicheng Xu, Yue Dong, Yu Deng, Jian-                   gang Xu, Jiashi Feng, and Hengshuang Zhao. Depth any-
+      feng Xiang, Zelong Lv, Guangzhong Sun, Xin Tong, and                  thing v2. Advances in Neural Information Processing Sys-
+      Jiaolong Yang. Moge-2: Accurate monocular geome-                      tems, 37:21875–21911, 2024. 2
+      try with metric scale and sharp details. arXiv preprint         [113] Zhuoyi Yang, Jiayan Teng, Wendi Zheng, Ming Ding,
+      arXiv:2507.02546, 2025. 2, 4, 5, 6, 7, 8, 1, 3                        Shiyu Huang, Jiazheng Xu, Yuanming Yang, Wenyi Hong,
+[101] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris                       Xiaohan Zhang, Guanyu Feng, et al. Cogvideox: Text-to-
+      Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d                  video diffusion models with an expert transformer. arXiv
+      vision made easy. In Proceedings of the IEEE/CVF Confer-              preprint arXiv:2408.06072, 2024. 3
+      ence on Computer Vision and Pattern Recognition, pages          [114] David Yifan Yao, Albert J. Zhai, and Shenlong Wang.
+      20697–20709, 2024. 3, 5                                               Uni4d: Unifying visual foundation models for 4d model-
+[102] Wenshan Wang, Delong Zhu, Xiangwei Wang, Yaoyu Hu,                    ing from a single video. 2025 IEEE/CVF Conference on
+      Yuheng Qiu, Chen Wang, Yafei Hu, Ashish Kapoor, and                   Computer Vision and Pattern Recognition (CVPR), pages
+      Sebastian Scherer. Tartanair: A dataset to push the limits of         1116–1126, 2025. 3
+      visual slam. In 2020 IEEE/RSJ International Conference on       [115] Yao Yao, Zixin Luo, Shiwei Li, Jingyang Zhang, Yufan
+      Intelligent Robots and Systems (IROS), pages 4909–4916.               Ren, Lei Zhou, Tian Fang, and Long Quan. Blendedmvs:
+      IEEE, 2020. 1                                                         A large-scale dataset for generalized multi-view stereo net-
+[103] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang,                  works. Computer Vision and Pattern Recognition (CVPR),
+      Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang,                      2020. 1
+      Chunhua Shen, and Tong He. Scalable permutation-                [116] Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner,
+      equivariant visual geometry learning.        arXiv preprint           and Angela Dai. Scannet++: A high-fidelity dataset of 3d
+      arXiv:2507.13347, 2025. 1, 2, 3, 4, 5, 6, 7, 8, 9, 14                 indoor scenes. In Proceedings of the IEEE/CVF Interna-
+[104] Thomas Wimmer, Prune Truong, Marie-Julie Rakotosaona,                 tional Conference on Computer Vision, pages 12–22, 2023.
+      Michael Oechsle, Federico Tombari, Bernt Schiele, and                 1
+      Jan Eric Lenssen. Anyup: Universal feature upsampling.          [117] Wei Yin, Jianming Zhang, Oliver Wang, Simon Niklaus,
+      2025. 8                                                               Long Mai, Simon Chen, and Chunhua Shen. Learning to re-
+[105] Changchang Wu. Towards linear-time incremental struc-                 cover 3d scene shape from a single image. 2021 IEEE/CVF
+      ture from motion. In 2013 International Conference on 3D              Conference on Computer Vision and Pattern Recognition
+      Vision-3DV 2013, pages 127–134. IEEE, 2013. 3                         (CVPR), pages 204–213, 2020. 2
+[106] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu.                 [118] Wei Yin, Chi Zhang, Hao Chen, Zhipeng Cai, Gang Yu,
+      Point3r: Streaming 3d reconstruction with explicit spatial            Kaixuan Wang, Xiaozhi Chen, and Chunhua Shen. Met-
+      pointer memory. arXiv preprint arXiv:2507.02863, 2025. 3              ric3d: Towards zero-shot metric 3d prediction from a sin-
+[107] Hongchi Xia, Yang Fu, Sifei Liu, and Xiaolong Wang.                   gle image. 2023 IEEE/CVF International Conference on
+      Rgbd objects in the wild: Scaling real-world 3d ob-                   Computer Vision (ICCV), pages 9009–9019, 2023. 2
+      ject learning from rgb-d videos. In Proceedings of the          [119] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-
+      IEEE/CVF Conference on Computer Vision and Pattern                    pani, Trevor Darrell, Forrester Cole, Deqing Sun, and
+      Recognition, pages 22378–22389, 2024. 1                               Ming-Hsuan Yang. Monst3r: A simple approach for esti-
+[108] Gangwei Xu, Haotong Lin, Hongcheng Luo, Xianqi Wang,                  mating geometry in the presence of motion. arXiv preprint
+      Jingfeng Yao, Lianghui Zhu, Yuechuan Pu, Cheng Chi,                   arXiv:2410.03825, 2024. 3, 2
+      Haiyang Sun, Bing Wang, et al. Pixel-perfect depth with         [120] Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue,
+      semantics-prompted diffusion transformers. arXiv preprint             Christian Rupprecht, Xiaowei Zhou, Yujun Shen, and Gor-
+      arXiv:2510.07316, 2025. 2, 4                                          don Wetzstein. Flare: Feed-forward geometry, appearance
+      and camera estimation from uncalibrated sparse views. In
+      Proceedings of the Computer Vision and Pattern Recogni-
+      tion Conference, pages 21936–21947, 2025. 2, 3, 7, 8
+[121] Yang Zheng, Adam W Harley, Bokui Shen, Gordon Wet-
+      zstein, and Leonidas J Guibas. Pointodyssey: A large-scale
+      synthetic dataset for long-term point tracking. In Proceed-
+      ings of the IEEE/CVF International Conference on Com-
+      puter Vision, pages 19855–19865, 2023. 1
+[122] Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie
+      Zhou, and Jiwen Lu. Streaming 4d visual geometry trans-
+      former. ArXiv, abs/2507.11539, 2025. 3
+                                   DAGE: Dual-Stream Architecture for
+                             Efficient and Fine-Grained Geometry Estimation
+                                                   Supplementary Material
+                    Table 8. Training datasets.                     and an MLP. We train the adapter from scratch and zero-
+                                                                    initialize its final projection to avoid destabilizing the frozen
+Dataset Name              Scene type Metric       Real   Dynamic    HR features at the start of training. For dense geometry,
+ARKitScenes [3]         Indoor            Yes     Real     Static   the pointmap head is implemented as a stack of residual
+ScanNet [20]            Indoor            Yes     Real     Static   convolutional blocks with transposed convolutions that pro-
+ScanNet++ [116]         Indoor            Yes     Real     Static   gressively upsample from patch resolution (hhr × whr =
+TartanAir [102]         Mixed             Yes   Synthetic Dynamic   H/14 × W/14) to the original image resolution (H × W ).
+Waymo [87]             Outdoor            Yes     Real Dynamic      Camera poses and the scene-wise metric scale factor are
+BlendedMVS [115]        Mixed             No    Synthetic Static    predicted with a two-layer MLP. For distillation during
+HyperSim [75]           Indoor            Yes   Synthetic Static    training, we use a 2-layer MLP and pixel shuffle to project
+MVS Synth [42]         Outdoor            No    Synthetic Static
+                                                                    F lr to the teacher spatial resolution.
+GTA-Sfm [97]           Outdoor            No    Synthetic Static
+MegaDepth [59]         Outdoor            No      Real     Static   Training loss. We set the weight for each loss as follow:
+CO3Dv2 [74]†         Object-centric       No      Real     Static   λpm = 1.0, λcam = 0.1, λtrans = 100.0, λrot = 1.0,
+WildRGBD [107]†      Object-centric       Yes     Real     Static   λscale = 1.0, λnormal = 1.0, λgradient = 0.1, λdistill = 0.5.
+VirtualKITTI2 [10]     Outdoor            Yes   Synthetic Dynamic
+Matterport3D [11]       Indoor            Yes     Real     Static   Optimization. We train our model in two stages. Stage
+BEDLAM [6]†             Mixed             Yes   Synthetic Dynamic   1 targets low–medium resolutions with longer clips; Stage
+Dynamic Replica [45]    Indoor            Yes   Synthetic Dynamic   2 fine-tunes on high-resolution inputs with short clips.
+PointOdyssey [121]†     Mixed             Yes   Synthetic Dynamic   Both stages use AdamW [61] optimizer with a OneCy-
+Spring [65]             Mixed             Yes   Synthetic Dynamic   cleLR schedule. In Stage 1 (30,000 steps), we set a base
+  †
+      Only a subset of each dataset is used.                        LR of 1 × 10−4 for the adapter and dense heads, and
+                                                                    1 × 10−5 (10× lower) for the global transformer initial-
+                                                                    ized from Pi3. In Stage 2 (10,000 steps), we freeze the
+6. More Training Details                                            global transformer and fine-tune only the adapter and heads
+                                                                    at 1 × 10−5 . To keep training efficient, we use FlashAtten-
+6.1. Training datasets                                              tion [21, 22], bfloat16 mixed precision, gradient check-
+We train on 18 datasets spanning indoor, outdoor, and               pointing, and gradient accumulation. With this setup, train-
+object-centric scenes, covering both static and dynamic             ing takes roughly five days on 16×A100-80GB GPUs.
+settings. The full list appears in Tab. 8. Follow-                  Augmentation and sampling. We extend the MoGe [99]
+ing [98], we filter scenes with ambiguous annotations in            augmentation pipeline to the multi-view setting and adopt
+PointOdyssey [121], and remove scenes with panorama                 stage-specific regimes. Stage 1 (long sequence): we sam-
+backgrounds and zoom-in/out effect in BEDLAM [6]. For               ple 2–24 frames per clip and constrain the total pixels to
+object-centric datasets [74, 107], we only subsample 40             [1.0 × 105 , 2.55 × 105 ], thereby enabling a large per-GPU
+scenes for each object category.                                    batch of 48 images; we apply distillation only in this stage.
+                                                                    Stage 2 (high resolution): we sample just 2–4 frames per
+6.2. Implementation Details                                         clip, set the total pixels to [2.7 × 105 , 9.0 × 105 ] (roughly
+                                                                    518×518–952×952 for 14-px patches), vary the aspect ra-
+Architecture. For the high-resolution (HR) stream, we ini-
+                                                                    tio within [0.5, 2.0], and use 24 images per GPU.
+tialize the model with the 24-layer ViT from MoGe2 [100]
+and keep these weights frozen throughout training. For the
+low-resolution (LR) stream, our training corpus (Sec. 6.1) is       7. More Evaluation Details
+considerably smaller than those used by recent feed-forward         This section details the datasets and metrics used in our ex-
+visual-geometry models [49, 96, 103]. Consequently, rather          periments.
+than training a global video transformer from scratch, we
+start from the Pi3 [103] checkpoint, which comprises 36             7.1. Video geometry estimation.
+attention layers with alternating frame-wise and global at-
+tention. The adapter contains five blocks; each block con-          Datasets. Following GeometryCrafter [109], we configure
+sists of one cross-attention layer, one self-attention layer,       each test dataset as follows:
+• GMU Kitchens [34]: We use all scenarios, extract 110            edges that are far from any ground-truth edge, while the
+  frames per sequence with a stride of 2, and downsample          completeness term penalizes ground-truth edges not recov-
+  the 1920p videos and depth maps to 960 × 512.                   ered by the prediction. Finally, we report the chamfer dis-
+• Monkaa [64]: We select 9 scenes and truncate each se-           tance CPDBE ↓, which is the average of accuracy and com-
+  quence to 110 frames at the native resolution of 960×512.       pleteness.
+• Sintel [9]: We use all training sequences (21–50 frames)
+  and crop from 1024 × 436 to 896 × 448.                          7.3. Multi-view reconstruction.
+• ScanNet [20]: We evaluate 100 test scenes with 90
+  frames per video (stride 3), and center-crop each frame         Datasets. We evaluate 3D pointmap reconstruction on 7-
+  to 640 × 512.                                                   Scenes [82] and NRGBD [2] under both sparse and dense
+• KITTI [33]: We use all sequences from the depth-                view protocols. For sparse views, we sample keyframes ev-
+  annotated validation split; for longer videos we keep the       ery 200 frames on 7-Scenes and every 500 on NRGBD; for
+  first 110 frames (yielding 13 videos with 67–110 frames),       dense views, the strides are 40 and 100, respectively.
+  and center-crop to 768 × 384.                                   Metrics. We employ the Accuracy (Acc↓): mean nearest-
+• Diode [93]: We use all 771 validation images at the de-         neighbor distance from each predicted point to the ground
+  fault resolution of 1024 × 768.                                 truth, Completion (Comp↓): mean nearest-neighbor dis-
+In addition, we prepare two high-resolution evaluation sets:      tance from each ground-truth point to the reconstruction,
+• UrbanSyn [35]: We sample ten clips of 100 frames each           and Normal Consistency (NC↑): mean absolute dot product
+  from the original 7000-frame sequences and keep the res-        of ground truth and predicted normals (computed on the fly
+  olution at 2048 × 1024.                                         using Open3D library).
+• Unreal4K [92]: We use all nine scenes, keep the first 100
+  frames per scene, and downsample to 1920 × 1080.                7.4. Camera pose estimation.
+Metrics. For the pointmap estimation, we report the               Datasets. We evaluate on Sintel [9], TUM-Dynamics [85],
+mean relative point error Relp ↓= ∥p̂ − p∥2 /∥p∥2 and             and ScanNet [20]. For Sintel, we follow [14, 119], ex-
+the inlier ratio δ p ↑, where a point is an inlier if ∥p̂ −       cluding static scenes and those with perfectly straight cam-
+p∥2 / min(∥p∥2 , ∥p̂∥2 ) < τ (with τ =0.25), averaged over        era motion, leaving 14 sequences. For TUM-Dynamics and
+valid pixels. Similarly, we leverage Reld ↓ and δ d ↑ for         ScanNet, we use the first 90 frames with a temporal stride
+depth estimation.                                                 of 3.
+7.2. Video sharpness depth.                                       Metrics. Following [98, 103, 119], we report Absolute Tra-
+                                                                  jectory Error (ATE↓) and Relative Pose Error for translation
+Datasets. We evaluate depth–boundary sharpness on                 and rotation (RPET ↓ / RPER ↓). Predicted trajectories are
+four synthetic datasets—Monkaa [64], Sintel [9], Urban-           first aligned to ground truth with a single Sim(3) transform
+Syn [35], and Unreal4K [92].                                      (global scale, rotation, translation). ATE is the root-mean-
+Metrics. We use the F1↑ edge metric from DepthPro [8].            square discrepancy between aligned and ground-truth cam-
+For each pair of neighboring pixels, we mark an occluding         era positions over the entire sequence. RPET is the transla-
+contour when the depth ratio exceeds a predefined thresh-         tion error over a certain distance, and RPER is the rotation
+old. Applying this to both prediction and ground truth            error over a certain degree; both are averaged over all pose
+yields two contour maps. Precision is the fraction of pre-        pairs.
+dicted contour pairs that are also contours in the ground
+truth, and recall is the fraction of ground-truth contour pairs   8. More Results
+recovered by the prediction. The F1 score is the harmonic
+mean of precision and recall. We report the F1 averaged
+                                                                  8.1. Video geometry estimation
+over multiple thresholds. This metric requires no ground-         We evaluate video geometry estimation under four other
+truth edge maps and is easily computed wherever dense             settings. First, for scale-invariant video pointmaps, we
+depth annotations are available (e.g., synthetic data).           align predictions to ground truth with a single per-video
+To further assess boundary sharpness, we adopt the Depth          scale and report results in Tab. 9. Second, for video depth,
+Boundary Error (DBE) from iBims [51] and use its pseudo           we follow standard practice and report both affine-invariant
+variant (PDBE) for datasets without depth–edge annota-            results—per-frame scale + shift alignment—in Tab. 10, and
+tions (following [70]). Concretely, we run Canny edge             scale-invariant results—single per-video scale—in Tab. 11.
+detection on both predicted and ground-truth depth maps           Finally, we assess metric-scale video pointmaps with no
+to obtain edge sets, then compute the iBims accuracy and          alignment (direct comparison in the dataset’s metric units);
+completeness terms. The accuracy term penalizes predicted         see Tab. 12. For the metric setting, we compare against
+Table 9. Scale-invariant video pointmap evaluation. Results are aligned with the ground truth by optimizing a shared scale factor across
+the entire video. We mark best and second-best .
+
+
+                  GMU [34] Monkaa [64] Sintel [9] ScanNet [20] KITTI [33] UrbanSyn [35] Unreal4K [92] Diode [93]
+                                                                                                                          Rank ↓
+Method            Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑
+DepthPro [8]     10.5 92.7 27.9       51.2   55.0 37.5 9.3      95.0   11.7   93.6   22.5   61.1    96.1     1.2    30.3 58.1    7.6
+MoGe [99]        21.4 69.0 27.7       58.3   29.5 59.8 13.4     88.2    8.6   95.6   13.4   89.9    34.0    55.7    30.3 53.4    6.9
+MoGe2 [100]      19.7 72.1 30.8       51.1   34.3 47.7 12.7     89.4   11.7   96.9   12.3   91.7    30.1    62.3    29.5 55.4    7.0
+MoGe2 [100]†      7.1 94.6 25.8       60.2   33.1 52.1 7.8      97.5   10.5   98.4    6.5   97.2     8.9    92.1    15.8 84.1    3.9
+CUT3R [98]        8.2 93.6 34.9       45.9   42.9 35.8 6.5      98.0   16.0   88.1   57.9   14.0    17.5    78.3    17.2 81.6    6.9
+VGGT [96]         5.6 93.8 16.0       80.4   26.7 65.8 3.1      99.0    8.4   97.3   18.5   75.0     8.7    96.5    13.6 80.2    3.6
+Pi3 [103]         5.4 94.2 12.6       90.2   29.6 62.5 2.4      99.4    9.2   90.8   10.7   93.8    17.2    75.4     9.0 96.1    3.1
+GeoCrafter [109] 8.4 94.5 20.7        73.9   30.2 57.8 8.9      96.4    6.4   98.8   11.3   95.3    21.0    73.5    13.0 92.8    4.1
+DAGE (ours)       5.0 94.2 11.3       88.1   26.6 66.2 2.4      99.5    7.3   99.0    7.9   96.6     9.2    92.9    10.0 94.4    1.7
+
+Table 10. Affine-invariant video depthmap evaluation. Results are aligned with the ground truth by optimizing a shared scale and shift
+factor across the entire video. We mark best and second-best .
+
+
+                  GMU [34] Monkaa [64] Sintel [9] ScanNet [20] KITTI [33] UrbanSyn [35] Unreal4K [92] Diode [93]
+                                                                                                                          Rank ↓
+Method            Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑
+DepthPro [8]      8.8 93.0 23.3       55.8   36.1 49.5 8.1      94.6   11.7   93.6   51.3   38.3   105.0    20.0    31.0 58.8    8.0
+MoGe [99]        19.9 66.5 19.9       63.6   26.5 60.0 12.5     85.9    7.6   94.2   15.2   82.1   38.7     46.2    31.3 48.2    7.6
+MoGe2 [100]      19.0 68.9 20.8       60.8   26.4 59.9 12.1     86.9    6.7   96.7   13.8   85.4   33.6     52.8    29.5 50.4    6.8
+MoGe2 [100]†      6.6 93.8 18.0       68.1   25.0 63.8 6.4      96.8    5.2   98.3    7.7   96.4   12.0     88.3    14.7 80.7    3.8
+CUT3R [98]        7.3 92.9 28.0       49.9   31.9 50.5 5.4      97.4   10.2   89.1   48.6   36.7    15.4    79.7    16.0 78.4    6.8
+VGGT [96]         5.2 93.2 12.3       80.5   22.2 70.4 2.7      98.7   4.7    97.2   13.9   84.5    8.2     94.3    12.4 85.2    3.5
+Pi3 [103]         4.9 93.5 8.2        91.4   20.2 71.7 2.0      99.3    3.0   99.1   16.0   78.8   18.3     78.6     8.6 92.9    2.7
+GeoCrafter [109] 7.7 94.1 13.4        79.3   21.4 70.6 7.3      96.1    5.0   98.5   12.2   90.3   20.7     72.2     9.1 93.4    3.9
+DAGE (ours)       4.8 93.5 9.5        87.2   19.5 74.4 2.1      99.4    3.2   98.8    7.7   95.8   12.1     88.1     8.7 92.5    1.9
+
+
+
+methods capable of predicting metric geometry, including               8.3. Camera pose estimation
+CUT3R [98] and MapAnything [49].
+                                                                       We additionally report the predicted camera poses on
+   We additionally evaluate feed-forward visual-geometry               RealEstate10K and CO3Dv2 datasets. We report the Rel-
+approaches at each dataset’s native resolution (540p–2K).              ative Rotation Accuracy (RRA) and Relative Translation
+As reported in Tab. 13, performance degrades steadily with             Accuracy (RTA) at a given threshold, and the Area Un-
+increasing resolution; at the highest, far beyond training             der the Curve (AUC) of the min(RRA,RTA) threshold
+scales (e.g. Urbansyn and Unreak4k datasets), most meth-               curve. Tab. 15 shows that DAGE remains competitive with
+ods collapse except ours.                                              Pi3 [103] and VGGT [96], even while operating at a lower
+                                                                       resolution.
+8.2. Single-image geometry estimation
+                                                                       8.4. More ablation studies
+Following [99, 100], we evaluate the single-image ge-
+ometry estimation on eight different datasets, including               Low-resolution stream architecture. We perform an ab-
+NYUv2 [83], KITTI [33], ETH3D [80], iBims-1 [51],                      lation study of the global module in our LR stream. Specif-
+GSO [25], Sintel [9], DDAD [36], DIODE [93], HAM-                      ically, in addition to the global transformer with alternative
+MER [44]. The results are summaried in Tab. 14, validating             frame/global attention, we ablate with two other design: (1)
+that our dual-stream design preserves single-image quality             transformer-based recurrent network [98] and (2) temporal
+compared to single-image based methods like DepthPro [8],              Mamba network [17]. Results in Tab. 16a show that the al-
+MoGE [99, 100].                                                        ternating global-attention transformer consistently outper-
+Table 11. Scale-invariant video depthmap evaluation. Results are aligned with the ground truth by optimizing a shared scale factor
+across the entire video. We mark best and second-best .
+
+
+                 GMU [34] Monkaa [64] Sintel [9] ScanNet [20] KITTI [33] UrbanSyn [35] Unreal4K [92] Diode [93]
+                                                                                                                         Rank ↓
+Method           Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑
+DepthPro [8]      9.4 92.1 26.7     45.9     53.6 35.3 8.8    92.9     8.2     92.5   22.2   40.2   96.0    1.1   29.3 56.4   7.9
+MoGe [99]        20.7 64.7 25.5     54.8     31.4 48.9 13.3   85.0      7.7    94.1   13.1   86.3   34.7   49.8   29.8 48.2   7.6
+MoGe2 [100]      19.5 67.1 27.1     51.6     31.2 47.7 12.0   86.5      7.2    96.7   12.0   88.8   30.7   56.6   28.5 50.7   6.9
+MoGe2 [100]†      6.7 93.8 21.9     60.4     30.1 51.9 7.1    95.9      5.6    98.3   6.0    96.8    8.7   91.0   14.7 80.7   3.7
+CUT3R [98]        7.9 92.6 33.0     38.3     37.3 42.4 5.8    97.0     11.3    86.8   22.2   63.1   16.8   79.6   15.6 80.0   6.7
+VGGT [96]         5.2 93.0 14.4     77.3     25.3 62.1 2.8    98.6      5.3    96.7   18.3   73.3    8.2   96.1   13.4 79.2   3.6
+Pi3 [103]         4.9 93.4 10.8     88.9     28.4 60.6 2.1    99.3      3.1    99.1   9.5    92.5   16.6   75.0    8.7 95.5   2.3
+GeoCrafter [109] 8.1 93.8 18.1      71.1     27.1 58.7 7.9    95.5      5.1    98.4   11.0   92.4   21.1   70.9   10.0 92.4   4.1
+DAGE (ours)       4.7 93.4 11.5     85.5     25.6 64.8 2.2    99.4      3.3    98.8   7.9    95.9    8.7   90.3    9.9 94.0   1.9
+
+             Table 12. Metric video pointmap evaluation. Predicted pointmaps are directly compared with ground truth.
+
+                                     GMU [34] ScanNet [20] KITTI [33] UrbanSyn [35] Diode [93]
+                      Method         Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑
+                      CUT3R [98]      13.5    90.7    9.1   95.2     34.2     14.6    15.4   84.4   31.6   47.2
+                      MapAny [49]     22.6    63.4   35.2   28.5     29.1     26.3    28.5   37.3   33.8   31.8
+                      DAGE (ours)      7.5    95.3    2.5   99.5     12.0     98.3     8.3   96.5   12.9   87.5
+
+
+
+forms both variants, reflecting stronger multi-view aggre-               Fig. 12 compares 3D pointmaps from DAGE to an
+gation and more reliable cross-view consistency.                      aligned-MoGe2 baseline. In Tab. 6 (Sec. 4.6), we define
+                                                                      Setting A: run MoGe2 [100] per frame and post hoc align
+RoPE design in the adapter. We ablate rotary positional
+                                                                      each predicted pointmap to a globally consistent pointmap
+encodings (RoPE) in the adapter in Tabs. 16b and 16c. For
+                                                                      from Pi3 [103]. This simple alignment recovers fine detail
+self-attention (Tab. 16b), standard RoPE [86] is ineffective
+                                                                      and enforces a shared scale, but—as the figure shows—still
+at high resolutions (e.g., UrbanSyn dataset), whereas inter-
+                                                                      produces layering/stitching artifacts because depth is esti-
+polated RoPE improves performance. For cross-attention
+                                                                      mated independently per frame without strong cross-view
+(Tab. 16c), adding RoPE alongside our alignment (“snap-
+                                                                      coupling.
+ping”) further boosts results.
+                                                                         Fig. 13 visualizes 3D pointmaps reconstructed from
+                                                                      2K inputs. DAGE runs substantially faster—especially
+8.5. More qualitative results
+                                                                      on longer clips—while producing more plausible, multi-
+Interactive        viewer      (highly       recommended).            view–consistent reconstructions.      In contrast, global-
+The supplementary contains an HTML page                               attention baselines [96, 103] either run out of memory or
+(webpage/index.html) with side-by-side videos                         degrade at this resolution.
+of predicted depth and reconstructed 3D pointmaps.
+   Fig. 7 shows qualitative 3D pointmap reconstructions               9. High-resolution inference analysis of visual-
+on in-the-wild scenes spanning static/dynamic motion, in-                 geometry models
+door/outdoor settings, and object-centric versus scene-level
+compositions.                                                         We analyze how pretrained feed-forward visual-geometry
+   Figs. 8, 9, 10 compare our video depth to recent state-of-         models [96, 103] behave when evaluated well beyond their
+the-art methods [96, 103, 109], highlighting sharper bound-           training resolution (up to 2K on the long side).
+aries and stronger temporal stability.                                Single-image stress test. We resize single-image inputs to
+   Fig. 11 visualizes depth-edge maps—the contours ob-                several resolutions (e.g., 540p, 1080p, and 2K) and run the
+tained by thresholding neighboring-pixel depth changes.               public checkpoints of VGGT [96] and Pi3 [103] without
+Compared to baselines [96, 103, 109], our results capture             any architectural changes. We visualize depth maps and
+thin structures and small or distant objects more reliably.           corresponding 3D pointmaps (VGGT in Fig. 14a, Pi3 in
+Table 13. Affine-invariant video pointmap evaluation at native resolution. Predictions are aligned to ground truth by optimizing a
+single scale and shift across the entire video.
+
+                GMU [34] Monkaa [64] Sintel [9] ScanNet [20] KITTI [33] UrbanSyn [35] Unreal4K [92] Diode [93]
+Method         (960 × 512) (960 × 512) (896 × 448) (640 × 512) (768 × 384) (2048 × 1024) (1920 × 1080) (1024 × 768)
+               Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑
+CUT3R [98] 22.0        67.9   30.9       51.0    38.9   40.9    7.0    97.9   13.2   88.7 56.7 13.9 71.6  5.6                31.1   52.6
+VGGT [96]   15.9       91.4   17.7       81.6    28.7   63.8    4.5    99.1    7.8   97.5 OOM OOM OOM OOM                    20.5   76.3
+Pi3 [103]   6.2        92.2   12.6       88.9    21.7   72.9    2.2    99.5    5.9   97.5 55.9 14.7 54.2 17.1                13.9   87.2
+DAGE (ours) 4.9        94.2   10.1       91.0    21.5   75.6    2.1    99.5   5.9    99.0 8.8  96.0 11.9 89.1                 9.7   94.4
+
+Table 14. Single-image geometry evaluation. Results are aligned with the ground truth by optimizing a scale and shift factor for each
+image. We mark best and second-best .
+
+
+             NYUv2 [83] KITTI [33] ETH3D [80] iBims-1 [51] GSO [25] Sintel [9] DDAD [36] DIODE [93] HAMMER [44]
+                                                                                                                                  Rank ↓
+Method       Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑ Reld ↓ δ d ↑
+DepthPro [8] 4.36   97.9   9.15   90.7    7.73   94.0   4.34   97.4   3.16 99.7 19.6 74.5 14.4   81.2   6.28   93.7   5.31   98.8   3.8
+MoGe [99]    3.68   98.3   4.86   97.2    3.57   99.0   3.61   97.3   1.14 100 16.8 77.8 10.5    91.4   4.37   96.4   3.88   98.1   1.8
+MoGe2 [100] 3.33    98.4   6.47   96.4    3.89   98.7   3.65   98.5   1.16 100 17.4 77.0 10.1    90.3   5.13   94.9   4.19   99.1   1.9
+DAGE (ours) 3.34    98.4   7.52   94.7    3.49   98.0   3.70   97.8   1.26 99.9 18.9 74.8 10.7   89.2   4.97   94.6   3.43   98.6   2.5
+
+
+
+Fig. 14b).                                                                 statistics; the learned global matcher thus overfits to lower-
+At ∼ 540p, both methods produce plausible geometry.                        res aliasing patterns.
+When the resolution is increased to ∼ 1080p, predictions                       From our experiments, we find that naively scaling
+exhibit shape distortions; at ∼ 2K, outputs often collapse                 input resolution is unreliable for current global-attention
+into fragmented or globally inconsistent pointmaps. These                  pipelines: at 1K–2K, pretrained models often exhibit
+failures are consistent across scenes.                                     correspondence collapse—diffuse attention and distorted
+                                                                           depth/pointmaps—likely due to positional-encoding extrap-
+Global-attention behavior (3-view input). To probe fail-                   olation and distribution shifts. Therefore, in our proposed
+ure modes under high resolution, we evaluate VGGT with                     DAGE, we amortize global aggregation at low resolution
+triplets of views (3 frames), not single images. We fix the                and fuse it into a per-frame high-resolution path; this pre-
+number of views to three and vary only the spatial resolu-                 serves detail at 2K while keeping memory and runtime prac-
+tion. Following prior observations that global layers per-                 tical. Furthermore, to stabilize high-res inference, we adopt
+form exhaustive correspondence search [95], we visualize                   resolution-aware positional encodings (interpolated RoPE),
+post-softmax maps for a few query tokens in view 1 and                     explicit cross-scale alignment (snapping HR token coordi-
+overlay their responses in the other views (Figs. 15–17). At               nates to the LR grid for cross-attention), and multi-scale
+∼ 540p, the maps are compact and centered on true cor-                     training that includes high-res regimes.
+respondences. As resolution increases, attention becomes
+diffuse and multi-modal, drifting toward semantically simi-
+lar yet geometrically incorrect regions; by 2K it degenerates
+into high-entropy responses with no clear matches.
+Likely causes. (i) Positional extrapolation: standard ro-
+tary/absolute positional parameterizations learned at ∼540
+px do not extrapolate reliably to much larger token
+grids, skewing query–key phases and degrading similar-
+ity scores [12]. (ii) Entropy growth: increasing resolution
+raises token count without increasing the effective receptive
+field, making correspondence sparser per token and increas-
+ing attention entropy [43]. (iii) Distribution shift: training
+rarely exposes models to high-frequency, high-resolution
+                               Table 15. Pose Estimation on RealEstate10K and Co3Dv2
+
+                                        RealEstate10K                                   Co3Dv2
+           Method
+                           RRA@30 ↑ RTA@30 ↑ AUC@30 ↑ RRA@30 ↑ RTA@30 ↑ AUC@30 ↑
+           VGGT (518px)        99.97         93.13          77.62           98.64            97.62          91.28
+           Pi3 (518px)         99.99         95.62          85.90           98.49            97.53          91.39
+           DAGE (252px)        99.98         95.22          83.12           98.74            97.71          90.71
+
+
+
+
+                    Table 16. Ablations. (a) LR-stream architectures. (b,c) Positional encodings.
+                                 (a) Ablation on different architectures of the LR stream.
+
+            GMU [34] Monkaa [64] Sintel [9] ScanNet [20] KITTI [33] UrbanSyn [35] Unreal4K [92] Diode [93]
+Method      Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑ Relp ↓ δ p ↑
+MoGe2         19.6 72.4 25.0    57.0   29.8 58.4 12.4       89.4     9.0   97.2 13.4        90.0     32.9    59.1   31.0 54.2
+Mamba          8.4 93.5 17.8    77.1   27.7 63.5 7.0        97.1     5.9   98.1 10.1        91.0     24.0    60.0   25.1 66.5
+Trans. RNN 6.7 94.4 22.2        68.8   27.9 64.5 4.9        98.8     7.6   98.2 9.3         93.9     15.7    80.0   17.3 81.6
+Global Trans. 4.9 94.2 10.1     91.0   21.5 75.6 2.1        99.5     5.9   99.0 8.8         96.0     11.9    89.1    9.7 94.4
+
+                                         (b) Effect of RoPE in the self-attention.
+
+                                                         Monkaa [64] UrbanSyn [35]
+                                Positional Embedding
+                                                         Relp ↓ δ p ↑ Relp ↓ δp ↑
+                                None                      11.0      89.9   10.1      93.9
+                                RoPE                      9.7       92.1   10.3      93.5
+                                Interp. RoPE (ours)       10.1      91.0    8.8      96.0
+
+                                        (c) Effect of RoPE in the cross-attention.
+
+                                                         Monkaa [64] UrbanSyn [35]
+                                Positional Embedding
+                                                         Relp ↓ δ p ↑ Relp ↓ δp ↑
+                                None                      10.7      91.1    9.6      95.1
+                                “Snap” RoPE (ours)        10.1      91.0    8.8      96.0
+Figure 7. Visualization of 3D pointmap reconstruction on in-the-wild scenarios.
+                  t = 0s                   t = 7s                                t = 12s
+Input video
+VGGT
+Pi3
+GeometryCrafter
+Ours
+
+
+
+
+Figure 8. Visualization of video depth estimation. We compare our video depth prediction with VGGT [96], Pi3 [103], and
+GeoemtryCrafter [109]. DAGE demonstrates more sharp and fine-grained predictions.
+                  t = 0s                   t = 3s                                t = 6s
+Input video
+VGGT
+Pi3
+GeometryCrafter
+Ours
+
+
+
+
+Figure 9. Visualization of video depth estimation. We compare our video depth prediction with VGGT [96], Pi3 [103], and
+GeoemtryCrafter [109]. DAGE demonstrates more sharp and fine-grained predictions.
+Input            VGGT                                Pi3                 Ours
+
+
+
+
+        Figure 10. Visualization of depth estimation on static scenes.
+      Input video              VGGT                    Pi3           GeometryCrafter               Ours               Ground truth
+
+
+
+
+Figure 11. Visualization of predicted depth edge maps, which are defined by a depth ratio between neighboring pixels above a threshold.
+We zoom-in the edge map details in the red bounding boxes.
+            Input                               Aligned MoGe2                                     Ours
+
+
+
+
+Figure 12. Predicted 3D pointmaps of the aligned MoGe2 baseline and our method. The aligned MoGe2 baseline exhibits layering
+artifacts (green boxes) due to the lack of strong multi-view binding.
+            Input images                     VGGT                                Pi3                           Ours
+                               0.3s                              0.25s                           0.22s
+2 frames
+
+
+
+
+                                      0.7s                       0.6s                            0.4s
+4 frames
+
+
+
+
+                                      1.5s                         1.3s                                 0.8s
+8 frames
+
+
+
+
+                                        131s                              109s                     7s
+64 frames
+
+
+
+
+                           Figure 13. Visualization of 3D reconstruction with high-resolution inputs.
+      Input image                          540p                        1080p                 2K
+
+
+
+
+                           Disparity
+                           Pointmap
+
+
+
+       Input image                          540p                      1080p                 2K
+                          Disparity
+                          Pointmap
+
+
+
+
+                           (a) High-resolution single-image inference of VGGT [96]
+
+      Input image                           540p                       1080p                 2K
+                           Disparity
+                           Pointmap
+
+
+
+
+       Input image                          540p                      1080p                  2K
+                          Disparity
+                          Pointmap
+
+
+
+
+                               (b) High-resolution single-image inference of Pi3 [103]
+Figure 14. Qualitative results for high-resolution single-image inference: (a) VGGT [96] and (b) Pi3 [103].
+                                 Query image                                                       Query image
+
+
+
+
+                Target image 1                 Target image 2                     Target image 1                 Target image 2
+
+
+
+
+                                                                       540p
+    540p
+    1080p
+
+
+
+
+                                                                       1080p
+    2K
+
+
+
+
+                                                                       2K
+
+
+
+
+Figure 15. Attention map of the 15th global-attention layer of VGGT [96] at different input resolutions. The query token in the first image
+is marked with a blue star.
+
+
+                                 Query image                                                       Query image
+
+
+
+
+                Target image 1                 Target image 2                     Target image 1                 Target image 2
+                                                                       540p
+    540p
+    1080p
+
+
+
+
+                                                                       1080p
+    2K
+
+
+
+
+                                                                       2K
+
+
+
+
+Figure 16. Attention map of the 15th global-attention layer of VGGT [96] at different input resolutions. The query token in the first image
+is marked with a blue star.
+                                Query image                                                        Query image
+
+
+
+
+               Target image 1                 Target image 2                      Target image 1                 Target image 2
+                                                                      540p
+    540p
+    1080p
+
+
+
+
+                                                                      1080p
+    2K
+
+
+
+
+                                                                      2K
+
+
+
+
+Figure 17. Attention map of the 15th global-attention layer of VGGT [96] at different input resolutions. The query token in the first image
+is marked with a blue star.
+

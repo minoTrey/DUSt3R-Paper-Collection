@@ -1,0 +1,681 @@
+                                                      Visual Implicit Geometry Transformer for Autonomous Driving
+
+                                             Arsenii Shirokov1 , Mikhail Kuznetsov1 , Danila Stepochkin1 , Egor Evdokimov1 , Daniil
+                                                       Glazkov1 , Nikolay Patakin1 , Anton Konushin1 , Dmitry Senushkin1
+                                                                       1
+                                                                         Lomonosov Moscow State University
+
+
+
+                                                                 Abstract                                                                 NuScenes
+                                                                                                                                               7
+arXiv:2602.05573v1 [cs.CV] 5 Feb 2026
+
+
+
+
+                                             We introduce the Visual Implicit Geometry Trans-                                                  6
+
+                                             former (ViGT), an autonomous driving geomet-                                                      5
+                                             ric model that estimates continuous 3D occupancy                                                  4
+                                             fields from surround-view camera rigs. ViGT                                                       3
+                                             represents a step towards foundational geometric                  AV2                             2                   Waymo
+                                             models for autonomous driving, prioritizing scal-
+                                                                                                                                               1
+                                             ability, architectural simplicity, and generalization
+                                             across diverse sensor configurations. Our approach
+                                             achieves this through a calibration-free architec-
+                                             ture, enabling a single model to adapt to differ-
+                                             ent sensor setups. Unlike general-purpose geomet-
+                                             ric foundational models that focus on pixel-aligned
+                                             predictions, ViGT estimates a continuous 3D occu-
+                                             pancy field in a bird’s-eye-view (BEV) addressing
+                                             domain-specific requirements. ViGT naturally in-
+                                                                                                                        NuPlan                             ONCE
+                                             fers geometry from multiple camera views into a
+                                             single metric coordinate frame, providing a com-                          VGGT      DUSt3R      DA3     Stream3R   Ours
+                                             mon representation for multiple geometric tasks.
+                                             Unlike most existing occupancy models, we adopt            Figure 1: Our Visual Implicit Geometry Transformer outperforms
+                                             a self-supervised training procedure that leverages        the most recent fundamental geometric models on publicly available
+                                             synchronized image-LiDAR pairs, eliminating the            autonomous driving datasets in Chamfer Distance↓. Positions closer
+                                             need for costly manual annotations. We validate the        to the center indicate better performance.
+                                             scalability and generalizability of our approach by
+                                             training our model on a mixture of five large-scale
+                                             autonomous driving datasets (NuScenes, Waymo,              2024a; Lin et al., 2025] have enabled a new class of end-to-
+                                             NuPlan, ONCE, and Argoverse) and achieving                 end geometric models that directly estimate dense 3D point
+                                             state-of-the-art performance on the pointmap es-           maps from uncalibrated image collections, implicitly recover-
+                                             timation task, with the best average rank across           ing camera parameters. While these methods achieve strong
+                                             all evaluated baselines. We further evaluate ViGT          performance on monocular and multi-view reconstruction in
+                                             on the Occ3D-nuScenes benchmark, where ViGT                general domain, their application to autonomous driving sce-
+                                             achieves comparable performance with supervised            narios remains challenging. Firstly, surround-view camera
+                                             methods. The source code is publicly available at          rigs commonly used in autonomous vehicles prioritize full
+                                             https://github.com/whesense/ViGT.                          360◦ coverage with limited redundancy, resulting in reduced
+                                                                                                        overlap between camera views and weakening the multi-view
+                                                                                                        geometric assumptions underlying these approaches. Sec-
+                                                                                                        ondly, many recent multi-view reconstruction models do not
+                                        1   Introduction                                                explicitly enforce accurate metric scale, which is critical for
+                                        Accurate, metric geometric perception models are crucial for    autonomous driving applications. Thirdly, per-pixel depth
+                                        reliable and safe autonomous driving. Learning 3D-aware ge-     and point predictions are typically aligned with individual im-
+                                        ometric representations from images and other sensor modal-     ages rather than the global scene, making it difficult to recon-
+                                        ities has become central to progress in both autonomous driv-   cile inconsistencies across views. In contrast, discretized 3D
+                                        ing and general scene understanding.                            voxel representations that explicitly encode occupied and free
+                                           Recent advances in multi-view reconstruction [Wang et al.,   space have become widely adopted in modern autonomous
+driving systems due to their direct compatibility with down-       ber of input images, they still rely heavily on multi-view cor-
+stream tasks such as collision checking and motion planning.       respondences and therefore exhibit substantial performance
+However, voxel-based approaches often face scalability chal-       degradation under low-overlap image collections [Li et al.,
+lenges, as they typically require dense and costly ground-truth    2025]. Moreover, most existing approaches regress scale-
+annotations for training.                                          invariant depth or point representations, which are insufficient
+   Occupancy fields provide an attractive alternative by mod-      for recovering 3D metric volumetric geometry required by
+eling 3D scenes as continuous functions over space, rather         downstream applications such as autonomous driving. In this
+than relying on explicit voxel grids or per-view depth maps.       work, we introduce a scalable transformer-based model that
+Such representations are compact, differentiable, resolution-      estimates a continuous 3D occupancy field at metric scale di-
+and sensor-agnostic, and naturally align geometry from mul-        rectly from surround-view images. Differently, our method
+tiple views into a unified scene-centric coordinate frame,         is designed for surround-view driving scenarios with limited
+making them well suited for autonomous driving applica-            camera overlap, alleviating multi-view constraints.
+tions.
+   In this work, we introduce the Visual Implicit Geometry         Geometric models for autonomous driving. Prior geo-
+Transformer, which estimates a continuous 3D occupancy             metric models for autonomous driving have predominantly
+field directly from surround-view camera images. Our model         focused on semantic occupancy estimation, as it provides
+learns a compact continuous bird’s-eye-view (BEV) field that       a structured representation suitable for downstream tasks.
+can be decoded into binary occupancy using a point-wise de-        Vision-based perception models in this domain build upon
+coder. This field provides a flexible geometric representation     earlier works [Li et al., 2022; Philion and Fidler, 2020] that
+of the scene and can be further transformed into downstream        introduced forward [Li et al., 2022] and backward [Phil-
+representations by querying point-wise occupancy probabil-         ion and Fidler, 2020] mappings from images to bird’s-eye-
+ities and accumulating them through rendering. In contrast         view (BEV) space, where subsequent estimations are per-
+to previous approaches, we simplify the image-to-BEV trans-        formed. More recent methods [Marinello et al., 2025;
+formation by making it calibration-free and fully data-driven.     Pan et al., 2024; Huang et al., 2024; Tang et al., 2024] typ-
+This design reduces inductive bias and improves the gener-         ically lift multi-view image features into voxel grids using
+ality and scalability of the model. Finally, we adopt a scal-      explicit geometric projections [Li et al., 2022; Philion and
+able, sensor-agnostic, self-supervised training procedure that     Fidler, 2020], followed by refinement through 3D convolu-
+leverages synchronized but uncalibrated multi-view images          tional or transformer-based fusion [Zhou and Krähenbühl,
+and LiDAR data without requiring additional annotations.           2022]. Alternative approaches [Liu et al., 2023b; Zhang et
+                                                                   al., 2024] incorporate explicit LiDAR encoders to improve
+                                                                   prediction accuracy. Despite their effectiveness, these archi-
+2   Related Work                                                   tectures rely on precise camera calibration, which limits gen-
+General geometric models. Foundational geometric mod-              eralization to novel camera configurations or scenarios with
+els have been an active area of research for several decades.      calibration errors. Additionally, they require expensive anno-
+Early works introduced learning-based monocular depth es-          tations, such as voxel-level semantic labels, which constrains
+timation [Eigen et al., 2014] and subsequently demonstrated        scalability. In contrast, we introduce the simple transformer-
+that scaling such models with large and diverse datasets [Ran-     based model architecture that does not use camera calibra-
+ftl et al., 2022; Patakin et al., 2022] leads to improved          tion for BEV construction. Our model learns an continuous
+generalization. In particular, pixel-aligned depth prediction      3D occupancy field in BEV representation that incorporates
+models trained with calibrated [Eigen et al., 2014], uncal-        depth, point clouds, and occupancy from images, enabling
+ibrated [Ranftl et al., 2022; Patakin et al., 2022], or met-       scalable and transferable 3D perception across diverse self-
+ric supervision [Bhat et al., 2023] were shown to produce          driving datasets.
+geometry estimates that generalize effectively to in-the-wild         Recent advances [Agro et al., 2024; Boulch et al., 2023;
+scenarios. However, monocular depth estimation remains             Yang et al., 2024] have introduced continuous occupancy
+fundamentally ill-posed due to depth ambiguity, which lim-         forecasting in both space and time, leveraging pretext ge-
+its generalization when relying on single-view inputs [Yin         ometric tasks to support downstream applications. Early
+et al., 2023]. To address this limitation, recent works pro-       methods [Boulch et al., 2023; Agro et al., 2024; Khu-
+posed transformer-based architectures [Wang et al., 2024a;         rana et al., 2023] operate on LiDAR point clouds and em-
+Leroy et al., 2024; Zhang et al., 2025] that predict dense point   ploy convolutional architectures to predict binary occupancy
+maps instead of per-pixel depth. By leveraging multi-view          at the point level. Subsequent works [Agro et al., 2024;
+supervision during training, these models reconstruct image-       Liu et al., 2024] extend this paradigm by incorporating tem-
+aligned visible geometry [Wang et al., 2024a; Leroy et al.,        poral modeling. Similarly, visual point cloud forecasting
+2024; Lin et al., 2025] and, in some cases, estimate cam-          methods, such as ViDAR [Yang et al., 2024], predict future
+era parameters from uncalibrated image collections [Wang           LiDAR-like point clouds from monocular image sequences
+et al., 2025a]. Subsequent approaches [Wang et al., 2025b;         rather than estimating occupancy directly. However, the ma-
+Wu et al., 2025] introduced latent memory embedding that           jority of these models remain biased by calibration-dependent
+can be rendered from novel viewpoints, albeit with a limited       architectures, limiting their ability to generalize across di-
+number of views. While these methods significantly improve         verse sensor configurations and environments. We leverage
+scalability with respect to both training data and the num-        continuous occupancy estimation task for training our models
+                               ...
+
+
+
+
+                               ...
+
+
+
+
+Figure 2: Our architecture consists of three main components: (1) an image encoder (ViT-L) that independently processes each image and
+extracts feature tokens from the last four layers, producing four sequences of tokens per image; (2) a calibration-free Implicit BEV Projection
+module that projects tokens from each encoder layer across all images to their corresponding BEV space, generating four layer-specific BEV
+representations, which are then aggregated and upsampled into a single unified BEV representation using DPT; and (3) a query-based Implicit
+Decoder that predicts occupancy probabilities for 3D points from the final BEV features. This design enables pure data-driven scene modeling
+without geometric inductive biases.
+
+
+since it provides annotation-free supervision from raw data.              scene-centric representations enable direct reasoning about
+                                                                          spatial occupancy, which is critical for autonomous driving
+3     Method                                                              tasks. To this end, we adopt a bird’s-eye-view (BEV) repre-
+                                                                          sentation, as it provides comprehensive scene coverage while
+In this work, we introduce the Visual Implicit Geometry
+                                                                          being more computationally and memory efficient than dense
+Transformer (ViGT) that estimates continuous 3D occupancy
+                                                                          3D volumetric grids. Existing self-driving approaches [Li et
+field directly from surround-view camera images. The re-
+                                                                          al., 2022; Philion and Fidler, 2020] rely on known camera
+mainder of this section is organized as follows: section 3.1
+                                                                          intrinsics and extrinsics to explicitly project image features
+presents ViGT architecture that incorporates scalable blocks
+                                                                          into BEV space. Guided by principles of simplicity and scal-
+without inductive biases; section 3.2 describes unsupervised
+                                                                          ability, we seek a calibration-free transformation from multi-
+occupancy estimation problem as the scalable task for train-
+                                                                          view visual features to BEV space that can be applied across
+ing; finally, section 3.3 details the label-free training proce-
+                                                                          diverse camera setups.
+dure enabling learning continuous 3D occupancy fields end-
+                                                                             We design our implicit camera-to-BEV projection mod-
+to-end.
+                                                                          ule to learn the geometric transformation from data (Fig-
+3.1   Visual Implicit Geometry Transformer                                ure 3, Figure 5). Specifically, the implicit camera-to-BEV
+                                                                          projection employs two sequential cross-attention blocks be-
+We step towards general foundational geometric models for                 tween image patches and BEV latent queries. The number
+autonomous driving by designing our model architecture,                   of BEV latent queries is smaller than the number of im-
+prioritizing scalability, simplicity, and generalization across           age patch tokens, addressing computationally efficiency. To
+diverse sensor configurations. Our architecture consists of               capture multiscale geometric information, we project out-
+three main components (Fig. 2): an image encoder that in-                 puts of the four last layers of ViT-L encoder independently
+dependently processes each image, a calibration-free implicit             to BEV space, using our implicit BEV projection with non-
+camera-to-BEV projection module that unifies independent                  shared weights and individual BEV queries. The resulting
+image features in a scene-centric BEV representation and a                multi-layer BEV representations are then aggregated and up-
+query-based implicit decoder that predicts occupancy values               scaled using DPT [Ranftl et al., 2021] to obtain the final
+for 3D points.                                                            fine-grained scene-level BEV representation. We validate our
+Image Encoder. Following principles of simplicity and                     design choices through ablation studies comparing different
+scalability, we employ a ViT-Large backbone [Dosovitskiy et               projection structures and encoder layer selections (Table 3).
+al., 2021] to extract visual features from camera images. In              Implicit decoder. To transform the discrete BEV grid into
+contrast to prior autonomous driving models that rely on con-             a continuous occupancy field, we employ an implicit decoder
+volutional neural networks with limited receptive fields [Li              inspired by ImplicitIO [Agro et al., 2023] that maps 3D query
+et al., 2022; Philion and Fidler, 2020], transformer archi-               points to occupancy probabilities. We linearly interpolate
+tectures capture long-range contextual dependencies through               query features and concatenate them with normalized query
+self-attention while imposing minimal inductive bias. Each                points. The concatenated features are decoded using Convo-
+image is encoded independently by the ViT-Large model, pro-               lutional Occupancy Network [Peng et al., 2020] to predict the
+ducing a compact set of token embeddings that serve as input              occupancy probabilities for the query point.
+to subsequent processing stages.
+Implicit BEV projection. Autonomous driving applica-                      3.2    Unsupervised Occupancy Estimation
+tions require scene-centric geometric representations defined             To build a scalable training framework, we leverage a training
+at metric scale within a unified coordinate frame. Unlike                 objective that relies exclusively on data that can be collected
+image-aligned representations, such as depth or point maps,               efficiently on real-world autonomous platforms. Specifically,
+Figure 3: Cross-attention visualization demonstrating consistent correspondences between BEV queries and camera tokens. (Left) Image
+attention heatmaps for selected BEV queries, (Right) BEV attention heatmaps for selected image queries. These visualizations confirm that
+the implicit BEV projection learns geometrically correct camera-to-BEV transformations.
+
+
+                                                                           point clouds as input, resulting in LiDAR-only models. In
+                                                                           contrast, we adopt a vision-only paradigm and leverage this
+                                                                           training objective to supervise the Visual Implicit Geometry
+                                                                           Transformer.
+
+                                                                           3.3   Training
+                                                                           Following the unsupervised occupancy estimation formula-
+                                                                           tion in Section 3.2, we sample query points along LiDAR
+                                                                           rays to construct positives (occupied space) and negatives
+Figure 4: We construct two sets of training points sampled along           (free space) occupancy labels. We employ a balanced sam-
+each LiDAR ray. Points before the reflection point are labeled as          pling strategy, that ensures equal representation of negative
+free space (negative label), while points near the reflection point cor-   and positive targets. We divide the ray segment [0, d) into
+respond to occupied space (positive label).
+                                                                           K bins and sample uniformly within each bin, ensuring cov-
+                                                                           erage across the entire free space. However, simple uniform
+we assume the availability of synchronized multi-view im-                  sampling for negative queries can lead to inefficient super-
+ages and corresponding LiDAR point clouds. Unlike con-                     vision near object surfaces, where accurate boundary pre-
+ventional occupancy estimation approaches that operate on                  dictions are crucial. So, to better utilize object borders and
+discretized voxel grids, we avoid explicit spatial discretiza-             improve surface localization, we augment this with symmet-
+tion and instead formulate the task in continuous space, op-               ric negative sampling from the region [d − τ, d) where τ is
+erating directly on points. LiDAR is a high-precision active               the same hyperparameter used for positive sampling. This
+sensor that emits laser pulses and measures the return time                symmetric approach samples negative points near the sur-
+from reflecting surfaces to estimate distances. By construc-               face boundary, providing explicit supervision for the model
+tion, LiDAR measurements guarantee that the space between                  to learn object borders. We validate our query sampling strat-
+the sensor origin and the first surface intersection along a ray           egy through ablation studies comparing random, stratified,
+is free. Accordingly, we construct two sets of training points             and stratified with symmetric interval sampling (Table 3).
+sampled along each LiDAR ray. Points located before the                       We train the model using binary cross-entropy loss. For a
+reflection point are labeled as free space and thus assigned               batch of query points {pi }N   i=1 with ground truth occupancy
+negative occupancy labels, while points near reflection point              labels {yi ∈ {0, 1}}N   i=1 and  predicted occupancy probabili-
+correspond to solid surfaces and are assigned positive occu-               ties {oi ∈ [0, 1]}N
+                                                                                             i=1 , the loss is defined as:
+pancy labels. More formally, given a normalized LiDAR ray                                  N
+parameterized by origin o and direction d, we define two oc-                           1 X
+                                                                                 L=−         [yi log(oi ) + (1 − yi ) log(1 − oi )] .   (2)
+cupancy classes as follows:                                                            N i=1
+          
+            O− : pi = o + ti d, ti ∈ [0, d],                               3.4   Rendering
+                                                             (1)
+            O+ : pj = o + tj d, tj ∈ [d, d + τ ],
+                                                                           Our model estimates an continuous occupancy field, which
+where d is the distance from the ray origin o to the reflected             provides a flexible geometric representation that can be trans-
+surface and τ is the thickness hyperparameter that regulates               formed into various downstream representations by querying
+the minimal surface depth along rays. This value is usually                point-wise occupancy probabilities and accumulating them
+small for models that should perceive thin surfaces.                       through volume rendering. This unified representation en-
+   Overall, the training objective is formulated as a binary               ables conversion to point clouds and occupancy voxel grids,
+occupancy classification problem, where the model predicts                 facilitating application to diverse autonomous driving tasks
+the occupancy label of each queried 3D point given the                     while maintaining a single, consistent geometric model.
+available input context. Prior works [Boulch et al., 2023;                 Ray-based rendering. To extract point clouds, we lever-
+Agro et al., 2024] primarily rely on single or multiple LiDAR              age volumetric integration to render LiDAR rays. Given
+                                                                               Method       Conf.       Supervision   Calib.   F1-score↑   IoU↑
+                                                                               FB-Occ       ICCV 2023     3D GT         +       0.8181     0.7022
+                                                                               Sparse-Occ   ECCV 2024     3D GT         +       0.6271     0.4680
+                                                                               PanoOcc      CVPR 2024     3D GT         +       0.8347     0.7271
+                                                                               Offset-Occ   CVPR 2025     3D GT         +       0.6240     0.4637
+                                                                               RenderOcc    ICRA 2024     2D GT         +       0.6442     0.4824
+                                                                               Self-Occ     CVPR 2024    Self-sup       +       0.6552     0.4960
+                                                                               Ours                      Self-sup       -       0.7115     0.5658
+
+                                                                            Table 1: Occ3D-NuScenes. Our method achieves third-best over-
+                                                                            all performance and first-best perfomance over previous self-
+                                                                            supervised methods and methods with 2d labels supervision. Our
+                                                                            method is the only approach which don’t use camera calibration.
+Figure 5: The camera-to-bev attention responses (colored regions)
+accurately partition BEV space according to each camera’s field             4.2   Implicit BEV projection
+of view, demonstrating that the implicit BEV projection correctly
+learns to map image features to their corresponding spatial sectors         We demonstrate that our calibration-free implicit BEV pro-
+in BEV space without explicit camera parameters. Shown for differ-          jection correctly learns geometric transformations without
+ent camera rigs configuration.                                              explicit camera parameters. Figure 3 illustrates attention re-
+                                                                            sponses between BEV queries and camera tokens, showing
+                                                                            consistent correspondences in both forward (camera-to-BEV)
+the ray with origin o and direction d, we sample points                     and inverse (BEV-to-camera) attention directions. Figure 5
+{pi = o + ti d}N  i=1 , where ti are evenly spaced sampling                 demonstrates that the projection correctly aligns image fea-
+distances. We decode occupancy probability o(pi ) for every                 tures to their corresponding spatial sectors in BEV space for
+point and integrate the depth value accordingly:                            different camera rigs (6 cameras on NuScenes and 7 cam-
+            N
+            X                                   i−1
+                                                Y                           eras on Argoverse 2) from different datasets, with each cam-
+       d=         ti · o(pi ) · Ti ,     Ti =         (1 − o(pj )),   (3)   era’s field of view accurately mapped to its correct frustum
+            i=1                                 j=1
+                                                                            region. These figures empirically confirm that the implicit
+                                                                            projection successfully learns geometrically correct camera-
+where Ti is the transmittance accumulated from predicted oc-                to-BEV transformations in a calibration-free manner across
+cupancy.                                                                    diverse datasets with different camera rig configurations.
+Voxel grid rendering. To generate binary voxel grids from
+continuous occupancy field, we query M points randomly                      4.3   Occupancy estimation
+sampled within each voxel and aggregate their occupancy                     The first experiment compares our model with recent geomet-
+predictions. For a voxel V the occupancy is computed as the                 ric models designed for autonomous driving applications.
+maximum response across all predictions:                                    Evaluation protocol. We evaluate all models on the
+                                       M                                    Occ3D-NuScenes benchmark [Tian et al., 2023] which
+                       O(V ) = max o(pj ),                            (4)   comprises 150 validation scenes with voxelized oc-
+                                       j=1
+                                                                            cupancy annotations defined within a region of in-
+                                                                            terest of [−40m, −40m, −1m] × [+40m, +40m, +5.4m]
+                                                                            in ego-vehicle coordinate frame with voxel resolution
+4     Experiments                                                           [0.4m, 0.4m, 0.4m]. Unlike the original benchmark, which
+4.1    Training details                                                     provides semantic occupancy annotations across 17 cate-
+We train the model with the AdamW optimizer for 200K it-                    gories, we focus exclusively on geometric occupancy estima-
+erations, using a cosine learning rate scheduler with a peak                tion. To this end, all semantic classes are mapped to a single
+learning rate of 5 × 10−5 and a warmup of 10K iterations.                   occupied label, reducing the task to binary occupancy predic-
+To ensure diverse training data, we use balanced sampling                   tion. We evaluate occupancy estimation using two metrics:
+across five autonomous driving datasets: NuScenes [Caesar                   F1-score and Intersection over Union (IoU). Both metrics are
+et al., 2020], ONCE [Mao et al., 2021], Waymo [Sun et al.,                  computed over the binary occupancy predictions (occupied
+2020], Argoverse 2 [Wilson et al., 2021], and NuPlan [Cae-                  vs. free) within the camera’s visible region.
+sar et al., 2021]. For each batch, we sample equally from                   Baselines. We compare our method against recent vision-
+all datasets to prevent bias towards larger datasets. We use a              based occupancy prediction approaches as shown in Table 1.
+batch size of 6 per GPU. The input images are resized with                  All models are grouped by their supervision type. Most ap-
+the shortest side set to 192 pixels. We use 1024 BEV queries                proaches employ dense voxel grids with explicit 3D occu-
+with 1024 channels in each Implicit BEV projector, aggre-                   pancy annotations: FB-Occ [Li et al., 2023], PanoOcc [Wang
+gating features to 256×256 resolution with 256 channels after               et al., 2024b], Sparse-Occ [Liu et al., 2023a], and Offset-
+DPT. The training runs on 128 A100 GPUs over five days.                     Occ [Marinello et al., 2025]. Methods with reduced supervi-
+We employ gradient norm clipping with a threshold of 1.0 to                 sion include RenderOcc [Pan et al., 2024], which trains with
+ensure training stability.                                                  2D supervision, and Self-Occ [Huang et al., 2024], which
+                                                                                                                                        Avg.
+ Method      Conf.        Rendering      NuScenes                AV2                Waymo              ONCE              NuPlan
+                                                                                                                                       Rank↓
+                                      AbsRel↓   CD↓     AbsRel↓        CD↓      AbsRel↓   CD↓     AbsRel↓     CD↓    AbsRel↓   CD↓
+                             D         0.195    4.019    0.164         3.724     0.084    2.381    0.450    6.230     0.167    3.696    3.9
+ VGGT        CVPR 2025
+                             P         0.303    4.794    0.220         4.305     0.113    3.576    0.568    7.566     0.215    5.047
+                             D         0.250    4.466    0.230         3.906     0.152    3.534    0.515     6.124    0.236    4.590    6.9
+ DUSt3R      CVPR 2024
+                             P         0.375    5.321    0.445         6.309     0.347    7.726    0.887    10.341    0.508    6.749
+                             D         0.191    4.583    0.190         4.752     0.120    2.949    0.498     8.402    0.181    4.826    6.4
+ Mast3R      ECCV 2024
+                             P         0.285    5.487    0.355         6.876     0.260    4.673    0.843    10.906    0.635    8.475
+                             D         0.217    3.945    0.201         4.013     0.127    3.037    0.390    5.039     0.182    3.443    4.8
+ Monst3R     ICLR 2025
+                             P         0.415    7.024    0.279         5.726     0.210    5.442    1.308    15.659    0.263    7.221
+                             D         0.173    3.931    0.162         3.992     0.083    2.629    0.465     7.190    0.163    4.331     4
+ Stream3R    —
+                             P         0.397    5.985    0.237         5.799     0.114    3.522    0.705    10.859    0.207    5.668
+                             D         0.189    4.062    0.194         3.681     0.101    2.478    0.447    5.970     0.156    3.000    3.5
+ Cut3R       CVPR 2025
+                             P         0.240    5.233    0.342         6.760     0.176    3.866    0.811    11.442    0.172    3.688
+ DA3         —               D         0.289    5.606    0.174         4.488     0.383    5.426    0.403    5.360     0.265    4.300    6.4
+ RenderOcc   ICRA 2024       PR        0.245    3.637    0.316         10.864    0.526    8.442    0.298    7.490     0.332    5.295    7.3
+ Ours                        PR        0.068    1.807    0.131         2.965     0.121    2.431    0.169    5.821     0.118    3.298    1.8
+
+Table 2: Pointmap Estimation. Our method achieves the best Average Rank (1.8) across all metrics and datasets, demonstrating the best
+overall performance. Rendering types: D denotes depth map unprojection from camera views, P denotes direct point cloud from pointmaps,
+and PR denotes points rendering from predicted occupancy fields.
+
+
+learns occupancy in a self-supervised manner without voxel                 4th, etc.) assigned to each metric-dataset combination, where
+labels, similar to our approach.                                           lower rank values indicate better overall performance.
+Experimental results. We evaluate our model without                        Baselines Table 2 presents a comprehensive comparison of
+voxel finetuning to demonstrate that our learned represen-                 our method against state-of-the-art approaches. The evalu-
+tation can generalize to new geometric tasks. Our model                    ated methods can be categorized into two groups: (1) gen-
+achieves third-best overall performance with an F1-score of                eral geometry methods that produce image-aligned repre-
+0.7115 and IoU of 0.5658, while being the only approach                    sentations, and (2) self-driving domain methods that esti-
+that is both fully self-supervised and calibration-free. Unlike            mate 3D scene representation. For general geometry methods
+top-performing methods such as PanoOcc and FB-Occ that                     (VGGT [Wang et al., 2025a], DUSt3R [Wang et al., 2024a],
+require expensive 3D annotations, our method uses only raw                 Mast3R [Leroy et al., 2024], Monst3R [Zhang et al., 2025],
+LiDAR point clouds for supervision, eliminating the need for               Stream3R [Lan et al., 2025], Cut3R [Wang et al., 2025b], and
+costly manual labeling. Compared to the previous best self-                DA3 [Lin et al., 2025]), we evaluate them using two variants:
+supervised method (Self-Occ), we achieve improvements of                   depth maps and pointmaps, both filtered by LiDAR ray masks
+0.056 in F1-score and 0.07 in IoU, while additionally remov-               to extract valid 3D points for comparison. Note that we use
+ing the calibration requirement.                                           metric-scale DA3 that only produces depth maps, so we eval-
+                                                                           uate it using the depth map variant only. For scene-centric
+4.4     Pointmap Estimation                                                methods including ours and RenderOcc [Pan et al., 2024], we
+Second, we evaluate our model against general-domain                       render depth by LiDAR rays using Eq. (3).
+vision-based methods that are similarly calibration-free but
+                                                                           Experimental results. As shown in Table 2, our method
+produce pixel-aligned predictions.
+                                                                           achieves the best average rank (1.8) across all metrics and
+Evaluation protocol. We evaluate all methods on the pub-                   datasets. Figure 12 provides a visual comparison of the top-
+lic test splits of widely used autonomous driving datasets,                3 methods by Average Rank. We outperform all competing
+including NuScenes, Argoverse 2, Waymo, ONCE, and Nu-                      methods in both AbsRel and CD metrics on NuScenes and
+Plan, using LiDAR point clouds as ground-truth targets. Due                Argoverse 2. On NuScenes, we achieve AbsRel of 0.068
+to the large scale of nuPlan, we subsample the official test               and CD of 1.807, representing improvements of 0.105 in Ab-
+split by selecting every 100th LiDAR frame for evaluation.                 sRel and 1.83 in CD over the second-best method (Stream3R
+We report two evaluation metrics: Absolute Relative Error                  with depth-maps). On Argoverse 2, we achieve AbsRel of
+(AbsRel↓), computed along LiDAR rays, and Chamfer Dis-                     0.131, outperforming the best competitor by 0.031 (Stream3R
+tance (CD↓). For pixel-aligned methods, predictions are sam-               with depth-maps); and we achieve CD of 2.965, outperform-
+pled at image pixels corresponding to the projections of Li-               ing the best competitor by 0.716 (Cut3R with depth-maps).
+DAR points onto the image plane. To provide an aggregate                   On Waymo, we achieve the second-best CD performance
+measure of overall performance across all datasets and met-                (2.431), trailing the best method by only 0.05. On ONCE
+rics, we compute the Average Rank (Avg Rank↓) for each                     and NuPlan, we achieve the best AbsRel performance, with
+method as the mean of performance places (1st, 2nd, 3rd,                   third-best and second-best CD performance respectively.
+NuScenes
+Argoverse 2           GT                       ViGT Occupancy                   ViGT (Ours)                CUT3R                     VGGT
+
+
+
+
+  Figure 6: Visual comparison of GT and predicted point clouds across the top-3 methods ranked by Average Rank (Ours, Cut3R, VGGT). Our
+  method produces more geometrically accurate point clouds. We also visualize a render of the predicted occupancy, demonstrating accurate
+  capture of continious geometric structures.. The color encodes height along the z-axis.
+
+
+         Component                             Point Est.       Voxel Occ.            Encoder Layer Selection We evaluate which ViT-L en-
+         Implicit BEV Projector Architecture     CD↓        F1-score↑   IoU↑          coder layers to project to BEV space for DPT aggregation
+           CA                                    3.051        0.697     0.547         and upsampling. We compare using the last four layers ver-
+           CA + CA                               2.699        0.713     0.566
+           CA + SA + CA                          2.814        0.697     0.548
+                                                                                      sus default ViT-L output layers (5, 11, 16, 23). The last four
+                                                                                      layers selection shows better performance.
+         Encoder Output Layers                   CD↓        F1-score↑   IoU↑
+           Last 4 layers                         2.699        0.713     0.566
+           Layers 5, 11, 16, 23                  3.093         0.70      0.55         Query Sampling Strategy We ablate the strategy for sam-
+         Query Sampling Strategy                 CD↓        F1-score↑   IoU↑          pling query points along LiDAR rays for occupancy super-
+           Random                                2.895        0.701     0.552         vision. We compare random sampling, stratified bin-based
+           Stratified                            3.039        0.697     0.547         sampling, and stratified sampling augmented with symmet-
+           Stratified + Sym. Interval            2.699        0.713     0.566
+                                                                                      ric interval sampling near object boundaries. The stratified
+                                                                                      + symmetric interval strategy performs best, confirming that
+  Table 3: Ablation study of key design choices: BEV projector archi-
+  tecture, encoder layer selection, and query sampling strategy.                      explicit supervision near object boundaries is crucial for ac-
+                                                                                      curate occupancy estimation.
+
+     Compared to RenderOcc, the most similar autonomous
+  driving model, we consistently outperform it across all eval-                       5       Conclusion
+  uated metrics. These results demonstrate the effectiveness of
+  our calibration-free, self-supervised approach in accurately                        In this paper, we propose ViGT, a scalable vision-based ge-
+  estimating 3D geometry from camera rig images across di-                            ometric model for autonomous driving that learns a contin-
+  verse autonomous driving datasets.                                                  uous 3D occupancy field directly from uncalibrated multi-
+  4.5         Ablation Studies                                                        camera images. ViGT is trained jointly on five large-scale
+                                                                                      datasets using a self-supervised learning procedure based on
+  We evaluate three main components: the implicit BEV pro-                            synchronized image–LiDAR pairs. We show that the result-
+  jector architecture, encoder output layer selection, and query                      ing unified representation can be directly rendered for mul-
+  sampling strategy (see Table 3.). All ablation experiments are                      tiple downstream tasks, including pointmap estimation and
+  trained on NuScenes only, using 4 GPUs for 100k iterations.                         occupancy prediction, without task-specific retraining. Ex-
+  BEV Projector Architecture We compare three variants                                tensive evaluations demonstrate that ViGT generalizes effec-
+  of implicit BEV projection module: a single cross-attention                         tively, achieving state-of-the-art performance on pointmap es-
+  block (CA), two sequential cross-attention blocks (CA + CA),                        timation across five datasets with diverse camera rig config-
+  and a variant with self-attention (CA + SA + CA). The CA +                          urations while remaining competitive with supervised meth-
+  CA configuration achieves the best performance, demonstrat-                         ods on voxel-based occupancy benchmark. We consider such
+  ing that two sequential cross-attention operations provide suf-                     models representing a promising research direction toward
+  ficient capacity to learn the geometric transformation without                      building foundational geometric perception systems for au-
+  the added complexity of self-attention.                                             tonomous driving applications.
+References                                                         Conference on Computer Vision and Pattern Recognition
+[Agro et al., 2023] Ben Agro, Quinlan Sykora, Sergio Casas,        (CVPR), 2023.
+   and Raquel Urtasun. Implicit occupancy flow fields for       [Lan et al., 2025] Yushi Lan, Yihang Luo, Fangzhou Hong,
+   perception and prediction in self-driving. In Proceedings       Shangchen Zhou, Honghua Chen, Zhaoyang Lyu, Shuai
+   of the IEEE/CVF conference on computer vision and pat-          Yang, Bo Dai, Chen Change Loy, and Xingang Pan.
+   tern recognition, pages 1379–1388, 2023.                        Stream3r: Scalable sequential 3d reconstruction with
+                                                                   causal transformer. arXiv preprint arXiv:2508.10893,
+[Agro et al., 2024] Ben Agro, Quinlan Sykora, Sergio Casas,
+                                                                   2025.
+   Thomas Gilles, and Raquel Urtasun. Uno: Unsupervised
+   occupancy fields for perception and forecasting. In Pro-     [Leroy et al., 2024] Vincent Leroy, Yohann Cabon, and
+   ceedings of the IEEE/CVF Conference on Computer Vision          Jérôme Revaud. Grounding image matching in 3d with
+   and Pattern Recognition, pages 14487–14496, 2024.               mast3r. In European Conference on Computer Vision,
+                                                                   pages 71–91. Springer, 2024.
+[Bhat et al., 2023] Shariq Farooq Bhat, Reiner Birkl, Diana
+   Wofk, Peter Wonka, and Matthias Müller. Zoedepth:           [Li et al., 2022] Zhiqi Li, Wenhai Wang, Hongyang Li, Enze
+   Zero-shot transfer by combining relative and metric depth.      Xie, Chonghao Sima, Tong Lu, Yu Qiao, and Jifeng Dai.
+   CoRR, abs/2302.12288, 2023.                                     Bevformer: Learning bird’s-eye-view representation from
+                                                                   multi-camera images via spatiotemporal transformers. In
+[Boulch et al., 2023] Alexandre Boulch, Corentin Sautier,          Computer Vision – ECCV 2022: 17th European Confer-
+   Björn Michele, Gilles Puy, and Renaud Marlet. ALSO:            ence, Tel Aviv, Israel, October 23–27, 2022, Proceedings,
+   Automotive lidar self-supervision by occupancy estima-          Part IX, page 1–18, Berlin, Heidelberg, 2022. Springer-
+   tion. In International Conference on Computer Vision and        Verlag.
+   Pattern Recognition (CVPR), 2023.
+                                                                [Li et al., 2023] Zhiqi Li, Zhiding Yu, David Austin, Ming-
+[Caesar et al., 2020] Holger Caesar, Varun Bankiti, Alex H         sheng Fang, Shiyi Lan, Jan Kautz, and Jose M Al-
+   Lang, Sourabh Vora, Venice Erin Liong, Qiang Xu, Anush          varez.     Fb-occ: 3d occupancy prediction based on
+   Krishnan, Yu Pan, Giancarlo Baldan, and Oscar Beijbom.          forward-backward view transformation. arXiv preprint
+   nuscenes: A multimodal dataset for autonomous driving.          arXiv:2307.01492, 2023.
+   In Proceedings of the IEEE/CVF conference on computer        [Li et al., 2025] Samuel Li, Pujith Kachana, Prajwal Chi-
+   vision and pattern recognition, pages 11621–11631, 2020.
+                                                                   dananda, Saurabh Nair, Yasutaka Furukawa, and Matthew
+[Caesar et al., 2021] Holger Caesar,         Juraj Kabzan,         Brown. Rig3r: Rig-aware conditioning for learned 3d re-
+   Kok Seang Tan, Whye Kit Fong, Eric Wolff, Alex                  construction. arXiv preprint arXiv:2506.02265, 2025.
+   Lang, Luke Fletcher, Oscar Beijbom, and Sammy Omari.         [Lin et al., 2025] Haotong Lin, Sili Chen, Junhao Liew,
+   nuplan: A closed-loop ml-based planning benchmark for           Donny Y Chen, Zhenyu Li, Guang Shi, Jiashi Feng, and
+   autonomous vehicles. arXiv preprint arXiv:2106.11810,           Bingyi Kang. Depth anything 3: Recovering the visual
+   2021.                                                           space from any views. arXiv preprint arXiv:2511.10647,
+[Dosovitskiy et al., 2021] Alexey Dosovitskiy, Lucas Beyer,        2025.
+   Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai,        [Liu et al., 2023a] Haisong Liu, Haiguang Wang, Yang
+   Thomas Unterthiner, Mostafa Dehghani, Matthias Min-             Chen, Zetong Yang, Jia Zeng, Li Chen, and Limin Wang.
+   derer, Georg Heigold, Sylvain Gelly, Jakob Uszkoreit, and       Fully sparse 3d panoptic occupancy prediction. CoRR,
+   Neil Houlsby. An image is worth 16x16 words: Trans-             2023.
+   formers for image recognition at scale. In 9th Inter-
+                                                                [Liu et al., 2023b] Zhijian Liu, Haotian Tang, Alexander
+   national Conference on Learning Representations, ICLR
+   2021, Virtual Event, Austria, May 3-7, 2021. OpenRe-            Amini, Xingyu Yang, Huizi Mao, Daniela Rus, and Song
+   view.net, 2021.                                                 Han. Bevfusion: Multi-task multi-sensor fusion with uni-
+                                                                   fied bird’s-eye view representation. In IEEE International
+[Eigen et al., 2014] David Eigen, Christian Puhrsch, and           Conference on Robotics and Automation (ICRA), 2023.
+   Rob Fergus. Depth map prediction from a single image         [Liu et al., 2024] Xinhao Liu, Moonjun Gong, Qi Fang,
+   using a multi-scale deep network. In Proceedings of the
+                                                                   Haoyu Xie, Yiming Li, Hang Zhao, and Chen Feng. Lidar-
+   28th International Conference on Neural Information Pro-
+                                                                   based 4d occupancy completion and forecasting. In 2024
+   cessing Systems - Volume 2, NIPS’14, page 2366–2374,
+                                                                   IEEE/RSJ International Conference on Intelligent Robots
+   Cambridge, MA, USA, 2014. MIT Press.
+                                                                   and Systems (IROS), pages 11102–11109. IEEE, 2024.
+[Huang et al., 2024] Yuanhui Huang, Wenzhao Zheng,              [Mao et al., 2021] Jiageng Mao, Niu Minzhe, ChenHan
+   Borui Zhang, Jie Zhou, and Jiwen Lu. Selfocc: Self-             Jiang, hanxue liang, Jingheng Chen, Xiaodan Liang,
+   supervised vision-based 3d occupancy prediction. In             Yamin Li, Chaoqiang Ye, Wei Zhang, Zhenguo Li, Jie Yu,
+   Proceedings of the IEEE/CVF conference on computer              Chunjing XU, and Hang Xu. One million scenes for au-
+   vision and pattern recognition, pages 19946–19956, 2024.        tonomous driving: Once dataset. In J. Vanschoren and
+[Khurana et al., 2023] Tarasha Khurana, Peiyun Hu, David           S. Yeung, editors, Proceedings of the Neural Information
+   Held, and Deva Ramanan. Point cloud forecasting as              Processing Systems Track on Datasets and Benchmarks,
+   a proxy for 4d occupancy forecasting. In IEEE/CVF               volume 1, 2021.
+[Marinello et al., 2025] Nicola Marinello, Simen Cassiman,      [Wang et al., 2024a] Shuzhe Wang, Vincent Leroy, Yohann
+  Jonas Heylen, Marc Proesmans, and Luc Van Gool.                  Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r:
+  Camera-only 3d panoptic scene completion for au-                 Geometric 3d vision made easy. In Proceedings of the
+  tonomous driving through differentiable object shapes. In        IEEE/CVF Conference on Computer Vision and Pattern
+  Proceedings of the Computer Vision and Pattern Recogni-          Recognition, pages 20697–20709, 2024.
+  tion Conference, pages 2520–2529, 2025.                       [Wang et al., 2024b] Yuqi Wang, Yuntao Chen, Xingyu
+[Pan et al., 2024] Mingjie Pan, Jiaming Liu, Renrui Zhang,         Liao, Lue Fan, and Zhaoxiang Zhang. Panoocc: Uni-
+   Peixiang Huang, Xiaoqi Li, Hongwei Xie, Bing Wang,              fied occupancy representation for camera-based 3d panop-
+   Li Liu, and Shanghang Zhang. Renderocc: Vision-centric          tic segmentation. In Proceedings of the IEEE/CVF con-
+   3d occupancy prediction with 2d rendering supervision. In       ference on computer vision and pattern recognition, pages
+   2024 IEEE International Conference on Robotics and Au-          17158–17168, 2024.
+   tomation (ICRA), pages 12404–12411. IEEE, 2024.              [Wang et al., 2025a] Jianyuan Wang, Minghao Chen, Nikita
+[Patakin et al., 2022] Nikolay Patakin, Anna Vorontsova,           Karaev, Andrea Vedaldi, Christian Rupprecht, and David
+   Mikhail Artemyev, and Anton Konushin. Single-stage 3d           Novotny. Vggt: Visual geometry grounded transformer. In
+   geometry-preserving depth estimation model training on          Proceedings of the Computer Vision and Pattern Recogni-
+   dataset mixtures with uncalibrated stereo data. In Pro-         tion Conference, pages 5294–5306, 2025.
+   ceedings of the IEEE/CVF Conference on Computer Vi-          [Wang et al., 2025b] Qianqian Wang, Yifei Zhang, Alek-
+   sion and Pattern Recognition (CVPR), pages 1705–1714,           sander Holynski, Alexei A Efros, and Angjoo Kanazawa.
+   June 2022.                                                      Continuous 3d perception model with persistent state. In
+                                                                   Proceedings of the Computer Vision and Pattern Recogni-
+[Peng et al., 2020] Songyou Peng, Michael Niemeyer, Lars
+                                                                   tion Conference, pages 10510–10522, 2025.
+   Mescheder, Marc Pollefeys, and Andreas Geiger. Convo-
+   lutional occupancy networks. In European Conference on       [Wilson et al., 2021] Benjamin Wilson, William Qi, Tanmay
+   Computer Vision, pages 523–540. Springer, 2020.                 Agarwal, John Lambert, Jagjeet Singh, Siddhesh Khan-
+                                                                   delwal, Bowen Pan, Ratnesh Kumar, Andrew Hartnett,
+[Philion and Fidler, 2020] Jonah Philion and Sanja Fidler.         Jhony Kaesemodel Pontes, Deva Ramanan, Peter Carr, and
+   Lift, splat, shoot: Encoding images from arbitrary camera       James Hays. Argoverse 2: Next generation datasets for
+   rigs by implicitly unprojecting to 3d. In European confer-      self-driving perception and forecasting. In Proceedings
+   ence on computer vision, pages 194–210. Springer, 2020.         of the Neural Information Processing Systems Track on
+[Ranftl et al., 2021] René Ranftl, Alexey Bochkovskiy, and        Datasets and Benchmarks (NeurIPS Datasets and Bench-
+  Vladlen Koltun. Vision transformers for dense prediction.        marks 2021), 2021.
+  In Proceedings of the IEEE/CVF international conference       [Wu et al., 2025] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and
+  on computer vision, pages 12179–12188, 2021.                     Jiwen Lu. Point3r: Streaming 3d reconstruction with ex-
+[Ranftl et al., 2022] René Ranftl, Katrin Lasinger, David         plicit spatial pointer memory. In The Thirty-ninth An-
+  Hafner, Konrad Schindler, and Vladlen Koltun. Towards            nual Conference on Neural Information Processing Sys-
+  robust monocular depth estimation: Mixing datasets for           tems, 2025.
+  zero-shot cross-dataset transfer. IEEE Transactions on        [Yang et al., 2024] Zetong Yang, Li Chen, Yanan Sun, and
+  Pattern Analysis and Machine Intelligence, 44(3), 2022.          Hongyang Li. Visual point cloud forecasting enables scal-
+                                                                   able autonomous driving. In Proceedings of the IEEE/CVF
+[Sun et al., 2020] Pei Sun, Henrik Kretzschmar, Xerxes
+                                                                   Conference on Computer Vision and Pattern Recognition,
+   Dotiwalla, Aurelien Chouard, Vijaysai Patnaik, Paul Tsui,       pages 14673–14684, 2024.
+   James Guo, Yin Zhou, Yuning Chai, Benjamin Caine, et al.
+   Scalability in perception for autonomous driving: Waymo      [Yin et al., 2023] Wei Yin, Chi Zhang, Hao Chen, Zhipeng
+   open dataset. In Proceedings of the IEEE/CVF conference         Cai, Kaixuan Wang Gang Yu, Xiaozhi Chen, and Chunhua
+   on computer vision and pattern recognition, pages 2446–         Shen. Metric3d: Towards zero-shot metric 3d prediction
+   2454, 2020.                                                     from a single image. In ICCV, 2023.
+                                                                [Zhang et al., 2024] Shuo Zhang, Yupeng Zhai, Jilin Mei,
+[Tang et al., 2024] Pin Tang, Zhongdao Wang, Guoqing
+                                                                   and Yu Hu. Fusionocc: Multi-modal fusion for 3d occu-
+   Wang, Jilai Zheng, Xiangxuan Ren, Bailan Feng, and
+                                                                   pancy prediction. In ACM Multimedia 2024, 2024.
+   Chao Ma. Sparseocc: Rethinking sparse latent rep-
+   resentation for vision-based semantic occupancy predic-      [Zhang et al., 2025] Junyi Zhang, Charles Herrmann, Jun-
+   tion. In Proceedings of the IEEE/CVF Conference on              hwa Hur, Varun Jampani, Trevor Darrell, Forrester Cole,
+   Computer Vision and Pattern Recognition, pages 15035–           Deqing Sun, and Ming-Hsuan Yang. MonST3r: A sim-
+   15044, 2024.                                                    ple approach for estimating geometry in the presence of
+                                                                   motion. In The Thirteenth International Conference on
+[Tian et al., 2023] Xiaoyu Tian, Tao Jiang, Longfei Yun,           Learning Representations, 2025.
+   Yucheng Mao, Huitong Yang, Yue Wang, Yilun Wang, and
+                                                                [Zhou and Krähenbühl, 2022] Brady Zhou and Philipp
+   Hang Zhao. Occ3d: A large-scale 3d occupancy prediction
+   benchmark for autonomous driving. Advances in Neural            Krähenbühl.     Cross-view transformers for real-time
+   Information Processing Systems, 36:64318–64330, 2023.           map-view semantic segmentation. In CVPR, 2022.
+Appendices
+A     Model Details
+Our model operates within a scene ROI box defined as [−40, 40] m × [−40, 40] m × [−1, 5.4] m in the ego coordinate frame.
+  Implicit BEV Projection. The calibration-free camera-to-BEV projection module employs two sequential cross-attention
+blocks for each encoder layer. Each cross-attention block operates between image patch tokens and a set of BEV latent queries.
+The BEV query space is defined as a grid of resolution 32 × 32, resulting in 1024 BEV queries per layer. Each BEV query has a
+dimension of 1024. The four layer-specific BEV representations are concatenated along the feature dimension and upsampled
+using DPT [Ranftl et al., 2021] to produce the final BEV representation at resolution 256 × 256 with 256-dimensional features.
+  Training Hyperparameters. We use balanced query sampling along LiDAR rays, dividing the free space segment [0, d) into
+K = 5 bins for stratified sampling. The positive sampling thickness hyperparameter τ is set to 0.1 meters. During training, we
+sample 150K positive and 150K negative query points per sample, where negative queries consist of 120K points from stratified
+bins and 30K points from the symmetric interval [d − τ, d) near object surfaces.
+
+B     Evaluation Details
+B.1    Point Map Estimation
+Point maps for our model are rendered from the implicit occupancy field by sampling points along each LiDAR ray with a step
+size of 0.05 m. For baseline comparisons, point maps and depth maps from baseline methods were filtered by computing a
+visibility mask using LiDAR rays projected into camera views via camera calibrations.
+
+B.2    Occupancy Estimation
+For occupancy voxel grid evaluation, we aggregate point-wise occupancy predictions of our model from 8 points sampled
+uniformly within each voxel by taking the maximum occupancy probability.
+
+C     Additional Qualitative Results
+C.1    Multi-Representation Visualization
+Our model estimates a continuous occupancy field directly from camera images, enabling flexible transformation into three
+downstream representations: rendered point clouds, rendered occupancy fields, and rendered voxel occupancy grids. Figures 7,8
+and 9 illustrate this flexibility by showing rendered point clouds, rendered occupancy fields, and rendered voxel grids across
+five datasets (AV2, nuScenes, ONCE, NuPlan, and Waymo).
+
+
+
+
+Figure 7: Our model estimates a continuous occupancy field directly from raw camera images, enabling flexible transformation into three
+downstream representations: rendered point clouds, rendered occupancy fields, and rendered voxel occupancy grids. This figure shows the
+input images (bottom row) and the corresponding three geometric representations derived from them. Results are shown on the Once dataset.
+(Part 1 of 3)
+C.2    Robustness to Camera Dropout
+To demonstrate the robustness of our calibration-free approach, we evaluate the model’s performance when cameras are dropped
+from the input (Figure 10, Figure 11).
+
+C.3    Visual comparison on pointmap estimation
+We compare our method against the top-ranked competing methods from Table 2 (Cut3R, VGGT) across AV2, nuScenes,
+ONCE, and NuPlan datasets (Figures 12,13), demonstrating superior geometric accuracy in point cloud predictions.
+
+
+
+
+Figure 8: Our model estimates a continuous occupancy field directly from raw camera images, enabling flexible transformation into three
+downstream representations: rendered point clouds, rendered occupancy fields, and rendered voxel occupancy grids. This figure shows the
+input images (bottom row) and the corresponding three geometric representations derived from them. Results are shown on AV2 and nuScenes
+datasets. (Part 2 of 3)
+Figure 9: Our model estimates a continuous occupancy field directly from raw camera images, enabling flexible transformation into three
+downstream representations: rendered point clouds, rendered occupancy fields, and rendered voxel occupancy grids. This figure shows the
+input images (bottom row) and the corresponding three geometric representations derived from them. Results are shown on NuPlan and
+Waymo datasets. (Part 3 of 3)
+                         A                                            A                                           A
+
+
+
+
+                         A                                            A                                           A
+
+
+
+
+Figure 10: Model occupancy predictions for different subsets of surround-view images (top row). In each illustration, input images are
+indicated by corresponding cameras frustums in the lower-left corner, while invisible regions are tinted. The model provides consistent
+predictions within regions of visibility (A,B,C) with some or even most of the cameras removed. Part 1 shows sample scene from NuScenes.
+(Part 1 of 2)
+                          B                                             B                                            B
+
+
+
+
+                     C                                            C
+
+
+
+
+                          B                                             B                                            B
+
+
+
+
+                                                                   C
+
+
+
+
+Figure 11: Model occupancy predictions for different subsets of surround-view images (top row). In each illustration, input images are
+indicated by corresponding cameras frustums in the lower-left corner, while invisible regions are tinted. The model provides consistent
+predictions within regions of visibility (A,B,C) with some or even most of the cameras removed. Part 2 shows sample scene from ArgoVerse2.
+(Part 2 of 2)
+NuScenes           GT                   ViGT Occupancy             ViGT (Ours)                 CUT3R                     VGGT
+
+
+
+
+                   GT                   ViGT Occupancy             ViGT (Ours)                 CUT3R                     VGGT
+Argoverse 2
+
+
+
+
+                   GT                   ViGT Occupancy             ViGT (Ours)                 CUT3R                     VGGT
+ONCE
+
+
+
+
+  Figure 12: Visual comparison of GT and predicted point clouds across the top-3 methods ranked by Average Rank (Ours, Cut3R, VGGT). Our
+  method produces more geometrically accurate point clouds. We also visualize a render of the predicted occupancy, demonstrating accurate
+  capture of continious geometric structures. The color encodes height along the z-axis. (Part 1 of 2)
+                  GT                   ViGT Occupancy              ViGT (Ours)                CUT3R                      VGGT
+Nuplan
+
+
+
+
+ Figure 13: Visual comparison of GT and predicted point clouds across the top-3 methods ranked by Average Rank (Ours, Cut3R, VGGT)
+ (continued). Our method produces more geometrically accurate point clouds. We also visualize a render of the predicted occupancy, demon-
+ strating accurate capture of continious geometric structures. The color encodes height along the z-axis. (Part 2 of 2)
+

@@ -1,0 +1,799 @@
+                                               MoonSeg3R: Monocular Online Zero-Shot Segment Anything in 3D with
+                                                              Reconstructive Foundation Priors
+
+                                                            Zhipeng Du1         Duolikun Danier1           Jan Eric Lenssen2                      Hakan Bilen1
+                                                        {zhipeng.du,duolikun.danier,h.bilen}@ed.ac.uk                             jlenssen@mpi-inf.mpg.de
+                                                             1                                  2
+                                                                 University of Edinburgh            Max Planck Institute for Informatics, SIC
+arXiv:2512.15577v2 [cs.CV] 20 Apr 2026
+
+
+
+
+                                                                                                                                      Previous VFM-assisted Online Methods
+                                                                   Abstract                                   Posed RGB-D Stream       Online Mask Lifting & Merging on GT Geometry     Final Output
+                                                                                                                  + VFM Mask
+                                             In this paper, we focus on online zero-shot monocular 3D                              Unproj
+                                         instance segmentation, a novel practical setting where exist-
+                                         ing approaches fail to perform because they rely on posed
+                                         RGB-D sequences. To overcome this limitation, we lever-
+                                                                                                                                                         Ours
+                                         age CUT3R, a recent Reconstructive Foundation Model                     VFM Mask
+                                                                                                                                                                  Output: Reconstruction + Segmentation
+                                         (RFM), to provide reliable geometric priors from a sin-                                      Online Segmentation
+                                         gle RGB stream. We propose MoonSeg3R, which intro-
+                                                                                                             Unposed RGB Stream
+                                         duces three key components: (1) a self-supervised query
+                                         refinement module with spatial–semantic distillation that                                          Online RFM
+
+                                         transforms segmentation masks from 2D visual founda-
+                                         tion models (VFMs) into discriminative 3D queries; (2)
+                                                                                                            Figure 1. Previous VFM-assisted Online Paradigm v.s. Ours.
+                                         a 3D query index memory that provides temporal consis-
+                                                                                                            While existing methods rely on the ground truth geometry (and
+                                         tency by retrieving contextual queries; and (3) a state-
+                                                                                                            3D segmentation masks), our method works in a monocular on-
+                                         distribution token from CUT3R that acts as a mask iden-
+                                                                                                            line zero-shot setting, exploiting the spatio-temporal priors from
+                                         tity descriptor to strengthen cross-frame fusion. Experi-
+                                                                                                            an RFM to help with online 3D segmentation, thereby simultane-
+                                         ments on ScanNet200 and SceneNN show that MoonSeg3R
+                                                                                                            ously achieving online reconstruction and segmentation.
+                                         is the first method to enable online monocular 3D segmen-
+                                         tation and achieves performance competitive with state-of-
+                                         the-art RGB-D–based systems. Our code is available at              3D using explicit geometry from depth sensors. Meth-
+                                         https://github.com/VICO-UoE/MoonSeg3R.                             ods such as EmbodiedSAM [57] and OnlineAnySeg [45]
+                                                                                                            have demonstrated promising online 3D segmentation per-
+                                                                                                            formance by combining VFM-based semantic cues with
+                                         1. Introduction                                                    depth information for mask lifting and merging, either in
+                                         Monocular online 3D instance segmentation, the task of in-         a fully-supervised or zero-shot manner. However, these
+                                         crementally reconstructing and segmenting 3D object in-            methods still require accurate depth or point cloud super-
+                                         stances from a streaming RGB sequence, represents a key            vision, which limits deployment on platforms where dedi-
+                                         capability for embodied perception and autonomous oper-            cated depth sensors are unavailable or impractical [54]. A
+                                         ation in complex real-world environments such as robotic           fundamental open question remains: Can we perform online
+                                         navigation and interaction [6, 29, 65]. Unlike offline meth-       3D instance segmentation directly from monocular RGB in-
+                                         ods, the online setting demands maintaining temporally             puts, without ground-truth geometry or instance masks?
+                                         consistent geometry and semantics from a single cam-                  Recent feed-forward online reconstruction net-
+                                         era stream, in real time, and without explicit 3D supervi-         works [51–53, 66], termed Reconstructive Foundation
+                                         sion. This makes the task especially challenging: observa-         Models (RFMs), enable real-time, generalizable 3D re-
+                                         tions are partial, geometry must be inferred implicitly, and       construction from unposed monocular streams. Among
+                                         3D instance associations must be maintained despite view           them, CUT3R [52] enables online inference capabilities by
+                                         changes and occlusions.                                            maintaining a recurrent state token that implicitly encodes
+                                            Recent works leverage Visual Foundation Models                  global scene geometry. Nevertheless, its representations
+                                         (VFMs) such as SAM [20] and CLIP [35] to provide                   are optimized for reconstruction rather than segmentation,
+                                         powerful 2D mask priors, which can then be lifted into             yielding three key limitations: (i) lack of object-level
+semantic awareness, (ii) noisy explicit geometry pre-           upon geometric information. UnScene3D [39] fuses 2D
+dictions, and (iii) a latent memory that is powerful yet        features from DINO [5] with 3D features to create pseudo
+non-interpretable for downstream perception tasks.              3D masks for unsupervised self-training. Any3DIS [32]
+    We introduce MoonSeg3R, a monocular, online, zero-          simplifies the complex mask merging process by applying
+shot 3D instance segmentation framework that integrates         2D mask tracking based on SAM2 [37]. Despite their im-
+the geometric priors of reconstructive foundation models        pressive performance, these methods work offline, requiring
+(RFMs) with the semantic power of visual foundation mod-        the full RGB-D sequence to perform global optimization of
+els (VFMs), as shown in Fig. 1. MoonSeg3R reconstructs          mask grouping. To address the growing demands of em-
+the scene and segments instances online by unprojecting         bodied AI, many online methods [16, 24, 27, 30, 56, 64]
+VFM masks into 3D and associating them over time. It            are proposed to process sequential RGB-D inputs. Embod-
+comprises four key components: (i) a query refinement           iedSAM [57] proposes the first VFM-assisted online frame-
+module that transforms 2D masks into discriminative 3D          work and learns VFM mask lifting and merging in an on-
+prototype queries via cross-attention with geometric and        line and fully supervised way with ground truth for 3D in-
+semantic features, (ii) a spatial-semantic distillation ob-     stance masks. Conversely, OnlineAnySeg [45] purely lever-
+jective for self-supervised query training, (iii) a 3D Query    ages 3D spatial information using the ground truth geome-
+Index Memory (QIM) for temporally consistent query re-          try to merge VFM masks without requiring 3D ground truth.
+trieval and cross-frame association, and (iv) a state distri-   In contrast to all previous methods, our method works on
+bution token that captures CUT3R’s attention dynamics to        monocular online zero-shot 3D segmentation without 3D
+support robust mask fusion. These modules enable consis-        ground truth geometry or segmentation masks.
+tent 3D segmentation purely from monocular RGB streams,         Online RFMs. While many traditional and learning-based
+without depth or mask supervision. We evaluate Moon-            methods address continuous online 3D geometry recon-
+Seg3R on ScanNet200 and SceneNN, where it achieves              struction, they typically face limitations such as requir-
+competitive zero-shot instance segmentation performance,        ing known camera intrinsics [11, 12, 47], needing posed
+demonstrating reconstructive priors can effectively replace     image inputs [17, 40, 43], or being restricted to object-
+explicit depth supervision in online 3D perception.             centric scenarios [8, 17, 62]. Without the above limita-
+    Our contributions can be summarized as follows:             tions, DUSt3R [53] and subsequent works [23, 59, 66]
+• A monocular, zero-shot 3D segmentation framework.             demonstrate that accurate binocular reconstruction can be
+   We present MoonSeg3R, the first system that performs         achieved by predicting pair-wise pointmaps in a feed-
+   online 3D instance segmentation directly from a monoc-       forward step, only taking uncalibrated and unposed images
+   ular RGB stream by jointly leveraging reconstructive and     as input. Given their impressive generalizability and large-
+   visual foundation models.                                    scale pretraining, these methods can be called reconstruc-
+• Self-supervised query refinement and distillation.            tive foundation models (RFMs). RFMs have since been
+   We propose a spatial–semantic distillation strategy          extended to process varying numbers of views simultane-
+   that enforces both instance-level discriminativeness and     ously [18, 46, 51] or sequentially [4, 7, 25, 49, 52, 55].
+   geometry-aware consistency without ground-truth anno-        We build our framework upon CUT3R [52] to leverage
+   tations.                                                     its spatio-temporal priors learned from online 3D recon-
+• 3D query index memory for temporal reasoning. We              struction. Unlike the explicit memory used in other on-
+   design an index-based query memory mechanism that en-        line RFMs [4, 49, 55], CUT3R uniquely maintains a la-
+   ables cross-frame association via spatial keys and contex-   tent state as memory. To leverage this non-interpretable
+   tual query retrieval.                                        representation, we design a novel state distribution token
+• Online mask fusion strategy.             We introduce a       that extracts instance-level correspondences, achieving ro-
+   novel attention-based identity descriptor extracted from     bust VFM mask matching.
+   CUT3R’s state interactions, used to enhance mask fusion
+   across frames along with the refined query descriptor.       Monocular 3D Segmentation. Segmenting 3D objects
+                                                                based on monocular RGB input remains a significant chal-
+2. Related Works                                                lenge. One dominant category of approaches, based on
+                                                                NeRF [28] or Gaussian Splatting (GS) [19], lifts 2D seg-
+VFMs in 3D Segmentation. Due to the scarcity of high-           mentation masks into consistent 3D segmentations [1, 2,
+quality 3D annotations, adapting web-scale knowledge of         13, 21, 41, 68, 72, 73]. However, these methods typically
+2D visual foundation models (VFMs) [20, 33, 37, 42, 48,         require posed images and rely on offline, full-scene opti-
+63] has become a promising solution to 3D scene segmen-         mization. More recently, EA3D [70] develops a pose-free,
+tation [3, 15, 26, 31, 32, 44, 58, 60, 61, 67, 69]. For         monocular online GS framework, leveraging VFMs and an
+instance, SAM3D [60] proposes to lift 2D segmentation           online RFM. However, its reliance on multi-step Gaussian
+masks from SAM [20] to 3D point cloud and merge them            optimization slows inference speed, and its evaluation, like
+other GS-based methods, focuses on 2D segmentation of                                                                                                                                                   3D Prototype Representation. For a single frame It , we
+novel views. Another line of work [54, 71] performs on-                                                                                                                                                 represent each object as a 3D prototype qit ∈ Rd by lifting
+line panoptic reconstruction, simultaneously reconstructing                                                                                                                                             the corresponding 2D instance mask Mit into qit via masked
+and segmenting 3D scenes, but these methods are fully su-                                                                                                                                               average pooling over concatenated geometric and semantic
+pervised on ground truth geometry and segmentation masks                                                                                                                                                features:
+and still require posed monocular videos. In contrast to
+all previous methods, our method takes unposed monocu-
+lar inputs, performs real-time online 3D segmentation, and                                                                                                                                                 \label {eq:prototype} \mathbf {F}_t = [\mathbf {F}^{3d}_t, \mathbf {F}^{2d}_t], \quad \mathbf {q}^i_t = \eta \!\left (\frac {\sum _{u,v} \mathbf {F}_t(u,v)\mathbf {M}^i_t(u,v)}{\sum _{u,v}\mathbf {M}^i_t(u,v)}\right ), 
+is evaluated directly on its 3D segmentation results.                                                                                                                                                                                                               (2)
+                                                                                                                                                                                                        where u, v are the pixel coordinates and η(·) is a learned lin-
+3. Method                                                                                                                                                                                               ear projection. As F3dt mostly captures the geometric infor-
+Given a streaming monocular RGB sequence {It }Tt=1 with                                                                                                                                                 mation, we augment them with F2d    t , 2D semantic features
+It ∈ RH×W ×3 , our goal is to incrementally reconstruct                                                                                                                                                 from DINOv3 [42].
+the scene geometry and segment object instances in an on-                                                                                                                                                   The key challenge of 3D instance segmentation in an on-
+line zero-shot manner, without access to ground-truth 3D                                                                                                                                                line setting is to associate prototypes with the correct ob-
+geometry or instance masks. At each timestep t, Moon-                                                                                                                                                   ject instances accurately not only at the current step but also
+Seg3R predicts partial 3D instance masks by unprojecting                                                                                                                                                across the previous timesteps. In other words, our setting re-
+2D masks from a Visual Foundation Model (VFM) and in-                                                                                                                                                   quires to estimate accurate segmentation masks even when
+crementally associates them across frames to form consis-                                                                                                                                               the VFM provides over or under-segmented proposals, to
+tent 3D instances over time.                                                                                                                                                                            associate the prototypes of the same object appearing across
+Preliminaries: CUT3R. MoonSeg3R utilizes the geomet-                                                                                                                                                    multiple frames and merge them, and to recognize when a
+ric prior in a pre-trained online 3D reconstruction model,                                                                                                                                              new object instance appeared that is not to be merged. All
+CUT3R [52], to perform zero-shot online segmentation.                                                                                                                                                   together, this demands the prototypes to encode the correct
+CUT3R recurrently processes a stream of RGB images,                                                                                                                                                     spatial, semantic and chronological information in an accu-
+predicting the explicit geometry information (depth, pose,                                                                                                                                              rate and efficient manner.
+pointmap) of all frames. At each timestep, the encoded fea-                                                                                                                                                 Motivated by these challenges, our model contains
+tures of the input image interact (through cross attention)                                                                                                                                             (i) query refinement module (see Sec. 3.2) to associate
+with a persistent “state token” that serves as a compressed                                                                                                                                             them with the required spatial, semantic and chronolog-
+latent representation of the entire scene, reading from the                                                                                                                                             ical information, (ii) spatial-semantic distillation module
+state and updating it. The updated image encodings are then                                                                                                                                             (see Sec. 3.3) to provide the self-supervision signal for
+used to decode the geometric outputs. The state tokens in                                                                                                                                               training the query refinement module, (iii) contextual mem-
+CUT3R have been found to implicitly encode the scene ge-                                                                                                                                                ory module (see Sec. 3.4) to store the previously seen
+ometry, enabling “reading out” the geometry of unseen re-                                                                                                                                               queries and to associate the current queries with the pre-
+gions during reconstruction. We exploit both the implicit                                                                                                                                               vious ones, and finally (iv) an online mask fusion module
+and explicit geometric information in CUT3R for accurate                                                                                                                                                (see Sec. 3.5) to merge queries from previously seen partial
+3D segmentation.                                                                                                                                                                                        observations and obtain the 3D segmentation predictions.
+3.1. Online Segmentation Framework
+                                                                                                                                                                                                        3.2. Query Refinement
+At each timestep t, the incoming image It is processed by
+two pretrained foundation models:                                                                                                                                                                       We first use a query decoder ϕ, a lightweight feed-forward
+                                                                                                                                                                                                        projector, to refine qt in Eq. (2) through masked cross-
+               \begin {aligned} (\mathbf {X}_t, \mathbf {P}_t, \mathbf {F}_t^{3d}, \mathbf {A}_t) &= \text {RFM}(\mathbf {I}_t),\\ \mathbf {M}_t &= \text {VFM}(\mathbf {I}_t), \end {aligned}          attention:
+                                                                                                                                                                                                  (1)
+
+where Xt denotes the predicted world-coordinate pointmap,                                                                                                                                                                                                        \mathbf {q}'_t \leftarrow \phi \!\left (\text {Attn}\!\left (\mathbf {q}_t,\, \mathbf {F}_t,\, \mathbf {M}_t\right )\right ).                                 (3)
+Pt the estimated camera pose, F3d
+                                t the 3D geometric feature
+map, and At the state attention weights. Each 2D instance                                                                                                                                               This refinement step further adapts the semantic and geo-
+mask Mit is unprojected into a partial 3D mask using Xt .                                                                                                                                               metric features to the target segmentation mask. As the re-
+   In our experiments we choose CUT3R [52] as the RFM                                                                                                                                                   fined query only contains the information from the current
+providing online 3D reconstruction and CropFormer [34]                                                                                                                                                  timestep t, we further incorporate contextual information
+as the VFM, providing per-frame segmentation masks. The                                                                                                                                                 from previously seen queries Qctx t , which we describe in
+state-branch attention maps At indicate how the state to-                                                                                                                                               Sec. 3.4, through an additional cross-attention layer:
+kens within CUT3R attend to image patches and later serve
+as temporal cues for instance correspondence (Sec. 3.5).                                                                                                                                                                                                                 \label {eq:contextualrefinement} \mathbf {q}'_t \leftarrow \phi (\text {Attn}(\mathbf {q}'_t,\, \mathcal {Q}^{\text {ctx}}_t)).                       (4)
+   Frame-wise Input                                (a)                                                                                                                                                                                                                                (d) Inference only
+                                                                                                        CUT3R                                                            𝟑𝐝                                 𝐏𝑡 & 𝐗 𝑡
+                                                                                                                                                                        𝐅𝑡
+                                                                                                                                  𝓓𝑺                                                                                                                                                                               Intra-frame Merge
+                                                                                          𝓔
+
+
+
+
+                                                                                                                                                             Implicit
+
+
+
+
+                                                                                                                                                                                       Explicit
+   𝐈𝒕                                                                                                                             𝓓𝑰                                    𝐀𝑡
+                                                                                                                                                   𝓗
+
+                                                                                                                                 Spa-Sem
+                                                    (b)                                                                         Distillation
+            VFM                                                                                                                                                                                                                                                                                                                                 Merge
+                                                                                                                                                                             ′                    Self Distillation
+                                                                                   𝐪𝑡                                                                                   𝐪𝑡
+                                                                                                                                                                                                        ℒ𝑑𝑖𝑠𝑡
+                                                                                                                                                                                          Self-supervised Seg
+                                                                                                                        …
+                                                                  Init
+
+
+                                                                                    …                            Query Refinement                                       …                         ℒ𝑠𝑒𝑔                                                                                                                   Cross-frame
+  𝐌𝒕
+                                                                                                                                                                                                                                                                                                                       Bipartite Match
+                                                                                                                                                                                                  Cross-frame Seg
+                                                                                                                                                                                                                                                                                                      Query Sim BBox IoU                           Token Sim
+                                                                                                                                                                                                        ℒxs𝑒𝑔                                                                                          Matrix    Matrix                              Matrix
+                                                                                                                            Contextual
+                                                    (c)                                                                   Query Injection                                                                                                   ′
+                                                                                                                                                                                           𝐗𝑡                                         𝐪𝑡
+                                                             Query Index Map
+                                                                                                                       Historical Queries
+                                                                                                                                                                                         𝓜𝑡                                           𝓠𝑡                                                                          State Distribution token
+
+                                                                                                                                                            Global                                                               Global                                                          𝐀𝑡
+                                                                                                                       𝐏𝑡                                   Query                                                                Query                                                                                   Spatial-wise
+                                                                                                                                                            Bank                                                                 Bank                                                                                     Mask Sum
+        Uncalibrated                                                                                                                  Rasterized
+        RGB Stream                                                      𝓜𝑡−1                                                          Index Map              𝓠𝑡−1
+                                                                                                                                                   Moving to next frame t+1
+
+
+Figure 2. Overview of MoonSeg3R. The pipeline consists of four steps. (a) CUT3R takes an uncalibrated image It as input to predict
+explicit geometry (pose Pt , world-coordinate pointmap Xt ), and implicit representations (geometric features F3d    t , state attention At ). (b)
+VFM masks Mt are lifted and refined into 3D queries q′t through a transformer decoder, via spatial-semantic self-distillation supervision
+(Ldist , Lseg ) (Sec. 3.3). (c) In parallel, we utilize Pt to rasterize our explicit 3D query index memory Mt−1 , efficiently retrieving relevant
+historical queries from query bank Qt−1 for contextual query injection into query refinement process and cross-frame supervision (Lxseg ).
+The memory and bank are then updated using Xt and q′t , respectively (Sec. 3.4). (d) During inference, we first merge over-segmented
+instances and then perform bipartite matching, utilizing our novel state distribution token derived from state attention At to enhance
+association robustness (Sec. 3.5).
+
+3.3. Spatial-Semantic Distillation                                                                                                                                               serve the internal structures of the concatenated F fusing
+As we focus on the unsupervised setting, with no access                                                                                                                          F2d and F3d . Specifically, we utilize Gram matrix as it
+to the ground-truth segmentation masks during training, we                                                                                                                       computes the pairwise dot product of patch features, and
+propose a self-supervised strategy to train the parameters of                                                                                                                    provides patch-level structural guidance, while allowing lo-
+η and ϕ. We would like each refined query q′t to encode                                                                                                                          cal features to be freely updated. We compute the Gram
+the sufficient information to recover the original mask Mt                                                                                                                       matrix of the reference features F as
+in the pixel space. One potential solution is to first project
+the feature map Ft to lower dimensionality through a MLP                                                                                                                                                                       \mathbf {G}=\frac {\psi (\mathbf {F})\psi (\mathbf {F})^\top }{\|\psi (\mathbf {F})\|\|\psi (\mathbf {F})\|}, 
+ψ, and then apply the refined query pointwisely to the pro-
+jected feature map to obtain the corresponding mask:                                                                                                                             and similarly compute G2d from F2d for 2D semantic guid-
+                                                                                                                                                                                 ance and G3d from F3d as 3D geometric guidance. We
+                    \label {eq:segloss} \mathcal {L}_{\text {seg}} = \text {BCE}(\sigma (\psi (\mathbf {F}_t)\odot \mathbf {q}'_t),\mathbf {M})            (5)
+                                                                                                                                                                                 then design a Gram distillation loss that encourages the ref-
+where σ is sigmoid function. While this formulation en-                                                                                                                          erence features to preserve essential patterns from CUT3R
+courages learning queries to discriminate the corresponding                                                                                                                      and DINO, while simultaneously enhancing their discrimi-
+instance against the remaining ones in the same frame, it                                                                                                                        nativeness.
+does not necessarily enforce the queries to retain both ge-
+ometric and spatial information. In our preliminary exper-                                                                                                                                           \label {eq:distloss} \mathcal {L}_{\text {dist}} = \|\mathbf {G}-\mathbf {G}^{2d}\|^2_F + \|\mathbf {G}-\mathbf {G}^{3d}\|^2_F                            (6)
+iments, we observed that geometry information from F3d
+was discarded. We argue that F2d are sufficiently rich for
+                                                                                                                                                                                 3.4. Contextual Query Indices as Memory
+satisfying the training objective. On the other hand, this                                                                                                                       The refined queries q′t encode the spatial–semantic infor-
+does not facilitate cross-frame association of queries.                                                                                                                          mation of each observed instance in the current view. How-
+   To address this, we add an additional objective to pre-                                                                                                                       ever, monocular inputs provide only partial information
+about each object, leading to incomplete or fragmented                                                                                                                          RH×W ×d . We can therefore calculate the cross-frame ver-
+3D representations. To ensure temporal consistency and                                                                                                                          sion of Lseg as:
+leverage historical context, we introduce a 3D Query In-
+dex Memory (QIM), a lightweight, index-based memory                                                                                                                                 \label {eq:xsegloss} \mathcal {L}_{\text {xseg}} = \textnormal {BCE}(\sigma (\mathbf {F}_t^{ctx}\odot \mathbf {q}'_t) \odot \mathbf {M}^{ind}, \mathbf {M}_t \odot \mathbf {M}^{ind})  (10)
+mechanism that links current queries to relevant historical
+counterparts across time.                                                                                                                                                       where Mind is used to mask out the loss values in the ar-
+Memory Representation. At each timestep t, we maintain                                                                                                                          eas in which no historical information is rasterized in the
+two complementary memory structures:   q
+                                                                                                                                                                                current view.
+• a global query bank Qt−1 ∈ Rntotal ×d that stores all his-                                                                                                                    Training Objective. Finally, we minimize the weighted
+  torical query features up to time t−1, where nqtotal denotes                                                                                                                  sum of Eq. (5), Eq. (6) and Eq. (10) with respect to the
+  the total number of queries and d their feature dimension;                                                                                                                    network parameters:
+                                           k     q
+• a query index map Mt−1 ∈ {0, 1}ntotal ×ntotal that records
+  which queries were associated with each 3D spatial key                                                                                                                                                         \min _{\eta ,\phi ,\psi } \lambda _{\text {seg}} \mathcal {L}_{\text {seg}} + \lambda _{\text {dist}}\mathcal {L}_{\text {dist}} + \lambda _{\text {xseg}}\mathcal {L}_{\text {xseg}}, 
+  (described below) in the scene.
+Memory Update. Given the predicted pointmap Xt , the                                                                                                                            where λseg , λdist , λxseg are the scalar loss weights.
+VFM-generated masks Mt , and the corresponding refined
+queries q′t , we first append q′t to the global query bank:                                                                                                                     3.5. Inference-time Online Mask Fusion
+                                                                                 \mathcal {Q}_t = [\,\mathcal {Q}_{t-1};\, \mathbf {q}'_t\,].                             (7)   In inference time, different from fully-supervised meth-
+                                                                                                                                                                                ods [50, 57] that learn mask merging in different frames
+To efficiently map queries to spatial locations, we sample a                                                                                                                    with ground truth 3D instance masks, we determine whether
+                                                                                                                                                                     nk         partial 3D masks M3d
+sparse set of nkt 3D spatial keys {kit }i=1 from Xt by aver-                                                                                                                                          t should be merged based on multiple
+                                         t
+
+
+age pooling on world-coordinate pointmaps. Each key rep-                                                                                                                        mask representations: query feature, bounding box and a
+resents a compact local region of reconstructed geometry.                                                                                                                       novel state distribution token. To obtain the bounding box
+   Next, we downsample the segmentation masks Mt to the                                                                                                                         of each mask, we find its 3D spatial keys from Mt−1 , which
+same spatial resolution as {kit } and establish associations                                                                                                                    correspond to the 3D point coordinates of the mask, and
+between each query and its corresponding spatial key. For                                                                                                                       simply find the max and min coordinates to calculate the
+key kit and query q′j
+                    t , we define a binary association:
+                                                                                                                                                                                bounding box.
+                                                                                                                                                                                State Distribution Token. During the image-state inter-
+                                                                                                                                                                                action process of CUT3R, the state-branch cross-attention
+         \mathcal {M}_t(i,j) = \begin {cases} 1, & \text {if } \mathbf {k}^i_t \text { lies within mask } \mathbf {M}^j_t,\\ 0, & \text {otherwise.} \end {cases}         (8)   A ∈ Rns ×(h×w) indicates the attention weights allocated
+                                                                                                                                                                                by each of the ns state tokens to the h × w image patches.
+Contextual Query Retrieval. During the processing of                                                                                                                            Our finding is that this attention distribution provides a
+frame t, we exploit CUT3R’s predicted camera pose Pt to                                                                                                                         unique and temporally stable identity for segmented in-
+project all stored spatial keys into the current camera coor-                                                                                                                   stances across neighboring frames. We call this representa-
+dinate system. Rasterizing these projected keys forms an                                                                                                                        tion state distribution token. As illustrated in the right bot-
+index map Iindt  ∈ {0, 1}H×W ×nq , where each pixel con-                                                                                                                        tom of Fig. 2, the state distribution token of an instance can
+tains binary indicators of visible historical queries. The                                                                                                                      be obtained by applying its 2D instance mask Mt over the
+corresponding historical queries are then retrieved from the                                                                                                                    spatial dimension of A and performing a masked summa-
+global bank:                                                                                                                                                                    tion to aggregate the total attention allocated by each state
+                                                                                                                                                                                token to the instance area:
+                                                     \mathcal {Q}^{\text {ctx}}_t = \text {Retrieve}(\mathbf {I}^{\text {ind}}_t,\, \mathcal {Q}_{t-1}).                  (9)
+
+These contextual queries are injected into the refinement                                                                                                                                                                              \mathbf {s}^i_t = \sum _{j=1}^{h \times w} (\mathbf {A}_t \odot \mathbf {M}^i_t) \in \mathbb {R}^{n_s}                                                              (11)
+process in Eq. (4), allowing each current query to attend
+to semantically and geometrically similar queries from pre-
+vious frames.                                                                                                                                                                   Intra-Frame Merge. As VFM usually oversegments an in-
+Cross-Frame Supervision. To ensure that our model                                                                                                                               stance into multiple parts, we first merge the oversegmented
+learns to encode the chronological context into the refined                                                                                                                     parts within the current frame, leveraging the discriminative
+queries, we introduce a cross-frame objective that compels                                                                                                                      queries q′t obtained previously. The pairwise query similar-
+                                                                                                                                                                                                                         ⟨q′ ,q′ ⟩
+the updated queries to attend to the retrieved historical in-                                                                                                                   ity matrix is calculated as Eintra
+                                                                                                                                                                                                               t      = ∥q′ t∥∥qt′ ∥ ∈ Rnq ×nq ,
+                                                                                                                                                                                                                           t     t
+formation. Given the rasterized index map Iind    t , the re-                                                                                                                   with the diagonal elements equal to 1 representing self-
+trieved historical queries at each spatial location can be av-                                                                                                                  similarity. We merge any mask pair (Mit , Mjt ) whose simi-
+eraged, therefore forming a contextual feature map Fctx  t  ∈                                                                                                                   larity Eintra
+                                                                                                                                                                                        t     (i, j) exceeds a predefined threshold.
+                                                                                                                                                                                                                                                                                                                                ScanNet 200             SceneNN           Speed
+                                    Method                                                                                                           Online                                            Zero-Shot                                                              Input
+                                                                                                                                                                                                                                                                                                                         AP       AP50 AP25      AP      AP50 AP25         ms
+                                                                                                                                                                                                                                                                                                 Posed RGB-D
+
+                                    EmbodiedSAM [57]                                                                                                              ✓                                                          ✗                                           ì+                                             28.8     42.7   54.2    20.1    32.5    46.3       80
+
+                                    OVIR-3D [26]                                                                                                                  ✗                                                         ✓                                            ì+                                             14.4     27.5   38.8    12.3    24.4    34.6       –
+                                    MaskClustering [58]                                                                                                           ✗                                                         ✓                                            ì+                                             19.7     36.4   51.4    16.3    31.7    46.2       –
+                                    SAM3D [60]                                                                                                                    ✓                                                         ✓                                            ì+                                             9.6      24.8   49.6     9.1    21.3    43.4      125
+                                    OnlineAnySeg [45]                                                                                                             ✓                                                         ✓                                            ì+                                             18.6     36.1   53.5    18.1    35.3    59.5     3000*
+
+                                                                                                                                                                                                                                                                                                         Monocular
+
+                                    OnlineAnySeg-M                                                                                                                ✓                                                         ✓                                                         ë                                  13.4     26.8   43.2    13.2    28.7    51.2    3000 + 66
+                                    MoonSeg3R (Ours)                                                                                                              ✓                                                         ✓                                                         ë                                  16.7     33.3   50.0    14.3    31.4    48.4     55 + 66
+
+Table 1. Results on ScanNet 200 and SceneNN. While previous methods require posed RGB-D inputs (ì + ), our method takes
+monocular images (ë) and performs simultaneous reconstruction and segmentation. Regarding inference speed, we report the time cost
+for mask fusion, and additionally report the running time of RFM for geometry reconstruction as the underlined numbers in the monocular
+setting. MoonSeg3R clearly outperforms OnlineAnySeg-M, which is a monocular version of OnlineAnySeg taking predicted depths and
+poses as input, while being significantly faster, and comes close in performance to methods with posed RGB-D input while using monocular
+RGB inputs. *: Since OnlineAnySeg reports the time cost of online fusion stage [22], we measure and report the speed of its full algorithm.
+
+Cross-Frame Bipartite Match. After intra-frame merging,                                                                                                                                                                                                                                                                       optimizer and a learning rate of 1e-4 (with a cosine decay
+we calculate the similarity matrices between current-frame                                                                                                                                                                                                                                                                    to 1e-5). The loss weights λseg , λxseg and λdist are re-
+masks and the existing ones as                                                                                                                                                                                                                                                                                                spectively set to 1, 0.5 and 0.1. The training takes 6 hours
+                                                                                                                                                                                                                                                                                                                              on 4 NVIDIA RTX A6000 GPUs, with a batch size of 4
+                                                                                                                                                                                                                                                                                                                              on each. During testing, for fair comparison with [45],
+  \mathbf {E}^{ij} = \frac {\langle \mathbf {q}^{prev, i}, \mathbf {q'}^{j}_t\rangle }{\|\mathbf {q}^{prev, i}\|\|\mathbf {q'}^{j}_t\|} + \frac {\langle \mathbf {s}^{prev, i},\mathbf {s}_{t}^j\rangle }{\|\mathbf {s}^{prev,i}\|\|\mathbf {s}_{t}^j\|} + {\textnormal {IoU}(\mathbf {b}^{prev,i}, \mathbf {b}_t^j)} 
+                                                                                                                                                                                                                                                                                                                              we generate VFM masks using CropFormer [34], and set
+                                                        (12)                                                                                                                                                                                                                                                                  keyframe sampling interval as 10 on ScanNet200 and 20
+where the three items respectively indicate the query simi-                                                                                                                                                                                                                                                                   on SceneNN. The thresholds for intra-frame merging and
+larity, state distribution token similarity and bounding box                                                                                                                                                                                                                                                                  cross-frame matching are respectively 0.8 and 1.8. We test
+IoU between previous masks and the new masks. Similar                                                                                                                                                                                                                                                                         our method on an NVIDIA RTX A6000 GPU.
+to [57], we prune E by setting scores below a predefined
+threshold to −∞, and use −E as the cost to assign each                                                                                                                                                                                                                                                                        4.2. Experimental Settings
+new mask to existing masks. If a new mask fails to find a                                                                                                                                                                                                                                                                     Dataset. We conduct experiments on 3D instance segmen-
+match, we register it as a new instance.                                                                                                                                                                                                                                                                                      tation on two real-world benchmarks, ScanNet200 [10, 38]
+Mask Update. When two masks are merged, we update their                                                                                                                                                                                                                                                                       and SceneNN [14]. ScanNet200 is an indoor dataset com-
+query features and state distribution tokens by averaging,                                                                                                                                                                                                                                                                    prising 1513 room-level sequences, each annotated with
+and compute the union of their spatial keys to update the                                                                                                                                                                                                                                                                     instance-level segmentation and labels across 200 cate-
+mask position information.                                                                                                                                                                                                                                                                                                    gories. Consistent with the compared methods, we evalu-
+                                                                                                                                                                                                                                                                                                                              ate our approach on the validation set, which includes 312
+4. Experiments                                                                                                                                                                                                                                                                                                                scenes. SceneNN contains 50 high-quality scanned scenes,
+                                                                                                                                                                                                                                                                                                                              in which we select 12 clean sequences for testing following
+4.1. Implementation Details                                                                                                                                                                                                                                                                                                   previous works [45, 57].
+The query refinement network ϕ is implemented as 3                                                                                                                                                                                                                                                                            Evaluation Metric. We adopt Average Precision (AP) as
+transformer-based decoder layers, each consisting of two                                                                                                                                                                                                                                                                      the metric. We follow [45, 58] to report the results under
+consecutive cross-attention layers, one self-attention and                                                                                                                                                                                                                                                                    IoU thresholds of 25% and 50%, and the mean AP across
+feed-forward layer. The query projection layer η and the                                                                                                                                                                                                                                                                      thresholds from 50% to 95%, denoted as AP25 , AP50 , and
+feature refinement network ψ are both implemented as a                                                                                                                                                                                                                                                                        AP , respectively.
+series of MLP layers. To train MoonSeg3R, we randomly
+sample 16 adjacent RGB frames of size 512×384 from each
+                                                                                                                                                                                                                                                                                                                              4.3. Experimental Results
+scene in ScanNet, and generate their VFM masks using                                                                                                                                                                                                                                                                          We compare with VFM-assisted RGB-D based 3D seg-
+FastSAM. CUT3R and DINOv3 are frozen during training.                                                                                                                                                                                                                                                                         mentation methods on ScanNet200 and SceneNN, includ-
+We train MoonSeg3R for 100 epochs, with AdamW as our                                                                                                                                                                                                                                                                          ing offline zero-shot methods OVIR-3D [26], MaskClus-
+               Point Cloud                    GT Masks                  OnlineAnySeg-M                         Ours
+
+
+
+
+Figure 3. Qualitative Comparison. Qualitative examples of OnlineAnySeg-M and our method on ScanNet200 sequences. These results
+visually demonstrate that MoonSeg3R achieves superior instance segmentation. OnlineAnySeg-M, in contrast, tends to fail in associating
+masks, which leaves significant unsegmented areas, as shown in the red dashed circles. The segmentation results are unprojected to ground
+truth point cloud for visualization.
+
+tering [58], online fully-supervised method [57] and zero-                     Method                    AP      AP50     AP25
+shot methods [45, 60]. To compare with these methods,                          F 2d
+                                                                                                         7.2     19.6      43.7
+we unproject the merged masks to the ground truth point                        F3d                       6.4     17.5      41.1
+cloud during testing, so as to calculate the average preci-                    F2d + F3d                 8.1     19.7      42.3
+sion w.r.t. the ground truth. The results are copied from the
+reported performance in [45]. Additionally, since Moon-                        + Query Refinement       12.5     27.7      46.6
+Seg3R is the only method capable of monocular online                           + SSD                    13.5     29.3      48.5
+zero-shot segmentation, we build a monocular baseline by                       + QIM                    15.9     32.8      49.4
+inputting CUT3R predicted poses and depths to OnlineAny-                       + SDT (Ours)             16.7     33.3      50.0
+Seg, which is denoted by OnlineAnySeg-M. Class-agnostic
+instance segmentation results are reported in Tab. 1.                  Table 2. Ablation Study. The individual contributions of the pro-
+                                                                       posed components in MoonSeg3R on ScanNet200.
+Online 3D Segmentation. Taking only RGB images as in-
+put, our method outperforms OVIR-3D and SAM3D, which                   Speed Analysis. As shown in the rightmost column of
+are respectively RGB-D based offline and online methods,               Tab. 1, MoonSeg3R achieves the fastest mask fusion speed
+on both benchmarks. Though online methods Embodied-                    and ranks second overall, while simultaneously performing
+SAM [57] and OnlineAnySeg [45] achieve higher results,                 reconstruction and segmentation. In contrast to the state-
+their performance depends heavily on ground truth geom-                of-the-art zero-shot method OnlineAnySeg, which requires
+etry. For instance, replacing ground truth pose and depths             time-consuming per-instance CLIP feature extraction and
+with the predictions from CUT3R results in a significant               iterative mask graph traversal, our method infers in one
+performance drop on OnlineAnySeg-M, demonstrating that                 feed-forward step, benefiting from a lightweight decoder,
+existing methods designed for posed RGB-D sequences                    sparse memory, and efficient point rasterization.
+struggle to generalize to the monocular setting. On the                Qualitative Results. In Fig. 3, we provide qualitative com-
+other hand, the proposed MoonSeg3R can robustly asso-                  parison between OnlineAnySeg-M and our method.
+ciate and merge different 2D masks without requiring ex-
+ternal geometry or 3D segmentation supervision, surpass-
+                                                                       4.4. Ablation Study
+ing OnlineAnySeg-M by +3.3 on ScanNet200 and 1.1 on                    In Tab. 2, we show the ablated results to validate the effec-
+SceneNN regarding AP.                                                  tiveness of each proposed component. We use CropFormer
+                                Images                                         Frame 1                 Token similarity score (sofa): 0.970
+
+
+
+
+                        Self-supervised Features
+
+                                                                               Frame 2                 Token similarity score (table): 0.930
+
+
+
+                         + Spa-Sem Distillation
+
+
+
+
+                                                                        Figure 5. State Distribution Similarity. For two consecutive
+                                                                        frames, we extract the state distribution tokens for all instances
+Figure 4. Distilled Feature Visualization. Top row: The original
+                                                                        and compute their cross-frame pairwise similarities. Tokens be-
+images. Middle row: Reference features trained only with self-
+                                                                        longing to the same instances always exhibit the highest similarity
+supervision. These features show a fixed spatial pattern (purple to
+                                                                        scores, both for large, fully-visible objects (sofa) and small, par-
+yellow) that is not correlated with the actual spatial location. Bot-
+                                                                        tially observed objects (table).
+tom row: Features trained with spatial-semantic distillation. This
+strategy mitigates the feature degradation by preserving essential
+structural patterns from the foundation models. The resulting fea-      tributes to higher object discriminativeness in reference fea-
+tures are object-aware, as the same bag area remains consistent         tures, the features learn a shortcut with fixed spatial pattern.
+across views, while the features of different cabinets properly re-     By applying spatial-semantic distillation strategy, this prob-
+flect the 3D spatial variation.
+                                                                        lem is mitigated.
+                                                                        Query Index Memory. Incorporating the query index
+to generate VFM masks during testing and report the results             memory and the corresponding cross-frame segmentation
+on ScanNet200.                                                          loss Lxseg (+QIM in Tab. 2) further improves the AP by
+Baseline. We first establish a baseline to evaluate the raw             +2.4, demonstrating that the contextual information effi-
+power of the foundation model features. This baseline                   ciently supplements the limited information from a single-
+computes feature similarity matrices using mask-averaged                view observation.
+2D DINO features (F2d ) and 3D geometric CUT3R fea-                     State Distribution Token. Finally, we integrate the state
+tures (F3d ) when associating masks across timesteps. As                distribution token at inference time to assist bipartite match-
+shown in the first three rows of Tab. 2, using either F2d or            ing, denoted as ”+SDT” in Tab. 2. This component im-
+F3d alone yields poor performance as the former lacks 3D                proves the AP by +0.8. As visualized in Fig. 5, the SDT
+grounding while the latter lacks semantic awareness. Com-               robustly matches instances across frames, whether they are
+bining F2d and F3d brings marginal improvement, indicat-                large, fully-visible objects or small, partially observed ones.
+ing the original features are inadequate to associate same-
+instance masks while separating different ones.                         5. Conclusion
+Query Refinement. We then add our query refinement net-                 This paper introduces MoonSeg3R, the first framework to
+work ϕ and apply Lseg to learn to lift masks into queries in a          perform monocular, online, and zero-shot 3D instance seg-
+self-supervised manner. The performance is largely boosted              mentation without requiring ground-truth geometry from
+by +4.4 on AP and +8.0 on AP50 , demonstrating that the                 posed RGB-D sequences. MoonSeg3R builds on the recon-
+self-supervised query learning strategy successfully gener-             structive and semantic priors by transforming VFM masks
+ates a discriminative query prototype for each instance.                into discriminative 3D queries with self-supervised refine-
+Spatial-Semantic Distillation. To avoid the feature degra-              ment and distillation, and incorporating cross-view contex-
+dation during feature refinement, we further distill the inter-         tual information through a query index memory. At last,
+nal structural information from foundation models to guide              a novel state distribution token is extracted from CUT3R’s
+this process, which is denoted by +SSD in Tab. 2. The dis-              state interactions, and utilized to assist online mask fusion.
+tillation strategy brings an improvement of +1.0 on AP, as              Our method achieves competitive results on ScanNet200
+it allows the feature refining to preserve the rich structure           and SceneNN, highlighting the value of integrating the ge-
+information from foundation models, as well as freely up-               ometric priors from RFM. Our method inherits the limita-
+dating local feature information.                                       tions from the utilized RFM. The performance degrades on
+Reference Feature Visualization. In Fig. 4, we visually val-            very long sequences, as the RFM tends to accumulate errors
+idate that, while the self-supervised query learning con-               in geometry.
+Acknowledgments.              HB was          supported by         [14] Binh-Son Hua, Quang-Hieu Pham, Duc Thanh Nguyen,
+the  EPSRC    Visual          AI grant         EP/T028572/1.            Minh-Khoi Tran, Lap-Fai Yu, and Sai-Kit Yeung. Scenenn:
+                                                                        A scene meshes dataset with annotations. In 3DV, 2016. 6
+                                                                   [15] Rui Huang, Songyou Peng, Ayca Takmaz, Federico Tombari,
+                                                                        Marc Pollefeys, Shiji Song, Gao Huang, and Francis Engel-
+References
+                                                                        mann. Segment3d: Learning fine-grained class-agnostic 3d
+ [1] Yash Bhalgat, Iro Laina, João F Henriques, Andrea Vedaldi,        segmentation without manual labels. In ECCV, 2024. 2
+     and Andrew Zisserman. Contrastive lift: 3d object instance    [16] Shi-Sheng Huang, Ze-Yu Ma, Tai-Jiang Mu, Hongbo Fu, and
+     segmentation by slow-fast contrastive fusion. NeurIPS,             Shi-Min Hu. Supervoxel convolution for online 3d semantic
+     2023. 2                                                            segmentation. ACM Transactions on Graphics (TOG), 40(3):
+ [2] WANG Bing, Lu Chen, and Bo Yang. Dm-nerf: 3d scene                 1–15, 2021. 2
+     geometry decomposition and manipulation from 2d images.       [17] Abhishek Kar, Christian Häne, and Jitendra Malik. Learning
+     In The Eleventh International Conference on Learning Rep-          a multi-view stereo machine. NeurIPS, 2017. 2
+     resentations, 2023. 2                                         [18] Nikhil Keetha, Norman Müller, Johannes Schönberger,
+ [3] Mohamed El Amine Boudjoghra, Angela Dai, Jean Lahoud,              Lorenzo Porzi, Yuchen Zhang, Tobias Fischer, Arno
+     Hisham Cholakkal, Rao Muhammad Anwer, Salman Khan,                 Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes,
+     and Fahad Shahbaz Khan. Open-yolo 3d: Towards fast and             et al. Mapanything: Universal feed-forward metric 3d re-
+     accurate open-vocabulary 3d instance segmentation. ICLR,           construction. arXiv preprint arXiv:2509.13414, 2025. 2
+     2025. 2                                                       [19] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler,
+                                                                        and George Drettakis. 3d gaussian splatting for real-time
+ [4] Yohann Cabon, Lucas Stoffl, Leonid Antsfeld, Gabriela
+                                                                        radiance field rendering. ACM Trans. Graph., 2023. 2
+     Csurka, Boris Chidlovskii, Jerome Revaud, and Vincent
+                                                                   [20] Alexander Kirillov, Eric Mintun, Nikhila Ravi, Hanzi Mao,
+     Leroy. Must3r: Multi-view network for stereo 3d reconstruc-
+                                                                        Chloe Rolland, Laura Gustafson, Tete Xiao, Spencer White-
+     tion. In CVPR, 2025. 2
+                                                                        head, Alexander C Berg, Wan-Yen Lo, et al. Segment any-
+ [5] Mathilde Caron, Hugo Touvron, Ishan Misra, Hervé Jégou,          thing. In ICCV, 2023. 1, 2
+     Julien Mairal, Piotr Bojanowski, and Armand Joulin. Emerg-    [21] Abhijit Kundu, Kyle Genova, Xiaoqi Yin, Alireza Fathi, Car-
+     ing properties in self-supervised vision transformers. In          oline Pantofaru, Leonidas J Guibas, Andrea Tagliasacchi,
+     ICCV, 2021. 2                                                      Frank Dellaert, and Thomas Funkhouser. Panoptic neural
+ [6] Devendra Singh Chaplot, Dhiraj Prakashchand Gandhi, Ab-            fields: A semantic object-aware neural scene representation.
+     hinav Gupta, and Russ R Salakhutdinov. Object goal nav-            In CVPR, 2022. 2
+     igation using goal-oriented semantic exploration. NeurIPS,    [22] Yuqing Lan, Chenyang Zhu, Zhirui Gao, Jiazhao Zhang, Yi-
+     2020. 1                                                            han Cao, Renjiao Yi, Yijie Wang, and Kai Xu. Boxfusion:
+ [7] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and            Reconstruction-free open-vocabulary 3d object detection via
+     Anpei Chen. Ttt3r: 3d reconstruction as test-time training.        real-time multi-view box fusion. In Computer Graphics Fo-
+     arXiv preprint arXiv:2509.26645, 2025. 2                           rum, page e70254. Wiley Online Library, 2025. 6, 2
+ [8] Christopher B Choy, Danfei Xu, JunYoung Gwak, Kevin           [23] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Ground-
+     Chen, and Silvio Savarese. 3d-r2n2: A unified approach for         ing image matching in 3d with mast3r. In ECCV, 2024. 2
+     single and multi-view 3d object reconstruction. In ECCV,      [24] Leyao Liu, Tian Zheng, Yun-Jou Lin, Kai Ni, and Lu Fang.
+     2016. 2                                                            Ins-conv: Incremental sparse convolution for online 3d seg-
+ [9] Github Community. OnlineAnySeg Issue #2: Online Demo               mentation. In CVPR, 2022. 2
+     and Running Time Analysis. GitHub Repository (Onlin-          [25] Yuzheng Liu, Siyan Dong, Shuzhe Wang, Yingda Yin, Yan-
+     eAnySeg), Issue #2, 2025. Accessed: 2025-11-20. 2                  chao Yang, Qingnan Fan, and Baoquan Chen. Slam3r: Real-
+                                                                        time dense scene reconstruction from monocular rgb videos.
+[10] Angela Dai, Angel X Chang, Manolis Savva, Maciej Hal-
+                                                                        In CVPR, 2025. 2
+     ber, Thomas Funkhouser, and Matthias Nießner. Scannet:
+                                                                   [26] Shiyang Lu, Haonan Chang, Eric Pu Jing, Abdeslam Boular-
+     Richly-annotated 3d reconstructions of indoor scenes. In
+                                                                        ias, and Kostas Bekris. Ovir-3d: Open-vocabulary 3d in-
+     CVPR, 2017. 6
+                                                                        stance retrieval without training on 3d data. In CoRL, 2023.
+[11] Jakob Engel, Thomas Schöps, and Daniel Cremers. Lsd-              2, 6
+     slam: Large-scale direct monocular slam. In ECCV, 2014.       [27] John McCormac, Ankur Handa, Andrew Davison, and Ste-
+     2                                                                  fan Leutenegger. Semanticfusion: Dense 3d semantic map-
+[12] Christian Forster, Zichao Zhang, Michael Gassner, Manuel           ping with convolutional neural networks. In ICRA, 2017. 2
+     Werlberger, and Davide Scaramuzza. Svo: Semidirect visual     [28] Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik,
+     odometry for monocular and multicamera systems. IEEE               Jonathan T Barron, Ravi Ramamoorthi, and Ren Ng. Nerf:
+     Transactions on Robotics, 33(2):249–265, 2016. 2                   Representing scenes as neural radiance fields for view syn-
+[13] Xiao Fu, Shangzhan Zhang, Tianrun Chen, Yichong Lu,                thesis. Communications of the ACM, 2021. 2
+     Lanyun Zhu, Xiaowei Zhou, Andreas Geiger, and Yiyi Liao.      [29] Arsalan Mousavian, Clemens Eppner, and Dieter Fox. 6-dof
+     Panoptic nerf: 3d-to-2d label transfer for panoptic urban          graspnet: Variational grasp generation for object manipula-
+     scene segmentation. In 3DV, 2022. 2                                tion. In ICCV, 2019. 1
+[30] Gaku Narita, Takashi Seno, Tomoya Ishikawa, and Yohsuke        [45] Yijie Tang, Jiazhao Zhang, Yuqing Lan, Yulan Guo, Dezun
+     Kaji. Panopticfusion: Online volumetric semantic mapping            Dong, Chenyang Zhu, and Kai Xu. Onlineanyseg: On-
+     at the level of stuff and things. In IROS, 2019. 2                  line zero-shot 3d segmentation by visual foundation model
+[31] Phuc Nguyen, Tuan Duc Ngo, Evangelos Kalogerakis,                   guided 2d mask merging. CVPR, 2025. 1, 2, 6, 7
+     Chuang Gan, Anh Tran, Cuong Pham, and Khoi Nguyen.             [46] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu,
+     Open3dis: Open-vocabulary 3d instance segmentation with             Rakesh Ranjan, Alexander Schwing, and Zhicheng Yan.
+     2d mask guidance. In CVPR, 2024. 2                                  Mv-dust3r+: Single-stage scene reconstruction from sparse
+[32] Phuc Nguyen, Minh Luu, Anh Tran, Cuong Pham, and Khoi               views in 2 seconds. In CVPR, 2025. 2
+     Nguyen. Any3dis: Class-agnostic 3d instance segmentation       [47] Zachary Teed and Jia Deng. Droid-slam: Deep visual slam
+     by 2d mask tracking. CVPR, 2025. 2                                  for monocular, stereo, and rgb-d cameras. NeurIPS, 2021. 2
+[33] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy          [48] Michael Tschannen, Alexey Gritsenko, Xiao Wang, Muham-
+     Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,              mad Ferjad Naeem, Ibrahim Alabdulmohsin, Nikhil
+     Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al.          Parthasarathy, Talfan Evans, Lucas Beyer, Ye Xia, Basil
+     Dinov2: Learning robust visual features without supervision.        Mustafa, et al. Siglip 2: Multilingual vision-language en-
+     TMLR, 2023. 2                                                       coders with improved semantic understanding, localization,
+[34] Lu Qi, Jason Kuen, Tiancheng Shen, Jiuxiang Gu, Wenbo               and dense features. arXiv preprint arXiv:2502.14786, 2025.
+     Li, Weidong Guo, Jiaya Jia, Zhe Lin, and Ming-Hsuan Yang.           2
+     High quality entity segmentation. In ICCV, 2023. 3, 6, 2       [49] Hengyi Wang and Lourdes Agapito. 3d reconstruction with
+[35] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya                  spatial memory. 3DV, 2024. 2
+     Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry,          [50] Hanshi Wang, caizijian, Jin Gao, Yiwei Zhang, Weiming Hu,
+     Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learn-            Ke Wang, and Zhipeng Zhang. Online segment any 3d thing
+     ing transferable visual models from natural language super-         as instance tracking. In NeurIPS, 2025. 5
+     vision. In ICML, 2021. 1, 2                                    [51] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+[36] Nikhila Ravi, Jeremy Reizenstein, David Novotny, Tay-               Vedaldi, Christian Rupprecht, and David Novotny. Vggt: Vi-
+     lor Gordon, Wan-Yen Lo, Justin Johnson, and Georgia                 sual geometry grounded transformer. In CVPR, 2025. 1, 2
+     Gkioxari. Accelerating 3d deep learning with pytorch3d.
+                                                                    [52] Qianqian Wang, Yifei Zhang, Aleksander Holynski,
+     arXiv preprint arXiv:2007.08501, 2020. 1
+                                                                         Alexei A Efros, and Angjoo Kanazawa. Continuous 3d per-
+[37] Nikhila Ravi, Valentin Gabeur, Yuan-Ting Hu, Ronghang
+                                                                         ception model with persistent state. CVPR, 2025. 1, 2, 3
+     Hu, Chaitanya Ryali, Tengyu Ma, Haitham Khedr, Roman
+                                                                    [53] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris
+     Rädle, Chloe Rolland, Laura Gustafson, et al. Sam 2:
+                                                                         Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-
+     Segment anything in images and videos. arXiv preprint
+                                                                         sion made easy. In CVPR, 2024. 1, 2
+     arXiv:2408.00714, 2024. 2
+                                                                    [54] Dong Wu, Zike Yan, and Hongbin Zha. Panorecon: Real-
+[38] David Rozenberszki, Or Litany, and Angela Dai. Language-
+                                                                         time panoptic 3d reconstruction from monocular video. In
+     grounded indoor 3d semantic segmentation in the wild. In
+                                                                         CVPR, 2024. 1, 3
+     ECCV, 2022. 6
+[39] David Rozenberszki, Or Litany, and Angela Dai. Unscene3d:      [55] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r:
+     Unsupervised 3d instance segmentation for indoor scenes. In         Streaming 3d reconstruction with explicit spatial pointer
+     CVPR, 2024. 2                                                       memory. arXiv preprint arXiv:2507.02863, 2025. 2, 1
+[40] Mohamed Sayed, John Gibson, Jamie Watson, Victor               [56] Xiuwei Xu, Chong Xia, Ziwei Wang, Linqing Zhao, Yueqi
+     Prisacariu, Michael Firman, and Clément Godard. Simplere-          Duan, Jie Zhou, and Jiwen Lu. Memory-based adapters for
+     con: 3d reconstruction without 3d convolutions. In ECCV,            online 3d scene perception. In CVPR, 2024. 2
+     2022. 2                                                        [57] Xiuwei Xu, Huangxing Chen, Linqing Zhao, Ziwei Wang,
+[41] Yawar Siddiqui, Lorenzo Porzi, Samuel Rota Buló, Nor-              Jie Zhou, and Jiwen Lu. Embodiedsam: Online segment any
+     man Müller, Matthias Nießner, Angela Dai, and Peter                3d thing in real time. In ICLR, 2025. 1, 2, 5, 6, 7
+     Kontschieder. Panoptic lifting for 3d scene understanding      [58] Mi Yan, Jiazhao Zhang, Yan Zhu, and He Wang. Maskclus-
+     with neural fields. In CVPR, 2023. 2                                tering: View consensus based mask graph clustering for
+[42] Oriane Siméoni, Huy V Vo, Maximilian Seitzer, Federico             open-vocabulary 3d instance segmentation. In CVPR, 2024.
+     Baldassarre, Maxime Oquab, Cijo Jose, Vasil Khalidov,               2, 6, 7
+     Marc Szafraniec, Seungeun Yi, Michaël Ramamonjisoa,           [59] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff,
+     et al. Dinov3. arXiv preprint arXiv:2508.10104, 2025. 2,            Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and Matt
+     3                                                                   Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images
+[43] Jiaming Sun, Yiming Xie, Linghao Chen, Xiaowei Zhou, and            in one forward pass. CVPR, 2025. 2
+     Hujun Bao. Neuralrecon: Real-time coherent 3d reconstruc-      [60] Yunhan Yang, Xiaoyang Wu, Tong He, Hengshuang Zhao,
+     tion from monocular video. In CVPR, 2021. 2                         and Xihui Liu. Sam3d: Segment anything in 3d scenes. IC-
+[44] Ayça Takmaz, Elisabetta Fedele, Robert W Sumner, Marc              CVW, 2023. 2, 6, 7
+     Pollefeys, Federico Tombari, and Francis Engelmann.            [61] Yingda Yin, Yuzheng Liu, Yang Xiao, Daniel Cohen-Or,
+     Openmask3d: Open-vocabulary 3d instance segmentation.               Jingwei Huang, and Baoquan Chen. Sai3d: Segment any
+     NeurIPS, 2023. 2                                                    instance in 3d scenes. In CVPR, 2024. 2
+[62] Alex Yu, Vickie Ye, Matthew Tancik, and Angjoo Kanazawa.
+     pixelnerf: Neural radiance fields from one or few images. In
+     CVPR, 2021. 2
+[63] Xiaohua Zhai, Basil Mustafa, Alexander Kolesnikov, and
+     Lucas Beyer. Sigmoid loss for language image pre-training.
+     In ICCV, 2023. 2
+[64] Jiazhao Zhang, Chenyang Zhu, Lintao Zheng, and Kai Xu.
+     Fusion-aware point convolution for online semantic 3d scene
+     segmentation. In CVPR, 2020. 2
+[65] Jiazhao Zhang, Liu Dai, Fanpeng Meng, Qingnan Fan,
+     Xuelin Chen, Kai Xu, and He Wang. 3d-aware object goal
+     navigation via simultaneous exploration and identification.
+     In CVPR, 2023. 1
+[66] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-
+     pani, Trevor Darrell, Forrester Cole, Deqing Sun, and Ming-
+     Hsuan Yang. Monst3r: A simple approach for estimating
+     geometry in the presence of motion. In ICLR, 2025. 1, 2
+[67] Jihuai Zhao, Junbao Zhuo, Jiansheng Chen, and Huimin Ma.
+     Sam2object: Consolidating view consistency via sam2 for
+     zero-shot 3d instance segmentation. In CVPR, 2025. 2
+[68] Shuaifeng Zhi, Tristan Laidlow, Stefan Leutenegger, and An-
+     drew J Davison. In-place scene labelling and understanding
+     with implicit scene representation. In ICCV, 2021. 2
+[69] Mingquan Zhou, Chen He, Ruiping Wang, and Xilin Chen.
+     Ov3d-cg: Open-vocabulary 3d instance segmentation with
+     contextual guidance. In ICCV, 2025. 2
+[70] Xiaoyu Zhou, Jingqi Wang, Yuang Jia, Yongtao Wang, De-
+     qing Sun, and Ming-Hsuan Yang. Ea3d: Online open-world
+     3d object extraction from streaming videos. In NeurIPS,
+     2025. 2
+[71] Zhen Zhou, Yunkai Ma, Junfeng Fan, Shaolin Zhang, Feng-
+     shui Jing, and Min Tan. Eprecon: An efficient framework for
+     real-time panoptic 3d reconstruction from monocular video.
+     In ICRA, 2025. 3
+[72] Runsong Zhu, Shi Qiu, Qianyi Wu, Ka-Hei Hui, Pheng-Ann
+     Heng, and Chi-Wing Fu. Pcf-lift: Panoptic lifting by proba-
+     bilistic contrastive fusion. In ECCV, 2024. 2
+[73] Lojze Zust, Yohann Cabon, Juliette Marrie, Leonid Antsfeld,
+     Boris Chidlovskii, Jerome Revaud, and Gabriela Csurka.
+     Panst3r: Multi-view consistent panoptic segmentation. arXiv
+     preprint arXiv:2506.21348, 2025. 2
+      MoonSeg3R: Monocular Online Zero-Shot Segment Anything in 3D with
+                     Reconstructive Foundation Priors
+                                              Supplementary Material
+    The supplementary materials provide 1) more implemen-                 Component                      Time (ms)
+tation details (Sec. A); 2) A component analysis (Sec. B); 3)             Feature Extraction (DINO)            6
+More qualitative examples for visualization and comparison                Query Refinement                    18
+(Sec. C). We will release the code and pretrained models.                 Memory Retrieval                     2
+                                                                          Memory Update                        4
+A. Additional Implementation Details                                      Intra-frame Merging                  3
+                                                                          Cross-frame Association             22
+Query Index Map. The Query Index Memory (QIM) in-
+troduced in Sec. 3.4 relies on query index map M, which is                Total                               55
+a mapping between a set of spatial keys and their associated
+query indices.                                                   Table A1. Component Analysis. The time cost of individual com-
+                                                                 ponent in MoonSeg3R.
+Map Update. To ensure computational efficiency, we dy-
+namically update the map to maintain a sparse key struc-
+                            k      q
+ture. Let Mt−1 ∈ {0, 1}nprev ×nprev denote the map storing       Eq. 5 and Eq. 6, it is not involved in the inference process.
+nqprev previous contextual queries at nkprev existing spatial    The breakdown of the 55 ms pipeline is as follows:
+keys. After receivingq new queries
+                              q
+                                      and updating the global    Feature Extraction. We extract 2D semantic features F2d
+query bank Qt ∈ R(nprev +nt )×d , we first extend the dimen-     using DINO in a single feed-forward step for 6 ms.
+                           k        q     q
+sion of Mt−1 to {0, 1}nprev ×(nprev +nt ) by padding with        Query Refinement. This module enhances query features by
+zeros. Then, we compute the Euclidean distance between           fusing information from the current frame and the retrieved
+the incoming spatial keys and the existing keys. Inspired        memory context. This process consumes 18 ms due to at-
+by [55], if an existing spatial key lies within a distance       tention mechanisms and feature fusion operations.
+threshold δM of one or more new keys, we update its posi-        Memory Retrieval. The retrieval step of the memory in-
+tion to the centroid of the matched new keys, and take the       volves rasterizing the query index map M and indexing the
+union of all corresponding query indices. Otherwise, new         global query bank Q. Thanks to the highly efficient point
+spatial keys that do not match any existing key are appended     rasterization algorithm and the sparsity of spatial keys, the
+as new rows in Mt .                                              rasterization process takes only 2 ms, which brings negligi-
+Map Rasterization. We render the query index map as a            ble time cost and allows for efficient contextual injection.
+point cloud using the PyTorch3D point rasterizer [36]. To        Memory Update. The memory update process is rela-
+model the occlusions, we strictly rasterize the nearest point    tively more computational intensive compared to retrieval,
+at each pixel.                                                   as it performs extensive search over all existing keys to
+Other Implementation Details. For the query index map            merge/extend each new spatial key, in order to maintain map
+described above and in Sec. 3.4, we set the distance thresh-     sparsity.
+old δM to 0.3 for merging spatial keys. As shown in              Intra-frame Merging. As detailed in Sec. 3.5, to resolve
+Sec. 4.1, MoonSeg3R is trained on ScanNet image data. Af-        the problem of oversegmentation from 2D VFM, we merge
+ter training, we directly test the model on ScanNet200 and       masks within the current frame based on the query feature
+SceneNN.                                                         map.
+                                                                 Cross-frame Association. After intra-frame merging, we as-
+B. Component Analysis                                            sociate the merged masks from the current frame with the
+                                                                 existing masks via bipartite matching. This uses a combined
+B.1. Speed Analysis                                              metric of query similarity, bounding box IoU and our novel
+MoonSeg3R. The total inference time for MoonSeg3R is             state distribution token similarity. As the video frame in-
+321 ms per frame, including 121 ms for reconstruction and        creases, the number of tracked instances grows, resulting in
+segmentation and 200 ms for 2D VFM mask generation,              an average processing time of 22 ms.
+which corresponds to approximately 3.1 FPS. Excluding            OnlineAnySeg. Previous work OnlineAnySeg consists of
+the RFM CUT3R and VFM CropFormer, our segmentation               feature extraction, VoxelHashing updating and MaskGraph
+pipeline requires only 55 ms. Since the feature refinement       clustering. The workflow is more time-consuming than
+network ψ is used to obtain reference features for training in   the reported results in their paper [45] because the time-
+Figure A1. Intermediate Representation Visualization. We visualize the intermediate representations within CUT3R, specifically de-
+coder features Fdec , modulation features Fmod , head features Fhead and state attention maps A (from top to bottom). The decoder features
+Fdec contain local depth information. Fmod demonstrates world-coordinate consistency, as the modulation layer performs an implicit rigid
+transformation conditioned on the pose token. The head features Fhead exhibit the sharpest geometric details and boundaries, since they
+are directly supervised by the pointmap regression loss. The state attention A consistently highlights specific semantic instances (e.g.,
+pillow, plant), but remains spatially sparse.
+
+
+consuming feature extraction and graph traversing proce-                ture in world coordinates. We analyze different feature
+dure is not fully covered, which has been pointed out in a              sources from CUT3R and visualize them in Fig. A1.
+follow-up work [22] and a Github issue [9]. For instance,               Decoder Features Fdec . Features from the image decoder
+to extract per-instance features, OnlineAnySeg generates                DI show similar color pattern in the image plane even as the
+multi-scale crops for each instance and processes them in-              camera moves, as it primarily contains depth information in
+dividually with CLIP [35], which can take over 1 second for             the camera’s self coordinate system.
+a single keyframe.
+   With the 200 ms cost of the 2D VFM CropFormer [34]                   Modulation Features Fmod . These features are extracted
+included, OnlineAnySeg requires a total of 3200 ms per                  from the modulation layer, which is between the decoder
+frame. In contrast, our method, MoonSeg3R, takes only                   and the world-coordinate prediction head. This layer uses
+321 ms, making it approximately 10 times faster even while              self-attention conditioned on the pose token to perform an
+performing simultaneous reconstruction and segmentation.                implicit rigid transformation of Fdec into world coordi-
+                                                                        nates. Consequently, Fmod show consistent patterns that
+B.2. Design Choice                                                      vary correctly with the changing 3D position.
+Geometric Features. In Sec. 3.1, we extract geometric fea-              Head Features Fhead . CUT3R uses a DPT head to predict
+tures F3d from CUT3R. To differentiate from the 2D se-                  world pointmaps. The features Fhead taken immediately
+mantic information F2d , F3d must encode 3D spatial struc-              before the final prediction layer contain the most explicit
+                                                                   distillation strategy (see Sec. 3.3). Additionally, this prop-
+                                                                   erty is critical for effective intra-frame merging in Sec. 3.5,
+                                                                   as it ensures that queries corresponding to different parts of
+                                                                   the same instance are mutually similar.
+                                                                   Qualitative examples. More qualitative examples of our
+     Figure A2. State distribution similarity in a long loop.      method on ScanNet200 and SceneNN are provided in
+                                                                   Fig. A4. Consistent with Fig. 3, our method merges masks
+                                                                   more robustly on predicted geometry from CUT3R than
+3D information. Compared to Fmod , Fhead exhibits more             OnlineAnySeg-M, which highly depends on precise geom-
+distinct geometric boundaries and fine-grained spatial de-         etry information to construct its VoxelHashing representa-
+tails, as it is directly supervised by the pointmap regression     tion.
+loss.
+    Despite Fmod and Fhead both showing spatially var-
+ied geometric structure in world coordinates, we empiri-
+cally find that Fmod provides better stability during train-
+ing. Our hypothesis is that Fhead is highly sensitive to
+high-frequency geometric noise due to the regression su-
+pervision, whereas Fmod offers a smoother and more robust
+representation. Therefore, we select Fmod as our geometric
+feature F3d .
+State Distribution Token. In the last row of Fig. A1, we vi-
+sualize the attention map that state representation allocates
+to the image. The visualizations convey that, though the
+state consistently attends to specific objects (e.g., the plant
+pot on the table, the pillow on the sofa), the attention distri-
+bution is generally sparse, making it challenging to directly
+obtain pixel-wise association across frames. In Sec. 3.5, our
+proposed state distribution token aggregates this sparse sig-
+nal into a robust instance-level representation. Our intuition
+is that the subset of state tokens responsible for encoding
+a specific instance region can be more stable and consis-
+tent. By performing a spatial masked summation over state
+attention map, we effectively identify the state tokens with
+high attention scores as the ones responsible for tracking the
+object within the mask, which produces a consistent state
+distribution token that successfully mitigates the correspon-
+dence ambiguity for inference-time association.
+State Distribution Consistency. In Fig. A2, we show the
+same sofa in a long loop of 166 keyframes. Although it
+leaves the view after frame 18 and reappears at frame 150,
+its masks are still correctly matched via the highest state
+distribution similarity among all instances.
+
+C. Visualization
+Mask Prediction Visualization. In Fig. A3, we show ex-
+amples of the predicted masks from MoonSeg3R with the
+input VFM masks. When VFM oversegments an object, our
+method consistently recovers the complete instance mask.
+This illustrates that the updated queries successfully cap-
+ture comprehensive instance-level information, and the ref-
+erence features have been effectively refined to be instance-
+discriminative, demonstrating the efficacy of our proposed
+self-supervised learning framework and spatial-semantic
+Figure A3. Mask Prediction Visualization. From top to bottom, we respectively visualize the original images, the input VFM masks, the
+predicted masks and the ground truth instance masks. While the VFM mask represents part of an oversegmented instance, its query correctly
+segments the whole instance in the predicted mask, validating that the self-supervised query learning and spatial-semantic distillation
+strategy mitigates the oversegmentation problem in 2D VFMs.
+Figure A4. Qualitative Comparison. Qualitative examples of OnlineAnySeg-M and our method on ScanNet200 and SceneNN sequences.
+These results visually demonstrate that MoonSeg3R achieves superior instance segmentation. In contrast, OnlineAnySeg-M tends to fail in
+associating masks, which leaves significant unsegmented areas, as shown in the red dashed circles. The segmentation results are unprojected
+to ground truth point cloud for visualization.
+

@@ -1,0 +1,903 @@
+                                        Mix3R: Mixing Feed-forward Reconstruction and Generative 3D Priors for Joint
+                                                Multi-view Aligned 3D Reconstruction and Pose Estimation
+
+                                                           Siyou Lin                               Zhou Xue                          Hongwen Zhang
+                                                      Tsinghua University                     Tsinghua University               Beijing Normal University
+                                                         Beijing, China                          Beijing, China                       Beijing, China
+                                              linsy21@mails.tsinghua.edu.cn                   xuezhou08@gmail.com                zhanghongwen@bnu.edu.cn
+arXiv:2605.03359v1 [cs.CV] 5 May 2026
+
+
+
+
+                                                        Liang An                                Dongping Li                               Shaohui Jiao
+                                                   Tsinghua University                           ByteDance                                 ByteDance
+                                                      Beijing, China                           Hangzhou, China                           Beijing, China
+                                             anliang@mail.tsinghua.edu.cn                 lidongping83@gmail.com                jiaoshaohui@bytedance.com
+
+                                                                                                Yebin Liu
+                                                                                           Tsinghua University
+                                                                                              Beijing, China
+                                                                                   liuyebin@mail.tsinghua.edu.cn
+
+
+
+                                                                Abstract                                    learns to ground its predictions to a generative 3D prior,
+                                                                                                            and conversely, the 3D generation branch is conditioned
+                                                                                                            on geometrically informative features from the feed-forward
+                                        Recent trends in sparse-view 3D reconstruction have taken           branch. As a result, our method produces 3D shapes with
+                                        two different paths: feed-forward reconstruction (such as           better input alignment compared with pure 3D generative
+                                        VGGT) that predicts pixel-aligned point maps without a              methods, together with camera pose estimations more ac-
+                                        complete geometry, and generative 3D reconstruction (such           curate than previous feed-forward reconstruction methods.
+                                        as TRELLIS) that generates complete geometry but often              Our project page is at https://jsnln.github.io/
+                                        with poor input-alignment. We present Mix3R, a novel gen-           mix3r/
+                                        erative 3D reconstruction method which mixes feed-forward
+                                        reconstruction and 3D generation into a single framework
+                                        in an aligned manner. Mix3R generates a 3D shape in                 1. Introduction
+                                        two stages: a sparse voxel generation stage and a textured
+                                        geometry generation stage. Unlike pure generative meth-             3D reconstruction and camera pose estimation from multi-
+                                        ods, our first-stage generation jointly produces a coarse 3D        view images is an important technique for 3D asset acqui-
+                                        structure (sparse voxels), per-view point maps and camera           sition and spatial perception. Traditional multi-view 3D re-
+                                        parameters aligned to that 3D structure. This is made pos-          construction methods such as COLMAP [44, 45] require
+                                        sible by introducing a Mixture-of-Transformers architecture         a dense camera set and feature matching techniques to re-
+                                        that inserts global self-attentions to a feed-forward recon-        cover the point cloud geometry and camera parameters. De-
+                                        struction model and a 3D generative model, both pretrained          spite their accuracy, these methods usually have high com-
+                                        on large-scale data. This design effectively retains the pre-       putational complexity and cannot adapt to extreme cases
+                                        trained priors but enables better 2D-3D alignment. Based            such as sparse views. Recently, two new types of 3D re-
+                                        on the initial aligned generations of sparse 3D voxels and          construction have gradually taken over the research trend:
+                                        point maps, we compute an overlap-based attention bias              feed-forward reconstruction and generative reconstruction.
+                                        that is directly added to another pretrained textured geom-             A common approach taken by feed-forward reconstruc-
+                                        etry generation model, enabling it to correctly place input         tion methods (e.g., VGGT [55], π 3 [61], MapAnything [23]
+                                        textures onto generated shapes in a training-free manner.           and DepthAnything3 [32]) is to directly regress pixel-
+                                        Our design brings mutual benefits to both feed-forward re-          aligned attributes including depth maps, point maps or ray
+                                        construction and 3D generation: The feed-forward branch             maps. Camera poses can also be predicted using dedicated
+
+
+                                                                                                        1
+decoder heads or inferred from point maps [27]. The pixel-           exchange in the MoT architecture allows the feed-forward
+aligned design of feed-forward methods generally produces            branch to learn to ground its predictions to a generative
+good input-alignment, but also brings the natural drawback           3D prior, and conversely, the 3D generation branch is now
+that they only reconstruct the seen part and strongly relies         conditioned on geometrically informative features from the
+on overlaps between input views. For sparse views, they              feed-forward branch. As a result, our method produces 3D
+would produce inaccurate or incomplete reconstructions.              assets with better input alignment compared with pure 3D
+On the other hand, 3D generative models [6, 29, 30, 51–              generative methods, together with camera pose estimations
+53, 62, 64, 65, 67, 68, 75] allow modeling multi-view recon-         more accurate than previous feed-forward reconstruction
+struction as an image-conditioned generation process. De-            methods. In summary, our contributions are as follows.
+spite the visually pleasant generated shapes, they are merely        • We propose Mix3R, a novel framework that effectively
+look-alikes of the input and may not faithfully preserve the           unifies 3D generation and feed-forward reconstruction in
+geometric dimensions and texture details because they lack             an aligned manner, by fusing two pretrained models from
+explicitly aligned control signals during the injection of im-         each domain to achieve joint geometry generation and
+age conditions.                                                        camera pose estimation. Unlike ReconViaGen which is
+    A few recent advances attempt to incorporate reconstruc-           a one-way process of injecting VGGT features into gen-
+tion, generation and pose estimation into one single task.             eration, our architecture is designed so that they become
+ReconViaGen [3] injects VGGT [55] features into the gen-               mutually beneficial.
+eration process to improve input alignment. CUPID [17]               • To best utilize existing pretrained models, we design a
+jointly generates a UV voxel volume from which camera                  mixture-of-transformers (MoT) architecture to incorpo-
+poses can be solved using PnP. While it demonstrated the               rate the priors of a feed-forward reconstruction model
+ability of a multi-view extension using multi-diffusion [1],           (π 3 ) and a 3D generative model (TRELLIS). Our MoT
+theoretically this lacks inter-view knowledge to handle ro-            design mutually benefits both branches in terms of align-
+tationally symmetric shapes with asymmetric textures.                  ment by allowing information exchange between the gen-
+    Despite these efforts, we would like to ask: How can               erative 3D prior and geometrically informative pixel-
+we unify feed-forward reconstruction and generative recon-             aligned features.
+struction in a mutually beneficial way? The key difficulty           • To further improve alignment in the final textured geom-
+lies in their mutual alignment. If a feed-forward model al-            etry generation, we propose an attention bias based on
+ready has the knowledge of the underlying 3D shape, then it            the overlaps between the generated coarse voxels and the
+can ground its predictions to that shape instead of relying on         aligned image patches. The attention bias is added to a
+image overlaps. Conversely, if a generative reconstruction             pretrained textured geometry flow model in a training-
+model is conditioned on known camera poses, we can lever-              free manner, boosting the quality with minimal extra cost.
+age fine-grained pixel alignment to generate 3D shapes that
+better match the input images. This is a chicken-and-egg             2. Related Work
+problem.                                                             We categorize 3D reconstruction methods into two cate-
+    To tackle these issues, we propose Mix3R, a novel                gories: generative reconstruction which utilizes conditional
+method that achieves aligned feed-forward reconstruction             generative models to produce actual 3D models from im-
+and generative reconstruction in a mutually beneficial way.          ages, and feed-forward reconstruction which directly maps
+Our framework adopts a two-stage coarse-to-fine pipeline             one or more input images to 3D.
+following TRELLIS [68]. Given multi-view input images of
+an object, the first stage jointly generates a coarse 3D shape       2.1. Generative Reconstruction
+and predicts point maps and camera poses in an aligned               There has been a number of 3D generation methods based
+manner, and the second stage generates more detailed ge-             on different generative frameworks, e.g., GANs [2, 10, 12,
+ometry with input-aligned texture utilizing the alignment            48, 63, 82] and diffusion models [4, 14, 16, 34, 36, 46, 47,
+from the first stage. In the first stage, we design a mixture-       50, 59, 77, 78]. While some works are purely generative,
+of-transformers (MoT) [31] architecture for TRELLIS [68]             others allow conditioned generation and can thus be used as
+and π 3 [61] and train it to predict aligned voxels and point        a generative reconstruction method. Early methods mainly
+maps. In the second stage, we design an attention bias based         focus on simple representations such as point clouds [34,
+on the overlaps between 3D voxels and 2D image patches.              46], tri-planes [2, 47, 59, 77] and volumes [16, 36, 50], and
+In a training-free manner, the attention bias is added on top        the quality of their generated models are limited by factors
+of a pretrained flow model to generate the final 3D asset but        such as point number and volume resolution. As a result,
+with more accurately aligned control.                                these methods cannot produce asset-level 3D objects.
+    Our designs lead to mutual benefits for both feed-                  Recently, inspired by latent diffusion models on im-
+forward reconstruction and 3D generation. The information            ages [40], 3D generation also started using latent-space gen-
+
+                                                                 2
+eration. A natural and common choice of latent represen-            ages at given poses with unconstrained input views, turning
+tation is sparse voxels [6, 30, 62, 64, 65, 68, 75], which,         pose-free reconstruction into traditional MVS with known
+upon generation, can be further decoded to different 3D             cameras. Due to the lack of explicit input-output alignment
+representations such as meshes, 3D Gaussians [24] or ra-            and stochastic modeling of unseen regions, these methods
+diance fields [35]. Another popular choice of compression           often produces less aligned geometries or blurry textures.
+is VecSet [76], which encodes 3D shapes into vectors for
+better compression. Building on the VecSet representation,          2.3. Unifying Reconstruction and Generation
+a number of works are capable of generating high-quality            Attempts have been made to unify feed-forward reconstruc-
+3D assets [29, 51–53, 80].                                          tion and generation. CAST [74] and SAM3D [43] can be
+    Among these works, closest to ours is image-conditioned         conditioned on depth maps to generate shapes and estimate
+generative models, e.g., TRELLIS [68]. However, methods             poses that closely match the input images. However, both
+like TRELLIS only injects images conditions using cross             CAST and SAM3D focus on single-view multi-object com-
+attention modules without explicit view-object alignment.           position, not multi-view alignment and fusion. Recently,
+As a result, the generated models may not align well with           ReconViaGen [3] incorporates multi-view reconstruction
+the input image signal.                                             guidance from the feed-forward model VGGT [55] to fur-
+                                                                    ther enhance alignment. Concurrently, CUPID [17] jointly
+2.2. Feed-forward Reconstruction                                    generates a UV voxel grid to solve for view-object align-
+Unlike generative reconstruction which directly models the          ment and use it for better texture generation. Focusing
+data distribution (usually embedded with a normalized co-           on scenes, Gen3R [18] and Aether [83] also explored uni-
+ordinate system), feed-forward reconstructions directly re-         fying video generation and dynamic reconstruction in the
+gresses the target geometry. These methods are mostly               sense that the former can be repurposed to achieve the latter.
+pixel-aligned. For example, Saito et al. [41, 42], Xiu et al.       However, these are less related to our object-centric setting.
+[69, 70] use pixel-aligned image features for monocular hu-
+man reconstruction, achieving good input alignment but of-          3. Method
+ten fail for unseen regions. To alleviate this, reconstruc-         3.1. Preliminaries: TRELLIS and π 3
+tions must consider multi-view inputs, which requires ei-
+ther direct or indirect pose estimation. Early work such            Our goal is to achieve 3D generation and camera pose es-
+as FORGE [19] estimates poses to fuse multi-view fea-               timation from multi-view images in a unified and aligned
+tures into a unified feature space and then decodes it into         manner. We build our model upon two existing models with
+a NeRF [35] volume. Recently, point map regression be-              large-scale pretraining: TRELLIS [68] and π 3 [61]. We be-
+came the trending paradigm of feed-forward methods. Pio-            gin with a short introduction to them.
+neer work DUSt3R [58] directly regresses stereo point maps             TRELLIS is a 3D generative model based on flow match-
+in a Siamese manner. MonST3R [79] extends it to dy-                 ing [33]. TRELLIS models each 3D shape using a struc-
+namic scenes using the same paradigm. Subsequent meth-              tured latent representation: a set of features {fi }L  i=1 at-
+ods CUT3R [57] and TTT3R [5] employs a latent state to              tached to the non-zero voxels {pi }L i=1 of an occupancy grid
+                                                                                   3
+further support long-term streaming. Unlike these methods           O ∈ {0, 1}64 . For simplicity, we use f = {(fi , pi )} to rep-
+which rely on image pairs or image-latent pairs, VGGT [55]          resent a structured latent. Each f can be further decoded into
+and its follow-up works [23, 61] directly regress point maps        a mesh surface, a 3DGS [24] point cloud or a NeRF [35] us-
+and camera poses from an entire image collection. Follow-           ing dedicated decoders. TRELLIS generates a 3D asset in
+                                                                                                                               3
+up works extend this pixel-aligned point map prediction             two stages. First, a sparse structure latent code z ∈ R16 ×8
+paradigm to predicting 3D Gaussians for rendering pur-              is generated using a flow transformer Fss . Then, a sparse
+poses [21, 60, 73]. Despite being able to estimate camera           structure decoder Dss decodes z into an occupancy grid
+poses from sparse views, these methods only reconstruct             O = Dss (z). Non-empty voxels {pi }L    i=1 are then extracted
+seen regions and requires enough image overlap and cover-           from O. A second sparse flow transformer Fslat then gen-
+age for good reconstruction quality.                                erates a structured latent code f on {pi }L i=1 . Both Fss and
+   Other than pixel-aligned feed-forward methods, there             Fslat use cross-attention to inject image conditions and em-
+also exist feed-forward method that do not consider explicit        ploy standard Euler sampler during generation.
+multi-view alignment. For example, LRM [15], LEAP [20]                 π 3 [61] is a feed-forward reconstruction method. Given
+and PF-LRM [56] predict a NeRF [35] volume from monoc-              images {Ii }N       3
+                                                                                 i=1 , π processes them using a permutation in-
+ular or multi-view images. InstantMesh [72] uses multi-             variant vision transformer and obtain camera-space point
+view image diffusion and LRM in a cascaded manner for               maps Xi ∈ RH×W ×3 camera poses in the form of camera-
+better multi-view support. SpaRP [71] utilizes Stable Dif-          to-world transformations (Ri , Ti ) ∈ SE(3). World-space
+fusion [40] to generate multi-view point maps and RGB im-           point maps can be obtained as Ri (Xi )+Ti , where (Ri , Ti )
+
+
+                                                                3
+Figure 1. The overall architecture of our two-stage framework. Given multi-view unposed input images, we first employ a mixture-
+of-transformers architecture that jointly infers a coarse 3D structure, pixel-aligned local point maps, camera poses, and an alignment
+transformation that aligns point maps to the 3D shape. This alignment is then used to provide fine-grained control in the form of attention
+bias for the final 3D asset generation.
+
+
+applies to each pixel in Xi independently. Since π 3 has                 multi-view images {Ii }N i=1 of the 3D shape corresponding
+an input permutation invariant design, and Xi , Ri , Ti are              to z0 ; (3) A learnable token g representing the alignment
+trained with affine-invariant losses, the output distribution            transformation (s, R, T). Following the flow matching
+of π 3 is generally more stable compared with reference                  paradigm [33], the 3D branch predicts a velocity v, which
+frame-based methods such as VGGT [55].                                   is trained to match ϵ − z0 . The image tokens of {Ii }N  i=1
+                                                                         are processed by the 2D branch and then decoded into local
+3.2. Joint Coarse Geometry Generation and Cam-                           point maps {Xi }N                                  N
+                                                                                           i=1 and camera poses {(Ri , Ti )}i=1 . We
+      era Pose Estimation                                                can write down the whole network as:
+The overall architecture is shown in Fig. 1. Our stage-1
+model jointly generates a coarse 3D structure and camera                   v, {Xi }, {(Ri , Ti )}, (s, R, T) = Fmix (zt , t, {Ii }, g).
+poses aligned to it. To best utilize existing pretrained mod-                                                                         (2)
+els, we choose the TRELLIS sparse structure flow model                      For training, v is supervised by the standard flow match-
+as our generative branch (3D branch) and the π 3 back-                   ing loss
+bone transformer as our feed-forward branch (2D branch).                                   Lfm = ∥v − (ϵ − z0 )∥2 .                   (3)
+Note that TRELLIS and π 3 have different output coordinate               For the output point maps, camera poses and the alignment
+spaces. Thus, we add an extra transformation branch and                  transformation, instead of supervising them separately, we
+a decoder head to predict a similarity transform (s, R, T)               first compute the point maps after applying these transfor-
+that aligns the output of π 3 to the voxel space of TRELLIS.             mations:
+These branches are incorporated into a single large trans-
+former using the MoT paradigm [31]. We will explain the                                X̂i = s(R(Ri (Xi ) + Ti ) + T).                 (4)
+inputs and outputs of the model in this section. Specific
+architectural designs are deferred to Sec 3.3.                           All the aligned point maps {X̂i } are supervised by two
+   Let Fmix denote our stage-1 network. For notational                   losses Lpts and Lnml between them and the ground truth
+simplicity, we assume the DINOv2 encoder [8, 22, 37],                    point maps. Here, Lpts is the L1 loss on point coordinates,
+the main transformer blocks and all the decoders shown in                and Lnml is the L1 loss on point normals computed from
+Fig. 1 are represented by Fmix . The network Fmix takes the              point maps. The final loss is
+following inputs: (1) a noisy sparse structure latent code
+                                                                                      L = Lfm + λpts Lpts + λnml Lnml .                (5)
+                zt = (1 − t)z0 + tϵ, t ∈ [0, 1]                (1)
+                                                                            Note that our goal is to align point maps {X̂i } to the
+where z0 is its corresponding clean latent code, ϵ is a                  shape z0 . However, since the network Fmix only sees the
+Gaussian noise vector having the same dimensions, and t                  noisy version zt . When t is large, almost no geometric in-
+is the time step used in standard flow matching [33]; (2)                formation is retained in zt and the losses Lpts , Lnml become
+
+
+                                                                     4
+Figure 2. The block matching configuration of our MoT architecture. According to different matching types, our network has three different
+types of mixed blocks.
+
+
+                                                                          3.3. Architectural Designs of the Mixture-of-
+                                                                               Transformers Network
+                                                                          In this section, we explain our specific architectural designs.
+                                                                          Our MoT network is a mixture of two pretrained models:
+                                                                          the sparse structure flow transformer in TRELLIS [68] and
+                                                                          the backbone transformer of π 3 [61]. Fig. 3(a,b,c) show the
+                                                                          original block structures of TRELLIS and π 3 , respectively.
+                                                                          Note that π 3 follows VGGT [55] to alternate between lo-
+                                                                          cal self-attention (different views are batched) and global
+                                                                          self-attention (all views concatenated into a single token se-
+                                                                          quence). Thus, π 3 has two types of blocks, local and global,
+                                                                          as shown in Fig. 3(b,c).
+                                                                              We intend to design a mixed architecture that allows in-
+                                                                          formation exchange between TRELLIS and π 3 by inserting
+                                                                          self-attentions between them. While there might be differ-
+                                                                          ent ways to fuse these two networks, enumerating them is
+                                                                          not practical. Instead, we adopt a mixing scheme which
+                                                                          best preserves pretrained weights, based on the following
+                                                                          principles. (1) To retain the pretrained abilities of TREL-
+                                                                          LIS and π 3 as much as possible (trying not to discard pre-
+                                                                          trained weights), we insert MoT [31] self-attentions since it
+                                                                          uses different query/key/value matrices for different modal-
+                                                                          ities. (2) To keep the alternating local/global attention de-
+                                                                          sign of π 3 , we only extend the self-attention in π 3 ’s global
+                                                                          blocks to MoT self-attentions, while local blocks remain lo-
+Figure 3. Illustrations of different block mixture architectures.
+                                                                          cal. (3) For simplicity, blocks for the alignment transfor-
+Sub-figures (a), (b) and (c) on the left show the structures of the
+original TRELLIS blocks and π 3 blocks, whereas (e), (f) and (g)
+                                                                          mation branch adopts a symmetric structure to TRELLIS
+show the three types of mixed blocks obtained from our block              blocks.
+matching strategy in Sec. 3.3. Note that we still use residual con-           Since TRELLIS has 24 blocks while π 3 has 36 blocks,
+nections, layer normalization, time step modulation and QK-norm,          we need to define a block matching before inserting MoT
+but do not show them in this figure for simplicity.                       attentions between them. Based on principle (2) above,
+                                                                          we first guarantee every global π 3 block is matched with a
+                                                                          TRELLIS block by computing a uniform injection from the
+ambiguous. Therefore, we choose their coefficients to de-                 18 global π 3 blocks into the 24 TRELLIS blocks. Then,
+pend on t, and empirically set them as                                    6 TRELLIS blocks remain unmatched, but there is only
+    λpts = Sigmoid(−24t + 9), λnml = 0.1 × λpts .              (6)        a unique way to match them with the remaining local π 3
+                                                                          blocks in an order-preserving way (see the supplementary
+Note that this implies t ≥ 0.5 =⇒ λpts ≈ 0 and                            material for details). Finally, this matching scheme leads to
+t ≤ 0.25 =⇒ λpts ≈ 1. This choice is based on an empir-                   the exact matching shown in Fig. 2, with 3 types of block
+ical observation that when t ≥ 0.5 almost no geometry can                 mixtures. Fig. 3(d) shows type-A matching, where a lo-
+be recovered from z0 using the sparse structure decoder of                cal π 3 block is not matched with any TRELLIS block, in
+TRELLIS, while when t ≤ 0.25 the decoded geometry is                      which case no mixing actually happens. Fig. 3(e) shows
+mostly complete except for minor details.                                 type-B matching, where a local π 3 block is matched with a
+
+
+                                                                      5
+TRELLIS block. In this case, we extend the original TREL-             of one of {Ii }. Let {X̂i } be the aligned point maps as de-
+LIS block self-attention to an MoT self-attention across 3D           scribed in Eq. (4), and let x̂k be the point set corresponding
+tokens and the transformation token. We also inject the in-           to the patch yk in {X̂i }. For each voxel pj , we define its
+termediate geometry-informative token features of π 3 into            average point count (APC) as
+the 3D branch and the transformation branch using cross-
+attention modules. Fig. 3(f) shows type-C matching, where                      APC(pj )
+                                                                               ( P
+a global π 3 block is matched with a TRELLIS block. In                                 k |pj ∩x̂k |
+                                                                                                         |pj ∩ x̂k | > 0 for some k
+                                                                          =        #{k:|pj ∩x̂k |>0} ,                              (9)
+this case we further extend the original cross-attention mod-                     0,                     otherwise
+ule to a large global MoT self-attention which processes all
+three modalities at once.                                             where |pj ∩ x̂k | is the number of points in x̂k that are con-
+    During training, we freeze all parameters that have a pre-        tained in voxel pj . The final attention bias B(fj , yk ) added
+trained value and are not affected by our newly added mod-            to the score between fj and yk is
+ules. Other parameters are activated (see supplementary                                                                           
+material for details). In this way, we retain the abilities of                                      |pj ∩ x̂k | − APC(pj )
+                                                                       B(fj , yk ) = α max                                      ,0 .
+the pretrained models as much as possible but also enable                                      maxk (|pj ∩ x̂k |) − APC(pj )
+different modalities to interact with each other to achieve                                                                       (10)
+a good alignment between the feed-forward reconstruction              where α > 0 is a scaling hyperparameter. In our experi-
+branch and the generation branch.                                     ments we choose α = 5.
+                                                                          The idea behind Eq. (10) is that the attention score for
+3.4. Attention Bias for Training-Free Tuning of Tex-                  (fj , yk ) should be increased if yk has an overlap with fj
+      tured Geometry Generation and Camera Re-                        above average among all image tokens. We also empirically
+      finement                                                        found that decreasing the attention scores leads to degraded
+Given multi-view images {Ii }N                                        performance, and thus clip the biases to have a minimum of
+                                 i=1 , we can use our model
+to jointly generate a sparse structure latent z, camera poses         0. Finally, these modified attention scores are used to tune
+{(Ri , Ti )}N                                                         the behavior of Fslat in a training-free manner to generate
+             i=1 and the alignment transformation (s, R, T).
+Our next step is to utilize the 2D-3D alignment to generate           the final structured latent, which is then decoded into a mesh
+view-aligned fine geometry and texture.                               and a 3DGS representation.
+    For the latent code z, we first use pretrained TRELLIS                Recall that our model in stage 1 only predicts camera
+sparse structure decoder Dss to obtain the corresponding oc-          poses, but not the intrinsics. To further refine the camera
+cupancy grid O = Dss (z) and extract its non-zero voxels              parameters, we use the predicted poses as initial values and
+{pi }L                                                                estimate the intrinsics by solving the perspective projection
+      i=1 . Then, following TRELLIS, a second flow trans-
+former Fslat takes a noisy structured latent as input and             equation in least squares. Then, the intrinsics and extrin-
+gradually denoises it to generate the final clean latent as de-       sics are jointly refined using the DRTK differentiable ren-
+scribed in Sec. 3.1. The image conditions {Ii }N                      derer [38] by minimizing the RGB loss and the mask loss
+                                                  i=1 are first
+encoded using DINOv2 [8, 22, 37] and then injected into               between the rendered 3D mesh and input images. More de-
+Fslat using cross-attention modules. Let us denote by f the           tails are in the supplementary material.
+intermediate token set corresponding to the structured latent
+to be denoised, and denote by y the token set of the input
+                                                                      4. Experiments
+DINOv2 tokens. Then a pretrained cross-attention can be               4.1. Implementation Details
+written as follows:
+                                                                      Our model is trained on a subset of the TRELLIS-500k
+               CrossAttn(Q(f ), K(y), V (y))                          dataset [68], containing 404354 objects. Due to the extreme
+                                                                      high cost of the original TRELLIS data processing pipeline,
+                         Q(f )K(y)T
+                                   
+             = Softmax       √         V (y),              (7)        we use TRELLIS to generate our training dataset. For train-
+                                d                                     ing, we adopt pretrained weights whenever possible and
+where d is the feature dimension. We attempt to find a bias           only activate the parameters without a pretrained weight and
+matrix B(f , y) such that the modified attention                      those related to our newly added MoT self-attentions and
+                                                                      cross-attentions. We use a learning rate of 10−4 with cosine
+                    Q(f )K(y)T                                        scheduling and train for 400k steps with a batch size of 16.
+                                           
+       Softmax           √       + B(f , y) V (y)       (8)           Please refer to the supplementary material for more details.
+                           d
+makes tokens in f attend more to relevant tokens in y.                4.2. Evaluation
+  Note that each token fj in f corresponds to a voxel pj              Our work aims at jointly generating 3D objects and their
+while each token yk in y corresponds to an image patch                alignment to input images. We evaluate our method over
+
+
+                                                                  6
+Figure 4. We exhibit the reprojection alignment. Each rendering result is obtained using the decoded 3D Gaussians and the predicted
+camera parameters.
+
+
+
+
+Figure 5. Qualitative results of novel-view rendering evaluation. We show input images and novel-view GT images. Our method more
+accurately restores texture and geometry.
+
+
+Table 1. Metric evaluations for view-object alignment on the        captures. We use Toys4k [49] and Google Scanned Objects
+Toys4K and the GSO dataset.                                         (GSO) [11] as evaluation datasets.
+
+             Dataset                Toys4k
+             Metric        PSNR     SSIM      LPIPS                 Input alignment In this experiment, we directly render
+                                                                    the generated 3D models using predicted camera poses to
+          MV-SAM3D        22.360    0.9168    0.065
+                                                                    measure how well the generated shape aligns with the in-
+          ReconViaGen     23.834    0.9359    0.047
+                                                                    put. This experiment simultaneously evaluates the quality
+              Ours        28.144    0.9621    0.030
+                                                                    of the generated shape and the accuracy of predicted cam-
+             Dataset                 GSO                            era poses, since both need to be accurate for the rendered
+             Metric        PSNR     SSIM      LPIPS                 images to be aligned with input images. We compare with
+                                                                    ReconViaGen [3] and MV-SAM3D [28] since they both si-
+          MV-SAM3D        22.345    0.9016    0.084
+          ReconViaGen     24.036    0.9260    0.058                 multaneously generate geometry and pose, and both sup-
+              Ours        25.031    0.9281    0.057                 port multi-view inputs. Please refer to the supplementary
+                                                                    material for baseline settings. Fig. 4 shows the qualitative
+                                                                    results of the alignment evaluation. Our method not only
+                                                                    generates geometry which is aligned with inputs but also
+three aspects: (1) input alignment; (2) geometry and texture        estimates correct camera poses which allows accurate re-
+accuracy; (3) camera pose accuracy; (4) real-world phone            projection of the 3D shape back to input images, whereas
+
+
+                                                                7
+                                     Table 2. Novel view synthesis and geometry evaluation.
+
+             Dataset                          Toys4k                                            GSO
+                                                                   −3
+             Metric        PSNR      SSIM      LPIPS     CD (×10        )   PSNR        SSIM    LPIPS      CD (×10−3 )
+           TRELLIS         23.930    0.9311     0.055       7.9986          22.420     0.9034    0.079        4.5658
+           UniLat3D        25.082    0.9415     0.049       7.0876          22.765     0.9102    0.076        7.1384
+          MV-SAM3D         23.550    0.9273     0.059       2.7556          22.331     0.9032    0.085        5.2356
+          ReconViaGen      24.491    0.9335     0.046       1.9419          24.183     0.9152    0.060        1.0015
+              Ours         27.177    0.9551     0.033       0.7419          24.826     0.9271    0.055        0.7945
+
+
+the baseline methods ReconViaGen and MV-SAM3D can                  Table 3. Quantitative evaluations of camera accuracy in terms
+generate incorrect structures or wrong poses. We also re-          of relative rotation accuracy (RRA), relative translation accuracy
+port the metrics PSNR, SSIM and LPIPS [81] in Table 1.             (RTA) and area under curve (AUC). All metrics use a threshold of
+                                                                   30 degrees.
+Our method performs the best in terms of input-alignment
+on both benchmark datasets.
+                                                                                     Dataset             Toys4k
+
+Geometry and texture accuracy We also evaluate the                                Acc@30         RRA      RTA      AUC
+quality of the generated 3D assets, regardless of the pre-                        VGGT          93.05    88.58    57.13
+dicted camera poses. In this experiment, we additionally                            π3          91.71    88.72    57.72
+compare with TRELLIS [68], UniLat3D [62]. All metrics                          MV-SAM3D         65.73    67.22    31.88
+are computed after a similarity alignment to GT (see the                       ReconViaGen      82.63    85.04    49.83
+supplementary material for details). For evaluating geomet-                        Ours         95.49    95.41    70.63
+ric accuracy, we measure the Chamfer distance (CD). For                              Dataset              GSO
+texture evaluation, we choose 4 novel views different from                        Acc@30         RRA      RTA      AUC
+input views, and measure PSNR, SSIM and LPIPS for all
+novel-view renderings. Table 2 reports the quantitative re-                       VGGT          97.78    91.36    60.20
+                                                                                    π3          96.42    91.93    61.41
+sults. Our generations score the best in terms of both ge-
+                                                                               MV-SAM3D         53.45    56.18    24.35
+ometry and texture accuracy. Fig. 5 shows some qualitative                     ReconViaGen      91.78    91.99    57.29
+examples. Our lower Chamfer distance results indicate bet-                         Ours         93.50    94.50    66.93
+ter preservation of object dimensions and their proportions,
+even though the visual appearances are sometimes similar
+to baseline methods. Our method also correctly places an
+                                                                   other methods generally suffer from either geometry or tex-
+asymmetric input texture onto symmetric shapes, whereas
+                                                                   ture distortions.
+other methods are more likely to generate a plausible but
+misaligned texture. More results are presented in Fig. 6 and
+Fig. 7.                                                            5. Summary
+                                                                   In this work, we propose Mix3R, a mixture of a pretrained
+Camera pose accuracy We compare the accuracy of our                3D generative model and a 2D pixel-aligned feed-forward
+camera pose estimation with ReconViaGen, MV-SAM3D,                 reconstruction model based on the MoT architecture [31].
+VGGT and π 3 . Since camera poses can be ambiguous up              Our model can jointly generate a sparse voxel structure and
+to a similarity transformation, we evaluate the relative ro-       point maps aligned to it. Overlaps between the voxel struc-
+tation accuracy (RRA), relative translation accuracy (RTA)         ture and input images can be computed using the aligned
+and the area under curve (AUC) with an angle threshold             point maps as an intermediary. Based on the availability
+of 30 degrees following Wang et al. [54]. Table 3 shows            of the overlap, we further compute an attention bias matrix
+the evaluation results, where our method has the best over-        such that the final geometry and texture generation attention
+all performance compared with both feed-forward methods            correctly to different regions of input images. In this way,
+and generative methods.                                            we successfully improve the input-alignment of generated
+                                                                   3D assets in terms of both geometry and texture accuracy.
+Real-world phone capture Fig. 8 shows the generation                  Nonetheless, the model still faces limitations: (1) Even
+results for real-world objects captured by cellphones. Our         though the π 3 branch provides geometrically informative
+method performs comparably with ReconViaGen, while                 features for the 3D branch, in cases where the test view
+
+
+                                                               8
+                               Figure 6. More qualitative results of novel-view rendering evaluation.
+
+
+configuration deviates from the training distribution, it may        formance. (2) Due to limited resources, our training uti-
+actually disrupt the 3D branch and lead to degraded per-             lizes TRELLIS-generated training data, which do not con-
+
+
+                                                                 9
+                               Figure 7. More qualitative results of novel-view rendering evaluation.
+
+
+
+
+                                  Figure 8. Qualitative results for real-world cellphone captures.
+
+
+tain lighting or view-dependent visual effects. Directly ap-         performance. (3) The TRELLIS VAE decoders are frozen
+plying our model to in-the-wild data can lead to degraded            in our paper, which means the generation quality is limited
+
+
+                                                                10
+by the pretrained TRELLIS latent distribution. Please see                     Thomas Barlow McHugh, and Vincent Vanhoucke. Google
+the supplementary material for a more in-depth discussion                     scanned objects: A high-quality dataset of 3d scanned house-
+and future directions.                                                        hold items. 2022 International Conference on Robotics and
+                                                                              Automation (ICRA), pages 2553–2560, 2022. 7, 16
+Acknowledgements                                                         [12] Jun Gao, Tianchang Shen, Zian Wang, Wenzheng Chen,
+                                                                              Kangxue Yin, Daiqing Li, Or Litany, Zan Gojcic, and Sanja
+This work is supported by the National Science Foundation                     Fidler. Get3d: A generative model of high quality 3d tex-
+of China (NSFC) under Grant Number 62125107.                                  tured shapes learned from images. In Advances In Neural
+                                                                              Information Processing Systems, 2022. 2
+References                                                               [13] Github user estheryang11. ReconViaGen. https://
+                                                                              github.com/estheryang11/ReconViaGen, 2025.
+ [1] Omer Bar-Tal, Lior Yariv, Yaron Lipman, and Tali Dekel.                  GitHub repository, accessed 2026-01-22. 15
+     Multidiffusion: Fusing diffusion paths for controlled image
+                                                                         [14] Xianglong He, Junyi Chen, Sida Peng, Di Huang, Yang-
+     generation. arXiv preprint arXiv:2302.08113, 2023. 2
+                                                                              guang Li, Xiaoshui Huang, Chun Yuan, Wanli Ouyang, and
+ [2] Eric R. Chan, Connor Z. Lin, Matthew A. Chan, Koki
+                                                                              Tong He. Gvgen: Text-to-3d generation with volumetric rep-
+     Nagano, Boxiao Pan, Shalini De Mello, Orazio Gallo,
+                                                                              resentation. In Computer Vision – ECCV 2024: 18th Eu-
+     Leonidas Guibas, Jonathan Tremblay, Sameh Khamis, Tero
+                                                                              ropean Conference, Milan, Italy, September 29–October 4,
+     Karras, and Gordon Wetzstein. Efficient geometry-aware 3D
+                                                                              2024, Proceedings, Part VIII, page 463–479, Berlin, Heidel-
+     generative adversarial networks. In CVPR, 2022. 2
+                                                                              berg, 2024. Springer-Verlag. 2
+ [3] Jiahao Chang, Chongjie Ye, Yushuang Wu, Yuantao Chen,
+                                                                         [15] Yicong Hong, Kai Zhang, Jiuxiang Gu, Sai Bi, Yang Zhou,
+     Yidan Zhang, Zhongjin Luo, Chenghong Li, Yihao Zhi, and
+                                                                              Difan Liu, Feng Liu, Kalyan Sunkavalli, Trung Bui, and Hao
+     Xiaoguang Han. Reconviagen: Towards accurate multi-
+                                                                              Tan. LRM: Large reconstruction model for single image to
+     view 3d object reconstruction via generation. arXiv preprint
+                                                                              3d. In The Twelfth International Conference on Learning
+     arXiv:2510.23306, 2025. 2, 3, 7, 14, 15
+                                                                              Representations, 2024. 3
+ [4] Hansheng Chen, Jiatao Gu, Anpei Chen, Wei Tian, Zhuowen
+                                                                         [16] Jingyu Hu, Ka-Hei Hui, Zhengzhe Liu, Ruihui Li, and Chi-
+     Tu, Lingjie Liu, and Hao Su. Single-stage diffusion nerf:
+                                                                              Wing Fu. Neural wavelet-domain diffusion for 3d shape gen-
+     A unified approach to 3d generation and reconstruction. In
+                                                                              eration, inversion, and manipulation. ACM Trans. Graph., 43
+     ICCV, 2023. 2
+                                                                              (2), 2024. 2
+ [5] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and
+     Anpei Chen. TTT3r: 3d reconstruction as test-time train-            [17] Binbin Huang, Haobin Duan, Yiqun Zhao, Zibo Zhao, Yi
+     ing. In The Fourteenth International Conference on Learn-                Ma, and Shenghua Gao. Cupid: Pose-grounded genera-
+     ing Representations, 2026. 3                                             tive 3d reconstruction from a single image. arXiv preprint
+                                                                              arXiv:2510.20776, 2025. 2, 3
+ [6] Yiwen Chen, Zhihao Li, Yikai Wang, Hu Zhang, Qin Li,
+     Chi Zhang, and Guosheng Lin. Ultra3d: Efficient and high-           [18] Jiaxin Huang, Yuanbo Yang, Bangbang Yang, Lin Ma,
+     fidelity 3d generation with part attention, 2025. 2, 3                   Yuewen Ma, and Yiyi Liao. Gen3r: 3d scene generation
+ [7] Jasmine Collins, Shubham Goel, Kenan Deng, Achlesh-                      meets feed-forward reconstruction. ArXiv, abs/2601.04090,
+     war Luthra, Leon Xu, Erhan Gundogdu, Xi Zhang, Tomas                     2026. 3
+     F. Yago Vicente, Thomas Dideriksen, Himanshu Arora,                 [19] Hanwen Jiang, Zhenyu Jiang, Kristen Grauman, and Yuke
+     Matthieu Guillaumin, and Jitendra Malik. Abo: Dataset and                Zhu. Few-view object reconstruction with unknown cate-
+     benchmarks for real-world 3d object understanding. In Pro-               gories and camera poses. International Conference on 3D
+     ceedings of the IEEE/CVF Conference on Computer Vision                   Vision (3DV), 2024. 3
+     and Pattern Recognition (CVPR), pages 21126–21136, 2022.            [20] Hanwen Jiang, Zhenyu Jiang, Yue Zhao, and Qixing Huang.
+     15                                                                       LEAP: Liberate sparse-view 3d modeling from camera
+ [8] Timothée Darcet, Maxime Oquab, Julien Mairal, and Piotr                 poses. In The Twelfth International Conference on Learn-
+     Bojanowski. Vision transformers need registers, 2023. 4, 6               ing Representations, 2024. 3
+ [9] Matt Deitke, Ruoshi Liu, Matthew Wallingford, Huong                 [21] Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui Ren,
+     Ngo, Oscar Michel, Aditya Kusupati, Alan Fan, Chris-                     Yichen Jin, Xudong Xu, Mulin Yu, Jiangmiao Pang, Feng
+     tian Laforte, Vikram Voleti, Samir Yitzhak Gadre, Eli                    Zhao, et al. Anysplat: Feed-forward 3d gaussian splatting
+     VanderBilt, Aniruddha Kembhavi, Carl Vondrick, Georgia                   from unconstrained views. arXiv preprint arXiv:2505.23716,
+     Gkioxari, Kiana Ehsani, Ludwig Schmidt, and Ali Farhadi.                 2025. 3
+     Objaverse-xl: A universe of 10m+ 3d objects. arXiv preprint         [22] Cijo Jose, Théo Moutakanni, Dahyun Kang, Federico
+     arXiv:2307.05663, 2023. 15                                               Baldassarre, Timothée Darcet, Hu Xu, Daniel Li, Marc
+[10] Yu Deng, Jiaolong Yang, Jianfeng Xiang, and Xin Tong.                    Szafraniec, Michaël Ramamonjisoa, Maxime Oquab, Oriane
+     Gram: Generative radiance manifolds for 3d-aware image                   Siméoni, Huy V. Vo, Patrick Labatut, and Piotr Bojanowski.
+     generation. In IEEE/CVF Conference on Computer Vision                    Dinov2 meets text: A unified framework for image- and
+     and Pattern Recognition, 2022. 2                                         pixel-level vision-language alignment, 2024. 4, 6
+[11] Laura Downs, Anthony Francis, Nate Koenig, Bran-                    [23] Nikhil Keetha, Norman Müller, Johannes Schönberger,
+     don Kinman, Ryan Michael Hickman, Krista Reymann,                        Lorenzo Porzi, Yuchen Zhang, Tobias Fischer, Arno
+
+
+                                                                    11
+     Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes,              [36] Norman Müller, Yawar Siddiqui, Lorenzo Porzi,
+     Jonathon Luiten, Manuel Lopez-Antequera, Samuel Rota                    Samuel Rota Bulo, Peter Kontschieder, and Matthias
+     Bulò, Christian Richardt, Deva Ramanan, Sebastian Scherer,             Nießner.     Diffrf: Rendering-guided 3d radiance field
+     and Peter Kontschieder. MapAnything: Universal feed-                    diffusion. In Proceedings of the IEEE/CVF Conference
+     forward metric 3D reconstruction, 2025. arXiv preprint                  on Computer Vision and Pattern Recognition, pages
+     arXiv:2509.13414. 1, 3                                                  4328–4338, 2023. 2
+[24] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler,              [37] Maxime Oquab, Timothée Darcet, Theo Moutakanni, Huy V.
+     and George Drettakis. 3d gaussian splatting for real-time               Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+     radiance field rendering. ACM Transactions on Graphics, 42              Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, Rus-
+     (4), 2023. 3                                                            sell Howes, Po-Yao Huang, Hu Xu, Vasu Sharma, Shang-
+[25] Mukul Khanna*, Yongsen Mao*, Hanxiao Jiang, Sanjay                      Wen Li, Wojciech Galuba, Mike Rabbat, Mido Assran, Nico-
+     Haresh, Brennan Shacklett, Dhruv Batra, Alexander Clegg,                las Ballas, Gabriel Synnaeve, Ishan Misra, Herve Jegou,
+     Eric Undersander, Angel X. Chang, and Manolis Savva.                    Julien Mairal, Patrick Labatut, Armand Joulin, and Piotr Bo-
+     Habitat Synthetic Scenes Dataset (HSSD-200): An Analy-                  janowski. Dinov2: Learning robust visual features without
+     sis of 3D Scene Scale and Realism Tradeoffs for ObjectGoal              supervision, 2023. 4, 6
+     Navigation. arXiv preprint, 2023. 15                               [38] Stanislav Pidhorskyi, Tomas Simon, Gabriel Schwartz, He
+[26] Diederik P. Kingma and Jimmy Ba. Adam: A method for                     Wen, Yaser Sheikh, and Jason Saragih. Rasterized edge
+     stochastic optimization. CoRR, abs/1412.6980, 2014. 15                  gradients: Handling discontinuities differentiably. arXiv
+[27] Vincent Lepetit, Francesc Moreno-Noguer, and Pascal Fua.                preprint arXiv:2405.02508, 2024. 6, 14
+     Epnp: An accurate o(n) solution to the pnp problem. Int. J.        [39] Charles R Qi, Li Yi, Hao Su, and Leonidas J Guibas. Point-
+     Comput. Vision, 81(2):155–166, 2009. 2                                  net++: Deep hierarchical feature learning on point sets in a
+                                                                             metric space. arXiv preprint arXiv:1706.02413, 2017. 15
+[28] Baicheng Li, Dong Wu, Jun Li, Shunkai Zhou, Zecui Zeng,
+                                                                        [40] Robin Rombach, Andreas Blattmann, Dominik Lorenz,
+     Lusong Li, and Hongbin Zha. Mv-sam3d: Adaptive multi-
+                                                                             Patrick Esser, and Björn Ommer. High-resolution image
+     view fusion for layout-aware 3d generation. arXiv preprint
+                                                                             synthesis with latent diffusion models. In Proceedings of
+     arXiv:2603.11633, 2026. 7, 15
+                                                                             the IEEE/CVF Conference on Computer Vision and Pattern
+[29] Weiyu Li, Jiarui Liu, Hongyu Yan, Rui Chen, Yixun Liang,
+                                                                             Recognition (CVPR), pages 10684–10695, 2022. 2, 3
+     Xuelin Chen, Ping Tan, and Xiaoxiao Long. Crafts-
+                                                                        [41] Shunsuke Saito, Zeng Huang, Ryota Natsume, Shigeo Mor-
+     man3d: High-fidelity mesh generation with 3d native dif-
+                                                                             ishima, Angjoo Kanazawa, and Hao Li. Pifu: Pixel-aligned
+     fusion and interactive geometry refiner. In Proceedings of
+                                                                             implicit function for high-resolution clothed human digitiza-
+     the IEEE/CVF Conference on Computer Vision and Pattern
+                                                                             tion. In Proceedings of the IEEE/CVF International Confer-
+     Recognition (CVPR), pages 5307–5317, 2025. 2, 3
+                                                                             ence on Computer Vision (ICCV), 2019. 3
+[30] Zhihao Li, Yufei Wang, Heliang Zheng, Yihao Luo, and               [42] Shunsuke Saito, Tomas Simon, Jason Saragih, and Hanbyul
+     Bihan Wen. Sparc3d: Sparse representation and construc-                 Joo. Pifuhd: Multi-level pixel-aligned implicit function for
+     tion for high-resolution 3d shapes modeling. arXiv preprint             high-resolution 3d human digitization. In CVPR, 2020. 3
+     arXiv:2505.14521, 2025. 2, 3
+                                                                        [43] SAM3DTeam, Xingyu Chen, Fu-Jen Chu, Pierre Gleize,
+[31] Weixin Liang, Lili Yu, Liang Luo, Srini Iyer, Ning Dong,                Kevin J Liang, Alexander Sax, Hao Tang, Weiyao Wang,
+     Chunting Zhou, Gargi Ghosh, Mike Lewis, Wen tau Yih,                    Michelle Guo, Thibaut Hardin, Xiang Li, Aohan Lin, Jiawei
+     Luke Zettlemoyer, and Xi Victoria Lin.          Mixture-of-             Liu, Ziqi Ma, Anushka Sagar, Bowen Song, Xiaodong Wang,
+     transformers: A sparse and scalable architecture for multi-             Jianing Yang, Bowen Zhang, Piotr Dollár, Georgia Gkioxari,
+     modal foundation models. Transactions on Machine Learn-                 Matt Feiszli, and Jitendra Malik. Sam 3d: 3dfy anything in
+     ing Research, 2025. 2, 4, 5, 8                                          images. 2025. 3, 15
+[32] Haotong Lin, Sili Chen, Jun Hao Liew, Donny Y. Chen,               [44] Johannes Lutz Schönberger and Jan-Michael Frahm.
+     Zhenyu Li, Guang Shi, Jiashi Feng, and Bingyi Kang. Depth               Structure-from-motion revisited. In Conference on Com-
+     anything 3: recovering the visual space from any views.                 puter Vision and Pattern Recognition (CVPR), 2016. 1
+     arXiv preprint arXiv:2511.10647, 2025. 1                           [45] Johannes Lutz Schönberger, Enliang Zheng, Marc Pollefeys,
+[33] Yaron Lipman, Ricky T. Q. Chen, Heli Ben-Hamu, Maxim-                   and Jan-Michael Frahm. Pixelwise view selection for un-
+     ilian Nickel, and Matthew Le. Flow matching for genera-                 structured multi-view stereo. In European Conference on
+     tive modeling. In The Eleventh International Conference on              Computer Vision (ECCV), 2016. 1
+     Learning Representations, 2023. 3, 4                               [46] Philipp Schröppel, Christopher Wewer, Jan Eric Lenssen,
+[34] Shitong Luo and Wei Hu. Diffusion probabilistic models for              Eddy Ilg, and Thomas Brox. Neural point cloud diffusion for
+     3d point cloud generation. In 2021 IEEE/CVF Conference                  disentangled 3d shape and appearance generation. In CVPR,
+     on Computer Vision and Pattern Recognition (CVPR), pages                2024. 2
+     2836–2844, 2021. 2                                                 [47] J. Ryan Shue, Eric Ryan Chan, Ryan Po, Zachary Ankner,
+[35] Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik,                   Jiajun Wu, and Gordon Wetzstein. 3d neural field generation
+     Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. Nerf:                 using triplane diffusion. In Proceedings of the IEEE/CVF
+     Representing scenes as neural radiance fields for view syn-             Conference on Computer Vision and Pattern Recognition
+     thesis. In ECCV, 2020. 3                                                (CVPR), pages 20875–20886, 2023. 2
+
+
+                                                                   12
+[48] Ivan Skorokhodov, Aliaksandr Siarohin, Yinghao Xu, Jian                [62] Guanjun Wu, Jiemin Fang, Chen Yang, Sikuang Li, Tao-
+     Ren, Hsin-Ying Lee, Peter Wonka, and Sergey Tulyakov.                       ran Yi, Jia Lu, Zanwei Zhou, Jiazhong Cen, Lingxi Xie,
+     3d generation on imagenet. In International Conference on                   Xiaopeng Zhang, Wei Wei, Wenyu Liu, Xinggang Wang,
+     Learning Representations, 2023. 2                                           and Qi Tian. Unilat3d: Geometry-appearance unified
+[49] Stefan Stojanov, Anh Thai, and James M. Rehg. Using shape                   latents for single-stage 3d generation.        arXiv preprint
+     to categorize: Low-shot learning with an explicit shape bias.               arXiv:2509.25079, 2025. 2, 3, 8, 15
+     2021. 7, 16                                                            [63] Jiajun Wu, Chengkai Zhang, Tianfan Xue, William T. Free-
+[50] Zhicong Tang, Shuyang Gu, Chunyu Wang, Ting Zhang,                          man, and Joshua B. Tenenbaum. Learning a probabilistic
+     Jianmin Bao, Dong Chen, and Baining Guo. Volumediffu-                       latent space of object shapes via 3d generative-adversarial
+     sion: Flexible text-to-3d generation with efficient volumetric              modeling. In Proceedings of the 30th International Con-
+     encoder, 2023. 2                                                            ference on Neural Information Processing Systems, page
+[51] Tencent Hunyuan3D Team. Hunyuan3d 1.0: A unified                            82–90, Red Hook, NY, USA, 2016. Curran Associates Inc.
+     framework for text-to-3d and image-to-3d generation, 2024.                  2
+     2, 3                                                                   [64] Shuang Wu, Youtian Lin, Feihu Zhang, Yifei Zeng, Jingxi
+[52] Tencent Hunyuan3D Team. Hunyuan3d 2.0: Scaling diffu-                       Xu, Philip Torr, Xun Cao, and Yao Yao. Direct3d: scalable
+     sion models for high resolution textured 3d assets generation,              image-to-3d generation via 3d latent diffusion transformer.
+     2025. 18                                                                    In Proceedings of the 38th International Conference on Neu-
+[53] Tencent Hunyuan3D Team. Hunyuan3d 2.5: Towards high-                        ral Information Processing Systems, Red Hook, NY, USA,
+     fidelity 3d assets generation with ultimate details, 2025. 2,               2024. Curran Associates Inc. 2, 3
+     3, 18                                                                  [65] Shuang Wu, Youtian Lin, Feihu Zhang, Yifei Zeng, Yikang
+[54] Jianyuan Wang, Christian Rupprecht, and David Novotny.                      Yang, Yajie Bao, Jiachen Qian, Siyu Zhu, Philip Torr, Xun
+     PoseDiffusion: Solving pose estimation via diffusion-aided                  Cao, and Yao Yao. Direct3d-s2: Gigascale 3d generation
+     bundle adjustment. 2023. 8                                                  made easy with spatial sparse attention. arXiv preprint
+[55] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea                          arXiv:2505.17412, 2025. 2, 3
+     Vedaldi, Christian Rupprecht, and David Novotny. Vggt:                 [66] Tong Wu, Jiarui Zhang, Xiao Fu, Yuxin Wang, Liang Pan
+     Visual geometry grounded transformer. In Proceedings of                     Jiawei Ren, Wayne Wu, Lei Yang, Jiaqi Wang, Chen Qian,
+     the IEEE/CVF Conference on Computer Vision and Pattern                      Dahua Lin, and Ziwei Liu. Omniobject3d: Large-vocabulary
+     Recognition, 2025. 1, 2, 3, 4, 5, 14                                        3d object dataset for realistic perception, reconstruction and
+[56] Peng Wang, Hao Tan, Sai Bi, Yinghao Xu, Fujun Luan,                         generation. In IEEE/CVF Conference on Computer Vision
+     Kalyan Sunkavalli, Wenping Wang, Zexiang Xu, and Kai                        and Pattern Recognition (CVPR), 2023. 17
+     Zhang. PF-LRM: Pose-free large reconstruction model for                [67] Jianfeng Xiang, Xiaoxue Chen, Sicheng Xu, Ruicheng
+     joint pose and shape prediction. In The Twelfth International               Wang, Zelong Lv, Yu Deng, Hongyuan Zhu, Yue Dong, Hao
+     Conference on Learning Representations, 2024. 3                             Zhao, Nicholas Jing Yuan, and Jiaolong Yang. Native and
+[57] Qianqian Wang, Yifei Zhang, Aleksander Holynski,                            compact structured latents for 3d generation. Tech report,
+     Alexei A. Efros, and Angjoo Kanazawa. Continuous 3d                         2025. 2, 18
+     perception model with persistent state. In Proceedings of              [68] Jianfeng Xiang, Zelong Lv, Sicheng Xu, Yu Deng, Ruicheng
+     the IEEE/CVF Conference on Computer Vision and Pattern                      Wang, Bowen Zhang, Dong Chen, Xin Tong, and Jiaolong
+     Recognition (CVPR), pages 10510–10522, 2025. 3                              Yang. Structured 3d latents for scalable and versatile 3d
+[58] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris                             generation. In Proceedings of the IEEE/CVF Conference
+     Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-                    on Computer Vision and Pattern Recognition (CVPR), pages
+     sion made easy. In Proceedings of the IEEE/CVF Conference                   21469–21480, 2025. 2, 3, 5, 6, 8, 15
+     on Computer Vision and Pattern Recognition (CVPR), pages               [69] Yuliang Xiu, Jinlong Yang, Dimitrios Tzionas, and
+     20697–20709, 2024. 3                                                        Michael J. Black. ICON: Implicit Clothed humans Obtained
+[59] Tengfei Wang, Bo Zhang, Ting Zhang, Shuyang Gu, Jianmin                     from Normals. In Proceedings of the IEEE/CVF Conference
+     Bao, Tadas Baltrusaitis, Jingjing Shen, Dong Chen, Fang                     on Computer Vision and Pattern Recognition (CVPR), pages
+     Wen, Qifeng Chen, and Baining Guo. Rodin: A generative                      13296–13306, 2022. 3
+     model for sculpting 3d digital avatars using diffusion. In Pro-        [70] Yuliang Xiu, Jinlong Yang, Xu Cao, Dimitrios Tzionas,
+     ceedings of the IEEE/CVF Conference on Computer Vision                      and Michael J. Black. ECON: Explicit Clothed humans
+     and Pattern Recognition (CVPR), pages 4563–4573, 2023. 2                    Optimized via Normal integration. In Proceedings of the
+[60] Weijie Wang, Yeqing Chen, Zeyu Zhang, Hengyu Liu,                           IEEE/CVF Conference on Computer Vision and Pattern
+     Haoxiao Wang, Zhiyuan Feng, Wenkang Qin, Zheng Zhu,                         Recognition (CVPR), 2023. 3
+     Donny Y. Chen, and Bohan Zhuang. Volsplat: Rethinking                  [71] Chao Xu, Ang Li, Linghao Chen, Yulin Liu, Ruoxi Shi, Hao
+     feed-forward 3d gaussian splatting with voxel-aligned pre-                  Su, and Minghua Liu. Sparp: Fast 3d object reconstruction
+     diction. arXiv preprint arXiv:2509.19297, 2025. 3                           and pose estimation from sparse views. In Computer Vision
+[61] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang,                        – ECCV 2024, pages 143–163, Cham, 2024. Springer Nature
+     Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chunhua                    Switzerland. 3
+     Shen, and Tong He. π 3 : Scalable permutation-equivariant              [72] Jiale Xu, Weihao Cheng, Yiming Gao, Xintao Wang,
+     visual geometry learning, 2025. 1, 2, 3, 5, 14                              Shenghua Gao, and Ying Shan. InstantMesh: Efficient 3d
+
+
+                                                                       13
+     mesh generation from a single image with sparse-view large          S1. Implementation and Evaluation Details
+     reconstruction models. arXiv preprint arXiv:2404.07191,
+     2024. 3                                                             S1.1. Block Matching Algorithm
+[73] Jiale Xu, Shenghua Gao, and Ying Shan. Freesplatter: Pose-          In Sec. 3.3, we designed a block matching strategy which
+     free gaussian splatting for sparse-view 3d reconstruction.          ultimately led to the exact matching Fig. 2. Here, we ex-
+     arXiv preprint arXiv:2412.09573, 2024. 3                            plain the exact algorithm to derive the specific matching.
+[74] Kaixin Yao, Longwen Zhang, Xinhao Yan, Yan Zeng, Qix-                   According to our matching principle that each global π 3
+     uan Zhang, Lan Xu, Wei Yang, Jiayuan Gu, and Jingyi Yu.             block must be matched with a TRELLIS block, we compute
+     Cast: Component-aligned 3d scene reconstruction from an             a uniform index injection from all the 18 global blocks of
+     rgb image. ACM Trans. Graph., 44(4), 2025. 3                        π 3 into the 24 blocks of TRELLIS. Let Pl (l = 0, · · · , 35)
+[75] Chongjie Ye, Yushuang Wu, Ziteng Lu, Jiahao Chang, Xi-              and Tj (j = 0, · · · , 24) denote the blocks of π 3 and TREL-
+     aoyang Guo, Jiaqing Zhou, Hao Zhao, and Xiaoguang Han.              LIS, respectively. Then a simple computation according to
+     Hi3dgen: High-fidelity 3d geometry generation from im-              the rule above yields the following one-to-one matching:
+     ages via normal bridging. arXiv preprint arXiv:2503.22236,          T0 , T1 , T2 , T4 , T5 , T6 , T8 , T9 , T10 , T12 , T13 , T14 , T16 , T17 ,
+     2025. 2, 3                                                          T18 , T20 , T21 , T23 and P1 , P3 , P5 , P7 , P9 , P11 , P13 , P15 , P17 ,
+[76] Biao Zhang, Jiapeng Tang, Matthias Nießner, and Peter               P19 , P21 , P23 , P25 , P27 , P29 ,P31 ,P33 , P35 . Now there re-
+     Wonka. 3dshape2vecset: A 3d shape representation for                main 6 unmatched TRELLIS blocks. The matched pairs
+     neural fields and generative diffusion models. ACM Trans.           become type-C mixtures. Note that there is only a unique
+     Graph., 42(4), 2023. 3                                              way to insert them into the original sequence in an order-
+[77] Bowen Zhang, Yiji Cheng, Chunyu Wang, Ting Zhang, Jiao-             preserving way. For example, to insert T3 between matched
+     long Yang, Yansong Tang, Feng Zhao, Dong Chen, and Bain-            pairs (T2 , P5 ) and (T4 , P7 ), we must match T3 and P6 .
+     ing Guo. Rodinhd: High-fidelity 3d avatar generation with           The same goes for all unmatched TRELLIS blocks, giving
+     diffusion models. In Computer Vision – ECCV 2024: 18th              us type-B mixtures between T3 , T7 , T11 , T15 , T19 , T22
+     European Conference, Milan, Italy, September 29–October             and P6 , P12 , P18 , P24 , P30 , P34 . Finally, the remaining
+     4, 2024, Proceedings, Part XIV, page 465–483, Berlin, Hei-          unmatched π 3 blocks become type-A blocks. Note that
+     delberg, 2024. Springer-Verlag. 2
+                                                                         there might be other plausible matchings, but exhausting
+[78] Bowen Zhang, Yiji Cheng, Jiaolong Yang, Chunyu Wang,                them is neither practical nor our main focus.
+     Feng Zhao, Yansong Tang, Dong Chen, and Baining Guo.
+     Gaussiancube: Structuring gaussian splatting using optimal          S1.2. Camera Intrinsics Estimation
+     transport for 3d generative modeling. 2024. 2
+                                                                         In the alignment evaluation, all generated models are ren-
+[79] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-               dered back to the input view for evaluation, which re-
+     pani, Trevor Darrell, Forrester Cole, Deqing Sun, and Ming-         quires estimating camera intrinsics. ReconViaGen [3] uses
+     Hsuan Yang. MonST3r: A simple approach for estimating
+                                                                         VGGT [55] which already estimates intrinsics. Our model
+     geometry in the presence of motion. In The Thirteenth In-
+                                                                         is based on π 3 [61] which predicts only extrinsics and local
+     ternational Conference on Learning Representations, 2025.
+     3                                                                   point map. To estimate the intrinsic matrix K, we solve for
+                                                                         fx , fy , cx , cy from the following equation:
+[80] Longwen Zhang, Ziyu Wang, Qixuan Zhang, Qiwei Qiu,
+     Anqi Pang, Haoran Jiang, Wei Yang, Lan Xu, and Jingyi Yu.                                  u    =     fx x/z + cx ;                     (11)
+     Clay: A controllable large-scale generative model for creat-
+     ing high-quality 3d assets. ACM Transactions on Graphics                                   v    =     fy y/z + cy ,                     (12)
+     (TOG), 43(4):1–20, 2024. 3
+                                                                         which is equivalent to
+[81] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shechtman,
+     and Oliver Wang. The unreasonable effectiveness of deep
+                                                                                                           
+     features as a perceptual metric. In CVPR, 2018. 8                                                   fx      
+                                                                                     x/z       0      1 0 
+                                                                                                           fy  = u .
+                                                                                                               
+[82] Xin-Yang Zheng, Yang Liu, Peng-Shuai Wang, and Xin
+                                                                                                                                             (13)
+                                                                                      0       y/z     0 1 cx     v
+     Tong. Sdf-stylegan: Implicit sdf-based stylegan for 3d shape                                           cy
+     generation. In Comput. Graph. Forum (SGP), 2022. 2
+[83] Haoyi Zhu, Yifan Wang, Jianjun Zhou, Wenzheng Chang,                Here, (u, v) and (x, y, z) ranges over all foreground pix-
+     Yang Zhou, Zizun Li, Junyi Chen, Chunhua Shen, Jiangmiao            els and 3D points in the output point map of π 3 , leading
+     Pang, and Tong He. Aether: Geometric-aware unified world            to an overdetermined equation which we solve in the least-
+     modeling. In Proceedings of the IEEE/CVF International              squares sense. This intrinsics is used as an initial value and
+     Conference on Computer Vision (ICCV), pages 8535–8546,              then refined by differentiable rendering using DRTK [38].
+     2025. 3                                                             During the differentiable rendering refinement, we parame-
+                                                                         terize the camera focal as f = exp(l) and use quaternions to
+
+
+                                                                    14
+represent camera rotation. The optimization uses the Adam             runs on 16 NVIDIA-A100 GPUs and takes about one week.
+optimizer [26] and runs for 2000 steps with a learning rate
+of 10−2 . We apply early stopping if the loss has not de-             S1.5. Evaluation Settings for Baselines
+creased for 100 steps.                                                For ReconViaGen [3], we use an open-source implemen-
+   Note that SAM3D [43] only predicts the object in the               tation [13]. For SAM3D [43], we use an open-source
+camera space without intrinsics. Unlike π 3 , SAM3D does              training-free extension to the multi-view setting [28], which
+not have a pixel-wise 2D-3D correspondence. Hence, we                 adopts weighted multi-diffusion to better fuse multi-view
+match the extreme values of x/z and y/z to the input im-              information. To adapt TRELLIS and UniLat3D to multi-
+age foreground bounding box to estimate the intrinsics and            view inputs, we follow the official repositories to use the
+extrinsics for SAM3D.                                                 run_multi_image API, which adopts stochastic image
+                                                                      condition sampling to inject multi-view information. Note
+S1.3. Dataset                                                         that the comparison is fair in the sense that (1) both TREL-
+To train our model, we use the TRELLIS-500k dataset [68],             LIS and UniLat3D use the same input views as ours; (2)
+which is composed of selected models from Objaverse-                  Our stage-2 model also uses stochastic sampling. The only
+XL [9], ABO [7] and HSSD [25]. Our joint 3D genera-                   difference in conditioning is that our stage-1 model uses
+tion and camera estimation pipeline requires ground truth             all-view tokens, which we had attempted for the baselines
+sparse structure latents and structured latents, together with        for fairness, but we found this led to worse baseline perfor-
+their paired multi-view renderings and camera parameters.             mance, so we kept their stochastic sampling.
+However, following the full dataset processing pipeline                   In our evaluation of geometry and texture accuracy, we
+in TRELLIS requires significant computational resources.              need to align all generated shapes to GT ones. However,
+Thus, we use only 8-view renderings of each item to directly          since generated shapes may not have the exact orientation
+generate these paired data samples using TRELLIS [68]. Fi-            and scale as the GT ones, we use a heuristic method to
+nally, after excluding a part of models that either take too          achieve this alignment as follows.
+long to render or cause generation failures, we generated                 For methods that come with camera pose estimations
+404354 objects, each paired with their GT latent codes and            (ours, ReconViaGen and SAM3D), we first compute a rota-
+32 renderings densely covering the upper hemisphere with              tion between predicted poses and GT poses. This rotation
+varying focal lengths.                                                is then applied to the generated object to initialize a good
+                                                                      orientation. Then we run ICP from this initialization to get
+S1.4. Model and Training                                              a similarity transformation that provides a more accurate
+At each training step, we randomly sample an object and               alignment.
+4 views from its 32 renderings. To better cover different                 For methods that do not estimate pose (TRELLIS [68],
+view configurations, we use a mixture of the following 3              UniLat3D [62]), we remark that both of them has +z as
+view sampling modes. (1) Fully random sampling: we ran-               the “up” direction, and their “front“ direction is aligned to
+domly choose 4 views without replacement with a uniform               either the x-axis or the y-axis. Observing this, we first try
+distribution. (2) Nearest-view sampling: we first randomly            out 4 different orientations in the xy-plane and find the one
+select one view, and then sample its nearest 3 views (“near-          with minimal Chamfer distance. Then ICP is run from this
+est” in terms of camera positions). (3) Farthest-view sam-            initialization to get the final alignment geometry.
+pling: we start with a random view and use farthest point
+sampling [39] (in terms of camera positions). The probabil-           S2. Extended Evaluations
+ities of choosing these three modes are 0.2, 0.4, 0.4, respec-
+tively. For training, we use pretrained weights of the TREL-          S2.1. Evaluation of Model Components
+LIS sparse structure flow model for our 3D branch, and the            In this section we show the effectiveness of several of our
+pretrained weights of π 3 for the 2D branch. For the MoT              technical choices. Note that our stage-1 model is a mini-
+self-attention modules, we load pretrained weights from ei-           mal architecture in the sense that we cannot ablate a part
+ther TRELLIS or π 3 whenever possible. During training,               without breaking the whole pipeline. For example, if we
+we only activate the following parameters: (1) all parame-            remove either the TRELLIS branch, the π 3 branch or the
+ters without a pretrained weight; (2) all parameters of cross-        alignment transformation branch, we wouldn’t have aligned
+attention modules and MoT self-attention modules. Our                 voxels and points for stage-2 generation. Also, if we remove
+core model involved in training (excluding the DINOv2 en-             the MoT self-attentions, there wouldn’t be information ex-
+coder and the sparse structure VAE decoder) contains 1.71B            change to make the aligned training well-defined. Thus,
+parameters in total and 839.78M trainable parameters.                 instead of directly ablating the individual branches in our
+    We use a learning rate of 10−4 with cosine scheduling             mixed model, we use the following experiments to demon-
+and train for 400k steps with a batch size of 16. The training        strate the effectiveness of our mixture design as a whole.
+
+
+                                                                 15
+Table S4. Separate evaluation of our stage-1 model and our stage-2                  Table S6. Ablations of attention bias and camera refinement.
+model.
+                                                                                           Attn Bias   Refine   PSNR     SSIM      LPIPS
+                                                  Toys4k                                        Dataset                  Toys4k
+  Stage-1     Stage-2      PSNR          SSIM        LPIPS     CD (×10−3 )                    No          No    25.014   0.9397    0.042
+ TRELLIS     TRELLIS       23.930        0.9311      0.055       7.9986                       Yes         No    25.163   0.9422    0.039
+   Ours      TRELLIS       26.975        0.9527      0.035       0.7259                       Yes         Yes   28.144   0.9621    0.030
+   Ours        Ours        27.177        0.9551      0.033       0.7419                         Dataset                   GSO
+                                                   GSO                                        No          No    23.020   0.9039    0.078
+  Stage-1     Stage-2      PSNR          SSIM        LPIPS     CD (×10−3 )                    Yes         No    23.350   0.9107    0.070
+                                                                                              Yes         Yes   25.031   0.9281    0.057
+ TRELLIS     TRELLIS       22.420        0.9034      0.079       4.5658
+   Ours      TRELLIS       24.399        0.9199      0.062       0.8010
+   Ours        Ours        24.826        0.9271      0.055       0.7945           Table S7. Ablations of attention bias and camera refinement on
+                                                                                  symmetric and asymmetric objects in the GSO dataset.
+       Table S5. Evaluation pf point map errors (×10−3 ).
+                                                                                                                    AG (645 objects)
+                           Toys4k                  GSO                                     Attn Bias   Refine   PSNR     SSIM      LPIPS
+            Method       PE         CD        PE         CD                                   No          No    24.341   0.9293    0.052
+                                                                                              Yes         No    24.515   0.9336    0.049
+               π3       9.441   3.753        6.723     2.896                                  Yes         Yes   25.675   0.9434    0.044
+              Ours      2.285   0.527        3.729     1.258
+                                                                                                                   SGAT (279 objects)
+                                                                                           Attn Bias   Refine   PSNR     SSIM      LPIPS
+   To evaluate the effectiveness of our aligned voxel gen-                                    No          No    20.849   0.8578    0.112
+eration and point map prediction, we compare our stage-1                                      Yes         No    21.654   0.8724    0.093
+                                                                                              Yes         Yes   23.207   0.8958    0.077
+model and that of TRELLIS, using the ”Geometry and tex-
+ture accuracy” evaluation protocol in Sec. 4.2 to first align                                                       SGST (97 objects)
+generations to GT before computing metrics. The results                                    Attn Bias   Refine   PSNR     SSIM      LPIPS
+are reported in Table S4. Our stage-1 model produces input-                                   No          No    20.303   0.8644    0.150
+consistent voxels, leading to notable metric improvements                                     Yes         No    20.328   0.8661    0.149
+even with the TRELLIS stage-2 model. Furthermore, since                                       Yes         Yes   25.923   0.9178    0.094
+the stage-1 generation already determines the coarse geom-
+etry, our stage-2 generation is more effective for texture
+alignment. Note that the combination of TRELLIS stage-                            bias has a marginal metric improvement but remains impor-
+1 plus our stage-2 is not feasible since TRELLIS does not                         tant and effective in improving texture alignment in multi-
+produce voxel-aligned point maps, so this combination is                          view settings. To further verify this, we manually annotated
+not evaluated.                                                                    items in the GSO dataset as ”Asymmetric-Geometry (AG)”,
+   To show that our MoT-based architecture also conversely                        ”Symmetric-Geometry Asymmetric-Texture (SGAT)” and
+benefits the point map prediction, we evaluate the point map                      ”Symmetric-Geometry Symmetric-Texture (SGST)”. Note
+accuracy of our model and that of π 3 , using pixel-wise er-                      that we only consider rotational symmetry (balls, square
+ror (PE) and Chamfer distance (CD), both computed after a                         boxes, bottles, etc.), since mirror symmetry can be visually
+similarity transformation alignment. The results are shown                        disambiguated from only the geometry. Table S7 shows the
+in Table S5.                                                                      metric results. Our proposed attention bias in stage-2 is in-
+   Finally, we evaluate the usage of attention biases and                         deed most effective on SGAT objects.
+camera refinement. Table S6 shows the metrics of our                                 The ablations on attention bias and camera refinement
+method after removing camera refinement and attention                             are shown in Fig. S6.
+bias. Even though the metric improvement brought by us-
+                                                                                  S2.2. Runtime Report
+ing our attention bias seems minor, the improvement can be
+more clearly observed with qualitative examples. Fig. S9                          For all our experiments, we use an input image resolu-
+shows cases where our attention bias notably improves tex-                        tion of 518, and we run 50 steps for stage-1 generation,
+ture alignment. Note that this type of improvement often                          and 25 steps for stage-2 generation. With 4 input views,
+happens to rotationally symmetric objects with asymmetric                         on a single NVIDIA-A100 GPU, our stage-1 generation
+texture. However, in both Toys4k [49] and GSO [11] there                          takes around 30s, and our stage-2 generation generally takes
+are only limited cases like this. This is why our attention                       around 3∼10s, depending on the number of voxels gener-
+
+
+                                                                             16
+                                 Figure S9. Qualitative studies of ablating our proposed attention bias.
+
+
+ated in stage 1. The attention bias computation generally                happen if the input view configuration deviates too much
+takes <10s. The camera refinement process takes no more                  from its training distribution. Future work should attempt
+than 10s per view. Note that this is not needed if accurate              training with a more diverse view distribution or utilize data
+poses are not required.                                                  augmentation to improve the robustness.
+
+S3. Extended Discussions on Limitations
+                                                                         Limitations of using generated data As mentioned in
+In this section, we provide further discussions on the limi-             Sec. 4.1, our model is trained on TRELLIS-generated data
+tations of our method and possible future directions.                    due to the extreme high cost of running the original data
+                                                                         processing pipeline of TRELLIS. These generated models
+Degradation caused by view configuration While our                       do not contain lighting or view-dependent visual effects. As
+method utilizes π 3 to provide geometrically informative                 a result, our method has degraded performance for datasets
+features, different view configurations can impact how well              with highly non-uniform lighting, e.g., OmniObject3D [66],
+the π 3 branch aligns different view points. Generally, the              or specular objects. An example is shown in Fig. S10,
+best performance can be obtained if all views are directly               where dark shadows appear on the side views of the object.
+looking at the center of the object with a zero roll angle.              Our π 3 branch, not trained on these lighting conditions, can-
+However, in real-world scenarios it is difficult to strictly fol-        not correctly match the image features through its attention
+low this rule, and therefore performance degradation may                 mechanism. As a result, the final generation can neither
+
+
+                                                                    17
+benefit much from features of the π 3 branch, nor from the
+attention bias tuning which requires accurate overlap. We
+believe training with high quality data containing diverse
+lighting can remedy this issue.
+
+
+
+
+   Figure S10. A failure case caused by non-uniform lighting.
+
+
+
+Frozen TRELLIS decoders Our model keeps all the
+TRELLIS VAE decoders frozen. In other words, the latent
+spaces of TRELLIS impose an upper bound for our gener-
+ation quality. For certain types of textures, e.g., texts or
+logos on commercial products, even reconstructing them
+using the TRELLIS VAE is problematic. This also lim-
+its the faithfulness of geometry or texture preservation of
+our model. However, since MoT architectures can be eas-
+ily inserted into different transformers, a possible future
+direction is to extend our designs to more powerful back-
+bones [52, 53, 67].
+
+
+
+
+                                                                18
+

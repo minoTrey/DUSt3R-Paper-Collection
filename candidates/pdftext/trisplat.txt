@@ -1,0 +1,1545 @@
+                                          TriSplat: Simulation-Ready Feed-Forward 3D Scene Reconstruction
+                                                       Weijie Wang1,∗  Zimu Li1,∗              Jinchuan Shi1   Zeyu Zhang1   Botao Ye2,3
+                                                                 Marc Pollefeys2,4            Donny Y. Chen  5  Bohan Zhuang1
+
+                                                   1                         2                 3                   4               5
+                                                       Zhejiang University       ETH Zurich        ETH AI Center       Microsoft       Monash University
+arXiv:2605.26115v1 [cs.CV] 25 May 2026
+
+
+
+
+                                         Figure 1 TriSplat reconstructs simulation-ready 3D scenes from sparse, unposed images. The feed-forward model
+                                         predicts a triangle mesh in a single pass, enabling direct use in physics engines for locomotion, dynamics, and
+                                         robotic grasping. The teaser is rendered with Blender.
+
+
+
+                                            Abstract. Sparse-view 3D reconstruction is increasingly addressed with feed-forward splatting networks that
+                                            predict explicit primitives directly from images. Yet most existing methods remain centered on Gaussian
+                                            primitives and expose surfaces only indirectly: extracting a usable mesh for downstream simulation, physics
+                                            reasoning, or embodied interaction still requires expensive post-hoc steps that break the feed-forward
+                                            promise. This limitation is especially pronounced in pose-free settings, where scene structure and camera
+                                            parameters must be estimated jointly from sparse observations. We present TriSplat, a feed-forward
+                                            reconstruction network that represents scenes with oriented triangle primitives and directly exports
+                                            simulation-ready mesh scenes from a single forward pass. Given input images, the network predicts local 3D
+                                            point maps, triangle attributes, camera poses, and optional intrinsics. Rather than regressing triangle
+                                            orientation as an unconstrained latent variable, our approach constructs geometry normals from the
+                                            predicted point maps, refines them with an image-conditioned normal head, and converts them into stable
+                                            local frames for triangle parameterization. A mono-normal bootstrap schedule further stabilizes early
+                                            training, while opacity and blur scheduling progressively sharpens the learned surface representation for
+                                            direct mesh extraction. Experiments on RealEstate10K and DL3DV show that this representation produces
+                                            more geometry-faithful reconstructions than Gaussian feed-forward baselines while maintaining competitive
+                                            novel-view rendering quality. Because the rendering primitives are themselves surface triangles, the output
+                                            can be directly ingested by physics engines, collision detectors, and standard rendering pipelines without any
+                                            conversion, making it a practical simulation-ready solution for feed-forward 3D scene reconstruction.
+                                            Project Page: lhmd.top/trisplat
+                                            Keywords: Feed-Forward 3D Reconstruction, Triangle Splatting, Novel-View Synthesis, Surface
+                                            Reconstruction
+                                            Date: May 20, 2026
+
+
+
+
+                                             ∗
+                                                 Equal contribution.
+1    Introduction
+Reconstructing 3D scenes from images is a long-standing problem in computer vision. For robotics,
+augmented reality, and embodied perception [1, 2], reconstructed scenes must support collision
+checking, contact-rich planning, and physics simulation. Since engines such as NVIDIA Isaac
+Sim, Unity, and Unreal, as well as finite-element solvers and path tracers, build on triangle
+meshes, simulation-ready reconstruction must produce explicit meshes that these engines can
+ingest directly. Classical and learned multi-view pipelines [3–5] can yield meshes, but they rely on
+multi-stage optimization, are sensitive to calibration, and degrade when views are sparse or poses
+are unknown.
+   Recent feed-forward models [6–9] sidestep per-scene optimization by predicting geometry and
+rendering primitives directly from images. Gaussian splatting methods [8, 10–13] demonstrate
+efficient, high-quality novel-view synthesis, and pose-free models [14–18] show that camera estima-
+tion and reconstruction can be learned jointly. However, they adopt Gaussian primitives with
+only implicit surfaces, or point maps with no surface structure. Extracting a usable mesh then
+requires costly post-hoc TSDF fusion or Poisson reconstruction, breaking the feed-forward promise.
+Geometry-aware variants [19–23] encourage stronger geometric structure but still rely on per-scene
+optimization or auxiliary extraction for mesh recovery. On the mesh-generation side, models
+such as InstantMesh [24], MeshLRM [25], MeshFormer [26], and earlier object reconstruction
+methods [27–29] directly predict meshes, yet they target object-level reconstruction from controlled
+viewpoints and do not handle unposed, scene-level inputs.
+   To close this gap, we present TriSplat, a simulation-ready feed-forward model whose native
+representation is a set of oriented triangle primitives. Our design follows three observations:
+(i) for simulation readiness, the rendering primitive itself must be a surface element—triangles
+satisfy this by construction and can be exported as a mesh without any intermediate extraction;
+(ii) triangle orientation should be anchored to predicted local geometry rather than learned as an
+unconstrained variable, providing a strong prior that improves surface fidelity; and (iii) triangles
+are more sensitive to orientation errors than Gaussian splats, making explicit normal bootstrapping
+and validity-aware training essential. As illustrated in Fig. 2, given unposed images, TriSplat
+jointly predicts local 3D point maps, per-pixel triangle attributes, camera poses, and optional focal
+lengths in a single forward pass. Geometry normals from the predicted point maps are refined by
+an image-conditioned normal head, warm-started from a monocular teacher, and stabilized by
+validity-aware masking. The refined normals form local tangent frames that orient each triangle,
+tying surface geometry to rendering per pixel. Each primitive is instantiated from a canonical
+triangle template with learned center, scale, rotation, appearance, opacity, and blur, rendered
+with a differentiable triangle rasterizer [30], and sharpened from soft primitives into crisp surface
+elements. Because the representation is explicitly triangular, the rendering primitives themselves
+form a mesh that can be loaded into physics engines, collision detectors, and standard rendering
+pipelines without post-processing.
+   Experiments on RealEstate10K [31] and DL3DV [32] show that TriSplat delivers mesh-rendering
+quality that surpasses state-of-the-art Gaussian feed-forward baselines while consistently outper-
+forming them on surface accuracy metrics. Notably, when all methods export meshes for standard
+triangle rendering, Gaussian baselines suffer a substantial quality drop due to lossy TSDF fusion,
+whereas TriSplat exhibits minimal degradation since its rendering primitives are already the mesh.
+Zero-shot evaluation on ScanNet [33] further confirms cross-dataset generalization, and ablation
+studies validate the complementary contributions of each proposed component.
+   Our contributions can be summarized as follows. First, we propose TriSplat, a feed-forward
+network whose native representation is oriented triangle primitives, jointly predicting geometry,
+appearance, and camera poses from sparse, unposed images in a single forward pass. Second, we
+design a normal-anchored triangle construction pipeline that derives orientation from predicted
+
+
+                                                 2
+                      Intrinsic                                                                                                                                                                                         24
+
+
+
+
+                                                                                Pointmap
+                       Token
+
+
+
+
+                                                                                                             Geometry-Anchored
+                                                                                                             Triangle Orientation
+                                                                                                                                                                                                                        23
+                                                                                                                                                                                                                                             TriSplat
+
+
+
+
+                                                                                                                                                                                                     Mesh-Render PSNR
+                                                                                  Head
+                                                                                                                                                                                                                        22 YoNoSplat          (Ours)
+                                                                                                                                                                                                                             10.85s            0.51s
+                                                                                                                                                                                                                        21
+
+
+
+
+                                                   Local-Global Attention
+                                                                                                                                                                       Textured Mesh Exported                           20
+                                                                                             Pointmaps                                                                                                                            DepthSplat
+                                                                                                                                                                                                                        19
+                                                                                                                                                                                                                                     14.87s
+                                                                                                   Density                                                                                                              18   AnySplat
+                                                                                                   Scale                                                                                                                      4.45s
+
+
+
+
+                                                                                Primitive
+                                      DINOv2
+                                                                                                   Quat.                                                                                                                         0.2   0.4    0.6   0.8
+
+
+
+
+                                                                                  Head
+                                                                                                                                                                          NVS   Simulation   Games                               Geometry F1
+                                                                                                   SH
+                                                                                                                                                                                                         Performance Comparison
+                                  …
+
+
+
+
+                                               …
+                                                                                                   Blur                             Oriented Triangle Primitives
+
+
+
+
+                                                                            …
+                                                                                            Raw Triangles    Geometry-Anchored Triangle Orientation
+          …                                                                                                                                    Image / Depth / Mask
+                                                                                                                                                                         Teacher                                                   Noisy
+                                                                                                                                                                                                                                              Smooth
+                                                                                                                                                                         Normals
+
+
+
+
+                                                                                                             Pointmaps
+                                                                                                                                                                                                                             +
+
+
+
+
+                                                                                Camera
+                                                                                 Head
+                                                                                                                                                    Learnable
+                                                                                                                                                   Refinement
+                                                                                                                                                                                                        Raw Oriented
+    N Sparse Images                                                                           Cameras                       Geometry Normals                          Refined Normals Blended Normals Triangles Triangles
+
+
+Figure 2 Overview of TriSplat. Given N sparse input images and a learnable intrinsic token, a DINOv2 [48]
+backbone followed by Local-Global Attention decoder blocks feeds three parallel heads that predict point
+maps, camera poses, and raw triangle attributes (density, scale, quaternion, spherical harmonics, and
+blur). The dashed inset (Sec. 3.2) details the geometry-anchored triangle orientation: finite-difference
+geometry normals are refined by an image-conditioned U-Net, optionally blended with monocular teacher
+normals [49] in early training, and converted into tangent frames that turn noisy unoriented primitives into
+smooth surface elements. The resulting oriented triangles are rendered by a differentiable rasterizer [30]
+and directly exported as a textured mesh that is immediately consumable by novel-view synthesis, physics
+simulation, and game engines. Top-right inset: on RealEstate10K (6 views), mesh-rendering PSNR versus
+mesh geometry F1, with bubble area proportional to the same-setting end-to-end runtime; up-and-right
+indicates better quality and a smaller bubble indicates faster inference.
+
+
+point-map geometry, refines it with a dedicated image-conditioned head, and stabilizes training
+through mono-normal bootstrapping and validity-aware masking. Third, we show that the
+triangle-native representation eliminates post-hoc mesh extraction: the rendering output is
+directly consumable by physics engines and standard rendering pipelines, making feed-forward
+reconstruction simulation-ready.
+
+2       Related Work
+Splatting-Based Scene Representations. 3D Gaussian Splatting (3DGS) [10] represents scenes
+as sets of anisotropic Gaussian primitives rendered via differentiable alpha-blending, achieving
+real-time, high-quality novel-view synthesis. Extensions improve appearance, structure, efficiency,
+or compression [34–42], but the volumetric nature of 3D Gaussians still leads to view-inconsistent
+depth and poorly defined surfaces. 2DGS [19] addresses this by collapsing each Gaussian to a
+planar disk, producing view-consistent depth suitable for TSDF-based mesh extraction. Gaussian
+Opacity Fields [20], 3DGSR [21], SurfaceSplat [43], and related geometry-aware 3DGS variants [44–
+47] instead couple Gaussians with implicit, stereo, or surface fields for marching-cubes-style
+surface recovery. While these variants improve geometric quality, the underlying primitives remain
+Gaussian and meshes must be extracted through auxiliary post-processing. Triangle Splatting [30]
+takes a fundamentally different direction by replacing Gaussians with oriented triangle primitives
+rendered through a differentiable rasterizer, producing an immediately exportable mesh. This
+validates triangle-based differentiable rendering as a viable alternative, but operates exclusively in
+a per-scene optimization setting.
+Feed-Forward Sparse-View Reconstruction. Feed-forward methods learn scene priors from large-
+scale data to predict 3D representations in a single forward pass. Early image-based and NeRF-
+based approaches [6, 50] regress radiance fields from few images but inherit costly volumetric
+rendering. With 3DGS, explicit feed-forward methods [8, 11–13, 51–64] predict per-pixel Gaussians
+for efficient, high-quality novel-view synthesis from sparse inputs. A parallel line of work eliminates
+the requirement of known camera poses: DUSt3R [14], MASt3R [65, 66], VGGT [16], and
+related models [67–70] predict dense geometry to jointly recover structure and relative pose, while
+
+                                                                                                        3
+NoPoSplat [17], InstantSplat [71], Splatt3R [72], FreeSplatter [73], RegGS [74], UFV-Splatter [75],
+FLARE [15], and YoNoSplat [18] extend pose-free prediction directly to Gaussian primitives.
+Despite substantial progress, all these methods output Gaussians or point maps whose surface
+topology is only implicit.
+Surface-Aware Feed-Forward Reconstruction. Recent efforts aim to combine the efficiency of
+feed-forward prediction with stronger surface representations. MeshSplat [22] predicts 2DGS
+through a dedicated normal prediction network supervised by a monocular normal estimator and
+regularizes positions via a weighted Chamfer distance loss, substantially improving mesh quality
+over baselines. SurfelSplat [23] introduces Nyquist-guided surfel adaptation for feed-forward
+surface reconstruction. However, both methods retain Gaussian-family primitives and still rely
+on TSDF fusion to obtain meshes. Our method brings the triangle primitive into feed-forward,
+pose-free regime, where oriented triangles used for differentiable rendering can be directly exported
+as a mesh without additional post-processing or per-scene tuning.
+
+3     Method
+Given a sparse set of V unposed images {Iv }Vv=1 , TriSplat reconstructs the scene as a collection
+of oriented triangle primitives in a single forward pass, jointly predicting dense local 3D point
+maps, per-pixel triangle attributes, camera poses, and optionally camera intrinsics. Because the
+rendering primitives are themselves explicit surface triangles, the output can be directly exported
+as a mesh without any post-processing. We first describe how the network maps images to 3D
+points and triangle parameters in Sec. 3.1. The predicted point maps provide the geometric
+foundation for anchoring triangle orientation, which we detail in Sec. 3.2. The resulting oriented
+triangles are sharp-edged by nature and require a progressive training curriculum, presented in
+Sec. 3.3. Finally, Sec. 3.4 describes the training objectives and the trivial mesh extraction enabled
+by the triangle-native representation. An overview is shown in Fig. 2.
+
+3.1   From Images to Triangle Primitives
+The encoder builds on a DINOv2 [48] backbone followed by a custom transformer decoder [18].
+Decoder blocks alternate between intra-view self-attention for local spatial reasoning and cross-view
+joint attention for multi-view correspondence aggregation, with two-dimensional rotary position
+embeddings and per-pixel ray-direction embeddings providing spatial and geometric conditioning
+throughout.
+   Three parallel heads convert the decoded features into scene structure, camera parameters, and
+primitive attributes. The point head predicts a dense local 3D point map P ∈ RH×W ×3 in the
+coordinate frame of each camera. For each pixel it outputs three unconstrained scalars (u, v, z ′ );
+the depth is recovered as z = exp(z ′ ) to ensure strict positivity, and the 3D point is
+
+                                        p = z · (u, v, 1)⊤ .                                      (1)
+
+This parameterization couples lateral position with depth through multiplication, mirroring the
+projective image-formation model. The camera head predicts one SE(3) camera-to-world pose per
+view by mean-pooling decoder tokens and regressing a translation together with a 3×3 matrix
+projected onto SO(3) via SVD orthogonalization [76]. All poses are expressed relative to the first
+view to eliminate global gauge ambiguity, and during training we apply scheduled sampling [77]
+that linearly decays the probability of using the ground-truth pose to prevent distribution shift
+at test time. The primitive head predicts per-pixel triangle attributes consisting of a density
+logit, three scale logits, a quaternion, spherical-harmonic appearance coefficients, and a blur
+parameter. To supply this branch with direct access to appearance, the input RGB image is
+patch-embedded and additively fused into its features before decoding. All dense heads employ
+
+                                                 4
+pixel-shuffle upsampling [78] to reach full spatial resolution.
+  The predicted point maps and camera poses together define triangle centers c in world space.
+Each triangle is instantiated from a canonical equilateral template T ∈ R3×3 . Three raw scale
+logits are mapped via sigmoid to a bounded interval and converted to world-space sizes using
+the predicted depth and the intrinsic-derived pixel footprint. Let s denote the resulting scale
+vector, Rn the tangent-frame rotation that orients the triangle along the local surface (derived in
+Sec. 3.2), and Rc the camera-to-world rotation. The k-th vertex is
+                                                   
+                              vk = Rc Rn Tk ⊙ s + c,       k ∈ {1, 2, 3},                            (2)
+
+where ⊙ denotes element-wise multiplication. The constructed triangles are rendered by a
+differentiable triangle rasterizer [30] via tile-based sorting and front-to-back alpha compositing,
+producing RGB images, depth maps, and surface normals.
+  The point maps produced by this stage serve a dual purpose. Beyond defining triangle centers,
+they also provide the geometric foundation for deriving triangle orientation, as we describe next.
+
+3.2   Anchoring Triangle Orientation to Geometry
+Triangle primitives are far more sensitive to orientation errors than Gaussian splats. A slightly
+misoriented Gaussian still produces a plausible soft footprint, whereas a misoriented triangle
+creates hard-edged artifacts whose visibility scales directly with the angular error. Treating
+orientation as an unconstrained latent variable is therefore impractical. We instead anchor it to
+the predicted 3D geometry through the following pipeline that progressively refines the orientation
+estimate.
+Geometry normals. Given the dense point map P from the point head, surface normals follow from
+finite differences. Padded horizontal and vertical derivatives ∆x and ∆y yield the raw geometry
+normal
+                                   ngeo = normalize(∆x × ∆y ),                              (3)
+which flips toward the camera when ngeo · p > 0. Border pixels and degenerate cross products are
+excluded via a Boolean validity mask m propagated through all subsequent stages. The point
+map may be optionally detached from the computation graph to decouple normal refinement from
+point prediction, and smoothed with an average-pooling kernel to suppress high-frequency noise.
+An orientation-aware box filter further refines the field by weighting only neighbors whose normals
+agree in sign with the center pixel, preserving discontinuities at depth edges.
+  These geometry normals provide a strong structural prior but are inevitably noisy during early
+training when point maps have not converged. Two complementary mechanisms address this.
+Learned refinement. A lightweight U-Net incorporates appearance and depth cues not captured by
+local finite differences. It takes as input the channel-wise concatenation of the raw and smoothed
+geometry normals, the downsampled RGB image Iv , the predicted depth map Dv ∈ RH×W (whose
+pixel values are the per-pixel z from Eq. (1)), and the validity mask. Its output layer is initialized
+to zero so that the head begins as an identity mapping and gradually learns corrections. Let nsm
+denote the smoothed geometry normal and fθ the refinement network. The refined normal is
+                                                                             
+                        nref = normalize nsm + fθ (ngeo , nsm , Iv , Dv , m) .                       (4)
+
+Zero-initialization is critical for stability, as a randomly initialized head would perturb orientations
+before useful gradients have accumulated, disrupting triangle rendering from the start.
+Mono-normal bootstrap. Even with the refinement head, the earliest stage of training presents a
+chicken-and-egg problem: point maps are too inaccurate for reliable normals, and the refinement
+
+
+                                                   5
+network has not learned meaningful corrections. We break this deadlock with a bootstrap schedule
+that warm-starts orientation from a pretrained monocular normal estimator [49]. Teacher normals
+ntch are computed offline for each input view, and a time-varying coefficient α(t) blends them
+with the model normals:
+                                                                              
+                           nfwd = normalize α(t) ntch + (1 − α(t)) nref .                          (5)
+
+The schedule comprises three phases: a takeover phase (t ≤ ttk , α = 1) where the teacher fully
+determines orientation; a blending phase (ttk < t < tbl ) where α decays via a cosine schedule
+
+                                                          t − ttk
+                                                                   
+                                 α(t) = 12 1 + cos π ·                    ;                        (6)
+                                                         tbl − ttk
+
+and a release phase (t ≥ tbl , α = 0) where the model relies entirely on its own geometry. Blending
+is restricted to pixels where both teacher and geometry validity masks hold. Importantly, this
+bootstrap operates on the forward-pass representation rather than on a loss term: the teacher
+normal directly enters triangle construction and therefore shapes the rendered output and all
+downstream gradients, making it fundamentally different from a teacher-matching loss that only
+provides an additive optimization signal. In practice we apply both simultaneously for maximum
+stability.
+Tangent frame construction. The blended normal nfwd is converted into a full orthonormal frame
+[t, b, nfwd ]. The tangent t is obtained by projecting the point-map derivative ∆x onto the plane
+perpendicular to nfwd and normalizing, aligning local axis of the triangle with the dominant surface
+gradient direction. The bitangent follows from b = nfwd × t, and orthogonality is guaranteed by
+re-deriving t = b × nfwd . The resulting 3×3 rotation matrix serves directly as Rn in Eq. (2) at
+valid pixels and is additionally stored as a unit quaternion for compact representation.
+   With triangle orientation now anchored to geometry, the remaining challenge is that the
+hard-edged nature of triangles makes early-stage training unstable when predictions are still
+coarse.
+
+3.3   Progressive Surface Sharpening
+A Gaussian primitive that is slightly too large or misplaced still covers roughly the correct image
+region through its smooth radial falloff, receiving useful gradients. A triangle in the same situation
+may miss its target pixels entirely, producing zero gradients and stalling learning. We address this
+by scheduling two complementary softness parameters that gradually transition the representation
+from blurred, forgiving primitives to sharp, mesh-ready surface elements.
+Opacity scheduling. The predicted density p ∈ [0, 1] is first converted to opacity through a nonlinear
+mapping whose shape changes over training. The exponent e(t) ramps linearly from einit to efinal
+during warm-up. The opacity is
+                                                                    
+                                   o = 12 1 − (1 − p)e(t) + p e(t) .                               (7)
+
+When e(t) = 1 the mapping reduces to identity (o = p); as e(t) grows, intermediate densities are
+pushed toward zero or one, progressively binarizing the opacity field. An additional temperature
+factor τ (t) further sharpens the distribution at render time: the opacity is remapped via o ←
+                  
+σ τ (t) · logit(o) , where τ (t) increases linearly from τinit to τfinal .
+Blur scheduling. Each triangle carries a scalar blur parameter modulating alpha falloff around its
+edges in the rasterizer:
+                                      σ = sigmoid(σ̂) · β(t),                                  (8)
+
+
+                                                  6
+ 6 views
+ 12 views
+ 24 views
+
+
+
+
+             Input           MVSplat     DepthSplat      AnySplat   YoNoSplat     TriSplat     Ground Truth
+
+Figure 3 Mesh-rendering comparison on DL3DV. Rows use 6, 12, and 24 input views and keep the
+baselines available in the source comparison. After mesh export, Gaussian baselines show missing surfaces
+and inconsistent geometry, whereas TriSplat keeps more complete triangle-rendered structure.
+ 6 views
+ 12 views
+ 24 views
+
+
+
+
+                     Input             MVSplat        DepthSplat    AnySplat    YoNoSplat        TriSplat
+
+
+Figure 4 Textured mesh comparison on DL3DV. Across 6/12/24 input views, Gaussian-to-TSDF conversion
+often shrinks or fragments geometry and loses scene extent; TriSplat directly exports more coherent textured
+triangle surfaces.
+
+
+where σ̂ is the raw predicted value and β(t) decays linearly from βinit to βfinal . Large initial blur
+creates broad, overlapping soft footprints with dense gradient coverage. As β decreases, each
+triangle tightens into a well-defined surface element.
+   Opacity controls how strongly each primitive contributes to the composited color, while blur
+controls the spatial extent of that contribution. Scheduling both in conjunction provides a richer
+soft-to-crisp curriculum than either alone, ensuring stable early optimization and progressively
+tighter surface definition as geometry and orientation converge.
+
+3.4         Training Objectives and Mesh Extraction
+
+Training objectives. TriSplat is trained end-to-end with three complementary terms that supervise
+rendering, camera, and surface orientation, respectively:
+
+                                          L = Lphoto + Lcam + Lnormal .                                       (9)
+
+The photometric term Lphoto combines a pixel-wise reconstruction loss with a perceptual LPIPS
+loss [79] between the rendered and ground-truth images. The camera term Lcam is a pairwise
+relative pose loss over all ordered view pairs, with a Huber term on relative translations and an
+angular term on relative rotations; this pairwise form is invariant to the global coordinate frame
+and provides denser supervision than per-view absolute regression. The normal term Lnormal is a
+cosine similarity loss that aligns the refined normal nref with the monocular teacher normal ntch
+
+
+                                                           7
+Table 1 Surface quality on DL3DV with 6/12/24 input views. We evaluate exported meshes against the
+ground-truth surface. Gaussian baselines use TSDF-fused meshes, while the triangle-native model exports
+its primitives directly. Best results are in bold, second-best are underlined.
+
+                           6 views                           12 views                            24 views
+ Method            CD ↓ Prec. ↑ Rec. ↑       F1 ↑    CD ↓ Prec. ↑ Rec. ↑          F1 ↑    CD ↓ Prec. ↑ Rec. ↑       F1 ↑
+ MVSplat           1.143    0.121   0.154    0.118   0.802       0.122   0.211    0.135   0.695    0.130   0.276    0.156
+ DepthSplat        1.116    0.135   0.192    0.145   0.907       0.127   0.237    0.152   0.786    0.120   0.274    0.152
+ AnySplat          1.012    0.088   0.143    0.093   0.731       0.085   0.163    0.096   0.699    0.084   0.175    0.100
+ YoNoSplat         0.920    0.090   0.189    0.106   0.664       0.073   0.183    0.092   0.687    0.068   0.173    0.088
+ TriSplat (Ours)   0.613    0.223   0.448    0.287   0.323       0.200   0.522    0.279   0.310    0.191   0.571    0.277
+
+Table 2 NVS quality on DL3DV with 6/12/24 input views under mesh rendering. We render each exported
+mesh with the same triangle rasterizer and report target-view reconstruction quality.
+
+                               6 views                             12 views                          24 views
+ Method            PSNR ↑      SSIM ↑    LPIPS ↓     PSNR ↑        SSIM ↑ LPIPS ↓         PSNR ↑      SSIM ↑    LPIPS ↓
+ MVSplat            14.75      0.450        0.509     15.16         0.431        0.525     15.72      0.439        0.526
+ DepthSplat         14.86      0.481        0.490     14.82         0.426        0.536     15.13      0.422        0.541
+ AnySplat           18.58      0.551        0.397     16.58         0.485        0.462     16.42      0.442        0.475
+ YoNoSplat          18.88      0.548        0.414     16.90         0.459        0.485     16.71      0.452        0.499
+ TriSplat (Ours)    20.84       0.615       0.335     18.71          0.493       0.400     18.06       0.455       0.425
+
+
+
+at pixels where both are valid. The exact formulation of each term, the per-term loss weights, and
+a large-loss filter that suppresses outlier samples after warm-up are reported in Appendix A.2.
+Mesh extraction. A distinctive advantage of the triangle-native representation is that mesh
+extraction becomes trivial. Because the rendering output already consists of oriented triangles in
+world space, no auxiliary reconstruction is needed. After a forward pass, low-opacity triangles are
+discarded, winding order is corrected by comparing face normals against per-pixel normals from
+Sec. 3.2, and nearby duplicate vertices are merged via quantized position hashing. The result is
+a standard triangle mesh produced without per-scene optimization, TSDF fusion, or marching
+cubes, directly usable in physics simulation, collision detection, and standard rendering engines.
+
+4     Experiments
+We evaluate TriSplat along three axes that directly reflect its simulation-ready objective: (i) the
+quality of the reconstructed surface geometry, (ii) novel-view rendering quality when the exported
+mesh is consumed by a standard triangle rasterizer, (iii) depth and normal accuracy, and (iv)
+runtime efficiency. All design choices are additionally validated through controlled ablation studies.
+
+4.1   Experimental Setup
+
+Datasets. We train on RealEstate10K (RE10K) [31] and DL3DV [32] following standard splits [18].
+RE10K contains 67,477 training and 7,289 test scenes collected from real-estate walkthroughs on
+YouTube, spanning diverse indoor and outdoor environments with camera parameters recovered
+via structure-from-motion. DL3DV contains over 10,000 real-world scenes captured at high
+resolution, offering richer complexity and wider viewpoint variation than prior datasets. We
+additionally evaluate zero-shot generalization on 100 held-out scenes from ScanNet [33] following
+MeshSplat [22].
+Baselines. We compare against feed-forward methods spanning Gaussian splatting and their
+variants: MVSplat [8] and DepthSplat [12] (cost-volume-based Gaussian models), AnySplat [57]
+and YoNoSplat [18] (pose-free Gaussian methods), and MeshSplat [22] and SurfelSplat [23]
+
+
+                                                             8
+    Input           MVSplat     DepthSplat      AnySplat    YoNoSplat    MeshSplat    SurfelSplat     TriSplat    Ground Truth
+
+
+Figure 5 Mesh-rendering comparison on RE10K. We compare target-view renders obtained from exported
+meshes using six input views and the same mesh-rendering protocol. TSDF-fused Gaussian baselines blur
+surfaces, drop structures, or introduce floaters, while TriSplat preserves sharper triangle-rendered detail
+and more complete silhouettes.
+
+
+
+
+            Input             MVSplat        DepthSplat    AnySplat     YoNoSplat    MeshSplat      SurfelSplat    TriSplat
+
+Figure 6 Textured mesh comparison on RE10K. We visualize exported textured meshes rather than
+image-space renders, including both textured and geometry-only views. TriSplat yields cleaner triangle
+surfaces, while TSDF-fused Gaussian baselines over-smooth or fragment geometry.
+
+
+(geometry-aware variants).
+Metrics. Surface quality is measured by Chamfer Distance (CD), Precision, Recall, and F1 score,
+computed with the protocol detailed in Appendix J. Rendering quality is measured by PSNR,
+SSIM [80], and LPIPS [79] on mesh. For ScanNet we additionally report depth accuracy (AbsRel,
+AbsDiff) and normal accuracy (mean angular error, fraction of pixels within 30◦ ).
+Evaluation protocol and rendering modes. On DL3DV we evaluate with 6, 12, and 24 input views
+at context gaps of 50–180 frames; on RE10K we evaluate with 6 views at gaps of 50-150 frames;
+ScanNet is evaluated in a zero-shot setting using RE10K-trained models without fine-tuning.
+For each method we consider two rendering modes. Primitive rendering uses each method’s
+native rasterizer (Gaussian splatting for baselines, triangle splatting for TriSplat). Mesh rendering
+rasterizes the exported mesh with a standard triangle rasterizer: Gaussian baselines export meshes
+via TSDF fusion [22], whereas TriSplat exports its triangle primitives directly without any auxiliary
+reconstruction. Because the ultimate goal of TriSplat is a simulation-ready mesh that can be
+ingested by physics engines and standard graphics pipelines, we adopt mesh rendering as the
+
+
+                                                                9
+          Input              MVSplat      DepthSplat      AnySplat        YoNoSplat   MeshSplat   SurfelSplat   TriSplat   Ground Truth
+
+Figure 7 Depth and normal comparison on ScanNet. All models are trained on RE10K and evaluated
+zero-shot on ScanNet, with depth and surface normals shown for each method. TriSplat produces smoother
+surface-aligned normals and sharper depth boundaries under this domain shift.
+
+Table 3 Quantitative comparison on RE10K with 6 input views.                           Table 4 Zero-shot depth and normal
+Following the same mesh-based protocol as Tables 1 and 2, we                           evaluation on ScanNet with 6 input
+additionally include surface-aware variants (MeshSplat [22], Sur-                      views. All models are trained on RE10K
+felSplat [23]) that target geometric fidelity rather than rendering.                   and zero-shot evaluated on ScanNet.
+                       Surface Quality                 NVS Quality                                          Depth         Normal
+Method            CD ↓ Prec. ↑ Rec. ↑ F1 ↑        PSNR ↑ SSIM ↑ LPIPS ↓                Method             Rel ↓ Diff ↓ Mean ↓ < 30◦ ↑
+MVSplat           0.340   0.618   0.257   0.358        13.97   0.615         0.378     MVSplat           0.708 1.206 102.247    17.204
+DepthSplat        0.294   0.647   0.326   0.429        21.23   0.781         0.271     DepthSplat        0.279 0.595 54.861     29.403
+AnySplat          0.540   0.460   0.064   0.110        18.23   0.589         0.365     AnySplat          0.453 0.283 55.557     25.375
+YoNoSplat         0.267   0.681   0.333   0.443        21.94   0.753         0.238     YoNoSplat         0.270 0.516 54.110     41.047
+MeshSplat         0.349   0.642   0.234   0.340        19.97   0.719         0.294     MeshSplat         0.534 0.999 59.803     31.862
+SurfelSplat       0.747   0.432   0.099   0.154        11.18   0.184         0.738     SurfelSplat       0.716 1.264 75.300     16.484
+TriSplat (Ours) 0.190     0.708   0.560   0.622        24.69    0.798        0.269     TriSplat (Ours) 0.188 0.341 27.901       71.708
+
+
+
+primary rende ring metric throughout the main paper and report primitive rendering results
+in Appendix C for reference, together with an explicit primitive-to-mesh degradation analysis.
+Implementation details are provided in Appendix A.
+
+4.2    Surface Reconstruction and Mesh Rendering
+Tables 1, 2, and 3 jointly report the geometric quality of the exported mesh and the novel-view
+rendering quality when the same mesh is rasterized by a standard triangle pipeline. This unified
+view directly measures how faithful the reconstructed surface is and how well it performs as the
+actual rendering primitive in downstream pipelines.
+Surface geometry. TriSplat consistently produces the most accurate surface geometry across all
+four metrics on both datasets. On RE10K (Table 3) TriSplat attains a Chamfer Distance of 0.190
+and an F1 score of 0.622, improving over the strongest Gaussian baseline (YoNoSplat) by 0.077
+in CD and 0.179 in F1. The gap is especially pronounced on Recall (+0.227), revealing that
+TSDF-fused meshes from Gaussian baselines systematically under-cover the ground-truth surface,
+particularly around thin structures. Dedicated surface-oriented Gaussian variants do not close this
+gap. MeshSplat achieves surface-like regularity but remains bounded by TSDF discretization, and
+SurfelSplat degrades substantially on CD and F1. The same pattern holds on DL3DV (Tables 1
+and 2) across 6, 12, and 24 views, showing that TriSplat’s geometric advantage is robust to the
+density of input observations. Qualitative textured mesh visualizations in Figs. 6 and 4 confirm
+
+
+                                                                     10
+                                            TriSplat (Ours)                 YoNoSplat           AnySplat                 SurfelSplat      MeshSplat                  DepthSplat
+
+                                     50s                                 85.5s 137s                                     128s 209s                              64.0s 123s 306s
+
+
+          Inference time (seconds)
+                                     40s                                                                        35.5s
+                                                                                                                                                       33.0s
+                                     30s                                                                28.6s
+                                                                 24.9s
+                                                                                                                                               22.9s
+                                                   19.2s 18.7s                                  18.7s
+                                     20s
+
+                                     10s
+                                           0.57s                                        0.62s                                          1.23s
+                                      0s
+                                                         6 views                                    12 views                                       24 views
+                                                                                        Number of input views
+Figure 8 Runtime comparison on DL3DV. TriSplat produces a usable mesh in well under 1.3 s for up to 24
+input views, while Gaussian feed-forward baselines additionally pay a mesh export cost that scales with the
+reconstructed volume. Bars beyond the 45 s axis cap are broken; the exact value is annotated above each
+bar.
+
+
+the numerical trends. TSDF-fused baselines produce bumpy surfaces with floaters and missing
+thin structures, while TriSplat produces clean triangle meshes that preserve fine-scale geometry.
+Mesh rendering. Because the downstream consumer of a simulation-ready representation is a
+standard triangle rasterizer, we evaluate rendering quality directly on the exported mesh. TriSplat
+obtains the best mesh-rendering quality across datasets. On RE10K TriSplat reaches 24.69 dB
+PSNR under mesh rendering, compared to 21.94 dB for the strongest Gaussian baseline, a margin
+of +2.75 dB. The advantage stems from a structural asymmetry between the two families: Gaussian
+baselines incur a substantial quality drop when their TSDF-fused meshes are rendered as triangles,
+because the discretized volume discards the very primitives that produced the original image,
+whereas in TriSplat the rendering primitives are the mesh and no information is lost during export.
+Qualitative mesh-rendering results in Figs. 5 and 3 visualize this effect: TriSplat preserves sharp
+edges and thin structures, whereas TSDF-based baselines exhibit blurred boundaries and missing
+geometry. A complementary analysis of the primitive-rendering mode, corresponding to each
+method’s native rasterization prior to mesh export, is reported in Appendix C, together with an
+explicit primitive-to-mesh degradation summary.
+
+4.3   Depth and Normal Quality
+Table 4 evaluates depth and normal accuracy on ScanNet in a zero-shot setting, using RE10K-
+trained models without fine-tuning. TriSplat achieves an AbsRel of 0.188 and an AbsDiff of 0.341,
+the best among all compared methods. On normal metrics TriSplat outperforms all baselines by a
+clear margin, with a mean angular error of 27.9◦ and a <30◦ accuracy of 71.7%, compared to 54.1◦
+mean error and 41.0% at <30◦ for the strongest baseline. This improvement directly reflects
+the geometry-anchored normal pipeline and the bootstrap schedule, which explicitly optimize
+for orientation quality. Qualitative depth and normal maps in Fig. 7 confirm that TriSplat
+yields smooth, geometrically coherent normals aligned with surface boundaries, whereas Gaussian
+baselines produce noisy, per-pixel-inconsistent normal fields. Additional novel-view synthesis
+results on ScanNet are provided in Appendix F.
+
+4.4   Efficiency
+Fig. 8 compares the end-to-end time-to-mesh of all methods on DL3DV at 6, 12, and 24 input
+views, measured on a single NVIDIA H100 GPU. Because TriSplat’s rendering primitives are
+themselves the mesh, its end-to-end cost equals the feed-forward pass alone: 0.57 s, 0.62 s, and
+1.23 s, respectively. Every Gaussian baseline, in contrast, must run an additional TSDF-fusion
+
+
+                                                                                                    11
+        Unity character                   Unity interaction                   Isaac H1              Isaac quadruped
+
+
+Figure 9 Simulation-ready demonstration. Directly exported TriSplat meshes are loaded into Unity and
+NVIDIA Isaac Sim for interaction, locomotion, and collision. The same mesh assets can be reused without
+Gaussian-to-mesh conversion or scene-specific cleanup.
+
+Table 5 Ablation study on RE10K (6 views). Each row removes one component from the full model.
+Geometry metrics are computed on the exported mesh; rendering metrics are reported under mesh rendering.
+
+                                                              Surface Quality       NVS Quality
+                          Configuration                       CD ↓     F1 ↑       PSNR ↑ LPIPS ↓
+                          Full model                          0.190   0.708         23.25   0.318
+                          w/o normal anchoring                0.190   0.651         22.14   0.396
+                          w/o mono-normal bootstrap           0.198   0.643         22.17   0.397
+                          w/o normal refinement               0.193   0.649         21.67   0.429
+                          w/o progressive sharpening          0.191   0.646         21.81   0.416
+
+
+
+stage to obtain a mesh consumable by a standard triangle pipeline, and this stage scales with the
+reconstructed volume rather than with the network. As a result, the fastest Gaussian baseline
+(AnySplat) takes 18.7 s at 6 views and 33.0 s at 24 views, while volumetric cost-volume methods
+such as DepthSplat reach 306 s at 24 views. End-to-end, TriSplat is 33× faster than the fastest
+Gaussian baseline at 6 views and up to 249× faster than the slowest baseline at 24 views, and is
+the only method that remains well under one second per scene at the smallest input setting. This
+advantage is structural rather than incidental: eliminating the post-hoc mesh-extraction step is
+precisely what makes the triangle-native representation simulation-ready by design.
+
+4.5   Simulation-Ready Demonstration
+To validate the practical utility of our simulation-ready representation, we load the directly
+exported meshes from TriSplat into two mainstream physics engines, Unity and NVIDIA Isaac
+Sim, and demonstrate a range of embodied tasks including rigid-body simulation, collision detection,
+robot navigation, and robotic grasping (Fig. 9). The exported meshes are consumed without
+any manual cleanup or format conversion. By contrast, Gaussian baselines require TSDF fusion
+followed by additional mesh cleaning before they can be loaded into the same engines. Extended
+simulation experiments are provided in Appendix H.
+
+4.6   Ablation Study
+We ablate the four design choices of TriSplat on RE10K with 6 input views; Table 5 reports
+surface geometry (CD, F1) and mesh-rendering quality (PSNR, LPIPS). Each component targets
+a distinct failure mode and removing any single one degrades all four metrics by a comparable
+margin. Normal anchoring fixes orientation: replacing it with an unconstrained quaternion lets
+triangle centers drift, dropping F1 by 0.057 and PSNR by 1.11 dB. The mono-normal bootstrap
+resolves the early-stage deadlock between point maps and normals; removing it yields the largest
+surface degradation (F1 −0.065, PSNR −1.08 dB). Normal refinement suppresses finite-difference
+noise at depth edges that otherwise surfaces directly as rasterization artifacts, producing the
+largest rendering drop (PSNR −1.58 dB, LPIPS +0.111). Progressive sharpening avoids the
+cold-start of hard-edged triangles by providing soft-footprint gradients early on; disabling it lowers
+PSNR by 1.44 dB and F1 by 0.062 while leaving CD nearly unchanged.
+
+
+                                                                12
+5   Conclusion
+We presented TriSplat, a feed-forward reconstruction model that represents scenes natively as
+oriented triangle primitives and jointly predicts geometry, appearance, and camera parameters
+from sparse unposed images in a single forward pass. By anchoring triangle orientation to predicted
+point-map geometry, warm-starting the orientation field through a mono-normal bootstrap, and
+bridging soft-to-crisp optimization with a progressive sharpening curriculum, TriSplat attains
+substantially more accurate surface geometry than Gaussian feed-forward baselines and, because
+its rendering primitives are themselves the exported mesh, also yields the strongest mesh-rendering
+quality across RealEstate10K, DL3DV, and zero-shot ScanNet, while sidestepping the primitive-to-
+mesh degradation that TSDF fusion imposes on Gaussian-based pipelines. The directly exported
+meshes can be ingested by mainstream physics engines without any post-processing, recasting
+simulation readiness as a property of the representation itself rather than a downstream conversion
+problem.
+Limitations and future work. The direct export yields a non-manifold triangle soup adequate for
+rendering and physics but not for applications requiring watertight meshes such as finite-element
+analysis, and per-pixel prediction ties triangle density to input resolution, leaving topology-aware
+export and adaptive tessellation as promising future directions.
+
+Acknowledgements
+We thank ETH Zurich for providing the computational resources used in this work.
+
+References
+ [1] Mohammad Nomaan Qureshi, Sparsh Garg, Francisco Yandun, David Held, George Kantor,
+     and Abhisesh Silwal. Splatsim: Zero-shot sim2real transfer of rgb manipulation policies using
+     gaussian splatting. arXiv preprint arXiv:2409.10161, 2024.
+
+ [2] Gunjan Chhablani, Xiaomeng Ye, Muhammad Zubair Irshad, and Zsolt Kira. Embodiedsplat:
+     Personalized real-to-sim-to-real navigation with gaussian splats from a mobile device. In
+     Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 25431–
+     25441, 2025.
+
+ [3] Johannes Lutz Schönberger and Jan-Michael Frahm. Structure-from-motion revisited. In
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2016.
+
+ [4] Johannes Lutz Schönberger, Enliang Zheng, Marc Pollefeys, and Jan-Michael Frahm. Pixelwise
+     view selection for unstructured multi-view stereo. In European Conference on Computer
+     Vision, 2016.
+
+ [5] Yasutaka Furukawa, Carlos Hernández, et al. Multi-view stereo: A tutorial. Foundations
+     and trends® in Computer Graphics and Vision, 9(1-2):1–148, 2015.
+
+ [6] Alex Yu, Vickie Ye, Matthew Tancik, and Angjoo Kanazawa. pixelnerf: Neural radiance
+     fields from one or few images. In IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, pages 4578–4587, 2021.
+
+ [7] Anpei Chen, Zexiang Xu, Fuqiang Zhao, Xiaoshuai Zhang, Fanbo Xiang, Jingyi Yu, and
+     Hao Su. Mvsnerf: Fast generalizable radiance field reconstruction from multi-view stereo. In
+     IEEE/CVF International Conference on Computer Vision, pages 14124–14133, 2021.
+
+
+
+                                                13
+ [8] Yuedong Chen, Haofei Xu, Chuanxia Zheng, Bohan Zhuang, Marc Pollefeys, Andreas Geiger,
+     Tat-Jen Cham, and Jianfei Cai. Mvsplat: Efficient 3d gaussian splatting from sparse multi-view
+     images. In European Conference on Computer Vision, pages 370–386. Springer, 2024.
+
+ [9] Jiahui Zhang, Yuelei Li, Anpei Chen, Muyu Xu, Kunhao Liu, Jianyuan Wang, Xiao-Xiao
+     Long, Hanxue Liang, Zexiang Xu, Hao Su, et al. Advances in feed-forward 3d reconstruction
+     and view synthesis: A survey. arXiv preprint arXiv:2507.14501, 2025.
+
+[10] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, and George Drettakis. 3d gaussian
+     splatting for real-time radiance field rendering. ACM Transactions on Graphics, 42(4):139–1,
+     2023.
+
+[11] David Charatan, Sizhe Lester Li, Andrea Tagliasacchi, and Vincent Sitzmann. pixelsplat: 3d
+     gaussian splats from image pairs for scalable generalizable 3d reconstruction. In IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, pages 19457–19467, 2024.
+
+[12] Haofei Xu, Songyou Peng, Fangjinhua Wang, Hermann Blum, Daniel Barath, Andreas Geiger,
+     and Marc Pollefeys. Depthsplat: Connecting gaussian splatting and depth. In IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, 2025.
+
+[13] Weijie Wang, Yeqing Chen, Zeyu Zhang, Hengyu Liu, Haoxiao Wang, Zhiyuan Feng, Wenkang
+     Qin, Zheng Zhu, Donny Y. Chen, and Bohan Zhuang. Volsplat: Rethinking feed-forward 3d
+     gaussian splatting with voxel-aligned prediction. arXiv preprint arXiv:2509.19297, 2025.
+
+[14] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r:
+     Geometric 3d vision made easy. In IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, pages 20697–20709, 2024.
+
+[15] Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue, Christian Rupprecht, Xiaowei
+     Zhou, Yujun Shen, and Gordon Wetzstein. Flare: Feed-forward geometry, appearance and
+     camera estimation from uncalibrated sparse views. In IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition, pages 21936–21947, 2025.
+
+[16] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht,
+     and David Novotny. Vggt: Visual geometry grounded transformer. arXiv preprint
+     arXiv:2503.11651, 2025.
+
+[17] Botao Ye, Sifei Liu, Haofei Xu, Xueting Li, Marc Pollefeys, Ming-Hsuan Yang, and Songyou
+     Peng. No pose, no problem: Surprisingly simple 3d gaussian splats from sparse unposed
+     images. arXiv preprint arXiv:2410.24207, 2024.
+
+[18] Botao Ye, Boqi Chen, Haofei Xu, Daniel Barath, and Marc Pollefeys. Yonosplat: You only
+     need one model for feedforward 3d gaussian splatting. arXiv preprint arXiv:2511.07321, 2025.
+
+[19] Binbin Huang, Zehao Yu, Anpei Chen, Andreas Geiger, and Shenghua Gao. 2d gaussian splat-
+     ting for geometrically accurate radiance fields. In ACM SIGGRAPH Conference Proceedings,
+     pages 1–11, 2024.
+
+[20] Zehao Yu, Torsten Sattler, and Andreas Geiger. Gaussian opacity fields: Efficient adaptive
+     surface reconstruction in unbounded scenes. ACM Transactions on Graphics, 43(6):1–13,
+     2024.
+
+[21] Xiaoyang Lyu, Yang-Tian Sun, Yi-Hua Huang, Xiuzhe Wu, Ziyi Yang, Yilun Chen, Jiangmiao
+     Pang, and Xiaojuan Qi. 3dgsr: Implicit surface reconstruction with 3d gaussian splatting.
+     ACM Transactions on Graphics, 43(6):1–12, 2024.
+
+                                                14
+[22] Hanzhi Chang, Ruijie Zhu, Wenjie Chang, Mulin Yu, Yanzhe Liang, Jiahao Lu, Zhuoyuan
+     Li, and Tianzhu Zhang. Meshsplat: Generalizable sparse-view surface reconstruction via
+     gaussian splatting. arXiv preprint arXiv:2508.17811, 2025.
+
+[23] Chensheng Dai, Shengjun Zhang, Min Chen, and Yueqi Duan. Surfelsplat: Learning efficient
+     and generalizable gaussian surfel representations for sparse-view surface reconstruction. In
+     Advances in Neural Information Processing Systems, 2025.
+
+[24] Jiale Xu, Weihao Cheng, Yiming Gao, Xintao Wang, Shenghua Gao, and Ying Shan. In-
+     stantmesh: Efficient 3d mesh generation from a single image with sparse-view large recon-
+     struction models. arXiv preprint arXiv:2404.07191, 2024.
+
+[25] Xinyue Wei, Kai Zhang, Sai Bi, Hao Tan, Fujun Luan, Valentin Deschaintre, Kalyan Sunkavalli,
+     Hao Su, and Zexiang Xu. Meshlrm: Large reconstruction model for high-quality meshes.
+     arXiv preprint arXiv:2404.12385, 2024.
+
+[26] Minghua Liu, Chong Zeng, Xinyue Wei, Ruoxi Shi, Linghao Chen, Chao Xu, Mengqi Zhang,
+     Zhaoning Wang, Xiaoshuai Zhang, Isabella Liu, et al. Meshformer: High-quality mesh
+     generation with 3d-guided reconstruction model. Advances in Neural Information Processing
+     Systems, 37:59314–59341, 2024.
+
+[27] Christopher B Choy, Danfei Xu, JunYoung Gwak, Kevin Chen, and Silvio Savarese. 3d-r2n2:
+     A unified approach for single and multi-view 3d object reconstruction. In European Conference
+     on Computer Vision, pages 628–644. Springer, 2016.
+
+[28] Angjoo Kanazawa, Shubham Tulsiani, Alexei A Efros, and Jitendra Malik. Learning category-
+     specific mesh reconstruction from image collections. In European Conference on Computer
+     Vision, pages 371–386, 2018.
+
+[29] Nanyang Wang, Yinda Zhang, Zhuwen Li, Yanwei Fu, Wei Liu, and Yu-Gang Jiang.
+     Pixel2mesh: Generating 3d mesh models from single rgb images. In European Conference on
+     Computer Vision, pages 52–67, 2018.
+
+[30] Jan Held, Renaud Vandeghen, Adrien Deliege, Abdullah Hamdi, Anthony Cioppa, Silvio Gian-
+     cola, Andrea Vedaldi, Bernard Ghanem, Andrea Tagliasacchi, and Marc Van Droogenbroeck.
+     Triangle splatting for real-time radiance field rendering. arXiv, 2025.
+
+[31] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe, and Noah Snavely. Stereo
+     magnification: learning view synthesis using multiplane images. ACM Transactions on
+     Graphics, 37(4):1–12, 2018.
+
+[32] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin, Kun Wan, Lantao Yu, Qianyu Guo,
+     Zixun Yu, Yawen Lu, et al. Dl3dv-10k: A large-scale scene dataset for deep learning-based
+     3d vision. In IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages
+     22160–22169, 2024.
+
+[33] Angela Dai, Angel X Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias
+     Nießner. Scannet: Richly-annotated 3d reconstructions of indoor scenes. In IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, pages 5828–5839, 2017.
+
+[34] Jiahui Zhang, Fangneng Zhan, Muyu Xu, Shijian Lu, and Eric Xing. Fregs: 3d gaussian
+     splatting with progressive frequency regularization. In IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition, pages 21424–21433, 2024.
+
+
+
+                                               15
+[35] Yingwenqi Jiang, Jiadong Tu, Yuan Liu, Xifeng Gao, Xiaoxiao Long, Wenping Wang, and
+     Yuexin Ma. Gaussianshader: 3d gaussian splatting with shading functions for reflective
+     surfaces. In IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages
+     5322–5332, 2024.
+
+[36] Tao Lu, Mulin Yu, Linning Xu, Yuanbo Xiangli, Limin Wang, Dahua Lin, and Bo Dai.
+     Scaffold-gs: Structured 3d gaussians for view-adaptive rendering. In IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition, pages 20654–20664, 2024.
+
+[37] Cheng Peng, Yutao Tang, Yifan Zhou, Nengyu Wang, Xijun Liu, Deming Li, and Rama
+     Chellappa. Bags: Blur agnostic gaussian splatting through multi-scale kernel modeling. In
+     European Conference on Computer Vision, pages 293–310. Springer, 2024.
+
+[38] Lingzhe Zhao, Peng Wang, and Peidong Liu. Bad-gaussians: Bundle adjusted deblur gaussian
+     splatting. In European Conference on Computer Vision, pages 233–250. Springer, 2024.
+
+[39] Joo Chan Lee, Daniel Rho, Xiangyu Sun, Jong Hwan Ko, and Eunbyung Park. Compact 3d
+     gaussian representation for radiance field. In IEEE/CVF Conference on Computer Vision
+     and Pattern Recognition, pages 21719–21728, 2024.
+
+[40] Yihang Chen, Qianyi Wu, Weiyao Lin, Mehrtash Harandi, and Jianfei Cai. Hac: Hash-grid
+     assisted context for 3d gaussian splatting compression. In European Conference on Computer
+     Vision, pages 422–438. Springer, 2024.
+
+[41] Zhiwen Fan, Kevin Wang, Kairun Wen, Zehao Zhu, Dejia Xu, Zhangyang Wang, et al.
+     Lightgaussian: Unbounded 3d gaussian compression with 15x reduction and 200+ fps.
+     Advances in Neural Information Processing Systems, 37:140138–140158, 2024.
+
+[42] Simon Niedermayr, Josef Stumpfegger, and Rüdiger Westermann. Compressed 3d gaussian
+     splatting for accelerated novel view synthesis. In IEEE/CVF Conference on Computer Vision
+     and Pattern Recognition, pages 10349–10358, 2024.
+
+[43] Zihui Gao, Jia-Wang Bian, Guosheng Lin, Hao Chen, and Chunhua Shen. Surfacesplat:
+     Connecting surface reconstruction and gaussian splatting. arXiv preprint arXiv:2507.15602,
+     2025.
+
+[44] Lue Fan, Yuxue Yang, Minxing Li, Hongsheng Li, and Zhaoxiang Zhang. Trim 3d gaussian
+     splatting for accurate geometry representation. arXiv preprint arXiv:2406.07499, 2024.
+
+[45] Yaniv Wolf, Amit Bracha, and Ron Kimmel. Surface reconstruction from gaussian splatting
+     via novel stereo views. arXiv e-prints, pages arXiv–2404, 2024.
+
+[46] Kai Cheng, Xiaoxiao Long, Kaizhi Yang, Yao Yao, Wei Yin, Yuexin Ma, Wenping Wang,
+     and Xuejin Chen. Gaussianpro: 3d gaussian splatting with progressive propagation. In
+     International Conference on Machine Learning, 2024.
+
+[47] Evangelos Ververas, Rolandos Alexandros Potamias, Jifei Song, Jiankang Deng, and Stefanos
+     Zafeiriou. Sags: structure-aware 3d gaussian splatting. In European Conference on Computer
+     Vision, pages 221–238. Springer, 2024.
+
+[48] Maxime Oquab, Timothée Darcet, Theo Moutakanni, Huy V. Vo, Marc Szafraniec, Vasil
+     Khalidov, Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, Russell
+     Howes, Po-Yao Huang, Hu Xu, Vasu Sharma, Shang-Wen Li, Wojciech Galuba, Mike Rabbat,
+     Mido Assran, Nicolas Ballas, Gabriel Synnaeve, Ishan Misra, Herve Jegou, Julien Mairal,
+     Patrick Labatut, Armand Joulin, and Piotr Bojanowski. Dinov2: Learning robust visual
+     features without supervision, 2023.
+
+                                              16
+[49] Ainaz Eftekhar, Alexander Sax, Jitendra Malik, and Amir Zamir. Omnidata: A scalable
+     pipeline for making multi-task mid-level vision datasets from 3d scans. In IEEE/CVF
+     International Conference on Computer Vision, pages 10786–10796, 2021.
+
+[50] Chih-Hai Su, Chih-Yao Hu, Shr-Ruei Tsai, Jie-Ying Lee, Chin-Yang Lin, and Yu-Lun Liu.
+     Boostmvsnerfs: Boosting mvs-based nerfs to generalizable view synthesis in large-scale scenes.
+     In ACM SIGGRAPH Conference Proceedings, pages 1–12, 2024.
+
+[51] Weijie Wang, Qihang Cao, Sensen Gao, Donny Y Chen, Haofei Xu, Wenjing Bian, Songyou
+     Peng, Tat-Jen Cham, Chuanxia Zheng, Andreas Geiger, et al. Feed-forward 3d scene modeling:
+     A problem-driven perspective. arXiv preprint arXiv:2604.14025, 2026.
+
+[52] Christopher Wewer, Kevin Raj, Eddy Ilg, Bernt Schiele, and Jan Eric Lenssen. latentsplat:
+     Autoencoding variational gaussians for fast generalizable 3d reconstruction. In European
+     Conference on Computer Vision, pages 456–473. Springer, 2024.
+
+[53] Chuanrui Zhang, Yingshuang Zou, Zhuoling Li, Minmin Yi, and Haoqian Wang. Transplat:
+     Generalizable 3d gaussian splatting from sparse multi-view images with transformers. In
+     AAAI Conference on Artificial Intelligence, volume 39, pages 9869–9877, 2025.
+
+[54] Zhiyuan Min, Yawei Luo, Jianwen Sun, and Yi Yang. Epipolar-free 3d gaussian splat-
+     ting for generalizable novel view synthesis. In A. Globerson, L. Mackey, D. Bel-
+     grave, A. Fan, U. Paquet, J. Tomczak, and C. Zhang, editors, Advances in Neu-
+     ral Information Processing Systems, volume 37, pages 39573–39596. Curran Associates,
+     Inc., 2024. URL https://proceedings.neurips.cc/paper_files/paper/2024/file/
+     45ed1a72597594c097152ef9cc187762-Paper-Conference.pdf.
+
+[55] Shengji Tang, Weicai Ye, Peng Ye, Weihao Lin, Yang Zhou, Tao Chen, and Wanli Ouyang.
+     Hisplat: Hierarchical 3d gaussian splatting for generalizable sparse-view reconstruction, 2024.
+     URL https://arxiv.org/abs/2410.06245.
+
+[56] Xin Fei, Wenzhao Zheng, Yueqi Duan, Wei Zhan, Masayoshi Tomizuka, Kurt Keutzer, and
+     Jiwen Lu. Pixelgaussian: Generalizable 3d gaussian reconstruction from arbitrary views, 2024.
+     URL https://arxiv.org/abs/2410.18979.
+
+[57] Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui Ren, Yichen Jin, Xudong Xu, Mulin
+     Yu, Jiangmiao Pang, Feng Zhao, et al. Anysplat: Feed-forward 3d gaussian splatting from
+     unconstrained views. arXiv preprint arXiv:2505.23716, 2025.
+
+[58] Yunsong Wang, Tianxin Huang, Hanlin Chen, and Gim Hee Lee. Freesplat++: Generalizable
+     3d gaussian splatting for efficient indoor scene reconstruction. arXiv preprint arXiv:2503.22986,
+     2025.
+
+[59] Guichen Huang, Ruoyu Wang, Xiangjun Gao, Che Sun, Yuwei Wu, Shenghua Gao, and
+     Yunde Jia. Longsplat: Online generalizable 3d gaussian splatting from long sequence images.
+     arXiv preprint arXiv:2507.16144, 2025.
+
+[60] Yang Xiao, Guoan Xu, Qiang Wu, and Wenjing Jia. Jointsplat: Probabilistic joint flow-depth
+     optimization for sparse-view gaussian splatting. arXiv preprint arXiv:2506.03872, 2025.
+
+[61] Weijie Wang, Donny Y Chen, Zeyu Zhang, Duochao Shi, Akide Liu, and Bohan Zhuang.
+     Zpressor: Bottleneck-aware compression for scalable feed-forward 3dgs. Advances in Neural
+     Information Processing Systems, 38:113407–113436, 2026.
+
+
+
+                                                 17
+[62] Duochao Shi, Weijie Wang, Donny Y. Chen, Zeyu Zhang, Jiawang Bian, Bohan Zhuang,
+     and Chunhua Shen. Revisiting depth representations for feed-forward 3d gaussian splatting.
+     arXiv preprint arXiv:2506.05327, 2025.
+
+[63] Weijie Wang, Jiagang Zhu, Zeyu Zhang, Xiaofeng Wang, Zheng Zhu, Guosheng Zhao, Chaojun
+     Ni, Haoxiao Wang, Guan Huang, Xinze Chen, Yukun Zhou, Wenkang Qin, Duochao Shi,
+     Haoyun Li, Yicheng Xiao, Donny Y. Chen, and Jiwen Lu. Drivegen3d: Boosting feed-forward
+     driving scene generation with efficient video diffusion. arXiv preprint arXiv:2510.15264, 2025.
+
+[64] Xinhang Liu, Yuxi Xiao, Donny Y Chen, Jiashi Feng, Yu-Wing Tai, Chi-Keung Tang, and
+     Bingyi Kang. Trace anything: Representing any video in 4d via trajectory fields. arXiv
+     preprint arXiv:2510.13802, 2025.
+
+[65] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3d with
+     mast3r. In European Conference on Computer Vision, pages 71–91. Springer, 2024.
+
+[66] Yohann Cabon, Lucas Stoffl, Leonid Antsfeld, Gabriela Csurka, Boris Chidlovskii, Jerome
+     Revaud, and Vincent Leroy. Must3r: Multi-view network for stereo 3d reconstruction. In
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 1050–1060, 2025.
+
+[67] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai,
+     Franziska Meier, and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in
+     one forward pass. arXiv preprint arXiv:2501.13928, 2025.
+
+[68] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu, Rakesh Ranjan, Alexander Schwing,
+     and Zhicheng Yan. Mv-dust3r+: Single-stage scene reconstruction from sparse views in 2
+     seconds. arXiv preprint arXiv:2412.06974, 2024.
+
+[69] Nikhil Keetha, Norman Müller, Johannes Schönberger, Lorenzo Porzi, Yuchen Zhang, Tobias
+     Fischer, Arno Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes, et al. Mapanything:
+     Universal feed-forward metric 3d reconstruction. arXiv preprint arXiv:2509.13414, 2025.
+
+[70] Wonbong Jang, Philippe Weinzaepfel, Vincent Leroy, Lourdes Agapito, and Jerome Revaud.
+     Pow3r: Empowering unconstrained 3d reconstruction with camera and scene priors. In
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 1071–1081, 2025.
+
+[71] Zhiwen Fan, Wenyan Cong, Kairun Wen, Kevin Wang, Jian Zhang, Xinghao Ding, Danfei Xu,
+     Boris Ivanovic, Marco Pavone, Georgios Pavlakos, et al. Instantsplat: Unbounded sparse-view
+     pose-free gaussian splatting in 40 seconds. CoRR, 2024.
+
+[72] Brandon Smart, Chuanxia Zheng, Iro Laina, and Victor Adrian Prisacariu. Splatt3r: Zero-
+     shot gaussian splatting from uncalibrated image pairs. arXiv preprint arXiv:2408.13912,
+     2024.
+
+[73] Jiale Xu, Shenghua Gao, and Ying Shan. Freesplatter: Pose-free gaussian splatting for
+     sparse-view 3d reconstruction. In IEEE/CVF International Conference on Computer Vision,
+     2025.
+
+[74] Chong Cheng, Yu Hu, Sicheng Yu, Beizhen Zhao, Zijian Wang, and Hao Wang. RegGS:
+     Unposed sparse views gaussian splatting with 3DGS registration. In IEEE/CVF International
+     Conference on Computer Vision, 2025.
+
+[75] Yuki Fujimura, Takahiro Kushida, Kazuya Kitano, Takuya Funatomi, and Yasuhiro
+     Mukaigawa. Ufv-splatter: Pose-free feed-forward 3d gaussian splatting adapted to unfavorable
+     views. arXiv preprint arXiv:2507.22342, 2025.
+
+                                                18
+[76] Jake Levinson, Carlos Esteves, Kefan Chen, Noah Snavely, Angjoo Kanazawa, Afshin Ros-
+     tamizadeh, and Ameesh Makadia. An analysis of svd for deep rotation estimation. Advances
+     in Neural Information Processing Systems, 33:22554–22565, 2020.
+
+[77] Samy Bengio, Oriol Vinyals, Navdeep Jaitly, and Noam Shazeer. Scheduled sampling
+     for sequence prediction with recurrent neural networks. Advances in Neural Information
+     Processing Systems, 28, 2015.
+
+[78] Wenzhe Shi, Jose Caballero, Ferenc Huszár, Johannes Totz, Andrew P Aitken, Rob Bishop,
+     Daniel Rueckert, and Zehan Wang. Real-time single image and video super-resolution using
+     an efficient sub-pixel convolutional neural network. In IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition, pages 1874–1883, 2016.
+
+[79] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shechtman, and Oliver Wang. The unrea-
+     sonable effectiveness of deep features as a perceptual metric. In IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition, pages 586–595, 2018.
+
+[80] Zhou Wang, Alan C Bovik, Hamid R Sheikh, and Eero P Simoncelli. Image quality assessment:
+     from error visibility to structural similarity. IEEE Transactions on Image Processing, 13(4):
+     600–612, 2004.
+
+[81] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen,
+     Jiangmiao Pang, Chunhua Shen, and Tong He. pi3: Scalable permutation-equivariant visual
+     geometry learning. arXiv preprint arXiv:2507.13347, 2025.
+
+
+
+
+                                               19
+A     Implementation Details
+A.1   Network Architecture
+
+Backbone. The encoder adopts a DINOv2 ViT-L/14 [48] backbone with patch size 14 and
+augments it with 2D rotary position embeddings. Decoder blocks alternate between intra-view
+self-attention and cross-view joint attention, producing feature tokens of dimension d = 1024.
+For pose-free operation the backbone additionally embeds per-pixel intrinsic information via a
+4th-degree positional encoding applied at pixel level.
+Point and camera heads. The point head is a 5-layer transformer decoder (dimension 1024, 16
+heads, MLP ratio 4) followed by a linear projection that outputs three channels (two lateral
+coordinates and one log-depth), upsampled via pixel-shuffle [78] to 14× the token resolution. The
+camera head shares the same transformer depth and head count but reduces the output dimension
+to 512, mean-pools the decoded tokens via adaptive average pooling, and maps them through two
+residual 1×1 convolution blocks and two MLP layers to produce per-view SE(3) poses.
+Primitive head. The primitive head is structurally identical to the point head but its input
+features are additively fused with zero-initialized patch-embedded RGB tokens before decoding,
+providing the branch with direct access to appearance information. Its output dimension is 1 + dtri ,
+where dtri = 3 + 4 + 3 + 1 = 11 consists of three scale logits, a four-component quaternion, three
+zeroth-order spherical-harmonic (SH) coefficients, and one blur parameter. All dense heads employ
+an upscale token ratio of 2 and generate predictions at 14 × 14 points per patch, yielding a dense
+prediction map at the input image resolution.
+Normal refinement U-Net. The geometry-anchored normal refinement head is a lightweight U-Net
+with 4 encoder–decoder scales. Each scale consists of a convolution stage (conv → GroupNorm →
+GELU) followed by 2 residual convolution blocks, all using 3×3 kernels. The channel progression
+through the encoder is 36 → 72 → 144 → 288 and is mirrored in the decoder, which upsamples
+with bilinear interpolation and concatenates skip features. The network receives 11 input channels
+comprising the raw geometry normal (3), the smoothed geometry normal (3), the downsampled
+RGB image (3), the predicted depth (1), and the validity mask (1). The output layer operates
+in residual mode with a scale factor of 0.25, where both weights and biases are zero-initialized
+so that the head starts as an identity mapping and gradually learns corrections. Training uses
+mixed-precision bfloat16 with gradient checkpointing enabled to reduce memory.
+
+A.2   Loss Formulation
+We expand each term of the training objective L in Sec. 3.4 of the main paper. With per-term
+weights, the total objective is
+
+                         L = λphoto Lphoto + λcam Lcam + λnormal Lnormal .                      (10)
+
+
+Photometric term. Let Î and I∗ denote the rendered and ground-truth images. The photometric
+term combines a pixel-wise mean-squared error and a perceptual LPIPS loss [79]:
+                                                  2
+                          Lphoto = λmse Î − I∗ 2 + λlpips LPIPS(Î, I∗ ).                      (11)
+
+
+Camera term. The camera term is a sum over all ordered view pairs of a Huber loss Ltrans on the
+relative translation and an angular loss Lrot on the relative rotation:
+
+                                    Lcam = ωt Ltrans + ωr Lrot .                                (12)
+
+
+                                                 20
+The pairwise form is invariant to the choice of global coordinate frame and provides denser
+supervision than per-view absolute regression, since every view pair contributes an independent
+constraint.
+Normal term. Let V be the set of valid pixels (those satisfying the geometry mask, the finite-value
+check, and an optional object mask). The normal term is a cosine-similarity loss between the
+refined normal nref and the monocular teacher normal ntch :
+                                             1 X         ⊤           
+                                Lnormal =           1 − nref,i ntch,i .                         (13)
+                                            |V| i∈V
+
+A.3   Training Protocol
+
+Pre-training initialization. The backbone and decoder weights are initialized from PI3 [81], a
+pretrained pose-free Gaussian splatting model. The normal refinement U-Net and all triangle-
+specific adapter parameters are initialized from scratch with zero-initialization as described above.
+Training schedule. All training and testing are conducted on NVIDIA A100 GPUs. For RE10K, we
+train for 150K steps at 224 × 224 resolution. For DL3DV, we first train for 100K steps at 224 × 224
+resolution, then continue training for another 100K steps at 224 × 448 resolution. The number of
+context views is sampled uniformly from [2, 8] per iteration during multi-view training, and the
+context frame gap warms up from [40, 50] to [50, 200] frames on RE10K and from [15, 30] to [20, 50]
+on DL3DV. Unless otherwise noted, the learning rate is 5 × 10−5 with a backbone multiplier of
+0.01× and batch size 1 per GPU. The fixed 6-view checkpoints use the same dataset-specific step
+budgets and resolution schedules, but keep the number of context views fixed to 6; for this setting,
+the learning rate is raised to 1 × 10−4 and the batch size is increased to 4 across 4 GPUs. The
+YoNoSplat baseline follows the same training strategy as our model for controlled comparison.
+Resolution and fair comparison. Following YoNoSplat [18], we adopt its resolution and fair-
+comparison protocol for novel-view synthesis: we use the 224 × 224 version of our model because
+it best aligns with the experimental settings of the other baselines. Different prior methods adopt
+different input resolutions: MVSplat [8] and NoPoSplat [17] use 256 × 256, while DepthSplat [12]
+uses 256 × 448. Due to computational constraints and to avoid noise from in-house reproduction,
+it is not feasible to retrain every baseline and our model at a unified resolution. As in YoNoSplat,
+we keep comparisons fair in two ways. First, our 224 × 224 model has the smallest receptive size
+among the compared methods; because all methods first center-crop and then resize their inputs,
+square crops provide the most conservative receptive coverage. Second, since our model uses the
+smallest receptive size, rendered outputs from other methods can be center-cropped and resized
+so that all quantitative and qualitative comparisons are performed on the same image content.
+Optimizer. We use AdamW with a linear warm-up of 2,000 steps and gradient clipping at 0.5.
+Scheduled sampling. The probability of using predicted poses increases linearly from 0 to 0.9
+between steps 160K and 200K during Stage 1 on RE10K.
+Progressive sharpening schedules. The opacity exponent e(t) ramps from einit = 1 to efinal = 2
+over the warm-up phase. The opacity temperature τ (t) ramps from τinit = 1.0 to τfinal = 5.0 over
+16,000 steps. The blur multiplier β(t) decays from βinit = 1.0 to βfinal = 0.5 over 16,000 steps.
+Large-loss filtering. After 40K warm-up steps, training samples whose total loss exceeds 0.2 (or
+with MSE > 0.06 or pose loss > 1.0) have their loss contribution scaled to a negligible value.
+
+
+
+
+                                                  21
+A.4   Mono-Normal Teacher
+The monocular normal teacher is the Omnidata DPT normal estimator [49] with a ViT-B/ResNet-
+50 hybrid backbone (variant “vitb_rn50_384”). Teacher normals are computed offline for every
+input view and resized to match the prediction resolution via bilinear interpolation. The bootstrap
+schedule described in Sec. 3.2 of the main paper uses ttk = 6,000 steps and tbl = 20,000 steps.
+
+B     Baseline Mesh Extraction: Quantitative Details
+The main paper describes the TSDF fusion pipeline used for Gaussian baselines and the direct
+export pipeline of TriSplat at a conceptual level. Here we report the exact numerical parameters
+used in both pipelines, which are necessary for reproducibility.
+TSDF fusion parameters. The TSDF volume uses a voxel size of 0.005, SDF truncation of 0.1,
+and depth truncation of 5.0. Pixels with rendered alpha below 0.3 are masked out. During
+post-processing, connected component analysis retains the 50 largest clusters and removes clusters
+with fewer than 50 triangles.
+Direct export parameters. The opacity threshold for triangle pruning is 0.10 after temperature
+scaling with τ set to the final training temperature of 5.0. Vertex deduplication uses quantized
+position hashing at precision 10−5 with normal-octant keying to prevent merging across opposing
+face orientations. Per-triangle colors are computed from the 0th-order SH coefficients as c =
+clamp(SH0 · C0 + 0.5, 0, 1) with C0 = 2√1 π ≈ 0.282. The entire export completes in less than 0.1 s
+on a single GPU, compared to more than 15 s for TSDF fusion.
+
+C     Primitive Rendering Comparison
+The main paper reports rendering quality under mesh rendering, which matches the simulation-
+ready objective of TriSplat: a standard triangle rasterizer consumes the exported mesh directly.
+For completeness, we also report primitive rendering, in which each method renders using its own
+native rasterizer prior to any mesh export (Gaussian splatting for baselines, triangle splatting
+for TriSplat). Tables A and B report primitive-rendering metrics on DL3DV and RE10K, and
+Table C summarizes the primitive-to-mesh PSNR degradation for each method. Qualitative
+primitive-rendering comparisons are shown in Fig. A.
+Observations. Under primitive rendering, Gaussian baselines attain their strongest numerical
+scores because their smooth radial falloff provides locally forgiving gradient coverage at render time.
+When the same models are consumed as meshes, however, the TSDF-fusion step discards these
+smooth primitives and yields a substantially lower mesh-rendering PSNR (see Table C). TriSplat
+exhibits a markedly smaller primitive-to-mesh degradation because the rendering primitives are
+the exported triangles, so no information is lost during mesh construction. This property is central
+to the simulation-ready claim: the same representation used during training and inference can
+be consumed as a mesh with minimal quality loss, without relying on fragile post-hoc surface
+extraction.
+Table A Primitive rendering on DL3DV. Metrics reported under each method’s native rasterizer. Mesh-
+rendering results under the same evaluation protocol are reported in the main paper (Table 2).
+                                       6 views                 12 views                 24 views
+             Method            PSNR↑   SSIM↑ LPIPS↓    PSNR↑    SSIM↑ LPIPS↓    PSNR↑    SSIM↑ LPIPS↓
+             MVSplat           22.83   0.772   0.190   21.29    0.721   0.244   19.93    0.672   0.293
+             DepthSplat        23.56   0.806   0.150   21.89    0.759   0.196   20.09    0.699   0.256
+             AnySplat          19.79   0.579   0.257   19.95    0.587   0.272   20.21    0.608   0.274
+             YoNoSplat         23.88   0.793   0.154   22.91    0.762   0.180   22.22    0.740   0.199
+             TriSplat (Ours)   23.22   0.768   0.218   21.87    0.726   0.260   21.16    0.704   0.282
+
+
+
+
+                                                        22
+            Input           MVSplat             DepthSplat          AnySplat         YoNoSplat       MeshSplat             SurfelSplat              TriSplat      Ground Truth
+
+Figure A Primitive-rendering comparison on RE10K. Each method is rendered with its own native
+rasterizer (Gaussian splatting for baselines, triangle splatting for TriSplat). Compared with the mesh-
+rendering results in Fig. 5, Gaussian baselines appear closer to TriSplat under primitive rendering, but this
+quality does not transfer to the exported mesh used by downstream simulation and graphics pipelines.
+ 6 views
+ 12 views
+ 24 views
+
+
+
+
+                    Input             MVSplat                DepthSplat              AnySplat               YoNoSplat                    TriSplat              Ground Truth
+
+Figure B Primitive-rendering comparison on DL3DV. Rows correspond to 6, 12, and 24 input views,
+and each method is rendered with its own native rasterizer before mesh export. These results provide the
+counterpart to Fig. 3: Gaussian baselines can look substantially stronger before TSDF fusion, but their
+native rendering quality is not the representation consumed by standard mesh pipelines.
+
+
+Table B Primitive rendering on RE10K (6 views). Metrics are reported under each method’s native
+rasterizer before mesh export. These numbers contextualize Table 3: Gaussian baselines are competitive
+under their original splatting renderers, but the downstream mesh-rendering protocol exposes the quality
+loss introduced by TSDF conversion.
+                                Method            PSNR↑ SSIM↑ LPIPS↓
+                                                     MVSplat                       24.27          0.839          0.146
+                                                     DepthSplat                    25.32          0.849          0.139
+                                                     AnySplat                      17.78          0.551          0.348
+                                                     YoNoSplat                     27.19          0.889          0.106
+                                                     MeshSplat                     22.90          0.788          0.188
+                                                     SurfelSplat                   17.86          0.573          0.373
+                                                     TriSplat (Ours)               26.46          0.870          0.130
+
+
+Table C Primitive→Mesh degradation on RE10K (6 views). We report PSNR under primitive rendering
+(Prim.) and mesh rendering (Mesh), and their difference ∆. A smaller |∆| indicates that the exported mesh
+faithfully preserves the rendering quality of the native primitives.
+                                                  Method                       Prim. PSNR        Mesh PSNR        ∆PSNR
+                                                  MVSplat                        24.27             13.57           −10.70
+                                                  DepthSplat                     25.32             19.65           −5.67
+                                                  YoNoSplat                      27.19             21.07           −6.12
+                                                  MeshSplat                      22.90             19.72           −3.18
+                                                  SurfelSplat                    17.86              9.09           −8.77
+                                                  TriSplat (Ours)                26.46             23.25                -3.21
+
+
+
+                                                                                     23
+D    Opacity Mapping Analysis
+The opacity mapping in Eq. (7) satisfies four useful properties. First, boundary values are preserved
+for all e > 0 since o(0; e) = 0 and o(1; e) = 1, ensuring that fully transparent and fully opaque
+primitives remain unchanged regardless of the schedule. Second, when e = 1 the mapping reduces
+to identity (o = p), providing a natural starting point. Third, as e increases, intermediate values
+of p are pushed toward 0 or 1 so that o(p; e) → 1p>0.5 in the limit e → ∞, progressively binarizing
+the opacity field. Fourth, the mapping is differentiable everywhere in (0, 1) for e > 0, ensuring
+stable gradient flow.
+   The temperature factor described in Sec. 3.3 increases linearly from τinit = 1.0 to τfinal = 5.0 over
+16,000 steps (experiment config overrides the decoder default of 8,000 steps). The dual mechanism,
+combining the exponent-based nonlinearity with temperature-driven sharpening, provides a richer
+curriculum than either component alone. An alpha floor of 0.02 is applied during early training to
+prevent premature pruning of uncertain primitives.
+
+E    Triangle Adapter Details
+The main paper describes the triangle construction process at the formula level (Eq. (2)). Here
+we provide code-level details necessary for reproduction.
+  The canonical equilateral template uses three vertices:
+
+                       (0, 0.577, 0),   (−0.5, −0.289, 0),    (0.5, −0.289, 0).
+
+It is pre-scaled by a factor of 4. The three sigmoid-mapped scale logits are bounded to [smin , smax ]
+and converted to world-space sizes using the predicted depth and a pixel-footprint multiplier
+derived from the inverse intrinsic matrix. During Stage 1 on RE10K the range is [0.5, 18.0]; during
+Stage 2 it is [1.2, 15.0].
+   An optional coverage boosting mechanism increases the scale of low-confidence triangles. When
+the opacity falls below a threshold of 0.20, the scale is boosted proportionally to the gap between
+the threshold and the opacity, encouraging uncertain triangles to cover a wider area and receive
+more photometric gradients.
+   The blur parameter σ̂ is converted to a positive value via σ = sigmoid(σ̂) · β(t) + ϵ, where β(t)
+decays linearly from 1.0 to 0.5 over 16,000 steps.
+   At pixels where the geometry-based tangent-frame rotation is valid, the network’s predicted
+quaternion is overridden by the geometry-derived quaternion. At invalid pixels (boundary pixels
+and degenerate cross products) the network quaternion is retained as a fallback.
+
+F    Additional Results on ScanNet
+Table D reports novel-view synthesis results on ScanNet under the zero-shot setting, using
+models trained on RE10K without fine-tuning. Following the convention adopted in the main
+paper, we report mesh rendering as the primary metric, with primitive rendering included for
+reference. Despite the significant domain gap between real-estate walkthrough videos and indoor
+scans, TriSplat maintains competitive performance under mesh rendering. The primitive-to-mesh
+degradation observed on the training datasets carries over to this unseen domain: Gaussian
+baselines lose a large margin of PSNR when their TSDF meshes are rendered as triangles, while
+TriSplat remains stable, confirming that the direct-export property is a domain-robust effect
+rather than a dataset-specific artifact.
+
+
+
+
+                                                  24
+Table D Novel-view synthesis on ScanNet (zero-shot, 6 views). Models trained on RE10K, evaluated
+without fine-tuning. Primitive rendering (Prim.) is each method’s native rasterization; mesh rendering
+(Mesh) rasterizes the exported mesh.
+                                            Prim.                                Mesh
+             Method             PSNR↑      SSIM↑      LPIPS↓        PSNR↑       SSIM↑      LPIPS↓
+             MVSplat             17.64     0.639          0.345         11.72    0.320      0.625
+             DepthSplat          17.15     0.589          0.438         16.06    0.534      0.519
+             AnySplat            13.18     0.420          0.571         12.67    0.430      0.598
+             YoNoSplat           22.99     0.809          0.240         16.69    0.587      0.445
+             MeshSplat           17.62     0.633          0.352         14.35    0.482      0.578
+             SurfelSplat         12.69     0.329          0.592         11.05    0.385      0.752
+             TriSplat (Ours)     22.61     0.796          0.265         17.03    0.540      0.530
+
+
+G     Additional Ablation Studies
+The main-paper ablation (Table 5) validates the four key design choices at a coarse level. Here
+we provide finer-grained studies on hyperparameters and architectural variants. Consistent
+with the main paper, all tables in this section report surface geometry (CD, F1) together with
+mesh-rendering quality (PSNR, LPIPS), so that every design choice is evaluated on the same
+simulation-ready metrics used in the main experiments.
+
+G.1    Triangle Scale Range
+Table E examines the effect of the triangle scale range [smin , smax ]. A range that is too narrow
+limits the model’s ability to cover large surface regions, reducing recall. A range that is too wide
+permits excessively large triangles that introduce rendering artifacts.
+
+Table E Ablation on triangle scale range (RE10K, 6 views).
+                      smin     smax      CD↓        F1↑           PSNR↑         LPIPS↓
+                      0.5      10.0      0.189      0.619          22.14        0.375
+                      0.5      18.0      0.190      0.708          23.25        0.318
+                      1.2      15.0      0.192      0.615          22.49        0.357
+                      1.2      25.0      0.181      0.631          19.97        0.452
+
+
+G.2    Blur Schedule
+Table F isolates the effect of blur scheduling. Without scheduling (fixed low blur) early training
+suffers from poor gradient coverage. A fixed high blur allows stable training but produces soft
+surfaces. The default schedule decaying from 1.0 to 0.5 over 16K steps achieves the best balance.
+
+Table F Ablation on blur scheduling (RE10K, 6 views).
+                Blur strategy                       CD↓           F1↑     PSNR↑      LPIPS↓
+                Fixed low (β = 0.1)                0.185      0.640        21.44         0.402
+                Fixed high (β = 1.0)               0.223      0.542        20.90         0.434
+                Schedule 1.0 → 0.5 (8K)            0.217      0.571        21.05         0.418
+                Schedule 1.0 → 0.5 (16K)           0.190      0.708        23.25         0.318
+                Schedule 1.0 → 0.1 (16K)           0.212      0.588        21.26         0.384
+
+
+
+
+                                                     25
+G.3    Opacity Temperature
+Table G studies the opacity temperature schedule. Without temperature scaling (τ = 1.0
+throughout) the opacity distribution remains soft and the resulting semi-transparent surfaces
+degrade mesh quality. A very high final temperature (τ = 25.0) produces near-binary opacities
+that cause gradient instability.
+
+Table G Ablation on opacity temperature (RE10K, 6 views).
+                   Temperature schedule        CD↓       F1↑     PSNR↑      LPIPS↓
+                   Fixed τ = 1.0               0.183    0.637     20.88       0.439
+                   τ: 1.0 → 5.0 (16K)          0.190    0.708     23.25       0.318
+                   τ: 1.0 → 10.0 (16K)         0.204    0.560     21.87       0.379
+                   τ: 1.0 → 25.0 (16K)         0.232    0.454     17.23       0.477
+
+
+
+H     Additional Simulation Experiments
+The main paper summarizes robotic grasping, ball dynamics, and multi-platform locomotion
+in Unity and NVIDIA Isaac Sim (Fig. 9). Here we expand the simulation demonstrations into
+four-frame dynamic sequences using the directly exported triangle meshes without any manual
+cleanup or format conversion. Frames are ordered from left to right by time.
+
+H.1   Rigid-Body Dynamics
+We evaluate the physical utility of our reconstructed meshes through two rigid-body scenarios sim-
+ulated in NVIDIA Isaac Sim with the PhysX backend. First, in a ball drop experiment, a sphere is
+released from various heights onto the surface. The resulting collision responses–including intricate
+bounce trajectories–demonstrate that our mesh faithfully captures the underlying geometry with
+high fidelity. Second, in an object stacking experiment, we place multiple rigid objects on the
+reconstructed surfaces. The sustained stability of these stacks highlights the exceptional surface
+flatness and normal consistency achieved by our method, ensuring reliable contact physics for
+downstream interaction tasks.
+
+H.2   Legged Locomotion
+A simulated quadruped robot traverses outdoor scenes reconstructed by TriSplat. The robot’s
+foothold planning directly leverages the mesh surface normals and collision geometry. In scenes
+containing stairs and chairs, the robot successfully navigates the terrain.
+
+
+
+
+Figure C Unity character navigation. The exported TriSplat mesh is imported into Unity as static scene
+geometry for character navigation and collision handling. The four frames show temporal progression from
+t = 1 to t = 4 and demonstrate usable collision surfaces without manual cleanup, conversion from Gaussian
+primitives, or scene-specific mesh repair.
+
+
+
+I   More Visual Comparisons
+We provide additional qualitative comparisons on RE10K [31], DL3DV [32], and ScanNet [33].
+These figures exclude scenes already shown in the main-paper visual pages. Fig. G groups the
+
+                                                   26
+Figure D Unity object interaction. We load the reconstructed mesh into Unity and interact with the scene
+using standard engine collision and physics components. The four frames show temporal progression from
+t = 1 to t = 4; stable contact with reconstructed surfaces indicates that the exported triangle mesh is
+directly usable for interactive applications, rather than only for image rendering.
+
+
+
+
+Figure E Isaac Sim humanoid locomotion. The four frames show the H1 humanoid moving over the
+same exported TriSplat mesh from t = 1 to t = 4. This sequence expands the compact main-paper
+demonstration by showing continuous contact-rich locomotion on the reconstructed triangle geometry,
+without an intermediate reconstruction or mesh-repair stage.
+
+
+
+
+Figure F Isaac Sim quadruped locomotion. A quadruped traverses the exported TriSplat mesh using the
+simulator’s native collision and contact solver. The four frames show temporal progression from t = 1 to
+t = 4 and illustrate that the same mesh representation supports different embodied agents and locomotion
+patterns.
+
+
+
+
+                                                  27
+remaining RE10K mesh-rendering comparisons under one caption, Fig. H shows additional DL3DV
+mesh-rendering examples, and Figs. I and J show additional primitive-rendering examples. Figs. K
+and L show remaining textured-mesh and depth/normal examples, and Figs. M–N show zero-shot
+ScanNet rendering results.
+
+
+
+
+           Input           MVSplat             DepthSplat          AnySplat   YoNoSplat   MeshSplat          SurfelSplat              TriSplat      Ground Truth
+
+
+
+
+           Input           MVSplat             DepthSplat          AnySplat   YoNoSplat   MeshSplat          SurfelSplat              TriSplat      Ground Truth
+
+
+
+
+           Input           MVSplat             DepthSplat          AnySplat   YoNoSplat   MeshSplat          SurfelSplat              TriSplat      Ground Truth
+
+
+Figure G Additional mesh-rendering comparisons on RE10K. We group all remaining RE10K mesh-
+rendering examples under one figure to avoid splitting identical comparisons across separate captions. Each
+group contains six input views, mesh-rendered baseline results, TriSplat, and the ground-truth target view.
+Since every image is rendered from the exported mesh, artifacts reflect the quality of the representation
+available to downstream graphics and simulation systems.
+6 views
+12 views
+24 views
+
+
+
+
+                   Input             MVSplat                DepthSplat        AnySplat           YoNoSplat                 TriSplat              Ground Truth
+
+Figure H Additional mesh-rendering comparisons on DL3DV. These examples are not used in the main-
+paper visual page. The comparison again isolates mesh-rendering quality: all methods are evaluated after
+export, so sharper results indicate a mesh that better preserves the original image evidence.
+
+
+
+J          Mesh Evaluation Protocol
+The mesh metrics reported in the main paper (Tables 1 and 3) follow the standard protocol
+of MeshSplat [22] and ScanNet [33]. Both the predicted and ground-truth meshes are sampled
+into point clouds and voxel-downsampled at resolution 0.02 to ensure uniform density. One-
+                                           1 P
+sided distances are computed as d(A, B) = |A|  a∈A minb∈B ∥a − b∥, yielding Chamfer Distance
+CD = d(Mp , Mg ) + d(Mg , Mp ). Precision and Recall are the fractions of predicted and ground-
+truth points within distance δ = 0.05 of each other, and the F1 score is their harmonic mean.
+All nearest-neighbor queries use KD-trees (Open3D) and all metrics are computed in the world
+coordinate frame.
+
+
+                                                                              28
+           Input                   MVSplat             DepthSplat          AnySplat      YoNoSplat    MeshSplat          SurfelSplat              TriSplat         Ground Truth
+
+Figure I Additional primitive-rendering comparisons on RE10K. Each method is rendered under its own
+native rasterizer before mesh export. These examples complement Fig. G by showing that strong Gaussian
+primitive renderings do not necessarily translate into high-quality exported meshes.
+6 views
+12 views
+24 views
+
+
+
+
+                   Input                     MVSplat                DepthSplat           AnySplat            YoNoSplat                 TriSplat                 Ground Truth
+
+Figure J Additional primitive-rendering comparisons on DL3DV. Native primitive renderings are shown
+for the same evaluation style as the DL3DV mesh-rendering figures. The contrast with Fig. H illustrates
+why mesh rendering is the relevant protocol for simulation-ready reconstruction.
+
+
+
+
+                           Input                          MVSplat           DepthSplat     AnySplat    YoNoSplat          MeshSplat               SurfelSplat        TriSplat
+
+Figure K Additional textured mesh comparisons on RE10K. The figure visualizes the remaining exported
+textured meshes rather than target-view renders. TSDF-fused Gaussian meshes often show over-smoothed
+surfaces, missing thin structures, and fragmented regions, while TriSplat preserves direct triangle geometry
+and appearance in the exported representation.
+
+
+
+                                                                                         29
+             Input             MVSplat         DepthSplat         AnySplat               YoNoSplat               MeshSplat           SurfelSplat        TriSplat     Ground Truth
+
+Figure L Additional depth and normal comparisons on ScanNet. This example is not used in the main-
+paper visual page. All methods are trained on RE10K and evaluated on ScanNet without fine-tuning;
+TriSplat produces smoother, geometrically coherent normals aligned with surface boundaries, while Gaussian
+baselines often produce noisy orientation fields under the domain shift.
+
+
+
+
+     Input           MVSplat      DepthSplat           AnySplat              YoNoSplat               MeshSplat               SurfelSplat           TriSplat        Ground Truth
+
+Figure M Primitive-rendering comparison on ScanNet. Each method is rendered with its native primitive
+representation on zero-shot ScanNet scenes. These fixed-resolution renders are inserted without border
+cropping, preserving each method’s original output frame and avoiding artificial enlargement or truncation
+of any baseline result.
+
+
+
+
+     Input           MVSplat      DepthSplat           AnySplat              YoNoSplat               MeshSplat               SurfelSplat           TriSplat        Ground Truth
+
+Figure N Mesh-rendering comparison on ScanNet. We render each exported mesh with the same triangle
+pipeline in the zero-shot setting. Fixed-resolution outputs are inserted without border cropping, so the
+comparison preserves the full rendered frame for every baseline, including methods whose exported meshes
+contain large empty regions or incomplete surfaces.
+
+
+
+
+                                                                             30
+

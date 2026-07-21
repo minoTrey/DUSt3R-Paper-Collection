@@ -1,0 +1,1313 @@
+                                              FrameVGGT: Coherence-Preserving Memory for
+                                                     Bounded Streaming Geometry
+
+
+                                                                   Zhisong Xu                                  Takeshi Oishi
+                                                         Institute of Industrial Science               Institute of Industrial Science
+                                                           The University of Tokyo                       The University of Tokyo
+                                                                  Tokyo, Japan                                  Tokyo, Japan
+arXiv:2603.07690v3 [cs.CV] 20 Jun 2026
+
+
+
+
+                                                     zhisongxv@cvl.iis.u-tokyo.ac.jp                 oishi@cvl.iis.u-tokyo.ac.jp
+
+
+
+                                                                                        Abstract
+                                                      Streaming Visual Geometry Transformers such as StreamVGGT enable strong
+                                                      online 3D perception, but their KV-cache grows unbounded over long streams, lim-
+                                                      iting practical deployment. We study bounded-memory streaming geometry from
+                                                      the perspective of memory organization: unlike language modeling, where useful
+                                                      information can often be compressed at token level, geometry-driven inference
+                                                      relies on coherent and mutually compatible observations across views. Under fixed
+                                                      memory budgets, retaining history as isolated entries can progressively fragment
+                                                      the geometric context needed for stable long-horizon matching and fusion. We
+                                                      therefore propose FrameVGGT, a bounded-memory framework that maintains
+                                                      a fixed-capacity set of complementary memory units for streaming geometry. In
+                                                      our implementation, each unit is instantiated as a frame-wise KV segment sum-
+                                                      marized by a compact key-space prototype, together with a sparse anchor tier for
+                                                      persistent long-range references. Across long-sequence 3D reconstruction, video
+                                                      depth estimation, and camera pose estimation, FrameVGGT achieves favorable
+                                                      accuracy–memory trade-offs under bounded budgets while maintaining more stable
+                                                      geometry over long streams.
+
+
+                                         1    Introduction
+                                         Dense 3D reconstruction from images is fundamental to robotic perception, navigation, and in-
+                                         teraction [1, 2, 3, 4, 5]. While classical SfM/MVS pipelines achieve high fidelity through explicit
+                                         geometric optimization, they are typically multi-stage and computationally expensive [6, 7, 8]. Recent
+                                         feed-forward geometry models instead learn to infer cameras and dense geometry directly from
+                                         multi-view observations [9, 10, 11, 12, 13, 14], but extending them to online long-horizon streams
+                                         remains challenging because preserving all past context causes memory and latency to grow with
+                                         sequence length.
+                                         Long-horizon reconstruction has been addressed in part by chunk-based or SLAM-style systems.
+                                         These methods control sequence length by dividing the stream into chunks or submaps, selecting
+                                         keyframes, and aligning local reconstructions through optimization or geometric backends [15, 16, 17].
+                                         While effective, such pipelines often introduce additional alignment stages, hand-designed keyframe
+                                         policies, or iterative optimization, which weakens the simplicity of feed-forward inference.
+                                         A more end-to-end streaming alternative is to process frames causally while maintaining a bounded
+                                         state or cache. Implicit-state methods compress history into a latent representation, but this can
+                                         weaken long-range constraints and induce drift [18, 19]. Explicit-memory methods instead cache past
+                                         representations for reuse, but naive accumulation grows unbounded and therefore requires eviction or
+                                         selection [20]. Under bounded resources, recent explicit-memory methods often manage retained
+                                         history at token granularity using importance, diversity, or eviction heuristics [21, 22, 23, 24, 25, 26,
+                                         27].
+                                         Preprint.
+Figure 1: Memory organization strategies for bounded streaming geometry. Full memory grows
+unbounded over time, whereas token-level retention can fragment geometric context under fixed
+budgets. Frame-level retention preserves coherent frame-wise cache segments for downstream
+inference.
+
+However, a fixed memory budget is insufficient without proper cache management. As shown in
+Fig. 1, cache selection granularity matters critically. Token-level selection treats tokens independently.
+Because geometric tokens are noisy and unevenly informative, this leads to fragmented retention:
+each frame is represented by only a sparse subset of tokens, destroying structural coherence. By
+contrast, frame-level retention keeps all tokens from a selected frame together as a coherent unit,
+preserving both its internal structure and cross-view compatibility.
+This matters for geometry because, unlike language modeling, multi-view inference often relies
+on mutually compatible frame-level evidence rather than isolated tokens. Once such evidence is
+fragmented, the cache may remain populated but provide weaker geometric support. Thus, retention
+granularity and frame-level selection become key design axes for bounded geometric transformers.
+We instantiate this perspective with FrameVGGT, an inference-time bounded-memory framework
+that retains history as coherent frame-wise units. FrameVGGT maintains a fixed-capacity set of
+complementary memory units and adds a lightweight sparse anchor tier for persistent long-range
+references. Together, they preserve structured multi-view context under a fixed memory budget,
+enabling stable long-horizon streaming geometry. Contributions.
+(1) We formulate retention granularity as a key design axis for bounded streaming geometry,
+showing that coherent geometric context matters beyond cache size alone.
+(2) We provide diagnostics showing that token-level retention can induce context thinning, spatio-
+temporal fragmentation, and brittle fusion under weak redundancy.
+(3) We introduce FrameVGGT, an inference-time two-tier memory framework that preserves frame-
+wise KV segments as coherent units and uses sparse anchors for long-range consistency under fixed
+memory budgets.
+
+2     Related Work
+2.1   Geometry-based Reconstruction
+
+Classical 3D reconstruction relies on explicit geometric optimization. Offline pipelines such as SfM
+and MVS jointly estimate camera poses and scene structure over all input views [28, 29, 30, 31].
+These approaches demonstrate promising accuracy and robustness, but they require full-scene access
+and computationally expensive global optimization. Online systems such as SLAM update motion
+and maps incrementally [32, 33]. However, because they typically focus on sparse or semi-dense
+representations, dense long-horizon reconstruction remains challenging under strict memory budgets.
+
+2.2   Learning-based Reconstruction with Fixed-size Inputs
+
+Recent learning-based approaches perform feed-forward geometric inference and jointly predict
+camera parameters, depth, and correspondences across multiple views. However, these models
+assume fixed-size inputs, so memory usage and computational cost increase rapidly as the number of
+
+
+                                                    2
+views grows. Several extensions improve scalability through sub-map decomposition, anchor-based
+representations [34], or token-level acceleration, but remain largely batch-oriented.
+
+2.3   Learning-based Reconstruction under Streaming Constraints
+
+Streaming methods process frames online while maintaining history. Explicit-memory approaches
+cache past features, tokens, or states for reuse [35, 36, 37]. However, naive accumulation leads to
+growing memory and latency. Implicit-state approaches compress history into bounded latent states,
+which improves efficiency at the cost of weaker long-range constraints and increased drift. Windowed
+methods restrict computation to local temporal neighborhoods [38], which stabilizes runtime but
+limits long-horizon consistency. These methods mainly differ in how history is stored or compressed
+under streaming constraints. By contrast, we focus on memory organization under bounded streaming,
+emphasizing retention granularity and coherent multi-view context.
+
+3     Problem Definition and Analysis
+We consider online geometric inference over an unbounded image stream I = {It }t≥1 , where the
+framework outputs yt sequentially. For each decoder layer l in the stream backbone (see Fig. 2), let
+  (l)                                                        (l)
+C̃t denote the retained Transformer cache at time t, let Ct,new denote the newly produced cache
+entries, and let Ω(·) denote a bounded-memory cache update operator. To maintain cache efficiency,
+                                              (l)   (l)        (l)
+we move from the unbounded cache update C̃t = C̃t−1 ⊕ Ct,new to a bounded-memory streaming
+regime:                                         
+                         (l)       (l)    (l)
+                                                               X (l)
+                       C̃t = Ω C̃t−1 ⊕ Ct,new ,         s.t.       |C̃t | ≤ M,
+                                                                   l
+where | · | denotes cache size and M ∈ N is the maximum cache size.
+We define geometric context as observations that jointly satisfy multi-view consistency. In this
+framework, cross-attention acts as differentiable feature matching—akin to SfM—rather than sparse
+semantic retrieval. Unlike language models that prioritize individual salient tokens, geometric
+inference relies on redundant, spatially distributed, and mutually compatible evidence. Consequently,
+token utility hinges on their retention as coherent groups, as only collective observations can sustain
+the matching and long-range consistency essential for geometric reconstruction.
+We refer to this requirement as geometric coherence.
+Under bounded memory, token-level retention may degrade the retained context in several structurally
+important ways:
+       • Context thinning: a fixed budget is spread over more frames, reducing the retained fraction
+         per frame and weakening geometric evidence.
+       • Frame-level fragmentation: each frame may be represented by too few tokens to preserve
+         within-frame structure or cross-view compatibility.
+       • Directional concentration: retained keys may align with a narrow local mode, biasing
+         retrieval toward a small subset of memory.
+These failure modes reduce correspondence diversity and weaken long-horizon consistency, especially
+when memory is controlled at overly fine granularity.
+
+Directional Concentration Diagnostic. Under bounded memory, attention-based memory retrieval
+can become overly concentrated on a small temporally local subset of retained keys. To analyze this
+effect, we introduce a directional contrast statistic ∆k that measures how strongly a local subset is
+directionally separated from the rest of memory.
+For a query step k, let Rk denote a local subset of retained entries and Nk its complement, with
+Rk ∩ Nk = ∅. Let k̂i ∈ Rdl denote an ℓ2 -normalized key vector at layer l, where dl is the key
+dimension. We define µR as the normalized mean direction of the local subset Rk , as follows:
+                                               1
+                                                   P
+                                             |Rk |   i∈Rk k̂i
+                                   µR =                       .
+                                              1
+                                                   P
+                                            |Rk |   i∈Rk k̂ i
+                                                               2
+
+
+                                                  3
+                                                                                                New Inputs
+                         Stream Backbone              Middle Pool
+                              Image
+       Prev Inputs           Encoder         KV                                      Current
+                                           Segments                                 Segments
+                            Decoder                                                            Stream Backbone
+                             layer
+                                                                      Distance                      Image
+                                 KV                                                                Encoder
+                            Decoder                                 Greedy Policy
+                                                                                                  Decoder
+                             layer                                                                 layer
+                                                                    Load Cache
+                                 KV
+                                                      Anchor Pool
+                                                                                                  Decoder
+                                                                    Gap Threshold                  layer
+                            Decoder                                  Geometry
+                                                                                                 Task Head
+                             layer                                   Threshold
+
+
+Figure 2: Pipeline of FrameVGGT. Previous inputs are encoded into per-layer KV blocks, which
+are managed by a mid-term pool with a distance-based greedy selection policy and an anchor pool
+gated by gap and geometry thresholds. The selected cache is then loaded to condition new inputs for
+streaming inference.
+
+Let AR denote the average directional alignment of the local subset Rk with respect to µR , and AN
+that of the non-local subset Nk . The directional contrast is defined as
+                                      1 X                         1 X
+               ∆k = AR − AN =                  cos(k̂i , µR ) −          cos(k̂j , µR ).
+                                    |Rk |                       |Nk |
+                                              i∈Rk                       j∈Nk
+
+This statistic is relevant because retrieval is determined by the attention weights αi . Here, αi =
+exp(si )/ j exp(sj ), and the pre-softmax similarity score is si = q⊤ k̂i , where q ∈ Rdl denotes
+          P
+the query vector.
+When the query q is positively aligned with µR , a larger ∆k indicates that entries in Rk have a
+stronger average directional advantage than those in Nk . As a result, entries in Rk tend to receive
+higher similarity scores on average. The softmax then amplifies this gap and concentrates more
+attention on the local subset. This shifts probability mass away from non-local memory and reduces
+the effective context used for retrieval and fusion. A formal treatment under a simplified two-group
+attention model is deferred to the appendix.
+
+Why Frame-Level Retention? Retention granularity directly affects the stability of geometric
+inference under bounded memory. If retained key groups preserve broader directional variation,
+directional concentration becomes weaker. This reduces the risk of collapse into a narrow local mode.
+When the local set Rk is partitioned into source-frame key segment {St }, variance decomposition
+yields
+                                     1X                            |St |
+                         ∆k ≤ 1 −          wt σt2 − AN ,     wt =        ,
+                                     2 t                          |Rk |
+where St contains the retained key vectors originating from frame segment t, k̄t is their group
+mean, and σt2 denotes their within-group directional dispersion around k̄t (Appendix). The set-
+level direction µR remains the common reference for AR , AN , and ∆k . Thus, larger within-group
+dispersion suppresses ∆k , reducing the local subset’s directional advantage over non-local entries
+and making retrieval less likely to collapse into a narrow local mode.
+This explains why retention granularity matters. Token-level retention can repeatedly keep only a few
+highly aligned keys from the same local mode, reducing dispersion, increasing AR , and strengthening
+concentration. Frame-level retention instead keeps source-frame key groups together, preserving
+coherent geometric context and broader directional spread. Under bounded memory, this acts as a
+geometric regularizer for stable multi-view matching and fusion over long horizons.
+
+4   Method
+We formulate bounded streaming geometry as a memory-constrained problem. The key requirement
+is to preserve retrievable multi-view information that supports geometric matching and fusion.
+
+
+                                                          4
+FrameVGGT addresses this problem with a two-tier memory design based on a mid-term memory
+bank and a lightweight sparse anchor memory. Figure 2 shows the pipeline of our framework. The
+method consists of three components: 1) retrieval-space scoring via segment dissimilarity, 2) a
+mid-term memory bank for complementary coverage, and 3) a sparse anchor memory for long-range
+persistence.
+
+Retrieval-Space Scoring via Segment Dissimilarity. The analysis in Sec. 3 suggests that retention
+should favor complementary memory units over near-duplicate ones, as this increases intra-group
+dispersion σt2 and mitigates directional concentration. Accordingly, we define a retrieval-space
+scoring scheme for frame-wise memory units based on segment dissimilarity.
+                                                                                                    (l)
+We organize memory into frame-wise memory units. For each time step t and layer l, let St
+denote the KV segment produced by frame t. Let Hl be the number of attention heads, dl the
+per-head key dimension, and Tt the token index set introduced at frame t. The segment keys are
+  (l)
+{kt,h,τ ∈ Rdl }H l
+               h=1,τ ∈Tt . To enable efficient inter-segment comparison, we compute the mean key of
+each segment in retrieval space,
+                                                   Hl X
+                                    (l)      1 X         (l)
+                                   vt =                 kt,h,τ ,                                   (1)
+                                           Hl |Tt |
+                                                   h=1 τ ∈Tt
+
+followed by ℓ2 normalization,
+                                          (l)    (l)    (l)
+                                         v̄t = vt /∥vt ∥2 .
+Rather than explicitly modeling spatial topology, this mean key serves only as a lightweight retrieval-
+space proxy for segment selection. It enables online estimation of redundancy and complementarity
+across segments, while the selected segment itself is retained with its full KV entries.
+We measure inter-segment dissimilarity by cosine distance of the mean keys,
+                                                   D           E
+                                   (l)   (l)           (l)   (l)
+                               d Si , Sj       = 1 − v̄i , v̄j .                                   (2)
+
+Because memory access is governed by key–query compatibility, we perform selection directly in
+retrieval space. Large ∆k reflects concentration around a narrow local mode, whereas our scoring
+scheme suppresses near-duplicate segments and preserves under-covered directions, thereby limiting
+∆k and maintaining broad retrievable support.
+
+Mid-Term Memory Bank. The key role of the mid-term bank is to preserve broad coverage in
+retrieval space under a fixed memory budget. Rather than keeping many redundant nearby segments,
+it retains a small set of complementary segments that covers under-represented regions.
+Formally, given a candidate segment set Mt , the mid-term bank seeks a subset Q ⊆ Mt with
+|Q| ≤ Mmid , where Mmid is the bank capacity, that minimizes the worst-case coverage gap,
+                                Q∗ = arg min max min
+                                                 ′
+                                                     d(S, S ′ ).                                   (3)
+                                          Q⊆Mt S∈Mt S ∈Q
+
+This objective ensures that every candidate segment remains close to at least one retained seg-
+ment. As a result, it discourages redundant selections from dense local clusters and instead favors
+complementary segments that improve overall coverage.
+To optimize this objective, we approximate it online using greedy farthest-first selection initialized
+from the most recent segment. For each candidate segment S ∈ Mt , we maintain its nearest-set
+distance
+                                     m(S) = min ′
+                                                    d(S, S ′ ).                                     (4)
+                                                S ∈Q
+
+Larger m(S) indicates that S lies in an under-covered region of retrieval space. Starting from the
+most recent segment, we iteratively augment Q with the candidate of largest m(S). Let Snew denote
+the newly selected segment. We then update
+                                                        
+                       m(S) ← min m(S), d(S, Snew ) ,          ∀ S ∈ Mt .                       (5)
+This procedure provides an efficient online approximation that maintains a broad and non-redundant
+retrieval basis under a fixed budget.
+
+
+                                                  5
+      Table 1: Reconstruction results on 7-Scenes and NRGBD. Best results are shown in bold.
+Method                             7-Scenes                                            NRGBD
+               Acc↓ Accmed ↓ Comp↓ Compmed ↓ NC↑ NCmed ↑ Acc↓ Accmed ↓ Comp↓ Compmed ↓ NC↑ NCmed ↑
+CUT3R          0.181   0.127   0.095    0.0327   0.525   0.531   0.322   0.237   0.128    0.0334   0.553   0.566
+Point3R        0.063   0.026   0.031    0.0150   0.559   0.589   0.113   0.048   0.037    0.0060   0.621   0.696
+TTT3R          0.060   0.035   0.028    0.0050   0.560   0.588   0.161   0.082   0.093    0.0147   0.602   0.654
+XStreamVGGT    0.105   0.052   0.048    0.0100   0.556   0.583   0.128   0.080   0.043    0.0069   0.621   0.703
+InfiniteVGGT   0.041   0.016   0.024    0.0047   0.561   0.593   0.078   0.049   0.035    0.0069   0.647   0.757
+OVGGT*         0.033   0.011   0.020    0.0040   0.560   0.591   0.056   0.036   0.032    0.0069   0.635   0.731
+Ours(12)       0.035   0.013   0.020    0.0048   0.562   0.594   0.054   0.036   0.031    0.0068   0.656   0.764
+Ours(16)       0.033   0.010   0.019    0.0044   0.564   0.597   0.053   0.035   0.030    0.0061   0.663   0.773
+Ours(20)       0.027   0.008   0.018    0.0038   0.563   0.595   0.053   0.036   0.033    0.0067   0.661   0.776
+Ours(24)       0.028   0.009   0.019    0.0040   0.564   0.598   0.054   0.035   0.030    0.0060   0.670   0.782
+
+                                                                                 (l)
+At each step, the current frame produces a per-layer frame segment St , which is appended to the
+candidate pool. When the pool exceeds capacity, the retained subset is refreshed by the above rule and
+reassembled into the bounded KV memory for the next step. Selection is performed independently
+for each layer.
+
+Sparse Anchor Memory. The mid-term bank provides the primary bounded working memory, but
+local context may degrade over very long streams. We therefore maintain a sparse anchor bank At ,
+with |At | ≤ BA , to preserve long-range references without excessive local redundancy. The first
+frame is always retained as a persistent global reference and is excluded from replacement.
+For a candidate frame i, anchor promotion is governed by temporal spacing, frame reliability, and
+novelty:
+                  (
+                    FIFOBA (At−1 ∪ {i}) , if ∆i ≥ G, Φ(i) ≥ τconf , ν(i) ≥ τnovel ,
+            At =
+                    At−1 ,                   otherwise.
+
+Here, ∆i = i − ilast measures the gap from the last promoted anchor, and G is the minimum spacing.
+The reliability score Φ(i) = qi si combines normalized prediction confidence qi and Laplacian
+sharpness si , while ν(i) measures the minimum distance to existing anchor pose signatures. The
+thresholds τconf and τnovel are fixed across datasets. FIFO is applied only to historical anchors, so
+the first-frame reference is never evicted. This compact tier extends long-range coverage beyond the
+mid-term bank.
+
+
+5     Experiments
+
+5.1   Experimental Setup
+
+We evaluate FrameVGGT on online 3D reconstruction, video depth estimation, and monocular
+camera pose estimation under a strict resource-controlled protocol: pretrained weights, frame
+sampling, and inference pipeline are fixed, while only the bounded-memory organization varies
+under comparable KV-cache budgets. Baselines marked with ∗ indicate contemporaneous token-level
+streaming methods. FrameVGGT is used purely at inference time without retraining or fine-tuning,
+and memory denotes the effective streaming KV-cache footprint. All experiments use a single
+NVIDIA RTX A6000 GPU.
+
+Memory-budget sweep. We vary the mid-term capacity M , i.e., the maximum number of refresh-
+able frame segments retained in the mid-term bank, over M ∈ {12, 16, 20, 24}. This tests whether
+preserving broader complementary coverage improves long-horizon performance, and whether gains
+saturate once the dominant memory structure is covered.
+
+Timescale-separation diagnostic. To isolate the role of sparse persistent references, we compare
+24 mid-term + 0 anchor against 20 mid-term + 4 anchor under the same total memory budget. This
+tests whether long-range references provide benefits beyond the primary mid-term memory bank.
+
+
+                                                         6
+          CUT3R                    TTT3R                   InfiniteVGGT                     FrameVGGT
+
+Figure 3: Reconstruction visualization comparison on the 7scenes dataset. Our method ensures robust
+geometric consistency over extended sequences, maintaining a highly stable and reliable result.
+
+
+            Table 2: Reconstruction results on Long3D. Best results are shown in bold.
+                  Method        Acc↓   Accmed ↓    Comp↓   Compmed ↓      NC↑     NCmed ↑
+                  CUT3R        3.217       2.235   1.605     1.351        0.500    0.491
+                  TTT3R        2.964       2.310   2.265     1.805        0.507    0.514
+                  InfiniteVGGT 2.138       1.728   0.963     0.364        0.513    0.526
+                  OVGGT*       2.148       1.687   1.594     0.574        0.526    0.530
+                  Ours         1.698       1.331   1.032     0.433        0.536    0.540
+
+
+Short-term continuity vs. complementary context. We evaluate a Recent-K variant that reserves
+capacity for the last K frames (K ∈ {2, 4, 6}) and allocates the rest to mid-term memory. This tests
+whether bounded memory should prioritize recent continuity or complementary context under a fixed
+budget.
+
+5.2   3D Reconstruction
+
+Protocol and metrics. We evaluate 3D reconstruction on 7-S CENES, NRGBD [39, 40], and
+L ONG 3D, reporting Accuracy (Acc, ↓), Completeness (Comp, ↓), and Normal Consistency (NC, ↑).
+For 7-S CENES and NRGBD, we test long-horizon sequences (up to 1000 frames, stride 2) under
+a unified bounded-memory protocol. For L ONG 3D (2k–10k frames), predicted point clouds are
+downsampled to 2% to align with ground-truth density.
+
+Effect of mid-term capacity. Tab. 1, 2 and Fig. 3 demonstrate that token-level methods degrade on
+long sequences due to context fragmentation, which reduces surface coverage and introduces artifacts.
+In contrast, our coherence-aligned memory preserves multi-view context, yielding superior accuracy–
+memory trade-offs. By operating on frame-level prototypes, F RAME VGGT bypasses the overhead of
+fine-grained token sampling, achieving significantly higher throughput than baselines. For instance,
+our 1.9–3.7 GB footprint (12–24 blocks) is substantially more efficient than I NFINITE VGGT (6.9 GB)
+or XS TREAM VGGT (10.3 GB).
+
+Global-anchor diagnostic. Tab. 3 shows that anchors enhance robustness during unreliable mid-
+term context (e.g., blur, occlusion, or weak parallax) by providing persistent references. While
+their impact is minimal in regular scenarios, anchors mitigate error accumulation in degraded cases.
+Anchor-only baselines (FIFO, random, uniform) consistently underperform, confirming that anchors
+serve as a vital robustness-oriented complement to mid-term memory.
+
+Recent vs. mid-term evidence. Tab. 4 shows that forcing a Recent-K buffer often degrades recon-
+struction quality. Recency-biased buffering over-allocates memory to highly overlapping adjacent
+frames while displacing more complementary mid-term memory, reducing effective scene coverage
+and weakening the support needed to maintain surface completeness and geometric consistency over
+long horizons.
+
+
+                                                   7
+  Table 3: Performance comparison across anchor configurations. Best results are shown in bold.
+ Scene                                        Anchor=0                                                           Anchor=4
+                 Acc↓      Accmed ↓    Comp↓      Compmed ↓     NC↑      NCmed ↑    Acc↓      Accmed ↓   Comp↓      Compmed ↓     NC↑       NCmed ↑
+
+ office/seq-09   0.0429     0.0088      0.0126      0.0044     0.5627     0.6085    0.0275     0.0088     0.0119      0.0044     0.5758     0.6163
+ stairs/seq-01   0.1392     0.0556      0.0915      0.0077     0.5411     0.5585    0.1250     0.0521     0.0932      0.0081     0.5565     0.5726
+
+
+Table 4: Recent ablation on 7-Scenes and NRGBD under a fixed total budget (Mtotal =16). Recent-0
+corresponds to Ours (M =16). Best results are shown in bold.
+ Method                                     7-Scenes                                                          NRGBD
+             Acc↓     Accmed ↓       Comp↓       Compmed ↓    NC↑       NCmed ↑    Acc↓      Accmed ↓    Comp↓      Compmed ↓     NC↑     NCmed ↑
+
+ Recent-0    0.033        0.010       0.019       0.0044      0.564      0.597     0.053      0.035      0.030        0.0061      0.663     0.773
+ Recent-2    0.037        0.013       0.020       0.0044      0.562      0.593     0.056      0.040      0.031        0.0070      0.656     0.768
+ Recent-4    0.053        0.017       0.024       0.0050      0.558      0.587     0.066      0.045      0.031        0.0073      0.637     0.734
+ Recent-6    0.069        0.025       0.027       0.0050      0.555      0.583     0.085      0.059      0.034        0.0080      0.623     0.707
+
+
+Table 5: Video depth estimation results on Bonn.                              Table 6: Recent ablation on Bonn under a fixed
+Best results are shown in bold.                                               total budget (Mtotal =16). Recent-0 corresponds
+                                                                              to Ours (M =16). Best results are shown in bold.
+            Method                Abs Rel↓       δ < 1.25 ↑
+
+            CUT3R                  0.0831          0.9402                              Sliding Window         Abs Rel↓         δ < 1.25 ↑
+            Point3R                0.0809          0.9513                              Recent-0                  0.0525          0.9801
+            TTT3R                  0.0752          0.9587                              Recent-2                  0.0535          0.9794
+            XStreamVGGT            0.0807          0.9697                              Recent-4                  0.0562          0.9788
+            InfiniteVGGT           0.0560          0.9801                              Recent-6                  0.0589          0.9780
+            OVGGT*                 0.0658          0.9558
+            Ours (12)              0.0526          0.9793
+            Ours (16)              0.0525          0.9801
+            Ours (20)              0.0514          0.9799
+            Ours (24)              0.0512          0.9799
+
+
+5.3      Video Depth Estimation
+
+Protocol and metrics. We evaluate streaming video depth estimation on B ONN [41] over sequences
+of up to 500 frames, reporting Abs Rel (↓) and δ < 1.25 (↑) after per-sequence scale alignment. The
+evaluation protocol is fixed across all memory settings.
+
+Effect of mid-term capacity. Tab. 5 shows that our frame-level memory maintains strong depth
+accuracy even under tight bounded-memory settings. Compared with reconstruction and pose, video
+depth is less sensitive to memory size, suggesting that much of the required support remains relatively
+local. Still, increasing the mid-term capacity M yields modest but consistent improvements in Abs
+Rel, indicating that additional mid-term context remains beneficial when local evidence becomes
+ambiguous or insufficient. The overall trend also suggests an earlier saturation regime: once nearby
+context is already strong, additional history provides diminishing returns.
+
+Recent vs. mid-term evidence. Tab. 6 shows that reserving memory for the most recent frames does
+not improve depth estimation, and performance gradually declines as K increases. This suggests that,
+as in 3D reconstruction, bounded memory is more effective when used to preserve complementary
+context rather than redundant adjacent views.
+
+5.4      Camera Pose Estimation
+
+Protocol and metrics. We evaluate streaming camera pose estimation on TUM- DYNAMICS [42]
+using sequences of up to 300 frames. We report ATE, RPEtrans , and RPErot (all ↓) after Sim(3)
+Umeyama alignment, used only for global similarity normalization.
+
+Effect of mid-term capacity. Similar trends are observed for pose estimation. Tab. 7 and Fig. 4
+show that token-level streaming suffers from accumulated error and drift as sequences grow. In
+contrast, our frame-level memory preserves complementary multi-view context over time, resulting
+in more stable pose estimation and lower ATE and RPE over long sequences. Increasing the mid-term
+capacity M consistently improves pose accuracy, with diminishing returns at larger budgets.
+
+
+                                                                          8
+            CUT3R                       TTT3R              InfiniteVGGT                FrameVGGT
+
+
+Figure 4: Pose visualization comparison on the TUM dataset. Our method maintains a robustly stable
+trajectory and ensures geometric integrity even over exceptionally long-duration sequences.
+
+Table 7: Pose estimation results on TUM. Best        Table 8: Recent ablation on TUM under a fixed
+results are shown in bold.                           total budget (Mtotal =16). Recent-0 corresponds
+       Method         ATE↓     RPEt ↓   RPEr ↓       to Ours (M =16). Best results are shown in bold.
+       CUT3R          0.1089   0.0148    0.619             Sliding Window   ATE↓     RPEt ↓   RPEr ↓
+       Point3R        0.1387   0.0369    2.347             Recent-0         0.0386   0.0137   0.342
+       TTT3R          0.0620   0.0147    0.618             Recent-2         0.0399   0.0138   0.341
+       XStreamVGGT    0.0728   0.0262    0.580             Recent-4         0.0410   0.0140   0.342
+       InfiniteVGGT   0.0478   0.0138    0.350             Recent-6         0.0432   0.0140   0.341
+       OVGGT*         0.0561   0.0215    0.448
+       Ours (12)      0.0387   0.0140    0.346
+       Ours (16)      0.0386   0.0137    0.342
+       Ours (20)      0.0389   0.0135    0.339
+       Ours (24)      0.0385   0.0133    0.336
+
+
+Recent vs. mid-term evidence. Tab. 8 shows that forcing a Recent-K buffer is insufficient for
+long-horizon pose stability. Consistent with 3D reconstruction, allocating more memory to recent
+frames reduces capacity for complementary mid-term context and weakens long-range geometric
+constraints.
+
+6     Discussion
+6.1   Interpretation of Results
+
+Across all tasks, FrameVGGT achieves the best accuracy–memory frontier, outperforming token-
+level bounded-memory baselines with much smaller KV-cache footprints. This suggests that, in
+bounded streaming geometry, memory organization matters as much as capacity: coherent frame-
+level context is more effective than fragmented token subsets. Performance is often limited more by
+complementary geometric coverage than by raw token count, and gains saturate once memory spans
+the key viewpoints and baselines. By contrast, token-level selection tends to collapse onto a narrow
+local subset, weakening cross-frame complementarity and causing long-horizon drift, while recent
+frames alone often provide insufficient geometric baseline. Frame-level retention instead preserves
+coherent units and broader complementary coverage, yielding more stable long-range performance
+under fixed memory.
+
+Limitations and Future Work. This work studies bounded streaming geometry under a controlled
+memory design space. Our current formulation uses a fixed inference-time policy to isolate the
+effect of memory organization from training and pipeline changes. While the sparse anchor tier
+provides a lightweight mechanism for long-range reference retention, this study does not exhaust the
+broader design space of temporal memory allocation. Future work may extend the framework with
+data-driven memory scoring, scene-adaptive allocation, and more flexible long-timescale reference
+selection to further improve efficiency and stability across diverse streaming scenarios.
+
+
+
+
+                                                 9
+References
+ [1] Xingdong Sheng, Shijie Mao, Yichao Yan, and Xiaokang Yang. Review on slam algorithms for augmented
+     reality. Displays, 84:102806, 2024.
+
+ [2] Ioan Andrei Bârsan, Peidong Liu, Marc Pollefeys, and Andreas Geiger. Robust dense mapping for large-
+     scale dynamic environments. In 2018 IEEE International Conference on Robotics and Automation (ICRA),
+     pages 7510–7517. IEEE, 2018.
+
+ [3] Mehmet Turan, Yusuf Yigit Pilavci, Ipek Ganiyusufoglu, Helder Araujo, Ender Konukoglu, and Metin
+     Sitti. Sparse-then-dense alignment-based 3d map reconstruction method for endoscopic capsule robots.
+     Machine Vision and Applications, 29(2):345–359, 2018.
+
+ [4] Ruben Mascaro and Margarita Chli. Scene representations for robotic spatial perception. Annual Review
+     of Control, Robotics, and Autonomous Systems, 8(1):351–377, 2025.
+
+ [5] Sonia Raychaudhuri and Angel X Chang. Semantic mapping in indoor embodied ai–a comprehensive
+     survey and future directions. arXiv preprint arXiv:2501.05750, 3, 2025.
+
+ [6] Richard A Andersen and David C Bradley. Perception of three-dimensional structure from motion. Trends
+     in cognitive sciences, 2(6):222–228, 1998.
+
+ [7] Muhamad Risqi U Saputra, Andrew Markham, and Niki Trigoni. Visual slam and structure from motion in
+     dynamic environments: A survey. ACM Computing Surveys (CSUR), 51(2):1–36, 2018.
+
+ [8] Tanveer Hussain, Khan Muhammad, Weiping Ding, Jaime Lloret, Sung Wook Baik, and Victor Hugo C
+     De Albuquerque. A comprehensive survey of multi-view video summarization. Pattern Recognition,
+     109:107567, 2021.
+
+ [9] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric
+     3d vision made easy. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition (CVPR), pages 20697–20709, June 2024.
+
+[10] Bardienus Pieter Duisterhof, Lojze Zust, Philippe Weinzaepfel, Vincent Leroy, Yohann Cabon, and Jerome
+     Revaud. Mast3r-sfm: a fully-integrated solution for unconstrained structure-from-motion. In 2025
+     International Conference on 3D Vision (3DV), pages 1–10. IEEE, 2025.
+
+[11] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 5294–5306, 2025.
+
+[12] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao
+     Pang, Chunhua Shen, and Tong He. π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+     arXiv:2507.13347, 2025.
+
+[13] Haotong Lin, Sili Chen, Junhao Liew, Donny Y Chen, Zhenyu Li, Guang Shi, Jiashi Feng, and Bingyi
+     Kang. Depth anything 3: Recovering the visual space from any views. arXiv preprint arXiv:2511.10647,
+     2025.
+
+[14] Nikhil Keetha, Norman Müller, Johannes Schönberger, Lorenzo Porzi, Yuchen Zhang, Tobias Fischer,
+     Arno Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes, et al. Mapanything: Universal feed-forward
+     metric 3d reconstruction. arXiv preprint arXiv:2509.13414, 2025.
+
+[15] Kai Deng, Zexin Ti, Jiawei Xu, Jian Yang, and Jin Xie. Vggt-long: Chunk it, loop it, align it–pushing
+     vggt’s limits on kilometer-scale long rgb sequences. arXiv preprint arXiv:2507.16443, 2025.
+
+[16] Dominic Maggio, Hyungtae Lim, and Luca Carlone. Vggt-slam: Dense rgb slam optimized on the sl (4)
+     manifold. arXiv preprint arXiv:2505.12549, 2025.
+
+[17] Yuzheng Liu, Siyan Dong, Shuzhe Wang, Yingda Yin, Yanchao Yang, Qingnan Fan, and Baoquan Chen.
+     Slam3r: Real-time dense scene reconstruction from monocular rgb videos. In Proceedings of the Computer
+     Vision and Pattern Recognition Conference, pages 16651–16662, 2025.
+
+[18] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous
+     3d perception model with persistent state. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 10510–10522, 2025.
+
+[19] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and Anpei Chen. Ttt3r: 3d reconstruction as
+     test-time training. arXiv preprint arXiv:2509.26645, 2025.
+
+
+                                                     10
+[20] Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou, and Jiwen Lu. Streaming 4d visual geometry
+     transformer. arXiv preprint arXiv:2507.11539, 2025.
+[21] Zichang Liu, Aditya Desai, Fangshuo Liao, Weitao Wang, Victor Xie, Zhaozhuo Xu, Anastasios Kyrillidis,
+     and Anshumali Shrivastava. Scissorhands: Exploiting the persistence of importance hypothesis for llm kv
+     cache compression at test time. Advances in Neural Information Processing Systems, 36:52342–52364,
+     2023.
+[22] Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai, Zhao Song, Yuandong
+     Tian, Christopher Ré, Clark Barrett, et al. H2o: Heavy-hitter oracle for efficient generative inference of
+     large language models. Advances in Neural Information Processing Systems, 36:34661–34710, 2023.
+[23] Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli, Hanchen Ye, Tianle Cai,
+     Patrick Lewis, and Deming Chen. Snapkv: Llm knows what you are looking for before generation.
+     Advances in Neural Information Processing Systems, 37:22947–22970, 2024.
+[24] Shuai Yuan, Yantai Yang, Xiaotian Yang, Xupeng Zhang, Zhonghao Zhao, Lingming Zhang, and
+     Zhipeng Zhang. Infinitevggt: Visual geometry grounded transformer for endless streams. arXiv preprint
+     arXiv:2601.02281, 2026.
+[25] Zunhai Su, Weihao Ye, Hansen Feng, Keyu Fan, Jing Zhang, Dahai Yu, Zhengwu Liu, and Ngai Wong.
+     Xstreamvggt: Extremely memory-efficient streaming vision geometry grounded transformer with kv cache
+     compression. arXiv preprint arXiv:2601.01204, 2026.
+[26] Soroush Mahdi, Fardin Ayar, Ehsan Javanmardi, Manabu Tsukada, and Mahdi Javanmardi. Evict3r:
+     Training-free token eviction for memory-bounded streaming visual geometry transformers. arXiv preprint
+     arXiv:2509.17650, 2025.
+[27] Si-Yu Lu, Po-Ting Chen, Hui-Che Hsu, Sin-Ye Jhong, Wen-Huang Cheng, and Yung-Yao Chen. Ovggt: O
+     (1) constant-cost streaming visual geometry transformer. arXiv preprint arXiv:2603.05959, 2026.
+[28] Sameer Agarwal, Yasutaka Furukawa, Noah Snavely, Ian Simon, Brian Curless, Steven M Seitz, and
+     Richard Szeliski. Building rome in a day. Communications of the ACM, 54(10):105–112, 2011.
+[29] Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings of the
+     IEEE conference on computer vision and pattern recognition, pages 4104–4113, 2016.
+[30] Yasutaka Furukawa and Carlos Hernández. Multi-view stereo: A tutorial. Foundations and Trends in
+     Computer Graphics and Vision, 9(1-2):1–148, 2015.
+[31] Fan Zhu, Ziyu Chen, Chunmao Jiang, Liwei Xu, Shijin Zhang, Biao Yu, and Hui Zhu. Slm-slam: a
+     visual slam system based on segmented large-scale model in dynamic scenes and zero-shot conditions.
+     Measurement Science and Technology, 35(8):086315, 2024.
+[32] Raul Mur-Artal, Jose Maria Martinez Montiel, and Juan D Tardos. Orb-slam: A versatile and accurate
+     monocular slam system. IEEE transactions on robotics, 31(5):1147–1163, 2015.
+[33] Takafumi Taketomi, Hideaki Uchiyama, and Sei Ikeda. Visual slam algorithms: A survey from 2010 to
+     2016. IPSJ transactions on computer vision and applications, 9(1):16, 2017.
+[34] Junyuan Deng, Heng Li, Tao Xie, Weiqiang Ren, Qian Zhang, Ping Tan, and Xiaoyang Guo. Sail-recon:
+     Large sfm by augmenting scene regression with localization. arXiv preprint arXiv:2508.17972, 2025.
+[35] Hengyi Wang and Lourdes Agapito. 3d reconstruction with spatial memory. In 2025 International
+     Conference on 3D Vision (3DV), pages 78–89. IEEE, 2025.
+[36] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r: Streaming 3d reconstruction with explicit
+     spatial pointer memory. arXiv preprint arXiv:2507.02863, 2025.
+[37] Zhuoguang Chen, Minghui Qin, Tianyuan Yuan, Zhe Liu, and Hang Zhao. Long3r: Long sequence
+     streaming 3d reconstruction. In Proceedings of the IEEE/CVF International Conference on Computer
+     Vision, pages 5273–5284, 2025.
+[38] Zizun Li, Jianjun Zhou, Yifan Wang, Haoyu Guo, Wenzheng Chang, Yang Zhou, Haoyi Zhu, Junyi Chen,
+     Chunhua Shen, and Tong He. Wint3r: Window-based streaming reconstruction with camera token pool.
+     arXiv preprint arXiv:2509.05296, 2025.
+[39] Hunter Blanton, Connor Greenwell, Scott Workman, and Nathan Jacobs. Extending absolute pose
+     regression to multiple scenes. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition Workshops, pages 38–39, 2020.
+
+
+                                                      11
+[40] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman, Matthias Nießner, and Justus Thies. Neural
+     rgb-d surface reconstruction. In Proceedings of the IEEE/CVF conference on computer vision and pattern
+     recognition, pages 6290–6301, 2022.
+
+[41] Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe Giguere, and Cyrill Stachniss. Refusion:
+     3d reconstruction in dynamic environments for rgb-d cameras exploiting residuals. In 2019 IEEE/RSJ
+     International Conference on Intelligent Robots and Systems (IROS), pages 7855–7862. IEEE, 2019.
+
+[42] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram Burgard, and Daniel Cremers. A benchmark for
+     the evaluation of rgb-d slam systems. In 2012 IEEE/RSJ International Conference on Intelligent Robots
+     and Systems, pages 573–580, 2012.
+
+
+
+
+                                                    12
+                  InfiniteVGGT                                        FrameVGGT
+
+Figure 5: Visualization of memory-key heatmaps at different timesteps. Left: InfiniteVGGT. Right:
+FrameVGGT. Heatmaps visualize saved memory key snapshots at different checkpoints. Rows are
+retained memory tokens (internal memory order) and columns are key dimensions (one layer/head
+slice; batch=0 and head=0 when applicable). Color encodes the key value; the colorbar is auto-scaled
+per snapshot (ticks chosen automatically), so absolute intensities are not directly comparable across
+checkpoints. Banded patterns indicate groups of tokens with similar key profiles (higher row-wise
+correlation), while diffuse patterns indicate more heterogeneous keys.
+
+A     Additional Diagnostics for Token-Level Compression in Geometric
+      Streaming
+
+This appendix complements Sec. 3 with additional diagnostics for the granularity effects discussed in
+the main text. We introduce lightweight proxies that illustrate several degradation patterns observed
+under bounded token-level retention, while keeping the notation consistent with Sec. 3.
+
+A.1   Problem Setup
+
+Consider a video stream of length T , where frame t produces a set of token vectors
+
+                              Xt = {xt,1 , . . . , xt,Nt },   xt,i ∈ Rd .
+
+
+                                                    13
+Here, T , Nt , and d are scalars, Xt is a set, and xt,i is a vector. Under a bounded-memory policy, a
+retained subset Xet ⊆ Xt is maintained under the global KV-cache budget
+                                           T
+                                           X
+                                                 |X
+                                                  et | ≤ M,
+                                           t=1
+
+where M is the total memory budget.
+As emphasized in the main text, the key question is not only how many entries are retained, but
+whether the retained subset preserves sufficient geometrically usable context for downstream inference.
+For geometric prediction, the utility of retained memory depends not only on individual entries, but
+also on whether they remain organized as coherent observations that jointly support matching, fusion,
+and long-range consistency.
+
+Geometric-context proxy. To make this intuition explicit, we introduce a qualitative scalar proxy
+s(·) that reflects the amount of usable geometric context preserved by a retained subset. Possible
+instantiations include spatial coverage, reprojection consistency, or other task-dependent measures.
+We emphasize that s(·) is not uniquely defined and is used only as a conceptual diagnostic.
+We then define the context-damage proxy
+                                        dt = s(Xt ) − s(X
+                                                        et ),
+
+and the relative context ratio
+                                                   s(X
+                                                     et )
+                                            ρt =          .
+                                                   s(Xt )
+These quantities are not used for formal guarantees, but serve as diagnostics of how compression
+affects geometrically usable context.
+
+A.2   Context Thinning Under Bounded Memory
+
+Under a fixed global budget, retained memory must be distributed across an increasing number of
+frames as the sequence grows. As a result, the average number of retained observations per frame
+tends to decrease with longer horizons.
+In practice, this leads to progressive context thinning: each frame contributes fewer retained entries,
+reducing the density of usable geometric evidence. For geometric tasks, where stable estimation
+relies on redundant multi-view observations, such thinning weakens the effective context available
+for depth, pose, and reconstruction.
+Importantly, degradation is not determined solely by the number of retained entries. Different
+retention policies with similar budgets can preserve very different amounts of usable geometric
+context, depending on how the retained memory is distributed.
+
+A.3   Context Fragmentation Across Space and Time
+
+Geometric inference depends not only on how many observations are retained, but also on whether
+they form coherent multi-view context across frames.
+Under token-level retention, selection is performed independently at the token level and is not
+explicitly constrained to preserve within-frame structure or cross-view compatibility. As a result,
+retained entries may no longer correspond to mutually compatible observations of the same underlying
+structure.
+For example, different frames may retain entries from unrelated regions or surfaces, leading to
+memory that remains populated but lacks stable correspondences. We refer to this effect as context
+fragmentation, since the retained geometric context becomes scattered across both space and time.
+This effect is particularly pronounced in regimes with already limited redundancy, such as low-
+parallax motion, blur, occlusion, or texture-poor regions. In such cases, fragmentation further
+reduces the availability of jointly usable observations and makes inference more sensitive to local
+inconsistencies.
+
+
+                                                   14
+A.4   Directional Concentration, Attention Concentration, and Retention Granularity
+
+Context thinning and context fragmentation affect not only what is retained, but also how retained
+memory is used during attention. For a given layer l, let k̂i ∈ Rdl denote an ℓ2 -normalized key vector,
+where dl is the key dimension of layer l. For a query step k, we partition retained keys into a local
+subset Rk and a non-local subset Nk , where Rk contains keys from a short temporal neighborhood
+of the query.
+We define the local representative direction µR ∈ Rdl by
+                                               1
+                                                  P
+                                                  |Rk |        i∈Rk k̂i
+                                       µR =                                   ,
+                                                    1
+                                                          P
+                                                  |Rk |    i∈Rk k̂i
+                                                                          2
+
+and measure directional contrast by
+                             1 X                      1 X
+                    ∆k =            cos(k̂i , µR ) −       cos(k̂j , µR ).                          (6)
+                           |Rk |                     |Nk |
+                                     i∈Rk                             j∈Nk
+
+A larger ∆k indicates that keys in the local subset are, on average, more strongly aligned with their
+dominant direction than the rest of memory. As in the main text, we use ∆k as a diagnostic of relative
+directional dominance under bounded memory.
+Under standard dot-product attention, attention weights are obtained by applying a softmax over
+query–key similarity scores. Let q ∈ Rdl denote the query vector. Then
+                                         exp(si )
+                                   αi = P           ,             si = q⊤ k̂i .
+                                         j exp(sj )
+
+Because the softmax amplifies relative score differences, even moderate directional imbalance can
+produce increasingly concentrated retrieval over a smaller subset of retained keys. The following
+proposition formalizes this effect in a simplified two-group model.
+
+Directional contrast and attention concentration under a two-group model. Let the retained
+memory at query step k be partitioned into a local subset Rk and a non-local subset Nk , with
+cardinalities
+                                  m = |Rk |,     n = |Nk |.
+Assume a simplified score model in which all keys in Rk share a common similarity score a, and all
+keys in Nk share a common similarity score b, with a > b. The softmax attention weights are
+                                              ea
+                                      
+                                       a            , i ∈ Rk ,
+                                        me + neb
+                                 αi =            b
+                                               e
+                                                     , i ∈ Nk .
+                                      
+                                      
+                                        me + neb
+                                             a
+
+Define the score gap
+                                              δ = a − b > 0.
+Proposition A.1. For fixed m and n, the attention entropy
+                                                 X
+                                  hatt (α) = −       αi log αi
+                                                           i
+
+is monotonically decreasing in δ. Consequently, the effective memory size
+                                                           
+                                      seff = exp hatt (α)
+is also monotonically decreasing in δ.
+
+Proof. Let
+                    X               mea            meδ                                  n
+             pR =          αi =               =           ,           pN = 1 − pR =           .
+                                  mea + neb       meδ + n                             meδ + n
+                    i∈Rk
+
+
+                                                      15
+Since all weights are tied within each group, the entropy can be written as
+                                                    pR           pN
+                               hatt (α) = −pR log       − pN log     .
+                                                    m             n
+Equivalently,
+                        hatt (α) = hbin (pR ) + pR log m + (1 − pR ) log n,
+where
+                              hbin (p) = −p log p − (1 − p) log(1 − p)
+denotes the binary entropy.
+Now
+                                      dpR     mneδ
+                                          =            > 0.
+                                       dδ   (meδ + n)2
+By the chain rule,
+                                         dhatt   dhatt dpR
+                                               =           .
+                                          dδ     dpR dδ
+Using
+                        hatt (pR ) = hbin (pR ) + pR log m + (1 − pR ) log n,
+we obtain
+                     dhatt       1 − pR                       m(1 − pR )
+                           = log        + log m − log n = log            .
+                     dpR           pR                           npR
+Substituting
+                                      meδ                          n
+                              pR =           ,      1 − pR =              ,
+                                     meδ + n                   meδ + n
+gives
+                                 m(1 − pR )   m · menδ +n
+                                            =          δ  = e−δ .
+                                   npR        n · meδ  me +n
+Hence
+                                     dhatt
+                                           = log(e−δ ) = −δ < 0.
+                                     dpR
+Since dp
+       dδ > 0, it follows that
+        R
+
+
+                                           dhatt
+                                                 < 0.
+                                            dδ
+Therefore hatt (α) decreases monotonically with δ, and so does seff = exp(hatt (α)).
+
+This proposition shows that a larger score gap induces more concentrated attention and reduces
+the effective number of retained keys contributing to retrieval. Under the additional assumption
+that the query direction remains positively aligned with µR , a larger ∆k implies that keys in Rk
+enjoy a stronger average directional advantage over those in Nk . In the two-group model above, this
+corresponds to a larger score gap δ, and therefore to lower entropy and a smaller effective memory
+size. From this perspective, ∆k serves as a useful proxy for the tendency of attention to concentrate
+on a smaller subset of retained memory.
+
+Retention granularity and local directional dispersion. The same diagnostic also clarifies why
+retention granularity matters. Define
+                         1 X                            1 X
+                AR =              cos(k̂i , µR ), AN =          cos(k̂j , µR ),
+                       |Rk |                           |Nk |
+                              i∈Rk                                 j∈Nk
+
+so that
+                                          ∆k = AR − AN .
+Because both k̂i and µR are unit-normalized,
+
+                                 ∥k̂i − µR ∥22 = 2 − 2 cos(k̂i , µR ),
+
+
+                                                  16
+and therefore
+                                                  1 X
+                                   AR = 1 −            ∥k̂i − µR ∥22 .                               (7)
+                                                2|Rk |
+                                                        i∈Rk
+
+Now partition the local retained set Rk into frame groups St . For each frame group St , define its
+mean direction k̄t ∈ Rdl by
+                                                1 X
+                                        k̄t =         k̂i ,
+                                               |St |
+                                                           i∈St
+and its intra-frame directional dispersion by
+                                                 1 X
+                                       σt2 =          ∥k̂i − k̄t ∥22 .
+                                                |St |
+                                                    i∈St
+                              F
+Proposition A.2. Let Rk =          t St be a partition of the local retained keys into frame groups, and
+define
+                                                         |St |
+                                                 wt =          .
+                                                        |Rk |
+Then
+                                                        1X
+                                         AR ≤ 1 −           wt σt2 .                                 (8)
+                                                        2 t
+Consequently,
+                                                   1X
+                                      ∆k ≤ 1 −         wt σt2 − AN .                                 (9)
+                                                   2 t
+
+Proof. Starting from (7),
+                                                  1 X
+                                   AR = 1 −            ∥k̂i − µR ∥22 .
+                                                2|Rk |
+                                                        i∈Rk
+We decompose the sum over frame groups:
+                      1 X                      1 XX
+                              ∥k̂i − µR ∥22 =         ∥k̂i − µR ∥22 .
+                    |Rk |                     |Rk | t
+                              i∈Rk                                 i∈St
+
+For each group St , variance decomposition gives
+         1 X                      1 X
+                ∥k̂i − µR ∥22 =          ∥k̂i − k̄t ∥22 + ∥k̄t − µR ∥22 = σt2 + ∥k̄t − µR ∥22 ,
+        |St |                    |St |
+             i∈St                        i∈St
+
+where the cross term vanishes because
+                                            X
+                                                  (k̂i − k̄t ) = 0.
+                                           i∈St
+
+Hence
+                                        1 X
+                                             ∥k̂i − µR ∥22 ≥ σt2 .
+                                       |St |
+                                            i∈St
+Multiplying by |St |/|Rk | = wt and summing over t yields
+                                 1 X                    X
+                                        ∥k̂i − µR ∥22 ≥     wt σt2 .
+                                |Rk |                     t
+                                        i∈Rk
+
+Substituting this into (7) gives
+                                                        1X
+                                         AR ≤ 1 −           wt σt2 ,
+                                                        2 t
+which proves (8). Finally, since ∆k = AR − AN , we immediately obtain
+                                           1X
+                                  ∆k ≤ 1 −       wt σt2 − AN .
+                                           2 t
+
+
+
+                                                      17
+This bound makes the role of retention granularity explicit. If memory is controlled at excessively
+fine granularity, token-level selection can retain only a few highly aligned entries from the same local
+mode, causing the corresponding intra-frame dispersion σt2 to collapse toward zero. In that case,
+AR can approach 1, enlarging the directional contrast between Rk and Nk . By contrast, frame-level
+retention preserves each frame’s KV contribution as a coherent frame-wise context unit. Under the
+mild assumption that retained frame groups exhibit non-degenerate intra-frame directional dispersion,
+namely
+                                               σt2 ≥ ϵ > 0,
+we obtain
+                                             ϵ                  ϵ
+                                AR ≤ 1 − ,           ∆k ≤ 1 − − AN .
+                                             2                  2
+Thus, structured frame-level retention imposes a lower bound on local directional dispersion and
+reduces the tendency of bounded memory to collapse onto a narrowly dominant local direction.
+This is precisely why retaining frame-wise KV segments better preserves complementary geometric
+context under a fixed memory budget.
+
+Connection to the empirical diagnostic. The quantity plotted in Fig. 6 is exactly the same
+diagnostic ∆k = AR − AN analyzed above, now measured during streaming inference on the
+retained memory at each query step. The propositions in this appendix provide the interpretation of
+that curve: a larger ∆k implies a stronger directional advantage of the local retained subset over the
+non-local subset, which in turn corresponds to more concentrated attention and a smaller effective
+set of keys contributing to retrieval. The variance bound further explains why this effect depends on
+retention granularity: token-level selection can drive the intra-frame directional dispersion toward
+zero, allowing ∆k to grow, whereas frame-level retention preserves non-degenerate intra-frame
+variation and therefore suppresses this collapse. From this perspective, Fig. 6 serves as an empirical
+counterpart to the analysis above, showing that the theoretically motivated diagnostic indeed increases
+more strongly under token-level bounded memory, while remaining more stable under FrameVGGT.
+
+A.5   Finite Useful Memory Scale
+
+These observations also help explain why increasing memory may exhibit diminishing returns.
+When memory is very limited, performance is constrained by insufficient support, so increasing
+capacity improves results. Beyond a certain scale, however, additional memory tends to include
+redundant or weakly informative observations, contributing less to downstream inference.
+This effect is often more pronounced for token-level policies, which distribute memory across many
+partially informative fragments. Frame-level retention instead encourages more structured allocation,
+and may therefore exhibit smoother scaling behavior under bounded streaming.
+
+Why key space? In attention-based memory, Keys and Values play asymmetric roles: Keys de-
+termine how memory is addressed by future queries, while Values provide the retrieved content.
+Accordingly, redundancy for memory selection is most naturally measured in key space. By summa-
+                                                                   (l)
+rizing each frame’s incremental KV contribution into a prototype vt , we obtain a compact descriptor
+of its retrieval direction while preserving block-level coherence.
+
+B     Anchor Tier: Long-Range Reference Selection
+To complement the bounded mid-term bank, we maintain a sparse anchor tier that preserves a small
+number of long-range reference frames. While the mid-term bank provides the primary bounded
+memory over recent-to-mid horizons, anchors serve as persistent geometric references when local
+context becomes unreliable, e.g., under blur, occlusion, weak parallax, or rotation-dominant motion.
+This separation allows the model to retain both dense local evidence and sparse global references
+under a fixed memory budget.
+Anchor promotion is regulated by a temporal sparsity constraint
+                                      gt = t − tlast ≥ G,                                  (10)
+where t, tlast , and G are scalars. This prevents over-concentration in locally redundant inter-
+vals. Among eligible candidates, we prioritize frames that are both geometrically reliable and
+non-redundant.
+
+
+                                                  18
+Figure 6: Temporal evolution of ∆k under bounded memory. Increasing ∆k indicates stronger
+concentration and more brittle fusion. Token-level retention shows higher and growing ∆k , while
+FrameVGGT remains more stable.
+
+Frame-level reliability.   We define the anchor reliability score as
+                                             ϕ(i) = qi si ,                                      (11)
+where qi ∈ R denotes a frame-level model-confidence score and si ∈ R measures image sharpness.
+For qi , we use a lightweight frame-level confidence proxy derived from the model’s own geometric
+predictions. Specifically, let {ci,u }Ni
+                                      u=1 denote per-pixel or per-token confidence values at frame
+i, where ci,u ∈ R and Ni is the number of pixels or tokens used for aggregation. Depending on
+the backbone, these may correspond to matching confidence, visibility confidence, or prediction
+confidence. We aggregate them into a single frame-level score by
+                                                     Ni
+                                                 1 X
+                                          qi =          ci,u ,                                   (12)
+                                                 Ni u=1
+
+followed by min–max normalization within a sliding temporal buffer. Intuitively, qi favors frames
+whose predicted geometry is more self-consistent and reliable for later reuse.
+For si , we use a blur-sensitive image-quality proxy based on the variance of the Laplacian:
+                                          si = Var ∇2 Ii ,
+                                                         
+                                                                                                 (13)
+where Ii denotes frame i, and ∇2 Ii is its grayscale Laplacian response. This quantity is high for
+sharp images with rich local structure and low for blurred or low-detail frames. We normalize si to
+[0, 1] within the same temporal buffer before combining it with qi .
+
+Anchor novelty. To encourage diversity, we additionally require novelty with respect to the current
+anchor set At . Let p̄i ∈ Rdp denote the normalized pose signature of candidate frame i, where dp is
+the pose-signature dimension. We define the novelty score as
+                                     ν(i) = min (1 − ⟨p̄i , p̄a ⟩) .                             (14)
+                                             a∈At
+
+This discourages promoting frames that are geometrically redundant with already retained anchors.
+A candidate frame i is promoted only if
+                           gt ≥ G,        ϕ(i) ≥ τconf ,         ν(i) ≥ τnovel ,                 (15)
+and the anchor tier retains at most Manc frames using FIFO eviction, except for the first frame, which
+is always preserved as a persistent global reference.
+From a retrieval perspective, the anchor tier extends coverage beyond the effective horizon of the
+mid-term bank by preserving sparse but non-local geometric evidence. This reduces the tendency
+of bounded memory to over-concentrate on recent observations and improves robustness over long
+sequences with little additional memory overhead.
+
+
+                                                    19
+          CUT3R                     TTT3R                   InfiniteVGGT              FrameVGGT
+
+Figure 7: Additional reconstruction visualizations on 7-Scenes and NRGBD. We show representative
+renderings from FrameVGGT over extended streaming sequences. These examples complement the
+quantitative reconstruction results in the main paper by illustrating long-horizon structural consistency
+under bounded memory.
+
+
+
+
+          Recent = 0               Recent = 2                Recent = 4                Recent = 6
+
+Figure 8: Additional reconstruction visualizations with recent-only memory on 7-Scenes and
+NRGBD.
+
+C    Additional Reconstruction Visualization
+
+Before turning to pose trajectories, we further examine the long-horizon behavior of reconstructed
+geometry. Compared with per-frame depth maps, reconstruction renderings provide a more direct
+view of whether the retained memory preserves global structural consistency as evidence accumulates
+over time.
+Fig. 7 presents additional qualitative reconstruction results on 7-Scenes and NRGBD. Across extended
+streaming horizons, the reconstructed geometry remains visually coherent: dominant planes, major
+scene boundaries, and overall layout structure are stably preserved. Although regions with weaker
+
+
+                                                   20
+         Middle = 12                     Middle = 16                    Middle = 20                   Middle = 24
+
+Figure 9: Additional reconstruction visualizations with mid-term memory on 7-Scenes and NRGBD.
+
+
+     Table 9: Reconstruction results on 7-Scenes and NRGBD. Best results are shown in bold.
+Method                                    7-Scenes                                            NRGBD
+                       Acc↓ Accmed ↓ Comp↓ Compmed ↓ NC↑ NCmed ↑ Acc↓ Accmed ↓ Comp↓ Compmed ↓ NC↑ NCmed ↑
+Ours (Without Anchor) 0.028   0.009   0.019    0.0040   0.564   0.598    0.054    0.035   0.030   0.0060     0.670   0.782
+Ours (With Anchor)    0.026   0.009   0.018    0.0040   0.571   0.607    0.053    0.034   0.031   0.0057     0.682   0.793
+
+
+multi-view context may exhibit mild local uncertainty as the sequence grows, we do not observe
+large-scale structural collapse or severe global distortion. This suggests that the retained memory
+continues to preserve sufficiently coherent geometric context even in prolonged streaming regimes.
+To further isolate the role of memory structure, Figs. 8–10 compare three retention regimes: recent-
+only, mid-term, and the global anchor tier.
+
+Recent-only memory (Fig. 8). When memory is concentrated on only the most recent observations,
+reconstruction is driven primarily by short-range temporal continuity. This often suffices in early
+segments, where adjacent views still provide dense local context. However, as the horizon extends,
+the lack of longer-range geometric witnesses makes the reconstruction increasingly vulnerable to
+accumulated drift, duplication artifacts, and weakened global consistency. In our framework, this
+corresponds to a regime where local context remains available but the broader geometric skeleton of
+the scene is no longer sufficiently preserved.
+
+Mid-term memory (Fig. 9). Retaining mid-horizon context substantially improves long-range
+stability by preserving additional support from intermediate temporal neighborhoods. Compared with
+the recent-only regime, dominant structures are more consistently maintained and drift accumulation
+is visibly reduced. This indicates that memory aligned with intermediate-range context is more
+effective at sustaining global reconstruction coherence. Nevertheless, when the sequence extends
+well beyond the effective temporal span of the mid-term bank, residual artifacts can still emerge,
+reflecting the finite coverage of a bounded but non-global memory tier.
+
+Global anchor tier (Fig. 10). Introducing the global anchor tier further strengthens reconstruction
+stability by preserving sparse but persistent long-horizon reference frames. Qualitatively, anchors help
+suppress duplication artifacts, stabilize scene layout, and better maintain a consistent global structure
+over extended horizons. In effect, the anchor tier acts as a sparse geometric skeleton that complements
+the online mid-term pathway with globally distributed reference points. This qualitative trend is also
+reflected quantitatively in Tab. 9: introducing anchors preserves comparable performance on clean or
+easier sequences while improving robustness on more challenging cases, where long-horizon drift
+and structural duplication are more likely to accumulate. Thus, the anchor tier improves hard-case
+stability without sacrificing performance in well-conditioned streams.
+Overall, these additional visualizations suggest that long-horizon reconstruction quality depends not
+only on the amount of retained evidence, but more fundamentally on the temporal structure of that
+
+
+                                                          21
+    Stair-
+    seq01
+
+
+
+
+ Office-
+ seq09
+
+
+
+
+    Head-
+    seq01
+
+
+
+
+  thin-
+geometry
+
+
+
+
+                               Without                                      With
+                               Anchor                                      Anchor
+
+Figure 10: Additional reconstruction visualizations with the global anchor tier on 7-Scenes and
+NRGBD.
+
+evidence. Structured retention better preserves the memory organization required for stable geometry,
+which in turn yields stronger long-range reconstruction consistency. These observations are consistent
+with the trajectory behavior analyzed next.
+
+
+D     Additional Depth Visualization
+
+Before analyzing pose trajectories, we first examine the long-horizon behavior of predicted depth.
+Depth stability provides a direct proxy for whether the retained memory continues to preserve
+sufficiently coherent local geometric context over time.
+Unlike pose trajectories, depth visualizations across different methods are not strictly comparable in
+a fully fair manner because of scale-shift ambiguity, normalization differences, and colormap choices.
+We therefore focus on the temporal behavior of FrameVGGT itself rather than presenting side-by-side
+method comparisons.
+
+
+                                                 22
+Fig. 11 shows representative depth maps across extended streaming sequences on BONN. In early
+segments, the predicted geometry is sharp and spatially coherent. As time progresses, regions with
+weaker multi-view contex may exhibit mild local uncertainty; however, large-scale structural collapse,
+catastrophic distortion, or obvious degeneration of dominant layouts is not observed. Major planes
+and scene boundaries remain temporally stable over long horizons, indicating that the retained
+memory continues to provide sufficiently concentrated memory for depth inference.
+These qualitative observations are consistent with the intended role of structured memory retention:
+preserving informative mid-horizon context helps maintain local geometric coherence even as the
+stream becomes progressively longer. This depth-level stability forms the geometric basis for the
+trajectory behavior analyzed next.
+
+E    Additional Pose Visualization
+To further characterize long-horizon pose behavior beyond aggregate metrics, we provide additional
+qualitative trajectory visualizations on TUM in Fig. 12, together with focused comparisons of
+different retention regimes in Figs. 13a and 13b. These figures serve as qualitative evidence of how
+bounded-memory structure affects long-range trajectory stability.
+Fig. 12 compares representative long-sequence trajectories across methods. A consistent pattern
+is that deviations from the global trajectory shape accumulate over time: many baselines remain
+reasonably stable in earlier segments but exhibit increasingly visible drift in later portions of the
+sequence. Although the precise failure signatures vary—for example, gradual drift versus abrupt
+deviation—the common trend is the progressive erosion of global consistency under long-horizon
+bounded streaming.
+Figs. 13a and 13b isolate the role of temporal retention structure. The mid-term regime preserves
+intermediate-range history, which provides complementary constraints once motion extends beyond
+immediate neighbors. This additional context helps stabilize the trajectory against drift that cannot
+be corrected using only near-adjacent evidence. In contrast, the recent-only regime concentrates
+capacity on short-range observations. While this often preserves local continuity, it provides weaker
+constraints on long-horizon global consistency, especially when viewpoint diversity or baseline
+growth requires support from a broader temporal neighborhood.
+Overall, these qualitative examples align with the quantitative results in the main paper: preserving
+informative mid-horizon context improves long-range trajectory stability by better maintaining the
+geometric context structure needed for consistent pose estimation over extended streams.
+
+F    KV-Cache Budget and Memory Accounting
+To ensure fair comparison across different memory policies, all methods in our experiments operate
+under comparable KV-cache budget settings. In particular, memory usage is measured by the effective
+footprint of the retained Transformer KV cache during streaming inference.
+For a Transformer layer l, the KV cache size is proportional to
+                                           (l)
+                                     MemKV ∝ Hl Tl Dl × 2,                                       (16)
+where Hl is the number of attention heads, Tl the number of retained tokens, and Dl the feature
+dimension per head; the factor of 2 accounts for keys and values. Total KV-cache memory is obtained
+by summing this quantity across all layers.
+Although different methods organize memory differently (e.g., token-level vs. frame/block-level
+retention), the reported memory footprint always reflects the actual retained KV tensors used during
+inference. Thus, comparisons across methods correspond to comparable KV-cache budgets rather
+than unequal GPU allocations.
+Unless otherwise stated, the reported memory usage excludes unrelated overheads such as dataset
+loading, visualization buffers, or evaluation pipelines, and reflects only the effective KV-cache
+footprint of the streaming model.
+
+
+
+
+                                                 23
+Figure 11: Additional depth visualization results on BONN. We visualize predicted depth maps from
+FrameVGGT over extended streaming sequences.
+
+
+
+
+                                               24
+                                                                         Text
+
+
+
+
+          CUT3R                    TTT3R                  InfiniteVGGT             FrameVGGT
+
+
+Figure 12: Additional pose visualization results on the TUM dataset. The figure shows representative
+trajectory comparisons over longer sequences.
+
+
+
+
+                                                25
+                 Middle = 12            Middle = 16             Middle = 20             Middle = 24
+
+
+(a) Additional visualization focusing on the behavior of the mid-term memory regime. Preserving intermediate-
+range history provides stronger temporal context beyond the immediate local context.
+
+
+
+
+                    Recent = 0           Recent = 2           Recent = 4           Recent = 6
+
+
+(b) Additional visualization focusing on the behavior of the recent-memory regime. Retaining only recent
+observations is effective for short-range continuity but offers limited context over extended horizons.
+
+
+
+
+                                                      26
+

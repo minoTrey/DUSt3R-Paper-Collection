@@ -1,0 +1,1289 @@
+                                                                      Trust It or Not: Evidential Uncertainty for
+                                                                    Feed-Forward 3D Reconstruction with Trust3R
+
+
+                                                                Zihao Zhu * 1 Wenyuan Zhao * 1 Nuo Chen 1 Chao Tian † 1 Zhiwen Fan † 1
+
+
+                                                                   Abstract
+                                               Geometric foundation models hold promise for
+arXiv:2605.19539v1 [cs.CV] 19 May 2026
+
+
+
+
+                                               unconstrained dense geometry prediction from un-
+                                               calibrated images. However, current feed-forward
+                                               designs often produce heuristic confidence scores                                                           Over-confidence Failure:
+                                               that lack probabilistic interpretation and fail to in-                                                         6.22% to 0.00% ↓
+
+                                               dicate where and how much the predicted geome-
+                                               try can be trusted. To address this gap, we present
+                                               Trust3R, a lightweight evidential uncertainty
+                                               framework for feed-forward 3D reconstruction.
+                                               Trust3R combines gated residual mean refinement
+                                               with a Normal-Inverse-Wishart evidential head,                                                              Over-confidence Failure:
+                                                                                                                                                              23.34% to 11.67% ↓
+                                               yielding a closed-form multivariate Student-t dis-                    (a) RGB            (b) MASt3R              (c) Trust3R
+                                               tribution for per-point geometric uncertainty. This
+                                               provides probabilistically grounded pointmap un-               Figure 1. Reducing overconfident geometric failures with ev-
+                                               certainty estimates with moderate inference over-              idential uncertainty map: the 3D geometric pixels, which falls
+                                                                                                              into the top-qerr % reconstruction errors while being assigned the
+                                               head. We evaluate on diverse indoor and out-                   lowest qunc % uncertainty, are highlighted in red as overconfi-
+                                               door benchmarks and compare against MASt3R’s                   dent failures. In contrast to the heuristic confidence in MASt3R,
+                                               built-in confidence map, single-pass heteroscedas-             Trust3R reduces these incorrect yet highly confident regions, re-
+                                               tic regression, MC dropout, and deep ensem-                    sulting in uncertainty estimates that better align with empirical
+                                               bles. Experimental results show that Trust3R                   reconstruction errors and can be used for downstream weighting.
+                                               consistently improves risk–coverage and sparsi-
+                                               fication, generally improves geometric accuracy,               ters and enforcing multi-view consistency through itera-
+                                               and strengthens uncertainty ranking across bench-              tive optimization, modern approaches directly regress dense
+                                               marks. On ScanNet++, Trust3R achieves 25%                      3D representations from image pairs or collections (Yao
+                                               lower AURC and 41% lower AUSE, providing a                     et al., 2018; Sun et al., 2021). DUSt3R (Wang et al.,
+                                               practical reliability signal for uncertainty-aware             2024)/MASt3R (Leroy et al., 2024) established a partic-
+                                               weighting in downstream geometry pipelines.                    ularly influential paradigm by grounding image matching
+                                               Our project page and code are available at                     directly in 3D: given a pair of images, the model predicts
+                                               https://trust3r-z.github.io/.                                  dense pointmaps whose geometric consistency implicitly
+                                                                                                              encodes correspondence and depth. Beyond isolated re-
+                                                                                                              construction tasks, such feed-forward geometric priors are
+                                         1. Introduction                                                      increasingly being adopted as systems-level building blocks,
+                                                                                                              driving recent advances in real-time mapping systems (Mu-
+                                         Recent advancements in feed-forward 3D reconstruction                rai et al., 2025; Maggio et al., 2026), robotic systems (Lin
+                                         have significantly reshaped the way geometric reasoning is           et al., 2025; Yu et al., 2026), and geometry-aware world
+                                         performed from images (Wang et al., 2024; Leroy et al.,              models (Wu et al., 2025; Qian et al., 2025; Sun et al., 2026).
+                                         2024). Instead of explicitly estimating camera parame-
+                                                                                                              However, feed-forward 3D reconstruction remains funda-
+                                           *
+                                             Equal contribution † Equal advising. 1 Department of Elec-       mentally ambiguous: occlusions, repetitive structures, low-
+                                         trical and Computer Engineering, Texas A&M University, College       texture regions, distribution shifts, and viewpoint degen-
+                                         Station, TX, USA . Correspondence to: Zhiwen Fan <zhiwen-
+                                         fan@tamu.edu>.                                                       eracies often admit multiple geometrically valid explana-
+                                                                                                              tions (Wang et al., 2025a; Keetha et al., 2026; Wang et al.,
+                                         Preprint. May 20, 2026.                                              2025b; Wang & Agapito, 2024). This ambiguity makes
+
+                                                                                                          1
+                  Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+confidence assessment essential: beyond plausible geome-              predictions through a residual connection, preserving the
+try, we need predictions that indicate where they may fail.           geometric accuracy and generalization of pretrained geomet-
+Accordingly, the focus is shifting from merely producing              ric foundation models while stabilizing evidential learning
+plausible 3D geometry to estimating its reliability (Laksh-           under challenging conditions such as occlusions and dis-
+minarayanan et al., 2017; Kendall et al., 2018; Sattler et al.,       tribution shifts. As shown in Figure 1, Trust3R produces
+2019; Besnier et al., 2021). Although MASt3R improves                 efficient yet reliable uncertainty estimates that reduce over-
+robustness compared to previous methods, it still predicts            confident geometric failures, making uncertainty usable as a
+a single deterministic pointmap together with a per-pixel             reliability signal for filtering and weighting in downstream
+confidence score that acts as a learned reliability weight for        geometry. We summarize the following contributions:
+the regression loss, rather than a predictive uncertainty with           • We introduce Trust3R, enabling geometric foundation
+a clear probabilistic interpretation. As a result, confidence              models to produce probabilistically grounded uncer-
+maps may not faithfully capture where and how much the                     tainty estimates for dense pointmaps via evidential
+geometry is reliable.                                                      learning. This supports explicit evaluation of geomet-
+On the other hand, uncertainty quantification (UQ) of-                     ric reliability under ambiguity and distribution shifts.
+fers a principled way to address this limitation (Blundell
+                                                                         • Trust3R introduces pointmap-tailored designs for end-
+et al., 2015; Gal & Ghahramani, 2016; Lakshminarayanan
+                                                                           to-end evidential learning, combining an evidence-
+et al., 2017; Kendall et al., 2018; Amini et al., 2020), but
+                                                                           regularized predictive distribution with a gated residual
+many widely used UQ paradigms rely on Bayesian sam-
+                                                                           refinement when needed. This preserves the strength
+pling (Janssen, 2013) model inference, which becomes pro-
+                                                                           of pretrained geometric foundation models while pre-
+hibitive for dense 3D pointmaps and conflicts with the real-
+                                                                           venting overconfident uncertainty.
+time requirements of many real-world applications. Moti-
+vated by this, evidence-based uncertainty modeling offers                • We demonstrate the effectiveness of our predictive dis-
+a feed-forward alternative for uncertainty-aware 3D recon-                 tribution and uncertainty estimates across a range of 3D
+struction: it directly predicts the parameters of a predictive             perception benchmarks. Our method achieves a strong
+distribution together with an explicit notion of evidence                  trade-off between single-pass inference efficiency and
+supporting the prediction, yielding closed-form uncertainty                UQ quality while enabling practical reliability-aware
+estimates with a clear probabilistic interpretation and no                 filtering, alignment, and fusion.
+need for sampling, as in deep evidential learning (Sen-
+soy et al., 2018). However, evidential learning is largely            2. Related Work
+developed for low-dimensional regression with (approxi-
+                                                                      3D geometric foundation models. Recent feed-forward
+mately) independent outputs, and it is not plug-and-play for
+                                                                      3D models regress geometry directly from images using
+dense pointmap prediction. Vanilla evidential regression
+                                                                      large transformers, including depth- and correspondence-
+is designed for low-dimensional, independent multitask-
+                                                                      based approaches (Luo et al., 2016; Ranftl et al., 2021; Birkl
+ing regression outputs (Soleimany et al., 2021), whereas
+                                                                      et al., 2023) and pointmap formulations (Qian et al., 2022;
+feed-forward pointmap reconstruction involves hundreds
+                                                                      Yu et al., 2022). DUSt3R (Wang et al., 2024) predicts dense
+of thousands of correlated 3D points per image pair sub-
+                                                                      pairwise 3D pointmaps in a shared coordinate frame, while
+ject to strong geometric constraints and strict efficiency
+                                                                      MASt3R (Leroy et al., 2024) improves robustness via mask-
+demands (Scharstein & Szeliski, 2002; Wang et al., 2024).
+                                                                      aware training and refined heads, achieving strong accuracy
+Naively porting evidential heads to this setting can lead
+                                                                      without iterative optimization. Pointmap representations
+to unstable training and poorly estimated uncertainty with
+                                                                      offer an efficient and expressive backbone to downstream
+empirical geometric errors. This calls for a careful refine-
+                                                                      optimization modules, including Structure-from-Motion and
+ment strategy that preserves both the predictive accuracy
+                                                                      visual SLAM systems (Schonberger & Frahm, 2016; Zhou
+and reliable uncertainty estimation.
+                                                                      et al., 2016; Dellaert & Kaess, 2017).
+To address the lack of reliable per-point uncertainty estima-         UQ in 3D geometry. Trust-aware 3D reconstruction
+tion in dense feed-forward pointmap prediction, we design             has relied on heuristic confidence scores alongside dense
+Trust3R, a lightweight evidential uncertainty framework for           pointmap predictions, but these scores lack a probabilistic
+feed-forward pointmap reconstruction. First, Trust3R aug-             interpretation and are often poorly estimated (Wang et al.,
+ments feed-forward multi-view geometry prediction with                2024; Leroy et al., 2024; Kersting et al., 2007; Blundell et al.,
+probabilistic outputs and an uncertainty estimate for each            2015). Bayesian approaches, including MC dropout (Gal &
+3D point via a lightweight evidential UQ head, enabling               Ghahramani, 2016) and deep ensembles (Lakshminarayanan
+the model to estimate which regions are more likely to                et al., 2017), offer uncertainty estimates by marginalizing
+be geometrically unreliable, learned from data. Second,               model likelihood, yet they rely on multiple stochastic for-
+Trust3R introduces a gated refinement module that updates             ward passes or multiple trained models (Carlin & Louis,
+
+                                                                  2
+                    Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+2008; Kruschke, 2010; Wang & Yeung, 2016). For dense                    to (i) down-weight or filter unreliable pixels during train-
+3D pointmap prediction with hundreds of thousands of corre-             ing and/or (ii) select pixels for downstream alignment and
+lated outputs per image pair, this sampling-based paradigm              fusion. As a consequence, such scores do not naturally
+introduces prohibitive computational overhead. Conformal                support uncertainty propagation across views and can be
+prediction (Shafer & Vovk, 2008; Angelopoulos et al., 2023)             poorly aligned with geometric errors under occlusions, tex-
+provides distribution-free uncertainty guarantees, but its              tureless/reflective regions, and distribution shifts. This moti-
+worst-case nature often leads to overly conservative uncer-             vates replacing heuristic confidence with a predictive distri-
+tainty regions and does not align with the fine-grained per-            bution whose uncertainty can be interpreted and consumed
+point 3D geometry (Mo et al., 2019; Fillioux et al., 2024).             by downstream geometry modules.
+These limitations motivate evidential learning as a promis-
+ing alternative (Sensoy et al., 2018; Amini et al., 2020; Gao           3.2. Uncertainty-aware Pointmap Reconstruction
+et al., 2025): by predicting distributional parameters in a sin-
+gle forward pass, evidential methods offer probabilistically            While MASt3R refines pointmap regression through geo-
+grounded uncertainty estimates with negligible inference                metrical and feature matching, the remaining valid pixels are
+overhead, making them particularly attractive for large-scale           still deterministic predictions but exhibit varying degrees
+feed-forward 3D reconstruction.                                         of uncertainty due to noise, limited visual evidence, and
+                                                                        inherent ambiguity in pairwise reconstruction.
+Multivariate evidential regression. Multivariate deep
+evidential regression (Meinert & Lavin, 2021) extends evi-              For these reasons, we propose to substitute the deterministic
+dential regression to multivariate outputs by using a Normal-           pointmap 3D head with an uncertainty-aware evidential
+Inverse-Wishart prior and the induced multivariate Student-t            head that models each pointmap as a distribution rather than
+predictive distribution. We adopt this probabilistic formula-           a single estimate. Specifically, for each pixel i and view v,
+tion for dense feed-forward pointmap uncertainty estimation,            the UQ head predicts a conditional distribution, p(Xvi | I),
+where the goal is to predict uncertainty for spatially orga-            capturing both the predicted pointmap and its associated
+nized 3D outputs rather than low-dimensional regression                 uncertainty.
+targets.                                                                We assume that every 3D point Xi is drawn from a multi-
+3. Methodology                                                          variate Gaussian likelihood
+
+We consider the problem of dense 3D reconstruction from                                  Xi ∼ N (µi , Σi ),     i ∈ Ω,              (2)
+a set of images. Given one or more input images I =
+{I v }N
+      v=1 , a 3D reconstruction model predicts a dense 3D
+                                                                        where µi ∈ R3 is the mean of 3D points and Σi ∈ R3×3
+point-cloud, denoted as pointmap, X = {Xi ∈ R3 }M        i=1 ,
+                                                                        is a covariance matrix encoding spatial uncertainty, and Ω
+where each Xi represents a 3D point associated with a pixel             denotes the set of all 3D points. Rather than predicting
+or patch in the input images. In existing pointmap-based                (µi , Σi ) directly, we adopt evidential learning in which
+methods, such as DUSt3R and MASt3R, X is treated as a                   the network predicts distributional parameters governing a
+deterministic output of a neural network. Figure 2 overviews            family of predictive distributions.
+our uncertainty-aware pipeline.
+                                                                        3.3. Evidential UQ Head and Loss
+3.1. Preliminary
+                                                                        To probabilistically estimate uncertainty over (µ, Σ), we
+DUSt3R and MASt3R formulate pairwise reconstruction                     place a conjugate prior over these parameters. Assuming
+as a feed-forward prediction problem. Given an image pair               the multivariate Gaussian likelihood, this leads to a Nor-
+(I 1 , I 2 ), the network predicts two dense pointmaps (in a            mal–Inverse–Wishart (NIW) prior over the unknown mean
+chosen reference frame) together with auxiliary maps used               and covariance:
+for matching and filtering
+                                                                                           µ | Σ ∼ N (m, Σ/κ),                      (3)
+             (X1 , c1 ), (X2 , c2 ) = fpair (I 1 , I 2 ),    (1)                               Σ∼W      −1
+                                                                                                             (Ψ, ν),                (4)
+         v       H×W ×3
+where X ∈ R             is the per-pixel pointmap prediction
+                                                                        where m ∈ R3 is the prior mean, κ > 0 controls the strength
+for view v ∈ {1, 2}, and cv ∈ [0, 1]H×W is a learned
+                                                                        of belief in m. W −1 (·) is the inverse Wishart distribution,
+confidence/validity score.
+                                                                        Ψ ∈ R3×3 is a positive-definite scale matrix, and ν >
+Importantly, the confidence in DUSt3R/MASt3R is not a                   d + 1 (d = 3) denotes the degrees of freedom. We denote
+predictive uncertainty with a probabilistic interpretation              the set of evidential parameters by
+(e.g., variance of a likelihood). Instead, it is a learned scalar
+that serves as a heuristic reliability indicator, typically used                             θ := {m, κ, Ψ, ν}.                     (5)
+
+                                                                    3
+                     Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+                                                          X0 (base pointmap)
+         I1                                                                              Trust-aware Pointmap
+                                                       3D
+                                                      Head
+                                MASt3R
+                               Backbone             Descriptor
+                                                      Head
+
+                         Encoder        Decoder           D (local descriptor)
+
+
+         I2                                                                            Refined Mean: Uncertainty:
+                                                          ⊕              𝑿𝟎 + ∆𝒎
+                                                                                             𝒎            𝚺
+                                                                                                                                  per-point
+                                                                   ⊙                                                              uncertainty
+          Gated Residual Head
+                        Pixel-                3x3 Conv                                                                          Predictive distribution:
+           MLPg        shuffle              Post-smooth           𝜎(𝑮)
+                                                                                                                                 Student-t (𝒎, 𝜅, 𝚿, 𝜈)
+
+           MLPΔ
+                        Pixel-
+                       shuffle
+                                              DW-3x3
+                                                                   ∆𝒎                              𝒩(𝐦, 𝚺)
+                                            Post-smooth
+
+                                                                                   Point Distribution
+          Evidential UQ Head
+                                                       Cholesky L
+             DPT            Evidence                  ℓ!! 0      0                                         𝚿 = 𝑳𝑳𝑻
+                                                      ℓ"! ℓ"" 0                        (𝜅, 𝜈, 𝑳)                #$%
+           adapter         (κ > 0, ν > 4)
+                                                      ℓ#! ℓ#" ℓ##                                          𝚺 = #('()) 𝚿
+
+
+Figure 2. Overview of the proposed Trust3R framework. Built on a feed-forward MASt3R backbone, we augment pointmap prediction
+with a gated residual head for geometry refinement and an evidential UQ head that predicts the uncertainty-aware pointmap. This yields a
+closed-form multivariate Student-t predictive distribution, enabling per-point uncertainty estimation with negligible inference overhead.
+The evidential uncertainty can be used for reliability evaluation and uncertainty-weighted downstream geometry modules.
+
+
+Under this formulation, the posterior distribution takes the                           variational distribution of independent 3D points
+form of the NIW distribution with joint density:                                                                      Y
+                                                                                               q(µv , Σv | θ v ) =     p(µvi , Σvi | θ vi ),             (9)
+                              Σ                                                                                           i∈Ω
+   p(µ, Σ | θ) = N µ | m,          W −1 (Σ | Ψ, ν) . (6)
+                              κ
+                                                                                       parameterized by the UQ head in Eq. (8), without explicitly
+From Bayesian probabilistic theory, the “model evidence”                               observing multiple samples per pixel. This factorization cap-
+(or marginal likelihood) is obtained by integrating out the                            tures cross-coordinate covariance within each 3D point, but
+Gaussian likelihood parameters (µ, Σ), which yields a mul-                             does not explicitly model cross-pixel covariance; modeling
+tivariate Student-t predictive distribution over the pointmap:                         dense spatial uncertainty is left for future work.
+                                                   
+                                  Ψ(κ + 1)                                             Evidential UQ loss. Given the ground-truth 3D points
+        p(X | θ) = St X | m,                 ,ν − 2 .      (7)
+                                   κ(ν − 2)                                            X̂v,1
+                                                                                          i , training is performed by minimizing the negative log-
+                                                                                       likelihood (NLL) of the marginal predictive distribution in
+Evidential UQ head. Let Hv and H′v denote the embed-                                   Eq. (7):
+ded representations produced by the encoder and decoder                                                        X X
+of MASt3R’s ViT (Dosovitskiy et al., 2020), respectively.                                         LNLL = −              log p(X̂v,1
+                                                                                                                                j   | θ vj ). (10)
+For each pixel i ∈ Ω and view v ∈ {1, 2}, the UQ head                                                            v∈{1,2} j∈Ω
+
+predicts the uncertainty parameters of a NIW distribution
+on the predicted point Xvi :                                                           Minimizing the NLL alone admits degenerate solutions in
+                                                                                       which the model expresses unjustified certainty by inflating
+           {κvi , Lvi , νiv } = HeadvUQ [Hv , H′v ] ,
+                                                   
+                                                       (8)                             evidence parameters. To mitigate this problem, we introduce
+                                                                                       an evidence regularizer that penalizes excessive confidence
+where Lvi is a lower-triangular factor defined as the Cholesky                         when prediction errors are large.
+decomposition of the positive-definite matrix Ψvi . Instead of
+directly using the predictive mean mvi as output, we design                            Following the evidential learning framework, we define the
+a gated residual head to fine-tune the prediction from the pre-                        total evidence for pixel i as ei = κi + νi , which jointly
+trained MASt3R backbone, which is deferred to Section 3.4                              controls the concentration of the NIW distribution. The
+in detail.                                                                             regularization term that penalizes high evidence under large
+                                                                                       prediction errors is defined as:
+The objective of the UQ head is to predict the distribution
+p(Xv | I v ) of the whole pointmap. Following the mean-
+                                                                                                    X X
+                                                                                           Levi =               ∥X̂v,1
+                                                                                                                   i   − mvi ∥2 · (κvi + νiv ). (11)
+field assumption across predicted 3D points, we predict a                                               v∈{1,2} i∈Ω
+
+
+                                                                                   4
+                  Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+The final evidential UQ loss for uncertainty-aware pointmap           3.5. Predictive Mean and Uncertainty
+regression is given by
+                                                                      In contrast to heuristic confidence maps, which assign only
+                  LUQ = LNLL + λevi Levi ,                (12)        scalar scores that often lack a probabilistic interpretation,
+where λevi controls the strength of the evidence regulariza-          the evidential UQ head represents each pointmap as a full
+tion. In practice, the overall training objective combines            predictive distribution with well-defined uncertainty seman-
+the base regression loss with LUQ (via a convex mixing                tics. As a result, evidential uncertainty across views can
+for stability). To avoid patch-grid artifacts introduced by           be estimated analytically via Bayesian updates, rather than
+token-to-pixel upsampling in the residual branch, we apply            ad-hoc thresholding or reweighting.
+an identity-initialized post-upsampling smoothing module              The evidential formulation enables a principled decomposi-
+(Section A.3), and optionally regularize the spatial variation        tion of uncertainty: aleatoric and epistemic.
+of the gating map with a weak total-variation prior.
+                                                                                           Ψ                  Ψ
+                                                                        E[µ] = m, E[Σ] =       , Var[µ] =           . (15)
+3.4. Evidential Gate and Residual Head                                  | {z }            ν−4              κ(ν − 4)
+                                                                         prediction |  {z    }   |       {z       }
+                                                                                          aleatoric            epistemic
+The evidential NLL loss requires an accurate predictive
+mean to ensure stable optimization and avoid degenerate
+uncertainty (e.g., trivially inflating variance to reduce NLL),       Aleatoric uncertainty arises from observational noise and in-
+which is crucial for reliable ranking under risk–coverage and         herent ambiguity. Epistemic uncertainty is encoded through
+sparsification. However, directly fine-tuning the mean pre-           the evidence parameters (κ, ν): low values correspond to
+diction of a large pre-trained MASt3R model risks degrading           weak evidence and higher model uncertainty, while large
+its geometric accuracy and losing the benefits of pretraining.        values indicate confident predictions supported by strong
+To preserve the original pointmap predictions while enabling          evidence. This distinction is particularly important in 3D
+uncertainty-aware learning, we seek a lightweight refine-             reconstruction, where ambiguity may stem either from in-
+ment mechanism that minimally perturbs the pretrained                 trinsic scene properties (e.g., textureless regions) or from
+model.                                                                limited training coverage. This property allows pointmap
+                                                                      uncertainty to be propagated and combined consistently in
+Gated residual head. Let Xv0 ∈ RH×W ×3 denote the                     downstream inference modules, rather than being heuristi-
+pointmap predicted by the frozen MASt3R backbone for                  cally reweighted or thresholded.
+view v. Instead of modifying this prediction directly, we             Importantly, this formulation also yields uncertainty esti-
+introduce a gated residual head that predicts a residual cor-         mates in closed form and does not require Monte Carlo
+rection:                                                              sampling at inference time. Each reconstructed point is asso-
+            ∆mv , Gv = HeadvGR [Hv , H′v ] ,
+                                              
+                                                        (13)          ciated with a compact set of evidential parameters, enabling
+                                                                      efficient propagation of uncertainty through downstream ge-
+along with a gating map σ(Gv ) ∈ [0, 1]H×W , which mod-               ometric operations such as alignment, fusion, and filtering.
+ulates the influence of the residual. The refined predictive          This makes evidential pointmap reconstruction particularly
+mean is then given by                                                 suitable for large-scale and real-time 3D systems.
+               mv = Xv0 + σ(Gv ) ⊙ ∆mv ,                  (14)
+where ⊙ denotes element-wise multiplication broadcast over            4. Experiments
+the 3D coordinates.                                                   In this section, we present the evaluation of Trust3R on
+The gating mechanism allows the model to selectively adjust           indoor/outdoor benchmarks. We examine both uncertainty
+the pretrained mean only where necessary, while leaving               ranking quality and reconstruction accuracy, and report ef-
+confident and well-predicted regions unchanged. When                  ficiency comparisons to quantify compute overhead. We
+σ(Gv ) ≈ 0, the refined mean reduces to the original                  further provide ablation studies to isolate the effects of key
+MASt3R prediction; when Gv has large positive logits (so              design choices, and include qualitative visualizations to illus-
+σ(Gv ) ≈ 1), the model is free to apply the predicted resid-          trate typical failure modes. Additional experimental results
+ual correction. This design ensures stable fine-tuning and            including probabilistic scoring results (NLL) are deferred
+prevents large deviations from the pretrained geometry.               to the appendix.
+To suppress patch-grid artifacts caused by token-to-pixel
+                                                                      4.1. Experimental Setup
+upsampling in the residual branch, we further apply a
+lightweight depthwise-separable post-smoothing operator               For each image, we compute per-pixel 3D point errors and
+after upsampling, initialized as an identity mapping so that          associate each pixel with a scalar uncertainty score. Unless
+the refinement starts from an exact no-op.                            noted otherwise, we apply a per-image Sim(3) alignment
+
+                                                                  5
+                     Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Table 1. Uncertainty evaluation on ScanNet++, TUM RGB-D, and KITTI, computed over valid pixels. We report AURC, AUSE,
+and Spearman ρ. Single-pass uses one inference pass, while multi-pass uses T stochastic inference passes or K trained models. Time
+reports training time in hours (h). Avg. reports the average measurement across the three datasets. Bold and underline mark the best and
+second-best results within the single-pass block.
+
+                                                            Avg.                    ScanNet++ (Indoor)        TUM RGB-D (Indoor)            KITTI (Outdoor)
+   Inference     Method             Time
+                                              AURC↓         AUSE↓       ρ↑      AURC↓      AUSE↓     ρ↑      AURC↓    AUSE↓     ρ↑      AURC↓    AUSE↓        ρ↑
+                 MCD (T =16)          –       0.4902        0.2726     0.2644     0.1777   0.0989   0.1937   0.0672   0.0368   0.2747   1.2257   0.6821   0.3249
+   Sampling
+                 DeepEns (K=5)      100.2     0.2992        0.0916     0.4556     0.0722   0.0381   0.3921   0.0453   0.0208   0.3127   0.7802   0.2159   0.6620
+                 MASt3R               –       0.4155        0.2053     0.4057     0.1649   0.0747   0.2837   0.0538   0.0233   0.4812   1.0277   0.5178   0.4523
+   Single-pass   Hetero              9.4      0.3973        0.1872     0.4183     0.1616   0.0715   0.3545   0.0555   0.0251   0.4669   0.9749   0.4650   0.4335
+                 Trust3R (ours)     10.5      0.3861        0.1684     0.4898     0.1233   0.0444   0.4930   0.0481   0.0178   0.5169   0.9868   0.4431   0.4596
+
+
+
+Table 2. Reconstruction accuracy measured by pointmap 3D                                   Compared methods. We compare against several single-
+point error. We report MAE and RMSE on ScanNet++, TUM RGB-
+D, and KITTI, computed over valid pixels after Sim(3) alignment.
+                                                                                           pass baselines: MASt3R (Leroy et al., 2024), which uses
+Bold marks the best result in each column; smaller errors are                              the model’s predicted confidence score as a heuristic uncer-
+better.                                                                                    tainty signal; and heteroscedastic Gaussian (Hetero, Lázaro-
+                                                                                           Gredilla & Titsias, 2011), which predicts per-pixel variance
+                    ScanNet++         TUM RGB-D                      KITTI                 in a single forward pass. We also compare against sampling-
+  Method
+                 MAE↓     RMSE↓      MAE↓          RMSE↓     MAE↓       RMSE↓              based references: MC Dropout (MCD, Gal & Ghahramani,
+  MASt3R         0.2164    0.3026    0.0938        0.1600     1.6108     3.0427            2016) with T =16 stochastic forward passes, and Deep En-
+  Trust3R        0.1959    0.2849    0.0873        0.1496     1.6648     3.0772            sembles (DeepEns, Lakshminarayanan et al., 2017) with
+                                                                                           K=5 independently trained models. Each ensemble mem-
+Table 3. Computational overhead. We report training wall-                                  ber is trained with the same setup as the corresponding
+clock time, peak GPU memory, and wall-clock inference time per
+pair. MASt3R checkpoint is pretrained, so training time is not
+                                                                                           single-model baseline. Sampling-based UQ methods can
+comparable (–). For deep ensembles, training time is summed over                           provide strong uncertainty estimates, but their inference
+K independently trained models.                                                            cost scales with T or K, making them substantially more
+                                                                                           expensive for dense pointmap prediction.
+ Method            Training (h) PeakMem (GB) Inference (ms/pair)
+ MCD (T =16)            –                3.15                      1225.77                 Metrics. We adopted three commonly used metrics for
+ DeepEns (K=5)        100.2             13.60                      316.88                  UQ evaluation: area under the risk-coverage curve (AURC),
+ MASt3R                 –                   2.71                     49.35                 area under the sparsification error curve (AUSE), and Spear-
+ Hetero                9.4                  2.88                     70.14                 man’s rank correlation coefficient (Spearman ρ). The defini-
+ Trust3R               10.5                 3.16                     80.92
+                                                                                           tions are provided in Appendix D. Reconstruction accuracy
+                                                                                           is also reported with MAE/RMSE over valid pixels using
+between predicted and ground-truth pointmaps before com-                                   Sim(3)-aligned 3D errors.
+puting geometry-based errors, so MAE/RMSE and ranking-
+based UQ metrics (AURC (Geifman et al., 2018)/AUSE (Ilg                                    Implementation details. To ensure a fair comparison, all
+et al., 2018)/Spearman ρ (Spearman, 1961)) reflect local                                   uncertainty baselines share the same MASt3R backbone,
+geometric reliability rather than global pose/scale drift. All                             training data, and optimization schedule unless otherwise
+methods are evaluated on the same validity mask defined by                                 noted. We freeze the backbone and train only lightweight
+available ground-truth depth/pointmap. We compute metrics                                  add-on heads. Optimization uses AdamW (weight decay
+per image and report dataset averages (NLL, when reported,                                 0.05) (Loshchilov & Hutter, 2017) with base learning rate
+is computed without alignment).                                                            3 × 10−4 (scaled by total batch size), with a cosine schedule
+                                                                                           over 10 epochs and no warmup. For evidential learning,
+Datasets. We evaluate on diverse benchmarks chosen                                         we set evidence regularization λevi = 10−3 . Details can be
+to stress-test uncertainty estimation across different cap-                                found in Appendix B.
+ture conditions, spanning both indoor and outdoor scenes.
+Specifically, we use ScanNet++ (Yeshwanth et al., 2023)                                    4.2. Uncertainty-aware Pointmap Prediction Results
+and TUM RGB-D (Sturm et al., 2012) for cluttered indoor                                    Uncertainty evaluation. Table 1 reports uncertainty rank-
+RGB-D sequences with frequent occlusions and texture-                                      ing performance across benchmarks. Figure 3 visualizes
+poor regions, and KITTI (Geiger et al., 2013) and ETH3D                                    the corresponding risk–coverage and sparsification curves
+(ablation mainly) (Schops et al., 2019) for outdoor/large-                                 on three test sets, where Trust3R consistently yields lower
+scale imagery with larger depth ranges, motion, and greater                                ranking errors across a wide range of coverages. Among
+variability in scene structure and imaging conditions.                                     single-pass methods, Trust3R consistently achieves stronger
+
+                                                                                       6
+                                     Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+                                        ScanNet++                              KITTI                                 TUM RGB-D
+
+                                                                                                                                      Trust3R
+                                                                                                                                      MASt3R
+                                                                                                                                      Heteroscedastic
+        Risk ∆R(c) ↓
+
+
+
+
+                                          Coverage                            Coverage                                Coverage
+      Sparsification error ∆E(s) ↓
+
+
+
+
+                                      Removed fraction                     Removed fraction                        Removed fraction
+
+Figure 3. Uncertainty ranking quality on three test sets. Top row: Risk–Coverage ∆R(c) = Runc (c) − Roracle (c), where Roracle
+is obtained by sorting pixels by their true 3D error for the same method (method-specific oracle). Bottom row: Sparsification error
+∆E(s) = Eunc (s) − Eoracle (s). Lower is better, ∆ = 0 indicates perfect (oracle) ranking. Each subplot uses its own y-axis range for
+readability.
+
+
+selective ranking of high-error pixels, reflected by lower                          Table 4. Generalization to VGGT. Higher is better for ρ; lower is
+                                                                                    better for AURC, AUSE, and NLL.
+AURC and AUSE together with higher rank correlation. On
+ScanNet++, for instance, Trust3R significantly improves all                         Variant                 ρ↑       AURC↓        AUSE↓                 NLL↓
+three metrics, reducing AURC from 0.1649 to 0.1223 and
+AUSE from 0.0747 to 0.0444, while increasing rank corre-                            VGGT confidence       0.3162      0.1084          0.0452            -2.4770
+                                                                                    VGGT + Trust3R        0.6419      0.0841          0.0209            -3.5999
+lation ρ from 0.2837 to 0.4946. Figure 4 further illustrates
+typical cases, showing that Trust3R’s predictive uncertainty
+aligns more closely with high-error regions than heuristic                          require aggressive pruning under a fixed compute budget.
+confidence scores in MASt3R.
+                                                                                    4.3. Cross-Architecture Validation on VGGT
+Reconstruction accuracy. Apart from stronger uncer-
+tainty ranking quality in Table 1, Trust3R also improves                            To evaluate the cross-architecture generalization of our
+MAE/RMSE of geometric accuracy on ScanNet++ and                                     method, we attach the same lightweight uncertainty head
+TUM RGB-D, as shown in Table 2. On KITTI, mean re-                                  to a frozen VGGT backbone and keep the training proto-
+finement can slightly increase MAE/RMSE relative to the                             col unchanged. We compare against the original VGGT
+frozen-mean baseline, reflecting a mild geometry–reliability                        confidence signal using the same uncertainty-ranking and
+trade-off, while uncertainty ranking remains improved and                           probabilistic scoring metrics. As shown in Table 4, adding
+still prioritizes unreliable pixels even when the mean is                           the proposed head improves both uncertainty ranking and
+imperfect.                                                                          NLL on VGGT. These results suggest that the proposed
+                                                                                    evidential head can transfer beyond the MASt3R backbone
+Efficiency. Table 3 compares compute overhead. Trust3R
+                                                                                    in this setting.
+remains single-pass (one model, one forward), matching the
+deployment cost of other single-pass baselines. In contrast,
+MC Dropout requires T × forwards and Deep Ensembles re-                             4.4. Ablations
+quire K× models and forwards, making them substantially                             Our ablation study is designed to isolate which parts of
+more expensive at inference.                                                        Trust3R make the uncertainty useful for selective pointmap
+Ensemble inference comparison. Deep Ensembles typ-                                  prediction. We study three choices: the scalar uncertainty
+ically yield the strongest uncertainty metrics, but require                         readout, the evidential variational family, and the gated
+training and running multiple models. Trust3R closes a                              residual refinement of the predictive mean.
+substantial portion of this gap while remaining single-pass,
+which is important for downstream pipelines that cannot                             Uncertainty readout. Table 5 compares aleatoric uncer-
+afford K× or T × inference. This makes Trust3R a practi-                            tainty ualea , total uncertainty utotal , and epistemic uncer-
+cal drop-in uncertainty signal when downstream modules                              tainty uepi on ETH3D. All three scores are computed from
+
+                                                                                7
+                   Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+
+
+
+                RGB                         Prediction Error               Mismatch (MASt3R)                        Mismatch (Ours)
+
+Figure 4. Qualitative uncertainty comparison. (a) RGB input; (b) GT 3D point error; (c) mismatch map for MASt3R confidence; (d)
+mismatch map for Trust3R predictive uncertainty. Mismatch is defined as d(i) = |pu (i) − pe (i)|, where pu and pe are percentile ranks of
+uncertainty and GT error over valid pixels (lower is better). Darker pixels indicate lower mismatch (better uncertainty–error alignment),
+meaning unreliable high-error regions are more likely to be assigned high uncertainty and thus removed by uncertainty-based filtering.
+
+
+the same predictive distribution, so the comparison only               Table 5. Uncertainty measure ablation on ETH3D. We compare
+                                                                       aleatoric ualea , epistemic uepi , and total utotal measures derived from
+changes how the distribution is converted into a scalar rank-          the same predictive distribution.
+ing score. Aleatoric uncertainty mainly reflects local obser-
+vation noise or ambiguity. It can be useful in difficult image                       Readout        AURC↓        AUSE↓      ρ↑
+regions, but it does not always indicate that the model has                          ualea              0.3175   0.1452   0.3093
+weak evidence for the 3D point. Total uncertainty improves                           utotal             0.3064   0.1341   0.3455
+over aleatoric uncertainty because it also includes the uncer-                       uepi               0.3040   0.1318   0.3483
+tainty of the predictive mean. Epistemic uncertainty gives
+the best ranking in this ablation, with the lowest AURC and            Table 6. Ablation on evidential variational family. NIW mod-
+                                                                       els cross-axis correlations (full covariance), while NIG assumes
+AUSE and the highest Spearman correlation. We therefore                independent coordinates (diagonal covariance).
+use uepi as the default ranking measure in the remaining
+experiments.                                                              Test set            Variant            AURC↓ AUSE↓          ρ↑
+                                                                                              Trust3R (NIG)      0.1237   0.0448    0.4875
+                                                                          ScanNet++
+                                                                                              Trust3R (NIW)      0.1233   0.0444    0.4930
+Evidential family. Table 6 compares the factorized NIG
+                                                                                              Trust3R (NIG)      0.3213   0.1493    0.3229
+head and the full-covariance NIW head. NIG treats the                     ETH3D
+                                                                                              Trust3R (NIW)      0.3040   0.1318    0.3483
+three point coordinates independently, while NIW allows the
+uncertainty of the x, y, and z coordinates to be correlated.
+The difference is small on ScanNet++, where the indoor                 more challenging or less aligned with the training domain.
+scenes are closer to the training distribution, but NIW still          We use NIW as the default head because it provides a richer
+slightly improves all ranking metrics. The gain is clearer on          uncertainty representation while keeping inference single-
+ETH3D: NIW reduces AURC from 0.3213 to 0.3040 and                      pass.
+AUSE from 0.1493 to 0.1318, while increasing Spearman
+correlation from 0.3229 to 0.3483. This suggests that cross-           Gated residual refinement. Table 7 shows that gated
+coordinate covariance is more useful when the test data is             residual refinement improves uncertainty ranking on all
+
+                                                                   8
+                    Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Table 7. Effect of gated residual refinement. We ablate whether           Table 8. Downstream SLAM on TUM RGB-D. We replace
+the gated residual refinement is used for the predictive mean. Rows       the original weighting signal in MASt3R-SLAM with Trust3R
+marked by ⋆ use gated residual refinement; unmarked rows use the          uncertainty and keep the remaining pipeline unchanged.
+frozen backbone mean.
+                                                                                  Method                       ATE↓         RPE↓
+Dataset        GR      MAE↓       RMSE↓       AURC↓        AUSE↓
+                                                                                  MASt3R-SLAM baseline        0.0287     0.0321
+                –      0.2164      0.3026      0.1788      0.0887                 + Trust3R uncertainty       0.0268     0.0278
+ScanNet++
+                ⋆      0.2046      0.2926      0.1349      0.0512
+                                                                          Table 9. Transparent-scene reliability on Tricky24 (ring). Mean
+                –      1.6108      3.0427      1.1170      0.6072
+KITTI                                                                     over 32 scenes. Higher AUROC and lower FPR@95%TPR are
+                ⋆      1.6436      3.0625      0.9942      0.4645         better. Additional visualizations are provided in Appendix G.
+                –      0.5607      0.8147      0.3453      0.1502
+ETH3D                                                                              Trust signal   AUROC↑      FPR@95%TPR↓
+                ⋆      0.5366      0.7930      0.3347      0.1482
+                                                                                   MASt3R          0.4523          0.9146
+                –      0.0938      0.1600      0.0576      0.0271                  Trust3R         0.4786          0.8788
+TUM
+                ⋆      0.0909      0.1573      0.0496      0.0206
+                                                                          Tricky24 and compute mask-based reliability metrics, AU-
+                                                                          ROC and FPR@95%TPR, on a boundary ring band with
+datasets and generally improves geometry. This controlled                 radius r=3 pixels (details are provided in the appendix).
+ablation setting is intended for within-table comparison                  We treat MASt3R confidence and our NIW uncertainty as
+rather than to duplicate the selected-model numbers in Ta-                reliability scores for detecting annotated transparent regions.
+ble 2. KITTI is the only exception in geometric accuracy:                 As shown in Table 9, Trust3R achieves higher AUROC
+MAE/RMSE slightly increase, while AURC and AUSE still                     and lower FPR@95%TPR over 32 scenes, showing better
+improve, suggesting that in this out-of-domain outdoor set-               awareness of unreliable geometry near refraction-induced
+ting, the refined mean may not always reduce reconstruction               boundaries.
+error, but the predicted uncertainty remains effective for
+ranking unreliable points.
+                                                                          5. Discussion and Limitations
+4.5. Downstream Evaluation                                                Trust3R shows that per-point evidential uncertainty can be
+                                                                          made useful for feed-forward pointmap reconstruction, but
+Beyond intrinsic uncertainty-ranking metrics, we further
+                                                                          it is not a complete model of all geometric ambiguity. The
+evaluate whether the predicted uncertainty can serve as an
+                                                                          current predictive distribution is unimodal at each 3D point.
+actionable reliability signal in existing 3D pipelines. We
+                                                                          It therefore cannot explicitly represent multiple plausible
+test this in two settings: per-point weighting for MASt3R-
+                                                                          3D explanations in cases such as repeated patterns, strong
+SLAM pose estimation on TUM RGB-D, and reliability
+                                                                          reflections, or large occlusions. In these regions, the model
+scoring for transparent and reflective regions on Tricky24.
+                                                                          can still mark points as unreliable, but it does not separate
+                                                                          different hypotheses.
+Uncertainty-weighted SLAM. We integrate Trust3R un-
+certainty into the weighting path of MASt3R-SLAM on
+TUM RGB-D, while keeping the rest of the SLAM pipeline                    6. Conclusion
+unchanged. This evaluates whether our uncertainty can im-                 We presented Trust3R, a trust-aware 3D reconstruction
+prove a geometry optimization system that directly depends                framework that equips dense feed-forward pointmap pre-
+on reliable point correspondences. As shown in Table 8,                   diction with accurate and probabilistically grounded uncer-
+replacing the original weighting signal with Trust3R uncer-               tainty estimates. By combining evidential learning with
+tainty reduces ATE from 0.0287 to 0.0268 and RPE from                     multi-view geometry prediction, Trust3R yields a closed-
+0.0321 to 0.0278. This result indicates that the predicted                form Student-t predictive distribution whose uncertainty
+uncertainty can provide a useful reliability weight for down-             aligns closely with empirical geometric error, enabling reli-
+stream camera pose estimation.                                            able selective pointmaps. Across benchmarks, Trust3R con-
+                                                                          sistently improves risk–coverage and sparsification behavior
+Transparent-scene reliability. We next evaluate whether                   among single-pass methods without sacrificing geometric
+the uncertainty can identify difficult geometry in scenes                 accuracy. Finally, our evidential uncertainty is used as an
+with transparent and reflective objects. These materials                  actionable reliability score for out-of-distribution aware-
+often violate standard Lambertian assumptions and can                     ness and failure-case identification, improving robustness
+cause severe depth or pointmap errors, especially near                    in downstream reconstruction rather than merely producing
+object boundaries (Zama Ramirez et al., 2024). We use                     qualitative uncertainty maps.
+
+                                                                      9
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Impact Statement                                                   Dellaert, F. and Kaess, M. Factor graphs for robot percep-
+                                                                     tion. Foundations and Trends® in Robotics, 6(1-2):1–139,
+This work aims to improve the reliability of feed-forward            2017.
+3D reconstruction by estimating where predicted geome-
+try may be uncertain. More reliable uncertainty estimates          Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn,
+can help downstream systems avoid over-trusting incorrect            D., Zhai, X., Unterthiner, T., Dehghani, M., Minderer, M.,
+geometry, especially in applications such as mapping, vi-            Heigold, G., Gelly, S., et al. An image is worth 16x16
+sual SLAM, and robotic perception. At the same time, the            words: Transformers for image recognition at scale. arXiv
+proposed uncertainty should not be treated as a guarantee            preprint arXiv:2010.11929, 2020.
+of correctness. The model may still fail under severe am-
+biguity, domain shift, occlusion, reflective or transparent        Fillioux, L., Silva-Rodrı́guez, J., Ayed, I. B., Cournede, P.-
+materials, and other challenging imaging conditions. In               H., Vakalopoulou, M., Christodoulidis, S., and Dolz, J.
+safety-critical deployments, the uncertainty output should           Are foundation models for computer vision good con-
+therefore be used together with additional sensor checks,             formal predictors? arXiv preprint arXiv:2412.06082,
+task-level validation, and human oversight when appropri-             2024.
+ate. We do not identify additional societal impacts beyond
+those commonly associated with machine learning and 3D             Gal, Y. and Ghahramani, Z. Dropout as a bayesian approx-
+perception systems.                                                  imation: Representing model uncertainty in deep learn-
+                                                                     ing. In International conference on machine learning, pp.
+                                                                    1050–1059. PMLR, 2016.
+Acknowledgements
+                                                                   Gao, J., Chen, M., Xiang, L., and Xu, C. A comprehensive
+The work of W. Zhao and C. Tian was supported in part by             survey on evidential deep learning and its applications.
+the National Science Foundation (NSF) via grants DMS-                IEEE Transactions on Pattern Analysis and Machine In-
+2312173 and ECCS-2433631. We also thank the anony-                   telligence, 2025.
+mous reviewers and the area chair for their constructive
+feedback. Portions of this research were conducted with            Geifman, Y., Uziel, G., and El-Yaniv, R. Bias-reduced
+the advanced computing resources provided by Texas A&M               uncertainty estimation for deep neural classifiers. arXiv
+High Performance Research Computing.                                 preprint arXiv:1805.08206, 2018.
+
+                                                                   Geiger, A., Lenz, P., Stiller, C., and Urtasun, R. Vision
+References                                                           meets robotics: The kitti dataset. International Journal
+Amini, A., Schwarting, W., Soleimany, A., and Rus, D.                of Robotics Research (IJRR), 2013.
+ Deep evidential regression. Advances in neural informa-
+ tion processing systems, 33:14927–14937, 2020.                    Ilg, E., Cicek, O., Galesso, S., Klein, A., Makansi, O.,
+                                                                      Hutter, F., and Brox, T. Uncertainty estimates and multi-
+Angelopoulos, A. N., Bates, S., et al. Conformal predic-              hypotheses networks for optical flow. In Proceedings of
+  tion: A gentle introduction. Foundations and trends® in             the European Conference on Computer Vision (ECCV),
+  machine learning, 16(4):494–591, 2023.                              pp. 652–667, 2018.
+
+                                                                   Janssen, H. Monte-carlo based uncertainty analysis: Sam-
+Besnier, V., Picard, D., and Briot, A. Learning uncertainty
+                                                                     pling efficiency and sampling convergence. Reliability
+  for safety-oriented semantic segmentation in autonomous
+                                                                     Engineering & System Safety, 109:123–132, 2013.
+  driving. In 2021 IEEE International Conference on Image
+  Processing (ICIP), pp. 3353–3357. IEEE, 2021.                    Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang,
+                                                                     Y., Fischer, T., Knapitsch, A., Zauss, D., Weber, E., An-
+Birkl, R., Wofk, D., and Müller, M. Midas v3. 1–a model             tunes, N., Luiten, J., Lopez-Antequera, M., Bulò, S. R.,
+  zoo for robust monocular relative depth estimation. arXiv          Richardt, C., Ramanan, D., Scherer, S., and Kontschieder,
+  preprint arXiv:2307.14460, 2023.                                   P. MapAnything: Universal feed-forward metric 3D re-
+                                                                     construction. In International Conference on 3D Vision
+Blundell, C., Cornebise, J., Kavukcuoglu, K., and Wierstra,         (3DV). IEEE, 2026.
+  D. Weight uncertainty in neural network. In International
+  conference on machine learning, pp. 1613–1622. PMLR,             Kendall, A., Gal, Y., and Cipolla, R. Multi-task learning
+  2015.                                                              using uncertainty to weigh losses for scene geometry and
+                                                                     semantics. In Proceedings of the IEEE conference on
+Carlin, B. P. and Louis, T. A. Bayesian methods for data             computer vision and pattern recognition, pp. 7482–7491,
+  analysis. CRC press, 2008.                                         2018.
+
+                                                              10
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Kersting, K., Plagemann, C., Pfaff, P., and Burgard, W.               Advances in neural information processing systems, 35:
+  Most likely heteroscedastic gaussian process regression.            23192–23204, 2022.
+  In Proceedings of the 24th international conference on
+  Machine learning, pp. 393–400, 2007.                              Qian, Z., Chi, X., Li, Y., Wang, S., Qin, Z., Ju, X., Han, S.,
+                                                                      and Zhang, S. Wristworld: Generating wrist-views via
+Kruschke, J. K. What to believe: Bayesian methods for data            4d world models for robotic manipulation. arXiv preprint
+  analysis. Trends in cognitive sciences, 14(7):293–300,              arXiv:2510.07313, 2025.
+  2010.
+                                                                    Ranftl, R., Bochkovskiy, A., and Koltun, V. Vision trans-
+Lakshminarayanan, B., Pritzel, A., and Blundell, C. Simple            formers for dense prediction. In Proceedings of the
+  and scalable predictive uncertainty estimation using deep           IEEE/CVF international conference on computer vision,
+  ensembles. Advances in neural information processing                pp. 12179–12188, 2021.
+  systems, 30, 2017.
+                                                                    Sattler, T., Zhou, Q., Pollefeys, M., and Leal-Taixe, L. Un-
+Lázaro-Gredilla, M. and Titsias, M. K. Variational het-              derstanding the limitations of cnn-based absolute camera
+   eroscedastic gaussian process regression. In ICML, pp.             pose regression. In Proceedings of the IEEE/CVF con-
+   841–848, 2011.                                                     ference on computer vision and pattern recognition, pp.
+                                                                      3302–3312, 2019.
+Leroy, V., Cabon, Y., and Revaud, J. Grounding image
+  matching in 3d with mast3r. In European Conference on             Scharstein, D. and Szeliski, R. A taxonomy and evaluation
+  Computer Vision, pp. 71–91. Springer, 2024.                         of dense two-frame stereo correspondence algorithms. In-
+                                                                      ternational journal of computer vision, 47(1):7–42, 2002.
+Lin, T., Li, G., Zhong, Y., Zou, Y., Du, Y., Liu, J.,
+  Gu, E., and Zhao, B. Evo-0: Vision-language-action                Schonberger, J. L. and Frahm, J.-M. Structure-from-motion
+  model with implicit spatial understanding. arXiv preprint           revisited. In Proceedings of the IEEE conference on
+  arXiv:2507.00416, 2025.                                             computer vision and pattern recognition, pp. 4104–4113,
+                                                                      2016.
+Loshchilov, I. and Hutter, F. Decoupled weight decay regu-
+  larization. arXiv preprint arXiv:1711.05101, 2017.                Schops, T., Sattler, T., and Pollefeys, M. Bad slam: Bun-
+                                                                      dle adjusted direct rgb-d slam. In Proceedings of the
+Luo, W., Schwing, A. G., and Urtasun, R. Efficient deep               IEEE/CVF Conference on Computer Vision and Pattern
+  learning for stereo matching. In Proceedings of the IEEE            Recognition, pp. 134–144, 2019.
+  conference on computer vision and pattern recognition,
+  pp. 5695–5703, 2016.                                              Sensoy, M., Kaplan, L., and Kandemir, M. Evidential deep
+                                                                      learning to quantify classification uncertainty. Advances
+Maggio, D., Lim, H., and Carlone, L. Vggt-slam: Dense                 in neural information processing systems, 31, 2018.
+ rgb slam optimized on the sl (4) manifold. Advances
+ in Neural Information Processing Systems, 38:129839–               Shafer, G. and Vovk, V. A tutorial on conformal prediction.
+ 129867, 2026.                                                        Journal of Machine Learning Research, 9(3), 2008.
+
+Meinert, N. and Lavin, A. Multivariate deep evidential              Soleimany, A. P., Amini, A., Goldman, S., Rus, D., Bhatia,
+ regression. arXiv preprint arXiv:2104.06135, 2021.                   S. N., and Coley, C. W. Evidential deep learning for
+                                                                      guided molecular property prediction and discovery. ACS
+Mo, K., Zhu, S., Chang, A. X., Yi, L., Tripathi, S., Guibas,          central science, 7(8):1356–1367, 2021.
+ L. J., and Su, H. Partnet: A large-scale benchmark for
+ fine-grained and hierarchical part-level 3d object under-          Spearman, C. The proof and measurement of association
+ standing. In Proceedings of the IEEE/CVF conference                  between two things. 1961.
+ on computer vision and pattern recognition, pp. 909–918,
+ 2019.                                                              Sturm, J., Engelhard, N., Endres, F., Burgard, W., and Cre-
+                                                                      mers, D. A benchmark for the evaluation of rgb-d slam
+Murai, R., Dexheimer, E., and Davison, A. J. Mast3r-slam:             systems. In Proc. of the International Conference on
+ Real-time dense slam with 3d reconstruction priors. In               Intelligent Robot Systems (IROS), Oct. 2012.
+ Proceedings of the Computer Vision and Pattern Recog-
+ nition Conference, pp. 16695–16705, 2025.                          Sun, J., Xie, Y., Chen, L., Zhou, X., and Bao, H. Neuralre-
+                                                                      con: Real-time coherent 3d reconstruction from monocu-
+Qian, G., Li, Y., Peng, H., Mai, J., Hammoud, H., El-                 lar video. In Proceedings of the IEEE/CVF conference
+  hoseiny, M., and Ghanem, B. Pointnext: Revisiting                   on computer vision and pattern recognition, pp. 15598–
+  pointnet++ with improved training and scaling strategies.           15607, 2021.
+
+                                                               11
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Sun, X., Wang, S., Zhang, F., Liu, L., Jia, C., Song, Z.,             surfaces. In European Conference on Computer Vision,
+  Huang, Z., and Luo, Y. Vggt-world: Transforming vggt                pp. 248–266. Springer, 2024.
+  into an autoregressive geometry world model. arXiv
+  preprint arXiv:2603.12655, 2026.                                  Zhou, Q.-Y., Park, J., and Koltun, V. Fast global registration.
+                                                                      In European conference on computer vision, pp. 766–782.
+Wang, H. and Agapito, L. 3d reconstruction with spatial               Springer, 2016.
+ memory. arXiv preprint arXiv:2408.16061, 2024.
+
+Wang, H. and Yeung, D.-Y. Towards bayesian deep learn-
+ ing: A framework and some existing methods. IEEE
+ Transactions on Knowledge and Data Engineering, 28
+ (12):3395–3408, 2016.
+
+Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht,
+ C., and Novotny, D. Vggt: Visual geometry grounded
+ transformer. In Proceedings of the Computer Vision and
+ Pattern Recognition Conference, pp. 5294–5306, 2025a.
+
+Wang, Q., Zhang, Y., Holynski, A., Efros, A. A., and
+ Kanazawa, A. Continuous 3d perception model with
+ persistent state. arXiv preprint arXiv:2501.12387, 2025b.
+
+Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., and Revaud,
+ J. Dust3r: Geometric 3d vision made easy. In Proceedings
+ of the IEEE/CVF Conference on Computer Vision and
+ Pattern Recognition, pp. 20697–20709, 2024.
+
+Wu, H., Wu, D., He, T., Guo, J., Ye, Y., Duan, Y., and
+ Bian, J. Geometry forcing: Marrying video diffusion and
+ 3d representation for consistent world modeling. arXiv
+ preprint arXiv:2507.07982, 2025.
+
+Yao, Y., Luo, Z., Li, S., Fang, T., and Quan, L. Mvsnet:
+  Depth inference for unstructured multi-view stereo. In
+  Proceedings of the European conference on computer
+  vision (ECCV), pp. 767–783, 2018.
+
+Yeshwanth, C., Liu, Y.-C., Nießner, M., and Dai, A. Scan-
+  net++: A high-fidelity dataset of 3d indoor scenes. In
+  Proceedings of the IEEE/CVF International Conference
+  on Computer Vision, pp. 12–22, 2023.
+
+Yu, B., Lian, S., Lin, X., Shen, Z., Wei, Y., Liu, H., Wu,
+  C., Yuan, H., Wang, B., Huang, C., et al. 3d-mix for vla:
+  A plug-and-play module for integrating vggt-based 3d
+  information into vision-language-action models. arXiv
+  preprint arXiv:2603.24393, 2026.
+
+Yu, X., Tang, L., Rao, Y., Huang, T., Zhou, J., and Lu, J.
+  Point-bert: Pre-training 3d point cloud transformers with
+  masked point modeling. In Proceedings of the IEEE/CVF
+  conference on computer vision and pattern recognition,
+  pp. 19313–19322, 2022.
+
+Zama Ramirez, P., Costanzino, A., Tosi, F., Poggi, M.,
+  Di Stefano, L., Weibel, J.-B., Bauer, D., Antensteiner,
+  D., Vincze, M., Li, J., et al. Tricky 2024 challenge on
+  monocular depth from images of specular and transparent
+
+                                                               12
+                   Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+A. Additional Method Details
+Given an input image pair (I1 , I2 ), the frozen feed-forward geometry backbone predicts dense per-pixel 3D pointmaps
+X̂v0 ∈ RH×W ×3 for view v ∈ {1, 2}, together with the original confidence map when available. Our uncertainty heads
+output either factorized evidential parameters (NIG) or multivariate evidential parameters (NIW). We denote a per-pixel 3D
+target as x ∈ R3 and a scalar target as y ∈ R.
+
+Scope and relation to prior evidential regression. Our multivariate evidential formulation builds on the Normal–Inverse–
+Wishart evidential regression framework of Meinert & Lavin (2021). We do not claim the NIW prior itself as a new
+probabilistic model. Instead, our contribution is the pointmap-specific integration needed to make evidential uncertainty
+useful for dense feed-forward 3D reconstruction: a lightweight multivariate evidential head, gated residual mean refinement,
+stable evidence regularization, and local post-upsampling smoothing for token-to-pixel dense prediction.
+
+Trust-aware prediction. Throughout the paper, “trust-aware” means that the model outputs a reliability signal that can be
+used to rank, filter, or weight predicted 3D points. It is not a binary guarantee that a point is correct. In our experiments, this
+reliability is evaluated through uncertainty–error ranking metrics, selective prediction curves, and downstream weighting.
+
+No repeated main-table results. To avoid duplicating the main paper, this appendix does not repeat quantitative tables
+already reported in the main text, including the VGGT validation, gated residual ablation, evidential-family ablation, ETH3D
+uncertainty-readout ablation, MASt3R-SLAM, Tricky24, and the main compute table. Appendix tables below only provide
+additional rows, additional metrics, or additional protocols not already tabulated in the main paper.
+
+Uncertainty readout. Many metrics require a scalar uncertainty score ui per pixel, with larger values indicating lower
+reliability. Unless stated otherwise, we use
+
+                                                  uconf,i = − log(conf i + ϵ)                                                 (16)
+
+for confidence-only baselines, and reduce XYZ uncertainty by trace,
+                                                            X
+                                           ui = tr(Σi ) =          Var[xi,c ],                                                (17)
+                                                               c∈{x,y,z}
+
+for Gaussian, ensemble, NIG, and NIW variants. For the main NIW results and ablations, we use the epistemic trace unless
+a table explicitly states another readout.
+
+A.1. Multivariate Evidential Modeling via Normal–Inverse–Wishart
+To model cross-coordinate correlations within each 3D point, we use a per-pixel Normal–Inverse–Wishart (NIW) evidential
+head:
+                       m ∈ R3 ,        κ > 0,      ν > d + 1 (d = 3),       Ψ ∈ R3×3 , Ψ ≻ 0.
+The NIW prior is
+
+                                                     µ | Σ ∼ N (m, Σ/κ),                                                      (18)
+                                                                  −1
+                                                         Σ∼W           (Ψ, ν).                                                (19)
+
+After marginalizing (µ, Σ), the predictive distribution is a multivariate Student-t:
+                                           p(x | m, κ, ν, Ψ) = Std (x; m, Σt , νt ) ,
+                                                           νt = ν − d + 1,
+                                                                                                                              (20)
+                                                                κ+1
+                                                           Σt =       Ψ.
+                                                                 κνt
+For d = 3, this gives νt = ν − 2, matching the main-text form in Eq. (7). Here Σt is the Student-t scale matrix. The
+predictive covariance exists for νt > 2 and is
+                                                         νt           κ+1
+                                           Cov[x] =           Σt =              Ψ.                                            (21)
+                                                       νt − 2      κ(ν − d − 1)
+
+                                                                13
+                  Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Positive-definite parameterization.      We parameterize the scale matrix by a Cholesky factor:
+
+                                                            Ψ = LL⊤ .                                                      (22)
+
+The head regresses the six lower-triangular entries of L per pixel. Diagonal entries are mapped through softplus(·) + ϵ to
+ensure positivity, while off-diagonal entries are unconstrained. We also enforce
+
+                                    κ = softplus(·) + ϵ,        ν = (d + 1) + softplus(·),
+
+so that ν > d + 1.
+
+Multivariate Student-t negative log-likelihood.       Let
+
+                                                δ = (x − m)⊤ Σ−1
+                                                              t (x − m).
+
+The log-density is
+                                                   
+                                             νt + d           ν  1
+                                                                 t
+                           log p(x) = log Γ           − log Γ      − (d log(νt π) + log |Σt |)
+                                                2               2   2
+                                                           
+                                        νt + d           δ
+                                      −         log 1 +       .                                                            (23)
+                                           2             νt
+
+We minimize LNLL = − log p(x) over valid pixels.
+
+NIW evidential regularizer.     Following evidential learning, we penalize high evidence when the predictive mean is wrong:
+
+                                                 Levi = ∥x − m∥22 (κ + ν).                                                 (24)
+
+The NIW loss is
+                                                 LNIW = LNLL + λevi Levi .                                                 (25)
+
+Aleatoric and epistemic decomposition.        For ν > d + 1, NIW gives the closed-form decomposition
+
+                                                              Ψ
+                                          Σalea = E[Σ] =           ,                                                       (26)
+                                                          ν−d−1
+                                                                 Ψ
+                                           Σepi = Var[µ] =               ,                                                 (27)
+                                                            κ(ν − d − 1)
+                                                                     κ+1
+                                           Σtot = Σalea + Σepi =              Ψ.                                           (28)
+                                                                 κ(ν − d − 1)
+
+For scalar ranking, we use the trace of these matrices.
+
+A.2. Residual-Gated Mean Refinement
+The evidential likelihood depends on the predictive mean. Directly fine-tuning a large pretrained pointmap backbone with an
+evidential objective may degrade the pretrained geometry and can produce unstable evidence. We therefore use a lightweight
+residual-gated refinement branch:
+                                                X̂vref = X̂v0 + σ(gv ) ⊙ ∆v ,                                          (29)
+where gv is a gate-logit map, ∆v is a 3D residual, and σ(·) is the sigmoid function. Both gv and ∆v are predicted from
+the concatenated encoder/decoder tokens using lightweight heads and reshaped to the pixel grid. We initialize the residual
+branch near zero so that the model starts from the pretrained pointmap prediction.
+The purpose of this module is not parameter-efficient fine-tuning in the usual PEFT sense. Its role is to selectively refine the
+predictive mean only where evidential training needs it, while leaving reliable pretrained geometry mostly unchanged.
+
+                                                               14
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+A.3. Post-upsampling Smoothing
+Dense heads that upsample ViT tokens to pixels can introduce patch-grid artifacts in the residual branch. To reduce this
+local artifact, we optionally apply a lightweight post-upsampling smoothing operator:
+
+                                                 ∆m̃v = S∆ (Up(∆vtok )) ,                                                (30)
+                                                     v             v
+                                                    g̃ = Sg (Up(gtok   )) ,                                              (31)
+                                                    v       v
+                                                  X̂ref = X̂0 + σ(g̃ ) ⊙ ∆m̃v .
+                                                                     v
+                                                                                                                         (32)
+
+Here S∆ and Sg are depthwise-separable 3×3 convolutions, optionally followed by a 1×1 convolution. They are initialized
+close to identity, so the refinement branch remains a near no-op at the start of training. This smoothing is applied to the
+residual mean-refinement path, not directly to the evidential parameters. Thus, it introduces only local regularization of the
+refined mean and does not model explicit cross-pixel covariance.
+
+A.4. Factorized Evidential Modeling via Normal–Inverse–Gamma
+For scalar regression, we use Normal–Inverse–Gamma (NIG) evidence:
+
+                                         γ ∈ R,          ν > 0,         α > 1,         β > 0.
+
+The induced Student-t predictive distribution is
+                                                                                     
+                                                                    β(1 + ν)
+                               p(y | γ, ν, α, β) = St y; µ = γ, λ =          , df = 2α ,                                 (33)
+                                                                      να
+
+with predictive mean and variance
+                                                                              β(1 + ν)
+                                            E[y] = γ,             Var[y] =             .                                 (34)
+                                                                              ν(α − 1)
+
+Scalar NIG NLL.      The negative log-likelihood is
+                             1     π
+                    LNLL =     log     − α log(2β(1 + ν))
+                             2 ν                                                        
+                                     1                                                   1
+                                        log ν(y − γ)2 + 2β(1 + ν) + log Γ(α) − log Γ α +
+                                                                 
+                             + α+                                                            .                           (35)
+                                     2                                                   2
+
+Scalar evidence regularizer.
+
+                                 Levi = |y − γ|(2ν + α),                LNIG = LNLL + λevi Levi .                        (36)
+
+Factorized XYZ-NIG. For dense 3D points x = (x, y, z), XYZ-NIG assumes conditional independence across coordi-
+nates:                                        Y
+                                p(x | Θ) =            p(xc | γc , νc , αc , βc ),                        (37)
+                                                         c∈{x,y,z}
+
+and minimizes the coordinate-averaged NIG loss:
+                                                     1     X
+                                     LXYZ-NIG =                      LNIG (xc ; γc , νc , αc , βc ).                     (38)
+                                                     3
+                                                         c∈{x,y,z}
+
+For each coordinate, a convenient decomposition is
+
+                                2         β            2             β                2        β(1 + ν)
+                               σalea =       ,        σepi =               ,         σtot =             .                (39)
+                                         α−1                      ν(α − 1)                     ν(α − 1)
+
+For XYZ ranking, we sum the corresponding coordinate variances.
+
+                                                                   15
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+B. Implementation Details
+Backbone and training protocol. Unless stated otherwise, all uncertainty variants use the same MASt3R backbone,
+training data, and optimization schedule. We freeze the pretrained backbone and geometry heads and train only lightweight
+uncertainty/refinement heads. This design follows the goal of equipping a strong pretrained pointmap predictor with
+uncertainty rather than relearning geometry from scratch.
+
+Optimization. We use AdamW with weight decay 0.05 and base learning rate 3 × 10−4 , scaled by total batch size.
+Training uses a cosine learning-rate schedule for 10 epochs with no warmup. The effective batch size is 10. For evidential
+learning, we set
+                                              λxyz
+                                               uq = 0.05,         λxyz
+                                                                   evi = 10
+                                                                           −3
+                                                                              .
+
+The loss is summed over both views and averaged over valid pixels:
+
+                                               L = λuq (LNLL + λevi Levi ) .                                             (40)
+
+
+Training data. We train on the mix4 data mixture: 25k ScanNet++ pairs, 25k ARKitScenes pairs, 50k Waymo pairs, and
+50k MegaDepth pairs. The input resolution is 224 with crop augmentation parameter aug crop= 16. Here, aug crop
+denotes the random crop margin used during training augmentation. We validate on 2k ScanNet++ pairs with aug crop= 0.
+
+MC Dropout and Deep Ensemble settings. MC Dropout uses T = 16 stochastic forward passes. Deep Ensemble uses
+K = 5 independently trained models. Each ensemble member uses the same training script and setup as the corresponding
+baseline, with independent training runs. Larger T or K may improve sampling-based estimates but directly increases
+inference cost.
+
+Fairness of single-pass baselines. Single-pass baselines use the same backbone and data. Heteroscedastic regression
+predicts a per-pixel Gaussian variance in one forward pass. XYZ-NIG and XYZ-NIW differ in the evidential parameterization:
+XYZ-NIG assumes independent coordinates, while XYZ-NIW models a full per-point covariance through the NIW prior.
+Unless explicitly marked as a frozen-mean baseline, variants use the same residual-gated mean-refinement design and
+optimization schedule.
+
+Ensemble memory/latency interpretation. Deep Ensembles incur either higher latency or higher peak memory depending
+on implementation. Running K models sequentially keeps memory closer to one model but increases latency by roughly
+K forward passes. Running them in parallel can reduce wall-clock latency but requires approximately K model copies
+in memory. The main compute table follows a fixed implementation protocol, while the key comparison is that Trust3R
+remains a single-model, single-forward method.
+
+C. Datasets and Preprocessing
+We evaluate on held-out scenes and cross-dataset test sets. To avoid ambiguity, we distinguish held-out in-benchmark
+evaluation from cross-dataset evaluation.
+
+ScanNet++. ScanNet++ is used both in training and evaluation, but train/validation/test scenes are disjoint. Thus, Scan-
+Net++ measures generalization to unseen scenes within the same benchmark rather than strict out-of-domain generalization.
+We use preprocessed metadata containing scene id, image, depth, intrinsics, pose, and pair lists. RGB images and depth
+maps are resized to the network resolution, and intrinsics are adjusted accordingly. Pixels with missing or invalid depth are
+excluded from training and evaluation masks.
+
+TUM RGB-D, KITTI, and ETH3D. TUM RGB-D, KITTI, and ETH3D are not used for the reported training mixture
+and are therefore cross-dataset evaluations. They differ from the training data in capture setup, depth range, camera motion,
+and scene statistics. We form image pairs using dataset-provided pair lists or fixed-stride temporal pairing and apply dataset
+validity masks.
+
+                                                             16
+                  Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+D. Evaluation Protocol and Metrics
+We evaluate dense pointmap prediction over valid pixels. For pointmap accuracy and uncertainty-ranking metrics, we apply
+the same per-image Sim(3) alignment between predicted and ground-truth pointmaps as in the main paper. This makes
+MAE/RMSE, AURC, AUSE, and Spearman ρ reflect local geometric reliability rather than global pose/scale drift. For
+probabilistic scoring, we compute NLL in the raw camera frame without post-hoc alignment.
+
+Notation.   Let Ω be the valid-pixel set and N = |Ω|. For each pixel i ∈ Ω, define the 3D error
+
+                                                     ei = ∥x̂i − x⋆i ∥2 ,                                               (41)
+
+and a scalar uncertainty score ui , where larger ui means less reliable.
+
+Pointmap MAE/RMSE.
+                                                          1 X
+                                                   MAE3D =      ei ,                                                    (42)
+                                                          N
+                                                            i∈Ω
+                                                          s
+                                                            1 X 2
+                                                 RMSE3D =           ei .                                                (43)
+                                                            N
+                                                                      i∈Ω
+
+
+Spearman rank correlation.
+                                               ρ = corr (rank(u), rank(e)) .                                            (44)
+Higher ρ indicates better monotonic alignment between predicted uncertainty and actual point error.
+
+Risk–coverage and AURC.         For coverage c ∈ (0, 1], retain the ⌊cN ⌋ pixels with lowest uncertainty. The risk is
+                                                              1 X
+                                                    R(c) =         ei .                                                 (45)
+                                                             |Ωc |
+                                                                    i∈Ωc
+
+AURC is the area under R(c), computed by numerical integration on a uniform coverage grid. Lower is better.
+
+Sparsification and AUSE. For sparsification fraction s, remove the top ⌈sN ⌉ pixels by uncertainty. Let Eunc (s) be the
+remaining mean error. The oracle removes pixels by true error and gives Eoracle (s). We report
+                                                 Z 1
+                                      AUSE =         (Eunc (s) − Eoracle (s)) ds.                                  (46)
+                                                     0
+
+Lower is better, and zero corresponds to oracle ranking.
+
+Negative log-likelihood.    When a method defines a predictive density, we report
+                                                           1 X
+                                                NLL = −        log pθ (x⋆i ).                                           (47)
+                                                           N
+                                                              i∈Ω
+
+Confidence-only baselines do not define a predictive likelihood and are omitted from NLL tables. For MC Dropout and
+Deep Ensembles, we moment-match sampled predictions to a diagonal Gaussian and add a small noise floor σ02 selected on
+ScanNet++ validation. This noise floor is used only for NLL and does not affect ranking metrics.
+
+Point-cloud metrics. In addition to per-pixel MAE/RMSE, we report point-cloud metrics on aligned dense pointmaps:
+Accuracy, Completeness, Chamfer Distance (CD), and F1 at threshold 0.05. Accuracy is the mean nearest-neighbor distance
+from predicted points to ground-truth points. Completeness is the mean nearest-neighbor distance from ground-truth points
+to predicted points. CD is the average of Accuracy and Completeness. F1@0.05 is the harmonic mean of precision and
+recall under the 0.05 distance threshold. We do not report Normal Consistency because the evaluated models predict dense
+3D pointmaps rather than oriented surface normals; estimating normals introduces an additional design choice that is outside
+the pointmap protocol.
+
+                                                              17
+                  Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Table 10. Additional reconstruction accuracy for UQ baselines not tabulated in the main accuracy table. We report Sim(3)-aligned
+pointmap MAE/RMSE. MASt3R and Trust3R rows are in Main Table 2; Heteroscedastic shares the frozen MASt3R mean and is therefore
+not repeated.
+
+                                    Dataset           Method             MAE↓      RMSE↓
+                                                      MC Dropout         0.2962     0.3809
+                                    ScanNet++
+                                                      Deep Ensemble      0.1131     0.2095
+                                                      MC Dropout         0.1405     0.1986
+                                    TUM RGB-D
+                                                      Deep Ensemble      0.0695     0.1220
+
+
+
+E. Downstream Evaluation Details
+E.1. Uncertainty-weighted MASt3R-SLAM
+For MASt3R-SLAM, we replace the original weighting signal with Trust3R uncertainty while keeping the rest of the
+pipeline unchanged. The quantitative ATE/RPE results are reported in the main paper, so they are not repeated here. This
+appendix only clarifies the integration: the uncertainty map is converted into a per-point reliability weight and used in the
+same weighting path as the original confidence signal. No additional pose optimization terms or extra learned modules are
+introduced.
+
+E.2. Tricky24 Transparent-scene Reliability
+We evaluate on 32 Tricky24 scenes with provided transparent-object masks. The main paper reports the quantitative AUROC
+and FPR@95%TPR table, so the numbers are not repeated here. For MASt3R confidence, we use u = − log(conf + ϵ). For
+Trust3R, we use the trace of the predicted NIW uncertainty.
+
+
+Boundary ring construction. To focus on boundary failures around transparent and reflective objects, we build a ring
+band of radius r = 3 pixels by morphology:
+
+                                              ring = dilate(m, r) ∧ ¬erode(m, r).                                          (48)
+
+
+Metrics. Pixels in the ring are treated as positives and all remaining pixels as negatives. We compute AUROC and
+FPR@95%TPR per scene and report the mean over scenes in the main paper.
+
+F. Additional Results Not Duplicated in the Main Text
+F.1. Additional Reconstruction Accuracy for UQ Baselines
+Main Table 2 reports the primary reconstruction accuracy comparison for MASt3R and Trust3R. To avoid repeating those
+rows, Table 10 only reports additional UQ baselines that are not tabulated in Main Table 2. The heteroscedastic baseline
+keeps the frozen MASt3R mean and only adds a variance head; therefore, its MAE/RMSE are identical to the MASt3R row
+in Main Table 2 and are not duplicated here.
+Deep Ensembles can improve reconstruction accuracy because they aggregate multiple independently trained models, but
+this requires substantially more training and inference resources. Trust3R is designed primarily for single-pass uncertainty
+estimation and improves over the MASt3R mean prediction while keeping one model and one forward pass.
+
+F.2. Point-cloud Metrics
+Table 11 reports point-cloud metrics on KITTI using the same aligned dense pointmaps. These metrics complement the
+per-pixel MAE/RMSE metrics with global point-cloud evaluation.
+Trust3R achieves the best F1@0.05 and second-best CD/Accuracy/Completeness under this protocol, showing that its
+reliability improvement does not come at the cost of collapsed point-cloud quality.
+
+                                                               18
+                   Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Table 11. Point-cloud metrics on KITTI. F1 is computed at threshold 0.05. CD denotes Chamfer Distance. Best results are bolded and
+second-best results are underlined.
+
+                              Method               F1@0.05↑          CD↓          Accuracy↓      Completeness↓
+                              MASt3R                 0.0627          0.5440        0.6371           0.4509
+                              Heteroscedastic        0.0627          0.5440        0.6371           0.4509
+                              MC Dropout             0.0345          0.4287        0.5090           0.3484
+                              Deep Ensemble          0.0627          0.5443        0.6394           0.4492
+                              Trust3R                0.0718          0.4904        0.5327           0.4481
+
+
+Table 12. Additional NIW uncertainty-source readouts. This table reports additional total and aleatoric readouts on ScanNet++, TUM
+RGB-D, and KITTI. The selected epistemic readout is reported in the main uncertainty table and is not repeated here. Higher is better for
+ρ; lower is better otherwise.
+
+                                       Dataset           Source        AURC↓         AUSE↓         ρ↑
+                                                         Total          0.1253        0.0464      0.4725
+                                       ScanNet++
+                                                         Aleatoric      0.1264        0.0475      0.4605
+                                                         Total          0.0491        0.0188      0.4986
+                                       TUM RGB-D
+                                                         Aleatoric      0.0493        0.0190      0.4927
+                                                         Total          1.0111        0.4673      0.4481
+                                       KITTI
+                                                         Aleatoric      1.1264        0.5826      0.3749
+
+
+F.3. Additional Uncertainty-source Results
+Main Table 5 already reports aleatoric, total, and epistemic readouts on ETH3D. To avoid duplicating that table, Table 12
+reports only the additional non-selected readouts on ScanNet++, TUM RGB-D, and KITTI. The selected epistemic readout
+is used in the main uncertainty results and is therefore not repeated here.
+Together with the selected epistemic results in the main uncertainty table and the ETH3D decomposition in Main Table 5,
+these additional rows show that epistemic uncertainty is generally the most informative reliability signal under our ranking
+protocol.
+
+F.4. Inference and Calibration Diagnostics
+Table 13 compares the inference-only overhead of NIG and NIW heads under the same profiling protocol. NIW adds a full
+per-point covariance parameterization but increases latency by only about 1 ms compared with NIG in this micro-benchmark.
+
+Table 13. Inference-only overhead of NIG vs. NIW heads. This micro-benchmark isolates head overhead and is separate from the
+end-to-end timing in Main Table 3.
+
+                           Variant          Latency (ms)      Peak memory (MB)                  Extra vs. NIG
+                           XYZ-NIG               54.37                 6005.5                         –
+                           XYZ-NIW               55.49                 6266.8               +1.12 ms / +261.3 MB
+
+
+Table 14 reports a component-wise latency micro-benchmark. It isolates the added cost of the evidential head and gated
+residual branch. This table should be interpreted as a component-level profile rather than as a replacement for the end-to-end
+compute table in the main paper.
+
+                  Table 14. Component-wise single-pass latency. All variants use one model and one forward pass.
+
+                             Variant                                  Latency (ms)       Overhead vs. MASt3R
+                             MASt3R baseline                               52.6                       –
+                             + Evidential UQ head                          57.5               +4.9 ms (+9.3%)
+                             + Evidential UQ + gated residual              58.2               +5.6 ms (+10.6%)
+
+
+                                                                      19
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+Table 15 reports NLL for probabilistic baselines. NLL is evaluated in the raw camera frame without Sim(3) alignment, so it
+measures probabilistic calibration rather than aligned geometric error.
+
+       Table 15. NLL across datasets. Lower is better. Confidence-only baselines do not define a likelihood and are omitted.
+
+                             Method                     ScanNet++       TUM        KITTI      ETH3D
+                             Heteroscedastic (Gauss)      -0.8374      -4.2523     3.5102    37.4365
+                             XYZ-NIG                      -0.6852      -1.4672     1.1738     7.8879
+                             XYZ-NIW                      -3.0020      -5.1541     9.4236    11.6632
+
+
+NIW has the best NLL on ScanNet++ and TUM, but its NLL is worse on KITTI and ETH3D. This does not imply a
+collapse of the aligned geometry or ranking metrics, because NLL is computed without alignment while MAE/RMSE and
+uncertainty-ranking metrics are computed after alignment. On KITTI, the degradation is concentrated at long range: pixels
+beyond 10 m account for 77.7% of valid pixels and 79.3% of NIW NLL. We therefore interpret the KITTI/ETH3D NLL
+behavior mainly as long-range calibration difficulty in outdoor scenes.
+
+G. Qualitative Results
+Transparent-scene uncertainty maps. Figures 5–6 provide additional Tricky24 examples with uncertainty maps rather
+than only mismatch maps. Each figure shows RGB, oracle 3D error, and uncertainty maps, so readers can inspect both the
+scale and spatial structure of predicted uncertainty.
+
+
+
+
+                                                                20
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+
+
+
+Figure 5. Qualitative reliability on Tricky24, example A. Top: MASt3R baseline; bottom: Trust3R. Columns show RGB, oracle 3D
+error, and the corresponding uncertainty map.
+
+
+
+
+Figure 6. Qualitative reliability on Tricky24, example B. Top: MASt3R baseline; bottom: Trust3R. Columns show RGB, oracle 3D
+error, and the corresponding uncertainty map.
+
+
+                                                            21
+                 Trust It or Not: Evidential Uncertainty for Feed-Forward 3D Reconstruction with Trust3R
+
+H. Limitations and Practical Notes
+Trust3R models each 3D point with a unimodal predictive distribution and a mean-field factorization across pixels. The NIW
+head models cross-coordinate covariance within each point, but it does not explicitly model dense cross-pixel covariance.
+Spatial structure is still captured implicitly by the transformer backbone and local residual smoothing, but explicit spatial
+covariance modeling is left for future work.
+Evidential uncertainty can also become difficult to calibrate in long-range outdoor scenes, as reflected by the KITTI/ETH3D
+NLL results. In practice, we recommend using validation-set calibration checks, monitoring long-range bins separately, and
+treating uncertainty as a reliability weight rather than an absolute correctness guarantee.
+
+
+
+
+                                                             22
+

@@ -1,0 +1,967 @@
+                                                Not All Tasks Quantize Equally: Fisher-Guided
+                                                Quantization for Visual Geometry Transformer
+
+
+                                                         Yipu Zhang1,† Jintao Cheng1,† Weilun Feng2,3,† Jiehao Luo4
+                                                         Chuanguang Yang2 Zhulin An2 Yongjun Xu2,5 Wei Zhang1,∗
+                                                               1
+                                                               Department of Electronic and Computer Engineering, HKUST
+arXiv:2605.15828v2 [cs.CV] 22 May 2026
+
+
+
+
+                                                         2
+                                                           State Key Laboratory of AI Safety, Institute of Computing Technology,
+                                                                              Chinese Academy of Sciences
+                                                                       3
+                                                                         University of Chinese Academy of Sciences
+                                                        4
+                                                          School of Data Science and Engineering, South China Normal University
+                                                                          5
+                                                                            Xiamen Institute of Data Intelligence
+                                                                     § Code: https://github.com/ypzhng/FGQ
+
+                                                 Ground Truth                   QuantVGGT W4A4                   FGQ W4A4 (Ours)
+
+
+
+
+                                         Figure 1: FGQ effectively preserves the point map reconstruction fidelity under 4-bit quantization,
+                                         surpassing previous state-of-the-art VGGT (QuantVGGT [Feng et al., 2025]) quantization.
+
+                                                                                        Abstract
+                                                     Feed-forward 3D reconstruction models, represented by Visual Geometry
+                                                     Grounded Transformer (VGGT), jointly predict multiple visual geometry tasks
+                                                     such as depth estimation, camera pose prediction, and point map reconstruction in
+                                                     a single forward pass. They have been widely adopted in 3D vision applications,
+                                                     but their billion-scale parameters bring substantial memory and computation over-
+                                                     head, posing challenges for on-device deployment. Post-Training Quantization
+                                            † Equal contribution.
+                                            * Corresponding author:Wei Zhang<wei.zhang@ust.hk>.
+
+
+
+                                         Preprint.
+         (PTQ) is an effective technique to reduce this overhead. Existing PTQ methods
+         for feed-forward 3D models mainly focus on handling heavy-tailed activation
+         distributions and constructing diverse calibration datasets. However, we observe
+         that feed-forward 3D models predict multiple geometric attributes through a shared
+         backbone, where different transformer blocks and hidden channels contribute dis-
+         tinctly to each task, resulting in substantially different sensitivities to quantization
+         errors across tasks, blocks, and channels. Consequently, treating all tasks equally
+         over-emphasizes insensitive tasks and causes significant accuracy loss on the sensi-
+         tive ones. To address this issue, we propose Fisher-Guided Quantization (FGQ)
+         for feed-forward 3D reconstruction models. Specifically, FGQ uses the diago-
+         nal Fisher information matrix to quantify the different sensitivities across tasks,
+         blocks, and channels, and incorporates these sensitivities into the Learnable Affine
+         Transformation during calibration to better preserve the channels and blocks most
+         critical to each task. Extensive experiments across camera pose estimation, point
+         map reconstruction, and depth estimation show that FGQ consistently outperforms
+         state-of-the-art quantization baselines on VGGT, achieving up to 39% relative
+         improvement under the 4-bit quantization.
+
+
+1   Introduction
+Feed-forward 3D reconstruction methods, represented by Visual Geometry Grounded Transformer
+(VGGT) [Wang et al., 2025a], have achieved significant progress by jointly predicting depth, camera
+poses, and point maps in a single forward pass. They have been widely adopted in downstream appli-
+cations such as spatial reasoning [Hu et al., 2025], robotics [Yang et al., 2026], and autonomous driv-
+ing [Lin et al., 2025]. However, their billion-scale parameters introduce prohibitive computation and
+memory overhead during inference, limiting real-time processing and on-device deployment [Zhang
+et al., 2026].
+A variety of methods have been proposed to address this efficiency bottleneck, including quantiza-
+tion [Feng et al., 2025, Zhang et al., 2026, Pan et al., 2026], token merging [Shen et al., 2025, Shu
+et al., 2025], and architectural modifications that redesign the attention or computation flow for better
+efficiency [Wang and Xu, 2025, Sun et al., 2025a].
+Existing PTQ methods for feed-forward 3D models primarily address two challenges: (i)
+mitigating activation outliers associated with special tokens (e.g., camera and register to-
+kens), and (ii) capturing the geometric and semantic complexity of 3D representations dur-
+ing calibration dataset construction. However, these approaches overlook a critical char-
+acteristic of these models: their inherent multi-task architecture. Since depth, pose, and
+point map prediction operate at vastly different scales and are evaluated with distinct
+metrics, they exhibit markedly different sensitivities to quantization-induced perturbations.
+As illustrated in Fig. 2, applying a uniform quantiza-
+tion strategy causes disproportionately severe degradation
+in point map reconstruction compared to camera pose
+                                                               Per Task NPD
+                                                                          Co3D
+and depth estimation. Beyond this task-level disparity,            KITTI
+                                                                   Video
+Fig. 3 (a)&(b) further shows that the per-block and per-           Depth         Re10k
+channel quantization loss follows markedly different pat-
+terns across tasks. Together, these observations confirm
+that different transformer blocks and hidden channels con-
+tribute distinctly to each task, leading to substantially dif-  KITTI
+                                                                                     DTU
+                                                                Mono
+ferent quantization sensitivities across tasks, blocks, and     Depth
+channels.
+To this end, we propose Fisher-Guided Quantization                     ETH3D        7scenes
+(FGQ), a task-aware PTQ framework for feed-forward Figure 2: Normalized Performance
+3D reconstruction models. FGQ leverages the diagonal Degradation (NPD) across various tasks.
+Fisher information matrix to jointly quantify quantization
+sensitivity across three granularities: tasks (depth, pose, and point map), transformer blocks, and
+hidden channels. These sensitivities are then incorporated into the Learnable Affine Transformation
+during calibration, guiding the transformation to preserve the channels and blocks most critical to
+each task.
+
+
+                                                    2
+Our contributions are summarized as follows:
+
+       • We identify the multi-task sensitivity problem in PTQ for feed-forward 3D reconstruction,
+         showing that different transformer blocks and hidden channels contribute distinctly to each
+         task, leading to substantially different quantization sensitivities across tasks, blocks, and
+         channels.
+       • We propose Fisher-Guided Quantization (FGQ), which uses the diagonal Fisher information
+         matrix to quantify per-task, per-block, and per-channel sensitivity, and integrates these
+         sensitivities into the Learnable Affine Transformation objective to guide calibration toward
+         the most quantization-sensitive components.
+       • Extensive experiments on camera pose estimation, point map reconstruction, and depth
+         estimation demonstrate that FGQ improves task performance by up to 39% over state-
+         of-the-art PTQ baselines under 4-bit quantization, with the largest gains on point map
+         reconstruction, where prior PTQ methods incur the most significant degradation.
+
+2     Related Work
+Efficient Feed-Forward 3D Reconstruction. Recent work targets the high compute and mem-
+ory cost of feed-forward 3D reconstruction models such as VGGT. Token merging methods like
+FastVGGT [Shen et al., 2025] and LiteVGGT [Shu et al., 2025] fuse similar tokens by exploiting re-
+dundancy in global attention. Architectural redesigns restructure attention itself: FlashVGGT [Wang
+and Xu, 2025] approximates global attention as cross-attention to a compact set of descriptor tokens
+generated by spatial resampling, while AVGGT [Sun et al., 2025a] converts early global layers into
+frame attention and subsamples K/V over patch tokens. Closest to our work, recent PTQ meth-
+ods [Feng et al., 2025, Zhang et al., 2026] address two key challenges in quantizing these models: (i)
+mitigating activation outliers from data-independent special tokens (e.g., camera and register tokens),
+which yield heavy tails and extreme channel and token variance unfriendly to low-bit quantization;
+and (ii) dealing with calibration data that captures the geometric and semantic complexity of 3D
+multi-view inputs. However, prior PTQ methods apply uniform quantization across all heads and treat
+feed-forward 3D models as single-task models, overlooking the distinct quantization sensitivities of
+their depth, pose, and point map predictions.
+
+Model Quantization. Post-training quantization (PTQ) reduces the memory and compute cost of
+large language models. Weight-only methods such as GPTQ [Frantar et al., 2022] and AWQ [Lin
+et al., 2024] compress weights to low bit-widths with minimal accuracy loss. To further quantize
+activations and the KV cache, a recent line of work applies affine transformations to suppress outliers
+before quantization. QuaRot [Ashkboos et al., 2024] uses fixed random Hadamard rotations, while
+SpinQuant [Liu et al., 2024] and FlatQuant [Sun et al., 2025b] instead learn the transformation
+matrices during calibration: SpinQuant optimizes rotation matrices via Cayley optimization, and
+FlatQuant learns lightweight per-layer affine transformations that flatten weight and activation
+distributions. To better involve the sensitivity in the quantization process, we adopt the learnable
+affine transform based method as detailed in Sec. 3.2.3.
+
+3     Method
+3.1   Prelinminary
+
+Visual Geometry Grounded Transformer (VGGT) [Wang et al., 2025a] is a feed-forward trans-
+former that maps a set of N input images (Ii )N   i=1 to their 3D attributes (camera parameters, depth
+maps, point maps, and tracking features) in a single pass. Each image Ii is first patchified by a
+DINOv2 [Oquab et al., 2023] encoder into K tokens ti ∈ RK×C , and the full token set is denoted
+T = [t1 ; t2 ; . . . ; tN ] ∈ RN ×K×C . The backbone consists of L Alternating-Attention (AA) blocks,
+each interleaving two self-attention operations:
+                              1
+                          (ℓ+ 2 )                       (ℓ) 
+                        Ti          = FrameAttention Ti         ,   i = 1, . . . , N,               (1)
+                                                              1 
+                                T(ℓ+1) = GlobalAttention T(ℓ+ 2 ) ,                                 (2)
+
+
+                                                  3
+                                                                        Predicted Loss vs Real Loss
+
+
+
+
+              (a)                                  (b)                                (c)
+
+Figure 3: Fisher information accurately predicts quantization sensitivity and reveals task-specific
+patterns. (a) Per-block and per-channel quantization loss for camera pose estimation. (b) Per-block
+and per-channel quantization loss for depth estimation. The markedly quantization loss profiles
+between tasks motivate task-aware quantization strategies. (c) Fisher-predicted loss versus empirically
+measured loss across transformer blocks under W4A4 quantization, showing strong correlation
+(r = 0.88).
+
+where ℓ ∈ {0, 1, . . . , L − 1} indexes the AA block, T(ℓ) denotes the token state at the input of the ℓ-th
+                                    1
+block (with T(0) = T), and T(ℓ+ 2 ) denotes the intermediate state after frame attention but before
+global attention within the same block. Here, FrameAttention(·) operates independently within
+each image’s K tokens to preserve per-view structure, and GlobalAttention(·) operates jointly over
+all N × K tokens to propagate information across views. The refined tokens T(L) are then decoded
+by task-specific heads into the final 3D predictions.
+
+3.2     Fisher-Guided Quantization
+
+3.2.1    Sensitivity Varies Across Tasks
+To quantify the impact of quantization on each downstream task, we define the Normalized Perfor-
+mance Degradation (NPD) of task k at bit-width b as
+                                        Metrick (b) − Metrick (FP16)
+                      NPDk (b) =                                     × 100%.                            (3)
+                                              Metrick (FP16)
+
+Task-level sensitivity. As shown in Fig. 2, applying W4A4 quantization to VGGT with PTQ
+methods leads to highly unbalanced degradation across tasks: camera pose estimation remains
+relatively robust, while point map reconstruction collapses with an NPD of 200% ∼ 500%. This
+indicates that VGGT’s shared backbone routes different geometric attributes through the same
+parameters, yet each task tolerates quantization noise to varying degrees.
+
+Block and channel-level sensitivity. To locate the source of this asymmetry, we measure the
+per-block and per-channel quantization loss separately for the camera and depth tasks. As shown in
+Fig. 3(a) and (b), the two tasks produce clearly different loss profiles along both dimensions: blocks
+and channels that are critical for one task are often unimportant for the other. As a result, a uniform
+quantization policy is forced to compromise between tasks, and any objective that weights all tasks
+equally is dominated by the insensitive ones and therefore sacrifices accuracy on the sensitive ones.
+These observations motivate a task-aware design that allocates precision according to the sensitivity
+of each task at both the block and channel level.
+
+3.2.2    Fisher Information for Sensitivity Measurement
+To realize this design, we introduce a task-aware sensitivity score at the block and channel level,
+which is cheap to compute and can be directly plugged into the calibration objective. We derive
+the score from a second-order expansion of each task loss, approximate the Hessian with the Fisher
+information to avoid its prohibitive cost, and further reduce it to its diagonal form for efficiency.
+
+Quantization error and the role of the Hessian. Let hl ∈ RC denote the output of block l, where
+C is the channel dimension, and let Lk denote the loss of task k. Quantization perturbs hl by ∆hl ,
+
+
+                                                    4
+which aggregates the effect of all weight and activation rounding inside the block. A second-order
+Taylor expansion of Lk around the full-precision output gives
+                                ∆Lk ≈ gk⊤ ∆hl + 12 ∆h⊤
+                                                     l Hk ∆hl ,                                             (4)
+where gk and Hk are the gradient and Hessian of Lk with respect to hl . A pre-trained VGGT sits near
+a local optimum, and therefore E[gk ] → 0 and the first-order term vanishes in expectation [LeCun
+et al., 1989]. The expected loss change is governed by the Hessian term,
+                                     E[∆Lk ] ≈ 12 ∆h⊤
+                                                    l Hk ∆hl ,                                              (5)
+which assigns a task-specific cost to each direction of perturbation: directions with large eigenvalues
+amplify quantization error into task loss, while directions with small eigenvalues absorb it.
+
+Fisher information as a tractable surrogate. While Eq. 5 formalizes the appropriate notion
+of block-wise sensitivity, direct evaluation of Hk is computationally prohibitive in our setting.
+Second-order automatic differentiation incurs substantial runtime overhead per block and per task,
+and explicit storage of Hk requires O(C 2 ) memory per block. To avoid these costs, we use a
+Fisher-based surrogate for the Hessian. This substitution is common in the pruning and quantization
+literature [Kwon et al., 2022, Yang et al., 2024] and is motivated by the following standard identity.
+For our calibration setting, x denotes a set of input images. The variable y denotes the target signal
+used to compute the task loss Lk . We write qk (x, y) = qk (x)qk (y | x) for the task-specific calibration
+distribution. For readability, the proposition below omits the task subscript and writes q instead of qk .
+Proposition 3.1 (Conditional Hessian–Fisher identity). Let z be a differentiable argument of a
+normalized conditional model pz (y | x), where z may denote model parameters or an intermediate
+activation treated as a local input to the remaining network. Define the negative log-likelihood loss
+ℓ(z; x, y) = − log pz (y | x). Assume standard regularity conditions that allow differentiation under
+the integral. If, at z ⋆ , the data conditional distribution is matched by the model, i.e., q(y | x) =
+pz⋆ (y | x) for q(x)-almost every x, then
+        Ex∼q(x), y∼q(y|x) ∇2z ℓ(z ⋆ ; x, y) = Ex∼q(x), y∼q(y|x) ∇z ℓ(z ⋆ ; x, y)∇z ℓ(z ⋆ ; x, y)⊤ .
+                                                                                              
+                                                                                                        (6)
+The matrix on the right-hand side is the Fisher information matrix with respect to z.
+
+We give a self-contained proof of Proposition 3.1, which is an instance of the second Bartlett identity,
+in Appendix A. The proposition shows that, under a correctly specified likelihood and population
+expectation, the expected Hessian of the negative log-likelihood equals the Fisher information matrix.
+In practice, we use this identity as a motivation for replacing the block Hessian by an empirical Fisher
+estimated from first-order gradients at a well-trained checkpoint.
+Instantiating this surrogate at the output of block l gives
+                                                                                                     
+                          ⊤ hl                                                  ∂Lk (x, y) ∂Lk (x, y)
+                      1
+                                                 Fhk l c,c′ = E(x,y)∼Dcal
+                                                    
+        E[∆Lk ] ≈     2 ∆hl Fk ∆hl ,                                                                    .   (7)
+                                                                                  ∂hl,c     ∂hl,c′
+
+Here Dcal is a small calibration set. Since Fhk l only uses first-order gradients, it can be estimated
+with one backward pass per task. Moreover, evaluating the Fisher at the block output is convenient
+because ∆hl already contains the total perturbation induced by quantizing block l. Thus a single
+block-level Fisher term captures the joint sensitivity of all quantized operations inside the block. As
+shown in Fig. 3(c), this Fisher-based score is also empirically predictive of the measured quantization
+loss, with Pearson correlation r = 0.88.
+
+Diagonal approximation. Although the Fisher surrogate avoids second-order derivatives, the full
+matrix Fhk l is still a C × C matrix for each block and task. This is costly to store and its off-diagonal
+entries can be hard to estimate from a small calibration set. We therefore use the diagonal empirical
+Fisher:                                 "            2 #        N                   2
+                                           ∂Lk (x, y)         1 X ∂Lk (xn , yn )
+                Fk [l, c] = E(x,y)∼Dcal                    ≈                              .            (8)
+                                            ∂hl,c (x)         N n=1       ∂hl,c (xn )
+This reduces storage from O(C 2 ) to O(C). The quantity Fk [l, c] is the second moment of the
+per-sample gradient on channel c. Under the population Fisher identity, where the expected score is
+
+
+                                                         5
+zero, it also equals the gradient variance. Keeping only the diagonal discards cross-channel terms
+and treats channel perturbations as locally independent. This approximation is sufficient for our goal,
+since we use the score to rank channel importance rather than to recover the full curvature matrix.
+With this approximation, Eq. 7 becomes
+                                           " C                        #
+                                  1         X                      2
+                         E[∆Lk ] ≈ Ex∼Dcal      Fk [l, c] ∆hl,c (x)     .                            (9)
+                                  2         c=1
+Thus, the loss increase is approximated by a channel-wise weighted reconstruction error at the block
+output. Each Fk [l, c] measures how sensitive task k is to squared error on channel c of block l.
+Compared with a uniform reconstruction loss, this form assigns larger weights to channels that
+are more important for the task. We use these task-aware channel weights in the learnable affine
+transformation described next.
+
+3.2.3   Integrating Fisher Information into Learnable Affine Transformations
+Building on the per-channel Fisher score Fk [l, c] from Section 3.2.2, we use task sensitivity to
+guide the calibration of learnable affine transformations. Let l ∈ {1, . . . , L} index the calibrated
+transformer blocks, c ∈ {1, . . . , C} index hidden channels, and k ∈ {1, . . . , K} index VGGT task
+heads.
+
+Block-wise calibration objective. Learnable affine transformation methods [Liu et al., 2024, Sun
+et al., 2025b] insert an invertible matrix Pl into a linear layer and fold its inverse into the weight:
+                                  Yl = Xl Pl P−1
+                                                          
+                                                    l Wl = Xl Wl .                                   (10)
+Quantization is then applied to the transformed activation Xl Pl and transformed weight P−1l Wl ,
+whose distributions are easier to quantize while preserving the full-precision computation before
+quantization.
+For block l, standard calibration optimizes the learnable parameters θ l by matching the quantized
+block output h̃l to the full-precision output hl :
+                                       "            C
+                                                                                         #
+                                           1    XX                                     2
+                     Lluni (θ l ) = Ex
+                                                                                     
+                                                       hl,t,c (x) − h̃l,t,c (x; θ l )      ,  (11)
+                                         |Tl |C    c=1
+                                             t∈Tl
+where Tl denotes the tokens of block l. This uniform loss weights all channels equally, although
+errors in different channels can have very different effects on downstream task predictions.
+
+Task-aware Fisher aggregation. VGGT predicts multiple tasks, and each task head gives a Fisher
+score Fk [l, c] for channel c in block l. Since raw gradient magnitudes can differ across task heads, we
+first normalize each task by its mean Fisher value:
+                                                   L    C
+                                               1 XX
+                                      Fk =                 Fk [l′ , c′ ].                           (12)
+                                              LC ′     ′
+                                                l =1 c =1
+We then combine the normalized scores with equal task weights:
+                                               K
+                                              X   Fk [l, c]
+                                    s[l, c] =               .                                       (13)
+                                              k=1
+                                                    Fk
+Here, L is the number of calibrated blocks and C is the hidden channel dimension. This normalization
+prevents a task with larger raw gradients from dominating the calibration weights.
+
+Per-block normalization. Because calibration is performed block by block, we normalize the
+combined score within each block:
+                                                  s[l, c]
+                                   wl [c] = 1 PC                 .                            (14)
+                                                              ′
+                                             C    c′ =1 s[l, c ]
+Thus, each block has mean weight 1, so the loss scale is comparable across blocks. We also apply a
+small floor                                                     
+                                   wl [c] ← max wl [c], 0.01 ,                                (15)
+which prevents low-Fisher channels from being completely ignored.
+
+
+                                                    6
+Table 1: Camera pose estimation results for VGGT on Co3Dv2 [Reizenstein et al., 2021] and
+Re10K [Zhou et al., 2018]. AUC metrics measure the area under the cumulative error curve at
+different thresholds (higher is better). Best results in bold.
+              Bitwidth                  Co3Dv2                                         Re10K
+    Method     (W/A)
+                         AUC@30↑   AUC@15↑    AUC@5↑          AUC@3↑   AUC@30↑   AUC@15↑   AUC@5↑       AUC@3↑
+      FP16     16/16      0.9731    0.9462       0.8462       0.7630    0.8667    0.7818       0.5803   0.4688
+    RTN         4/8       0.9619    0.9238       0.7822       0.6691    0.8483    0.7514       0.5318   0.4158
+   QuaRot       4/8       0.9672    0.9343       0.8098       0.7032    0.8480    0.7537       0.5307   0.4038
+  FlatQuant     4/8       0.9674    0.9351       0.8051       0.7191    0.8481    0.7543       0.5262   0.3958
+ QuantVGGT      4/8       0.9684    0.9363       0.8127       0.7117    0.8516    0.7587       0.5379   0.4125
+    FGQ         4/8       0.9686    0.9371       0.8185       0.7230    0.8566    0.7651       0.5485   0.4318
+    RTN         4/4       0.6547    0.3950       0.0474       0.0123    0.4334    0.2520       0.0590   0.0224
+   QuaRot       4/4       0.8169    0.6471       0.2252       0.0904    0.5722    0.3952       0.1381   0.0663
+  FlatQuant     4/4       0.9295    0.8648       0.6405       0.4691    0.7240    0.5849       0.3233   0.2169
+ QuantVGGT      4/4       0.9387    0.8840       0.6973       0.5419    0.7703    0.6437       0.3845   0.2710
+    FGQ         4/4       0.9425    0.8887       0.7025       0.5575    0.7704    0.6443       0.3898   0.2756
+
+
+
+Fisher-guided calibration loss. FGQ replaces the uniform calibration loss with a Fisher-weighted
+objective:                      "                                                     #
+                                          C
+                l                   1 XX                                           2
+               LFGQ (θ l ) = Ex               wl [c] hl,t,c (x) − h̃l,t,c (x; θ l )     .   (16)
+                                  |Tl |C c=1 t∈Tl
+
+This objective allocates more calibration capacity to channels whose errors are more likely to affect
+VGGT task outputs, while still preserving all channels through the floor term.
+
+4     Evaluation
+4.1    Experimental Setup
+
+Evaluation settings. We primarily evaluate FGQ on the open-source VGGT-1.2B model [Wang
+et al., 2025a]. We consider the main 3D vision tasks supported by VGGT and evaluate each task
+on standard benchmarks: (i) camera pose estimation on Co3Dv2 [Reizenstein et al., 2021] and
+Re10K [Zhou et al., 2018]; (ii) point map reconstruction on 7-Scenes [Shotton et al., 2013],
+DTU [Jensen et al., 2014], and ETH3D [Schops et al., 2017]; and (iii) depth estimation on
+KITTI [Geiger et al., 2013] for both monocular depth and video depth settings.
+For the learnable affine quantization scheme, we implement FGQ on top of FlatQuant [Sun et al.,
+2025b]. FlatQuant is used as a strong and public quantization backbone, while FGQ elaborates the
+calibration objective. Detailed quantization and calibration settings are provided in Appendix B. We
+report results under both W4A8 and W4A4 settings to evaluate FGQ under different quantization
+regimes. To further test generalization, we also extend FGQ to the π 3 model [Wang et al., 2025b].
+The result can be found in Appendix D.
+
+Baselines. We compare FGQ against representative PTQ methods: (i) RTN: round-to-nearest
+quantization without calibration, serving as a lower bound; (ii) QuaRot [Ashkboos et al., 2024]:
+fixed Hadamard rotation for activation smoothing; (iii) FlatQuant [Sun et al., 2025b]: learnable
+affine transformations with uniform reconstruction loss, which serves as our base method; (iv)
+QuantVGGT [Feng et al., 2025]: a recent VGGT-specific PTQ method that addresses activation
+outliers from special tokens. For fair comparison, all methods use the same calibration set and
+quantization configuration.
+
+4.2    Main Results
+
+Camera pose estimation. Table 1 evaluates camera pose estimation on Co3Dv2 and Re10K.
+Under W4A8, most methods remain close to FP16, indicating that this task is relatively robust to
+moderate activation quantization. In this setting, FGQ still gives the best overall results on Re10K and
+competitive results on Co3Dv2. In the more challenging W4A4 setting, where activation quantization
+introduces a larger performance drop, FGQ consistently performs on par with or better than existing
+quantization baselines across datasets. Compared with the dense reconstruction results below, the
+
+
+                                                          7
+Table 2: Point map reconstruction results for VGGT on 7-Scenes [Shotton et al., 2013] and
+ETH3D [Schops et al., 2017]. Acc measures accuracy (higher is better), Comp measures com-
+pleteness (lower is better), and N.C. measures normal consistency (higher is better). Best results in
+bold.
+                                           7-Scenes                                        ETH3D
+              Bitwidth
+   Method      (W/A)        Acc.↓          Comp.↓            N.C.↑          Acc.↓          Comp.↓           N.C.↑
+                         mean    med     mean    med     mean    med     mean    med     mean    med     mean    med
+    FP16       16/16     0.044   0.024   0.056   0.033   0.733   0.846   0.263   0.167   0.288   0.167   0.846   0.947
+    RTN         4/8      0.046   0.027   0.060   0.037   0.729   0.839   0.271   0.183   0.299   0.174   0.840   0.938
+   QuaRot       4/8      0.047   0.027   0.056   0.033   0.736   0.848   0.262   0.174   0.272   0.161   0.846   0.951
+  FlatQuant     4/8      0.045   0.025   0.055   0.031   0.732   0.845   0.262   0.169   0.287   0.168   0.845   0.943
+ QuantVGGT      4/8      0.044   0.025   0.056   0.033   0.729   0.840   0.269   0.185   0.292   0.170   0.842   0.942
+    FGQ         4/8      0.043   0.024   0.055   0.031   0.736   0.848   0.260   0.165   0.270   0.158   0.848   0.949
+    RTN         4/4      0.146   0.103   0.134   0.086   0.600   0.655   0.944   0.843   1.339   0.920   0.603   0.656
+   QuaRot       4/4      0.107   0.079   0.165   0.128   0.663   0.749   0.917   0.781   1.151   0.757   0.667   0.753
+  FlatQuant     4/4      0.056   0.036   0.070   0.047   0.717   0.824   0.291   0.193   0.297   0.173   0.833   0.935
+ QuantVGGT      4/4      0.053   0.032   0.085   0.059   0.719   0.828   0.312   0.206   0.305   0.180   0.832   0.937
+    FGQ         4/4      0.048   0.031   0.059   0.036   0.723   0.832   0.275   0.177   0.279   0.164   0.834   0.940
+
+
+
+improvement on pose estimation is modest, suggesting that this global prediction task is less sensitive
+to the Fisher-guided channel selection than dense geometric outputs.
+
+
+Point map reconstruction. Table 2 and 3 report point map reconstruction results on 7-Scenes,
+ETH3D, and DTU. FGQ shows a clearer advantage on this task. Point maps are dense geometric
+outputs, so activation quantization errors affect many spatial locations and can directly degrade
+surface accuracy, completeness, and normal consistency. Under W4A8, FGQ closely matches
+FP16 and obtains the strongest overall performance. Under W4A4, the advantage becomes more
+pronounced. On 7-Scenes, FGQ reduces the mean completeness error from 0.085 to 0.059 compared
+with QuantVGGT, while also improving mean accuracy from 0.053 to 0.048. On ETH3D, FGQ
+improves mean accuracy from 0.312 to 0.275 and mean completeness from 0.305 to 0.279. On
+DTU, FGQ also gives the best completeness and normal consistency among W4A4 methods. These
+results indicate that FGQ better preserves the features needed for dense 3D geometry. Qualitative
+comparisons are shown in Figure 1 and Appendix G. On 7-Scenes, FGQ (W4A4) preserves finer
+structural details than QuantVGGT (W4A4), while on DTU the QuantVGGT (W4A4) reconstruction
+appears visibly blurry and FGQ (W4A4) remains sharp.
+
+
+Depth estimation. Table 4 re- Table 3: Point map reconstruction for VGGT on DTU [Jensen
+ports depth estimation results et al., 2014]. Best results in bold.
+on KITTI for both monocular
+                                                                                DTU
+and video inputs. FGQ con-                        Bitwidth
+                                        Method     (W/A)        Acc.↓         Comp.↓         N.C.↑
+sistently outperforms the quan-
+tization baselines in the W4A8                              Mean     Med   Mean     Med  Mean     Med
+setting, achieving the best re-          FP16        16     1.308   0.761  1.929   1.015 0.665   0.750
+sults across all metrics on both         RTN         4/8    1.363   0.786  1.904   0.976 0.669   0.753
+evaluation protocols. The gains         QuaRot       4/8    1.401   0.815  1.899   0.978 0.668   0.754
+are especially clear on error          FlatQuant     4/8    1.429   0.840  1.910   0.977 0.665   0.752
+                                      QuantVGGT      4/8    1.292   0.752  1.944   1.007 0.667   0.753
+metrics such as AbsRel, SqRel,           FGQ         4/8    1.287   0.742  1.881   0.965 0.675   0.762
+and RMSE, showing that Fisher-           RTN         4/4    7.987   5.648  4.355   2.593 0.657   0.731
+guided calibration better pre-          QuaRot       4/4    3.470   2.107  2.145   1.077 0.665   0.750
+serves the dense depth structure       FlatQuant     4/4    1.478   0.829  1.895   0.982 0.667   0.754
+                                      QuantVGGT      4/4    1.488   0.837  1.933   1.001 0.669   0.756
+under activation quantization. In        FGQ         4/4    1.420   0.801  1.879   0.965 0.669   0.757
+the more aggressive W4A4 set-
+ting, FGQ remains the strongest overall method. It achieves the best AbsRel, SqRel, and threshold
+accuracy on KITTI Mono, and the best overall error metrics on KITTI Video among the W4A4
+methods. These results are consistent with the point map reconstruction experiments: FGQ provides
+larger benefits on dense geometric tasks than on global pose estimation, since dense outputs are more
+sensitive to spatially accumulated quantization errors.
+
+
+                                                         8
+Table 4: Depth estimation results on KITTI (monocular and video depth). Lower is better for AbsRel,
+SqRel, and RMSE; higher is better for δ < 1.25. Best results in bold.
+                                                 KITTI (Mono)                                                KITTI (Video)
+      Method      Bitwidth (W/A)
+                                     AbsRel↓   SqRel↓   RMSE↓     δ < 1.25↑                      AbsRel↓   SqRel↓   RMSE↓    δ < 1.25↑
+      FP16             16/16          0.092    0.459    3.902       0.936                         0.058    0.373    3.618      0.961
+    RTN                 4/8           0.093    0.453    3.903       0.936                         0.058    0.348    3.500      0.964
+   QuaRot               4/8           0.087    0.443    3.897       0.943                         0.059    0.364    3.642      0.963
+  FlatQuant             4/8           0.087    0.410    3.623       0.946                         0.052    0.314    3.350      0.968
+ QuantVGGT              4/8           0.091    0.462    3.931       0.936                         0.054    0.339    3.450      0.967
+    FGQ                 4/8           0.086    0.396    3.566       0.947                         0.051    0.292    3.240      0.970
+    RTN                 4/4           0.148    0.728    5.159       0.823                         0.164    0.985    5.615      0.748
+   QuaRot               4/4           0.117    0.487    4.083       0.903                         0.126    0.713    4.896      0.838
+  FlatQuant             4/4           0.084    0.399    3.650       0.948                         0.062    0.339    3.488      0.960
+ QuantVGGT              4/4           0.088    0.446    3.842       0.938                         0.058    0.336    3.486      0.963
+    FGQ                 4/4           0.079    0.389    3.642       0.951                         0.056    0.313    3.384      0.965
+
+
+
+                              Table 5: Ablation study on the Fisher Information design.
+               Fisher Info.              Co3Dv2 AUC@15 ↑        Fisher Info.                               DTU Acc. mean ↓
+               plain (w/o Fisher)              0.8825           plain (w/o Fisher)                              1.537
+               point                           0.8868           camera                                          1.465
+               point + depth                   0.8875           camera + depth                                  1.458
+               point + depth + camera          0.8952           camera + depth + point                          1.446
+
+
+
+
+4.3     Ablation study
+
+We study the effect of different task losses in the empirical Fisher estimation. All variants use the
+same quantization setting, calibration data, optimization steps, and evaluation protocol. The plain
+baseline removes Fisher weighting and uses an unweighted calibration objective. Co3Dv2 mainly
+evaluates camera pose accuracy, while DTU evaluates point-map reconstruction. As shown in Table 5,
+Fisher weighting improves both benchmarks. On Co3Dv2, adding point and depth Fisher improves
+AUC@15 from 0.8825 to 0.8875, while further adding camera Fisher gives the largest gain and
+reaches 0.8952. On DTU, adding point Fisher to the camera-depth Fisher gives the best Acc. mean,
+reducing it from 1.458 to 1.446. This shows that the Fisher term is most useful when it includes the
+task aligned with the evaluation metric. At the same time, the gains from multi-task Fisher suggest
+that different task losses provide complementary channel sensitivity signals.
+
+
+4.4     Efficiency Analysis
+
+We evaluate the runtime efficiency of our W4A4 quantized                      Fake        RTN       Ours
+model on a single NVIDIA A100 40G GPU. To measure              7
+the benefit of real low-bit execution, we use fake quanti-
+                                                                            Normalized Speedup
+
+
+
+
+                                                                                        6.01
+                                                               6
+zation as the baseline and report speedups from the real
+                                                               5                             4.67
+quantized implementation. Our implementation builds on
+the Triton kernel from FlatQuant [Sun et al., 2025b] and       4        3.41 3.42
+
+tailors it to our design. We decompose the latency into        3
+                                                                                                       2.01
+parameter loading and compute kernel time, where the           2                                            1.81
+
+compute kernel includes the affine transformation, quan-       1
+                                                                   1.00            1.00           1.00
+
+
+tization, and quantized linear computation. For parameter
+                                                               0
+loading, RTN and our method achieve similar speedups,                  Data        Compute          Overall
+3.41× and 3.42×, since both benefit from 4-bit weight and            loading          kernel
+
+activation storage. For the compute kernel, RTN reaches Figure 4: Normalized Speedup over the
+6.01×, while our method reaches 4.67×. The gap comes same W4A4 quantization settings.
+from the extra affine transformation used by our method.
+At the full block level, RTN obtains 2.01× speedup and our method still achieves 1.81× speedup.
+These results show that our method keeps most of the real quantization efficiency while adding only
+moderate runtime overhead for the accuracy-preserving affine transformation.
+
+
+                                                          9
+5   Conclusion
+We presented Fisher-Guided Quantization (FGQ), a post-training quantization method for feed-
+forward 3D reconstruction models. Our main observation is that different transformer blocks and
+hidden channels in the model contribute differently to each task. As a result, uniformly treating all
+outputs during calibration can therefore preserve insensitive tasks while harming the tasks that are
+more sensitive to quantization noise. FGQ addresses this issue by using diagonal Fisher information
+to estimate task-aware block and channel sensitivities, and by incorporating these sensitivities into the
+learnable affine transformation during calibration. Extensive experiments show that FGQ consistently
+outperforms existing PTQ baselines under 4-bit quantization, with the largest gains appearing on
+point map reconstruction, where prior PTQ methods suffer the most severe degradation.
+
+References
+Saleh Ashkboos, Amirkeivan Mohtashami, Maximilian L Croci, Bo Li, Pashmina Cameron, Martin
+  Jaggi, Dan Alistarh, Torsten Hoefler, and James Hensman. Quarot: Outlier-free 4-bit inference in
+  rotated llms. Advances in Neural Information Processing Systems, 37:100213–100240, 2024.
+Weilun Feng, Haotong Qin, Mingqiang Wu, Chuanguang Yang, Yuqi Li, Xiangqi Li, Zhulin An, Libo
+ Huang, Yulun Zhang, Michele Magno, et al. Quantized visual geometry grounded transformer.
+ arXiv preprint arXiv:2509.21302, 2025.
+Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan Alistarh. Gptq: Accurate post-training
+  quantization for generative pre-trained transformers. arXiv preprint arXiv:2210.17323, 2022.
+Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel Urtasun. Vision meets robotics: The kitti
+  dataset. The international journal of robotics research, 32(11):1231–1237, 2013.
+Wenbo Hu, Jingli Lin, Yilin Long, Yunlong Ran, Lihan Jiang, Yifan Wang, Chenming Zhu, Runsen
+ Xu, Tai Wang, and Jiangmiao Pang. g 2 vlm: Geometry grounded vision language model with
+ unified 3d reconstruction and spatial reasoning. arXiv preprint arXiv:2511.21688, 2025.
+Rasmus Jensen, Anders Dahl, George Vogiatzis, Engin Tola, and Henrik Aanæs. Large scale multi-
+  view stereopsis evaluation. In Proceedings of the IEEE conference on computer vision and pattern
+  recognition, pages 406–413, 2014.
+Woosuk Kwon, Sehoon Kim, Michael W Mahoney, Joseph Hassoun, Kurt Keutzer, and Amir
+ Gholami. A fast post-training pruning framework for transformers. Advances in Neural Information
+ Processing Systems, 35:24101–24116, 2022.
+Yann LeCun, John Denker, and Sara Solla. Optimal brain damage. Advances in neural information
+  processing systems, 2, 1989.
+Ji Lin, Jiaming Tang, Haotian Tang, Shang Yang, Wei-Ming Chen, Wei-Chen Wang, Guangxuan
+   Xiao, Xingyu Dang, Chuang Gan, and Song Han. Awq: Activation-aware weight quantization for
+   on-device llm compression and acceleration. Proceedings of machine learning and systems, 6:
+   87–100, 2024.
+Junhong Lin, Kangli Wang, Shunzhou Wang, Songlin Fan, Ge Li, and Wei Gao. Vgd: Visual
+  geometry gaussian splatting for feed-forward surround-view driving reconstruction. arXiv preprint
+  arXiv:2510.19578, 2025.
+Zechun Liu, Changsheng Zhao, Igor Fedorov, Bilge Soran, Dhruv Choudhary, Raghuraman Krish-
+  namoorthi, Vikas Chandra, Yuandong Tian, and Tijmen Blankevoort. Spinquant: Llm quantization
+  with learned rotations. arXiv preprint arXiv:2405.16406, 2024.
+Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov,
+ Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. Dinov2: Learning
+ robust visual features without supervision. arXiv preprint arXiv:2304.07193, 2023.
+Sicheng Pan, Chen Tang, Shuzhao Xie, Ke Yang, Weixiang Zhang, Jiawei Li, Bin Chen, Shu-Tao
+  Xia, and Zhi Wang. Tail-aware post-training quantization for 3d geometry models. arXiv preprint
+  arXiv:2602.01741, 2026.
+
+
+                                                   10
+Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David
+   Novotny. Common objects in 3d: Large-scale learning and evaluation of real-life 3d category
+   reconstruction. In Proceedings of the IEEE/CVF international conference on computer vision,
+   pages 10901–10911, 2021.
+Thomas Schops, Johannes L Schonberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc
+  Pollefeys, and Andreas Geiger. A multi-view stereo benchmark with high-resolution images and
+  multi-camera videos. In Proceedings of the IEEE conference on computer vision and pattern
+  recognition, pages 3260–3269, 2017.
+You Shen, Zhipeng Zhang, Yansong Qu, Xiawu Zheng, Jiayi Ji, Shengchuan Zhang, and Liu-
+  juan Cao. Fastvggt: Training-free acceleration of visual geometry transformer. arXiv preprint
+  arXiv:2509.02560, 2025.
+Jamie Shotton, Ben Glocker, Christopher Zach, Shahram Izadi, Antonio Criminisi, and Andrew
+  Fitzgibbon. Scene coordinate regression forests for camera relocalization in rgb-d images. In
+  Proceedings of the IEEE conference on computer vision and pattern recognition, pages 2930–2937,
+  2013.
+Zhijian Shu, Cheng Lin, Tao Xie, Wei Yin, Ben Li, Zhiyuan Pu, Weize Li, Yao Yao, Xun Cao,
+  Xiaoyang Guo, et al. Litevggt: Boosting vanilla vggt via geometry-aware cached token merging.
+  arXiv preprint arXiv:2512.04939, 2025.
+Xianbing Sun, Zhikai Zhu, Zhengyu Lou, Bo Yang, Jinyang Tang, Liqing Zhang, He Wang, and Jianfu
+  Zhang. Avggt: Rethinking global attention for accelerating vggt. arXiv preprint arXiv:2512.02541,
+  2025a.
+Yuxuan Sun, Ruikang Liu, Haoli Bai, Han Bao, Kang Zhao, Yuening Li, Jiaxin Hu, Xianzhi Yu,
+  Lu Hou, Chun Yuan, et al. Flatquant: Flatness matters for llm quantization. In International
+  Conference on Machine Learning, pages 57587–57613. PMLR, 2025b.
+Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David
+   Novotny. Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision
+   and Pattern Recognition Conference, pages 5294–5306, 2025a.
+Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen,
+  Jiangmiao Pang, Chunhua Shen, and Tong He. π 3 : Permutation-equivariant visual geometry
+  learning. arXiv preprint arXiv:2507.13347, 2025b.
+Zipeng Wang and Dan Xu. Flashvggt: Efficient and scalable visual geometry transformers with
+  compressed descriptor attention. arXiv preprint arXiv:2512.01540, 2025.
+Huanrui Yang, Yafeng Huang, Zhen Dong, Denis A Gudovskiy, Tomoyuki Okuno, Yohei Nakata,
+ Yuan Du, Kurt Keutzer, and Shanghang Zhang. Fisher-aware quantization for detr detectors with
+  critical-category objectives. arXiv preprint arXiv:2407.03442, 2024.
+Sizhe Yang, Linning Xu, Hao Li, Juncheng Mu, Jia Zeng, Dahua Lin, and Jiangmiao Pang. Robo3r:
+  Enhancing robotic manipulation with accurate feed-forward 3d reconstruction. arXiv preprint
+  arXiv:2602.10101, 2026.
+Yipu Zhang, Jintao Cheng, Xingyu Liu, Zeyu Li, Carol Jingyi Li, Jin Wu, Lin Jiang, Yuan Xie,
+  Jiang Xu, and Wei Zhang. Versaq-3d: A reconfigurable accelerator enabling feed-forward and
+  generalizable 3d reconstruction via versatile quantization. arXiv preprint arXiv:2601.20317, 2026.
+Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe, and Noah Snavely. Stereo magnification:
+  Learning view synthesis using multiplane images. arXiv preprint arXiv:1805.09817, 2018.
+
+
+
+
+                                                11
+A      Proof of Proposition 3.1
+We prove the identity for a continuous label space. The same argument applies to discrete labels by
+replacing integrals with sums. Fix an input x. Since pz (y | x) is a normalized conditional distribution,
+                                         Z
+                                            pz (y | x) dy = 1.                                      (17)
+
+Under the stated regularity conditions, we may differentiate Eq. (17) with respect to z. Differentiating
+once gives                Z                    Z
+                     0=      ∇z pz (y | x) dy =     pz (y | x)∇z log pz (y | x) dy.                 (18)
+
+Thus the expected score is zero:
+                                   Ey∼pz (·|x) [∇z log pz (y | x)] = 0.                             (19)
+
+Differentiating Eq. (18) once more gives
+                Z
+            0 = ∇z [pz (y | x)∇z log pz (y | x)] dy
+                Z
+              = pz (y | x) ∇2z log pz (y | x) + ∇z log pz (y | x)∇z log pz (y | x)⊤ dy.
+                                                                                  
+                                                                                                    (20)
+
+Equivalently,
+
+         Ey∼pz (·|x) −∇2z log pz (y | x) = Ey∼pz (·|x) ∇z log pz (y | x)∇z log pz (y | x)⊤ .
+                                                                                       
+                                                                                                    (21)
+
+Now define the negative log-likelihood loss
+                                     ℓ(z; x, y) = − log pz (y | x).                                 (22)
+Then
+            ∇2z ℓ(z; x, y) = −∇2z log pz (y | x),        ∇z ℓ(z; x, y) = −∇z log pz (y | x).        (23)
+Substituting these relations into Eq. (21) yields
+
+                Ey∼pz (·|x) ∇2z ℓ(z; x, y) = Ey∼pz (·|x) ∇z ℓ(z; x, y)∇z ℓ(z; x, y)⊤ .
+                                                                                 
+                                                                                                    (24)
+
+Evaluating Eq. (24) at z = z ⋆ and using the assumption q(y | x) = pz⋆ (y | x), we obtain
+
+              Ey∼q(·|x) ∇2z ℓ(z ⋆ ; x, y) = Ey∼q(·|x) ∇z ℓ(z ⋆ ; x, y)∇z ℓ(z ⋆ ; x, y)⊤ .
+                                                                                    
+                                                                                                    (25)
+Finally, taking expectation over x ∼ q(x) gives
+
+     Ex∼q(x), y∼q(y|x) ∇2z ℓ(z ⋆ ; x, y) = Ex∼q(x), y∼q(y|x) ∇z ℓ(z ⋆ ; x, y)∇z ℓ(z ⋆ ; x, y)⊤ ,
+                                                                                           
+                                                                                                    (26)
+which proves Proposition 3.1.
+
+B    Quantization and Calibration Settings
+Implementation based on FlatQuant. FGQ is implemented on top of FlatQuant [Sun et al.,
+2025b]. We use the same learnable affine transformation modules, learnable clipping parameters,
+and quantizer placement as FlatQuant. All pretrained model parameters are frozen before calibration.
+Calibration is performed block by block, and only the calibration parameters in the current block
+are optimized. Specifically, the trainable parameters are the FlatQuant transformation parameters,
+including the transformation matrices and diagonal scales, together with the learnable weight-clipping
+and activation-clipping factors. The original linear weights and biases, normalization layers, patch
+embedding/DINOv2 backbone, prediction heads, and all non-current blocks are kept frozen. This
+setup isolates the effect of replacing the standard FlatQuant reconstruction loss with the proposed
+Fisher-guided calibration loss.
+
+
+                                                    12
+Quantization setting. For the default W4A4 setting, both weights and activations are quantized to
+4 bits. Weight and activation quantization are symmetric. Weights are quantized per output channel,
+while activations are quantized per token without grouping. Learnable weight clipping and learnable
+activation clipping are enabled. Quantization is applied to the attention projections, including Q,
+K, V , and output projections, as well as the MLP linear layers in the VGGT aggregator frame and
+global blocks. The DINOv2/patch embedding module, camera/depth/point/track heads, normalization
+parameters, and special tokens are not quantized.
+
+Tasks and metrics. VGGT jointly predicts three tasks. For depth estimation, we report absolute
+relative error (AbsRel) and δ1 accuracy (percentage of pixels with relative error < 1.25). For camera
+pose estimation, we report the Area Under the Curve (AUC) of pose accuracy across multiple
+thresholds. For point map reconstruction, we report Accuracy (Acc.), Completeness (Comp.), and
+Normal Consistency (N.C.), with both mean and median values.
+
+Calibration data. We use Co3Dv2 [Reizenstein et al., 2021] as the calibration data source. For
+calibration, we sample 64 clips, with 4 frames per clip. The batch size is 2 clips, corresponding to 8
+frames per mini-batch. The default random seed is 42. The sampled calibration clips are loaded once
+and then reused for all blocks and all calibration epochs. The implementation samples directly from
+the raw Co3Dv2 directory by first sampling a category, then a sequence, and then 4 images from the
+sequence image folder. The current sampler does not use annotation-based quality filters. Frames are
+randomly sampled from the available images in each sequence, and no explicit temporal stride or
+temporal ordering constraint is imposed.
+
+Optimization hyperparameters. Calibration uses AdamW. Unless overridden by parameter groups,
+AdamW uses the PyTorch default hyperparameters: β1 = 0.9, β2 = 0.999, ϵ = 10−8 , and weight
+decay 0.01. No gradient clipping is used. Mixed precision is enabled by default using CUDA
+bfloat16 autocast, without a gradient scaler. The base learning rate for the FlatQuant transformation
+matrices and diagonal scales is 10−2 . The learning rate for the learnable weight-clipping and
+activation-clipping factors is 10 times larger, i.e., 10−1 in the default W4A4 setting.
+The learning rate is decayed with a cosine schedule. The scheduler is stepped once per optimizer step.
+For each block, the number of calibration epochs is 15. With 64 clips and a batch size of 2 clips, this
+gives 32 mini-batches per epoch and 480 optimizer steps per block. VGGT contains 48 calibrated
+aggregator blocks, so the full W4A4 calibration uses 48 × 480 = 23040 optimizer steps. The cosine
+schedule uses
+                           Tmax = epochs × (nsamples//cali_bsz) ,
+with minimum learning rate ηmin = 10−5 for the default setting.
+
+Model mode during calibration. The model is kept in evaluation mode during calibration. Thus,
+dropout and stochastic-depth layers are disabled, and batch-normalization layers, if present, use
+evaluation behavior. Gradients are enabled only for the current block’s calibration parameters. For
+each block, the full-precision output of that block is first used as the reconstruction target, and the
+quantized block output is then optimized to match this target.
+
+Fisher information estimation. For FGQ, the Fisher information is estimated once before calibra-
+tion and then kept fixed throughout calibration. We use the same Co3Dv2 sampling configuration as
+calibration: 64 clips, 4 frames per clip, image size 518, and random seed 42. The Fisher-estimation
+clips and calibration clips are generated independently by the same deterministic sampling procedure,
+rather than being explicitly saved and reused by identity.
+Our implementation uses a diagonal activation Fisher approximation rather than a parameter Fisher.
+Hooks are registered on the outputs of the VGGT aggregator frame and global blocks. For VGGT,
+this gives 48 calibrated blocks. We estimate Fisher information for three output tasks: camera, depth,
+and world points, corresponding to pose_enc, depth, and world_points. For each task, we use
+the sum of the task output as the scalar objective and accumulate squared gradients with respect to
+the hooked block activations. For task k, block ℓ, and channel c, the raw Fisher estimate is
+                                               N
+                                                               !2
+                                           1 XX           ∂Lk
+                                  Fk,ℓ,c =                 (n)
+                                                                    ,
+                                           N n=1 t       ∂h ℓ,t,c
+
+
+                                                  13
+Table 6: Calibration overhead and end-task performance comparison. Numbers in red indicate the
+change of FGQ relative to the Baseline PTQ (FlatQuant).
+                                         Calibration Overhead                           Performance
+ Method
+                             GPU memory (GB)         GPU time (hours)   AUC@15 (Co3Dv2)↑        DTU Acc. mean↓
+ FP16                        –                       –                  0.9462                  1.308
+ Baseline PTQ (FlatQuant)    3.54                    0.87               0.8825                  1.537
+ FGQ (Ours)                  3.62+0.08               0.92+0.05          0.8952+0.0127           1.446-0.091
+
+
+          (n)
+where hℓ,t,c is the activation of channel c at token t in block ℓ for sample n, and Lk is the scalar
+objective for task k. The Fisher tensor therefore has shape 3 × 48 × 1024, corresponding to tasks,
+blocks, and channels. Forward passes for Fisher estimation use CUDA bfloat16 autocast, while
+gradients are cast to float32 before accumulation. The saved Fisher tensor is stored in float32.
+Before being used in FGQ calibration, the raw Fisher tensor is normalized. First, each task Fisher is
+divided by its global mean. The normalized task Fishers are then summed with equal weight. Finally,
+the resulting per-block Fisher weights are normalized so that each block has mean weight 1, and the
+minimum weight is clamped to 0.01. No clipping or damping is applied to the raw Fisher values
+before this loading-time normalization.
+
+FGQ calibration loss.       FlatQuant uses an unweighted block-output reconstruction loss,
+                                                              
+                                   LFlatQuant = MSE yℓq , yℓfp ,
+
+where yℓq and yℓfp denote the quantized and full-precision outputs of the current block ℓ, respectively.
+FGQ replaces this loss with a Fisher-weighted reconstruction loss,
+                                                         C                2
+                                             1 XX        
+                                                           q        fp
+                             LFGQ =                  wℓ,c yℓ,t,c − yℓ,t,c    ,
+                                           |T |C c=1
+                                                  t∈T
+
+where wℓ,c is the fixed Fisher-derived weight for channel c in block ℓ, T is the set of tokens, and C is
+the channel dimension. Calibration proceeds block by block in the order
+                            frame_0, global_0, . . . , frame_23, global_23.
+Before backpropagation, the scalar loss is divided by its detached value. This normalization preserves
+the gradient direction while stabilizing the gradient scale.
+
+C    Calibration Overhead
+All calibration experiments are conducted on a single NVIDIA A100 40GB GPU. In a representative
+W4A4 run, FlatQuant takes 52.53 minutes for calibration, while FGQ takes 55.54 minutes. The
+corresponding peak GPU memory usage is 3.54 GB for FlatQuant and 3.62 GB for FGQ. Compared
+with FlatQuant, FGQ increases the calibration time by 3.01 minutes, corresponding to a relative
+overhead of approximately 5.73%, and increases the peak GPU memory usage by only 0.08 GB,
+corresponding to approximately 2.26%. Because Fisher estimation uses only 64 clips with 4 frames
+per clip and is performed once, its cost remains small compared with model training. The detailed
+calibration memory usage and computation time are given in Table 6.
+
+D    FGQ Evaluation Result on π 3
+We further extend our method to π 3 [Wang et al., 2025b], the most recent feed-forward 3D recon-
+struction model. Table 7 summarizes FGQ’s performance on π 3 .
+On camera pose estimation, RTN collapses under 4/4 quantization, with AUC@3 on Co3Dv2
+dropping from 0.5140 (FP16) to 0.0246, showing that π 3 is highly sensitive to quantization error.
+FlatQuant recovers a large portion of this gap but still suffers noticeable degradation at tight thresholds
+such as AUC@5 and AUC@3. FGQ consistently improves over FlatQuant on every threshold of both
+
+
+                                                          14
+Table 7: π 3 [Wang et al., 2025b] evaluation results. Top: camera pose estimation on Co3Dv2 [Reizen-
+stein et al., 2021] and Re10K [Zhou et al., 2018] (AUC, higher is better). Bottom: point map
+reconstruction on DTU [Jensen et al., 2014] and ETH3D [Schops et al., 2017] (Acc and Comp lower
+is better; N.C. higher is better). Best results in bold.
+             Bitwidth                         Co3Dv2                                                     Re10K
+    Method    (W/A)
+                        AUC@30↑       AUC@15↑        AUC@5↑         AUC@3↑        AUC@30↑      AUC@15↑        AUC@5↑         AUC@3↑
+    FP16      16/16      0.9441           0.8882         0.6811        0.5140      0.8907           0.8212       0.6511          0.5523
+   RTN         4/4       0.7684           0.5491         0.0954        0.0246      0.5662           0.4040       0.1538          0.0740
+ FlatQuant     4/4       0.9119           0.8240         0.5022        0.2686      0.8298           0.7317       0.5204          0.4142
+   FGQ         4/4       0.9394           0.8795         0.6711        0.5032      0.8436           0.7502       0.5517          0.4461
+
+
+
+                                                   DTU                                                   ETH3D
+             Bitwidth
+    Method    (W/A)        Acc.↓               Comp.↓                  N.C.↑          Acc.↓              Comp.↓             N.C.↑
+                        mean      med       mean         med      mean     med     mean     med       mean    med         mean     med
+     FP16     16/16     1.138     0.606     1.926    0.624        0.662   0.747   0.188     0.123     0.211   0.128   0.884        0.971
+   RTN         4/4      7.744     5.814    19.290    17.076       0.585   0.630   1.353     1.263     2.030   1.647   0.589        0.628
+ FlatQuant     4/4      1.396     0.745    1.917      0.622       0.662   0.746   0.197     0.134     0.217   0.145   0.870        0.959
+   FGQ         4/4      1.358     0.726    1.878      0.599       0.663   0.747   0.193     0.130     0.215   0.131   0.874        0.961
+
+
+
+
+Co3Dv2 and Re10K, with the largest gains observed at tighter thresholds. For example, on Co3Dv2
+FGQ raises AUC@3 from 0.2686 (FlatQuant) to 0.5032, approaching the FP16 result of 0.5140.
+For point map reconstruction, FGQ outperforms FlatQuant on all metrics across DTU and ETH3D,
+and its results closely track the FP16 baseline (e.g., DTU Acc. mean 1.358 vs. FP16’s 1.138, ETH3D
+N.C. mean 0.874 vs. FP16’s 0.884). Overall, these results demonstrate that FGQ preserves π 3 ’s 3D
+geometric reasoning quality under aggressive 4-bit quantization while incurring minimal calibration
+overhead.
+
+
+E      Limitations
+
+FGQ has several limitations that we leave for future work. First, our experiments focus on standard
+INT4 weight-activation quantization. We have not yet studied how Fisher-guided calibration interacts
+with newer low-precision formats, such as MXFP4 or other floating-point 4-bit variants. Since
+these formats have different dynamic ranges and rounding behavior, they may benefit from different
+calibration schedules or Fisher weighting strategies.
+Second, FGQ is evaluated with a fixed calibration protocol. We use the same calibration data scale
+and preprocessing across experiments to isolate the effect of Fisher-guided weighting. We do not
+attempt to optimize the calibration set construction, such as the category balance, scene diversity, or
+view distribution. Studying how to choose the most informative calibration samples for feed-forward
+3D reconstruction is an interesting direction, but is orthogonal to the calibration objective proposed
+in this work.
+
+
+F     Impact Statement
+
+This work advances the practical deployment of feed-forward 3D reconstruction models by sub-
+stantially reducing their memory and computational overhead through post-training quantization,
+enabling on-device 3D perception for applications such as augmented and virtual reality, robotics,
+autonomous driving, and assistive technologies. By lowering hardware requirements, FGQ helps
+democratize access to advanced 3D vision capabilities for researchers and developers with limited
+resources, while also reducing the energy consumption and carbon footprint associated with running
+billion-parameter models.
+
+
+                                                                  15
+    Ground Truth                   QuantVGGT W4A4                       FGQ W4A4 (Ours)
+
+
+
+
+Figure 5: Visual comparison results for VGGT on DTU [Jensen et al., 2014] for Ground Truth,
+QuantVGGT [Feng et al., 2025] W4A4, and FGQ W4A4.
+
+
+        Ground Truth                  QuantVGGT W4A4                   FGQ W4A4 (Ours)
+
+
+
+
+Figure 6: Visual comparison results for VGGT on 7-Scenes [Shotton et al., 2013] for Ground Truth,
+QuantVGGT [Feng et al., 2025] W4A4, and FGQ W4A4.
+
+
+G    More Visualization Results
+Here we exhibit more visualization result for VGGT [Wang et al., 2025a] on DTU [Jensen et al.,
+2014] (Fig. 5) and 7-Scenes [Shotton et al., 2013] (Fig. 6).
+Moreover, we provide the visualization result for π 3 [Wang et al., 2025b] on 7-Scenes [Shotton et al.,
+2013] in Fig. 7 to show FGQ’s improvement over RTN.
+
+
+
+
+                                                  16
+     Ground Truth                       𝛑3 RTN W4A4                  𝛑3 FGQ W4A4 (Ours)
+
+
+
+
+Figure 7: Visual comparison results for π 3 on 7-Scenes [Shotton et al., 2013] for Ground Truth, RTN
+W4A4, and FGQ W4A4.
+
+
+
+
+                                                17
+

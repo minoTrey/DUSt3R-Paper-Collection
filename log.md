@@ -360,6 +360,46 @@ arXiv 키워드 합집합으로 신규를 발굴. 3R 이름이 아니어도 DUSt
 남은 사각지대는 verify_all.py가 매번 명시한다 — 의미 정합(TL;DR↔본문),
 수치 귀속의 확정 판단, UNKNOWN venue는 여전히 사람/시간이 필요하다.
 
+## [2026-07-21] 대규모 확장 — 발굴 133편 문서화 (131 → 264편)
+
+`discover_papers.py`가 발굴한 160편 후보를 하나씩 검토·문서화했다. 짧게 넘기지
+않고 각 논문을 원문 대조하며 정확히 정리하는 데 집중했다.
+
+**선별 (160 → IN 133)**
+
+160편 전부 초록을 개별 판정: IN 128 / OUT 23 / BORDERLINE 9. 경계 9편은 초록을
+다시 읽어 재판정(IN 5 / OUT 4). 최종 IN 133편. OUT은 recon이 도구인 것
+(내비게이션·VLA policy·VINS·데이터셋 논문 등). candidates/triage.tsv에 전 판정 기록.
+
+**문서화 (3 웨이브, 133편)**
+
+carte고리별 14배치로 나눠 서브에이전트가 논문 하나하나 작성. 규약:
+
+- 모든 수치를 원문 PDF와 대조 (candidates/pdftext). 못 찾으면 적지 않음.
+- 지표명·화살표 방향 원문 그대로. 논문이 지는 지점도 기록(유리한 행만 고르지 않음).
+- 그림에만 있는 수치는 "그림 N, 수치 미인쇄"로 표기, 전사 안 함.
+- 12열 초과 표는 분할. slug이 문장/일반명사면 실제 약칭으로 재명명
+  (learning→c4g, hsr-oneworld→show, global-sfm-ff→gluemap, text-to-3d→vist3a 등).
+
+venue: arXiv comment·PDF 헤더로 확정된 것(NeurIPS 2025·CVPR/ECCV/ICLR/ICML 2026,
+RSS 2026 등)은 LIKELY, 나머지는 PREPRINT. lgtm·vist3a는 PDF 헤더 "Published as a
+conference paper at ICLR 2026" 근거로 격상.
+
+**검증 (전 264편)**
+
+- 벤치마크: 수치 44,055개(소수) / 46,234개(정수 포함) 미검출 0~5(0.01%), 85% 미만 0편.
+- 구조 264편 정합 / markdownlint 0 / prettier / 색인·카운트·papers-list·사실카드 정합.
+- 문서 간 참조(A1) 정합. 상호링크 전 신규 문서에 반영.
+
+**검증 중 잡은 오류**
+
+- `flat.md` "10× fewer vertices" → 실제 7dB 비교의 근거는 4M/0.5M=**8×**였다.
+  10×는 다른 비교(2DGS)를 혼동한 것. 8×로 정정하고 근거 병기.
+- `lite3r`의 모순된 "2.71× 메모리"(표는 최대 2.33×) 제거.
+  이번에도 원문 대조가 파생값의 계산 오류를 잡았다.
+
+도구: `discover_papers.py`(발굴), verify_prose_claims에 콤마 천단위 근거 인식 추가.
+MD059(약칭 링크 텍스트 오탐) 비활성화.
 **미해결 backlog**
 
 - PDF는 `docs/papers/`에 있으나 문서 미작성: **MoGe-2, Mono3R, RIG3R**

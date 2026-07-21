@@ -1,0 +1,1183 @@
+                                                                                                                                                                                          1
+
+
+
+
+                                            Spark3R: Asymmetric Token Reduction Makes Fast Feed-Forward
+                                                                                                 3D Reconstruction
+                                            Zecheng Tang* , Jiaye Fu* , Qiankun Gao, Haijie Li, Yanmin Wu, Jiaqi Zhang, Siwei Ma, Fellow, IEEE, and
+                                                                                Jian Zhang† , Member, IEEE
+
+
+
+                                            Abstract—Feed-forward 3D reconstruction models based on                   through global attention layers. While this joint processing
+                                         Vision Transformers can directly estimate scene geometry and                 yields accurate geometric consistency across an arbitrary
+                                         camera poses from a small set of input images, but scaling                   number of frames, the global attention layers impose costs
+                                         them to video inputs with hundreds or thousands of frames
+                                         remains challenging due to the quadratic cost of global attention            quadratic in the frame count, making it prohibitively expensive
+arXiv:2605.06270v2 [cs.CV] 18 May 2026
+
+
+
+
+                                         layers. Recent token-merging methods accelerate these models                 to scale to video-length inputs of hundreds or thousands of
+                                         by compressing the token sequence within the global attention                frames.
+                                         layers, but they apply a uniform reduction to query tokens                      Streaming methods [18]–[20] sidestep this cost through
+                                         and key-value tokens, ignoring their functionally distinct roles
+                                         in 3D reconstruction. In this work, we identify a key property               sequential processing but forgo joint cross-frame reasoning,
+                                         of feed-forward 3D reconstruction models: query tokens encode                often degrading reconstruction quality. Chunk-and-align strate-
+                                         view-specific geometric requests and are sensitive to compres-               gies [21], [22] partition the input into fixed-size chunks,
+                                         sion, while key-value tokens represent shared scene context                  confining the model’s own cross-frame reasoning to within
+                                         and tolerate aggressive compression. Guided by this insight, we              each chunk and relying on post-hoc alignment of overlapping
+                                         propose Spark3R, a training-free acceleration framework that
+                                         decouples the compression of query tokens and key-value tokens               frames to recover global consistency. Both lines of work gain
+                                         by assigning distinct reduction factors, with intra-group token              efficiency by restricting which frames can interact, rather than
+                                         merging applied to query tokens and lightweight token pruning                accelerating the global attention layers themselves.
+                                         to key-value tokens. Additionally, Spark3R adaptively adjusts                   Rather than restricting which frames can interact, token-
+                                         the key-value reduction factor across layers, further improving
+                                         the quality–efficiency trade-off. As a plug-and-play framework
+                                                                                                                      merging methods [23], [24] offer a more direct strategy:
+                                         requiring no retraining, Spark3R integrates directly into multiple           compressing the sequence length within global attention layers
+                                         pretrained feed-forward 3D reconstruction models, including                  so that all frames remain visible to one another at reduced cost.
+                                         VGGT, π 3 , Depth-Anything-3, and VGGT-Ω, and achieves up                    However, these methods apply a single, uniform reduction
+                                         to 28× speedup on 1,000-frame inputs while maintaining com-                  factor to all token roles, limiting speedups to roughly 10×
+                                         petitive reconstruction quality.
+                                                                                                                      at best before reconstruction quality degrades noticeably. We
+                                            Index Terms—Feed-forward 3D reconstruction, vision trans-                 hypothesize that this ceiling stems from ignoring the func-
+                                         formers, token compression, pose estimation, depth measurement.              tionally distinct roles of query tokens and key-value tokens in
+                                                                                                                      global attention layers.
+                                                                                                                         To test this hypothesis, we separately compress query to-
+                                                                  I. I NTRODUCTION                                    kens, key-value tokens, and both jointly at increasing reduction
+                                            Recovering 3D geometry from multi-view images has tra-                    factors (the ratio of the original sequence length to the reduced
+                                         ditionally relied on per-scene optimization pipelines such as                sequence length) and measure the resulting pose error on
+                                         Structure-from-Motion (SfM) [1], [2] and Multi-View Stereo                   VGGT. As shown in Figure 1, compressing key-value tokens
+                                         (MVS) [3], [4]. More recent neural scene representations,                    alone keeps the error relatively flat, whereas compressing
+                                         including NeRF [5] and 3D Gaussian Splatting [6], retain this                query tokens alone causes a sharp rise. Joint uniform compres-
+                                         per-scene paradigm and still demand substantial computational                sion, the strategy adopted by existing token-merging methods,
+                                         overhead. Unlike per-scene optimization approaches [7]–[9],                  yields the steepest curve of all: it inherits the full sensitivity of
+                                         feed-forward 3D reconstruction recovers dense scene geometry                 query tokens while failing to exploit the high compressibility
+                                         and camera poses directly from a set of unposed images                       of the key-value tokens. This pronounced asymmetry reveals
+                                         in a single forward pass, with broad applications in au-                     substantial untapped headroom that uniform methods leave on
+                                         tonomous driving [10], robotics [11], and multimodal 3D                      the table. We provide complementary analytical explanations
+                                         scene understanding [12], [13]. State-of-the-art models such                 for this gap in Sec. IV-A.
+                                         as VGGT [14], π 3 [15], Depth-Anything-3 [16], and VGGT-                        Guided by this insight, we present Spark3R, a training-
+                                         Ω [17] achieve this by processing all input frames jointly                   free, plug-and-play acceleration framework that decouples the
+                                                                                                                      compression of query tokens and key-value tokens. Our main
+                                           * Zecheng Tang and Jiaye Fu contributed equally to this work.
+                                                                                                                      contributions are:
+                                           † Corresponding author: Jian Zhang (e-mail: zhangjian.sz@pku.edu.cn).
+                                           Zecheng Tang, Jiaye Fu, Qiankun Gao, Haijie Li, Yanmin Wu, and Jian          •   We propose asymmetric token reduction for feed-
+                                         Zhang are with the School of Electronic and Computer Engineering, Peking           forward 3D reconstruction models, which assigns sepa-
+                                         University, Shenzhen 518055, China.
+                                           Jiaqi Zhang and Siwei Ma are with the School of Computer Science, Peking         rate reduction factors and distinct compression operators
+                                         University, Beijing 100871, China.                                                 to query tokens and key-value tokens: intra-group token
+                                                                                                                                              2
+
+
+
+                                                                               a fundamental scalability bottleneck as the number of input
+                                                                               frames grows.
+
+                                                                               B. Streaming 3D Reconstruction
+                                                                                  Streaming methods address the quadratic scaling cost
+                                                                               of global attention layers by processing frames incremen-
+                                                                               tally. Recurrent-state approaches such as CUT3R [18] and
+                                                                               TTT3R [19] maintain a compact state updated via cross-
+                                                                               attention with each incoming frame, yielding constant per-step
+                                                                               cost but progressively losing early context. Explicit-memory
+                                                                               methods such as Point3R [27] and StreamVGGT [28] anchor
+                                                                               memory at reconstructed 3D positions or cache historical keys
+        query + key-value          query                 key-value
+                                                                               and values, trading linear memory growth for richer context
+Fig. 1. Compression sensitivity of different token roles in VGGT. We           retention. Chunk-and-align methods [21], [22] partition the
+separately compress query tokens (orange), key-value tokens (blue), and both   input into fixed-size windows, run inference on each chunk
+jointly (red) at increasing reduction factors and report pose error (ATE ↓).
+Key-value tokens tolerate aggressive compression with negligible quality
+                                                                               separately, and stitch the resulting submaps via post-hoc
+loss, while query tokens degrade sharply beyond a reduction factor of 12.      Sim(3) registration. All these approaches sacrifice cross-frame
+Joint uniform compression yields the steepest curve. Bottom: point-cloud       reasoning scope for speed.
+reconstructions at reduction factor 16.
+                                                                               C. Efficient Feed-Forward 3D Reconstruction
+     merging for query tokens and lightweight token pruning                       A complementary line of work preserves the global-context
+     for key-value tokens.                                                     paradigm but reduces per-forward-pass cost. Two principal
+   • We introduce a layer-adaptive key-value reduction                         strategies have been explored.
+     schedule that assigns heavier compression to empiri-                         Token-merging methods exploit the observation that global
+     cally insensitive layers, further improving the quality–                  attention maps exhibit substantial redundancy, with many
+     efficiency trade-off.                                                     tokens attending to nearly identical patterns, and merge similar
+   • We demonstrate that the resulting framework, Spark3R,                     tokens before the attention computation. FastVGGT [23] is
+     integrates directly into VGGT, π 3 , Depth-Anything-3,                    the first to apply token merging to VGGT, achieving roughly
+     and VGGT-Ω without retraining, achieving up to 28×                        4× speedup with no retraining by merging similar tokens
+     speedup on 1,000-frame inputs while maintaining com-                      via cosine similarity. LiteVGGT [24] introduces geometry-
+     petitive reconstruction quality.                                          aware partitioning and further accelerates VGGT by reusing
+                                                                               merge indices across adjacent layers and incorporating fp8
+                            II. R ELATED W ORK                                 fine-tuning, reaching approximately 10× speedup. Both meth-
+                                                                               ods apply a single, uniform reduction factor to all tokens,
+A. Feed-Forward 3D Reconstruction                                              overlooking the distinct roles of query tokens versus key-value
+   Feed-forward 3D reconstruction has emerged as a scal-                       tokens.
+able alternative to per-scene optimization methods such as                        TTT-based methods take a different approach by replacing
+NeRF [5] and 3D Gaussian Splatting [6]. Early approaches                       quadratic softmax attention with linear-time operations. VGG-
+such as DUSt3R [25] and MASt3R [26] predicted pairwise 3D                      T3 [29] substitutes each global attention layer with a test-
+point maps and fused them through post-hoc global alignment.                   time training (TTT) module, scaling linearly with the num-
+VGGT [14] introduced an Alternating Attention backbone                         ber of frames. ZipMap [30] extends this with large-chunk
+that interleaves global cross-view self-attention with frame-                  TTT layers [31] interleaved, achieving over 20× speedup
+wise self-attention, enabling joint prediction of depth, poses,                on 750-frame inputs. Both methods substantially outperform
+and point clouds in a single forward pass. π 3 [15] proposed                   streaming approaches in reconstruction quality but still trail
+a fully permutation-equivariant architecture that eliminates                   π 3 [15] on most benchmarks, and incur considerable training
+dependence on a fixed reference view, and Depth-Anything-                      overhead: VGG-T3 requires 100k steps on 8 A100s and
+3 [16] showed that a plain Vision Transformer backbone                         ZipMap requires 180k steps on 64 H100s.
+paired with a unified depth-ray prediction target suffices for                    Spark3R shares the token-compression philosophy of token-
+state-of-the-art geometry reconstruction. VGGT-Ω [17] further                  merging methods but introduces asymmetric token reduction
+scaled this paradigm to billions of parameters and millions                    and a layer-adaptive key-value reduction schedule, achiev-
+of sequences, achieving state-of-the-art results on both static                ing speedups comparable to ZipMap’s while requiring no
+and dynamic benchmarks. To make such scaling tractable,                        retraining—unlike TTT-based methods that incur substantial
+it replaces a fraction of the global attention layers with                     training cost to replace the attention mechanism entirely.
+register attention, in which cross-frame interaction happens
+                                                                                                  III. P RELIMINARIES
+only among a small set of per-frame register tokens rather than
+among all image tokens. Despite these architectural advances,                  A. Scaled Dot-Product Attention
+all of the above models still rely on attention layers whose                     Scaled dot-product attention (SDPA) [32] is the core build-
+cost grows quadratically with the total token count, creating                  ing block of Transformer architectures. Given an input token
+                                                                                                                                                                                                                                                          3
+
+
+
+sequence X ∈ RN ×D , three linear projections produce the                  Input Frame
+                                                                                                                                     Query
+                                                                                                                                     Project
+                                                                                                                                                                  Key-Value
+                                                                                                                                                                   Project
+                                                                                                                                                                                                                     Camera
+                                                                                                                                                                                                                                    Camera Pose
+
+                                                                                                                                                                                                                      Head
+query, key, and value matrices Q, K, V ∈ RN ×d . The                                                                                 Query
+                                                                                                                                     Merge            𝑟𝑄
+                                                                                                                                                                 Key-Value
+                                                                                                                                                                  Merge             𝑟𝐾𝑉
+                                                                                                                                                                                                                                                    …
+
+attention output is:                                                                                        Image
+                                                                                                           Encoder
+                                                                                                                                         SDPA
+                                                                                                                                                                                                  Frame
+                                                                                                                                                                                                 Attention
+                                                                                                                                                                                                                                        Depth Map
+
+
+
+
+                                                                         ...
+                                                                                                                                    Unmerge                                                                           Depth
+                                           QK⊤
+                                                
+                                                                                                                                                                  Global                                              Head
+        Attention(Q, K, V) = softmax √             V.   (1)                                                                           Out
+                                                                                                                                     Project
+                                                                                                                                                                 Attention
+
+                                              d
+
+
+
+
+                                                                                                                                                                                                                                  ...
+                                                                                                                                                                                                                                               × S frames
+                                                                               × S frames                                                                                                                      × L layers
+
+                                                                                                                                                      …                                   …
+The time and memory complexity of SDPA are both O(N 2 );
+                                                                                                                              L0         L1                L11      L12       L13                L22    L23           Large 𝑟𝐾𝑉
+                                                                                                                                                                 Layer-Adaptive KV Reduction schedule                 Small 𝑟𝐾𝑉
+
+
+although FlashAttention [33] reduces the memory complexity
+to linear in N , the quadratic time complexity remains.                                                Q-Path
+                                                                                                                                                                                                                                            Input
+                                                                                                                                                                                                                                            Token
+                                                                                                                   ...                                                                    𝑆×𝑃
+                                                                                                                                                ...                                        𝑟𝑄
+                                                                                                                                                                                                                                             Src
+B. Feed-Forward 3D Reconstruction Models                                                                         Step 2a: Apply
+                                                                                                                 region-based temporal
+                                                                                                                 cyclic shift sampling
+                                                                                                                                              Step 3a: Perform
+                                                                                                                                              Src-Dst merging within
+                                                                                                                                              each group. No merging
+                                                                                                                                                                                              ...                                           Token
+
+                                                                                                                                                                                    SDPA
+                                                                                                                 for Dst tokens.              occurs across groups.                                                                          Dst
+   Feed-forward 3D reconstruction models predict dense 3D                                                                                                                                     ...
+                                                                                                                                                                                                                                            Token
+
+
+
+
+                                                                                                                                                                                                        ...
+                                                                          Step 1: Input 𝑆 × 𝑃 tokens                                                                                      𝑆×𝑃
+scene properties—depth maps, camera poses, and point                      (𝑃 tokens per frame) and
+                                                                          perform QKV projection.
+                                                                                                                   ...                            ...
+                                                                                                                                                                                           𝑟𝐾𝑉                                            Query Input
+                                                                                                                                                                                                                                           to SDPA
+                                                                                                       KV-Path                                                            Step 4: Perform SDPA.        Step 5: Unmerge Src
+clouds—from unposed images in a single forward pass. Rep-                                                        Step 2b: Apply temporal Step 3b: Prune Src tokens.
+                                                                                                                                                                                                       tokens from Dst tokens.
+                                                                                                                                                                                                                                        Key-Value Input
+
+resentative works include VGGT [14], π 3 [15], and Depth-                                                        stride-based sampling for
+                                                                                                                 Dst tokens.
+                                                                                                                                                                                                                                            to SDPA
+
+
+
+Anything-3 [16]. Despite differences in architecture and train-
+ing, all three follow a common three-stage pipeline, described          Fig. 2. Overview of Spark3R. (Top) Spark3R applies asymmetric token
+                                                                        reduction to the global attention layers of a feed-forward 3D reconstruction
+below using VGGT as the representative example.                         model, with separate reduction factors rQ and rKV (rKV > rQ in general).
+   Image Encoder. A pretrained vision foundation model (e.g.,           (Middle) A layer-adaptive key-value reduction schedule assigns each layer
+DINOv2 [34]) independently extracts L patch tokens per                  a large or small rKV based on its measured sensitivity to compression.
+frame. With a learnable camera token and four register tokens           (Bottom) Detailed illustration of the asymmetric reduction. Tokens from
+                                                                        different frames are distinguished by color. The Q-Path performs intra-group
+appended, each frame has P = L + 5 tokens. Stacking all S               token merging; the KV-Path applies lightweight token pruning. Source tokens
+frames produces F ∈ RB×S×P ×D .                                         are restored via unmerging after SDPA.
+   Alternating Attention Backbone. The backbone alternates
+two forms of self-attention. Frame attention layers operate
+within each frame’s P tokens at a cost of O(S·P 2 ), linear in S.                                                                               IV. M ETHOD
+Global attention layers concatenate all tokens into a single               We propose Spark3R, a token-compression framework with
+sequence of length N = S × P and perform full pairwise                  three complementary designs, as illustrated in Figure 2. First,
+interaction at a cost of O(N 2 ) = O(S 2 · P 2 ), quadratic in          asymmetric token reduction assigns separate reduction factors
+both frame count and per-frame token count. As the input                to query tokens and key-value tokens, reflecting their dis-
+grows, this quadratic scaling dominates inference cost.                 tinct sensitivities to compression (Sec. IV-A). Second, dedi-
+   Task-Specific Prediction Heads. Lightweight heads decode             cated compression operators are tailored to each token type:
+the backbone outputs into 3D predictions: a camera head re-             intra-group token merging for query tokens (Sec. IV-B) and
+gresses per-frame intrinsics and extrinsics from special tokens,        lightweight token pruning for key-value tokens (Sec. IV-C).
+and DPT-based heads [35] decode patch tokens into depth                 Third, a layer-adaptive key-value reduction schedule adjusts
+maps and point clouds.                                                  the key-value reduction factor of each global attention layer ac-
+                                                                        cording to its measured sensitivity to compression (Sec. IV-D).
+C. Token Merging
+   Token Merging (ToMe [36]) is a training-free technique that
+                                                                        A. Asymmetric Token Reduction
+reduces the effective sequence length in Vision Transformers
+by merging redundant tokens. Given an input sequence X =                   The central insight of Spark3R is that query tokens and key-
+{x1 , . . . , xN }, the tokens are partitioned into a destination set   value tokens in global attention layers exhibit fundamentally
+D and a source set S using strategies such as fixed-stride              different sensitivities to compression. Sec. I and Figure 1
+sampling in ToMe [36] or region-based random sampling in                have already demonstrated this asymmetry empirically; here
+ToMeSD [37]. Each source token xs ∈ S is then matched to                we provide two complementary analytical explanations that
+its most similar destination token xd ∈ D via cosine similarity:        clarify why the gap exists and inform our design choices: one
+                                         xs · x d                       grounded in the semantics of 3D reconstruction, the other in
+                       sim(xs , xd ) =             .              (2)   the structure of the attention computation.
+                                       ∥xs ∥ ∥xd ∥
+                                                                           Reconstruction Semantics. As discussed in Sec. III-B,
+A destination token xd matched by n source tokens is updated
+                                                                        each output of a global attention layer must carry sufficient
+as their average:
+                                      Pn                                information for the downstream prediction heads to produce
+                          ′     xd + i=1 xsi                            view-specific estimates (e.g., depth and camera pose) for
+                         xd =                    .                (3)
+                                     n+1                                every input frame. Because query tokens dictate which outputs
+Source tokens are discarded, reducing the sequence length for           are produced, each query token encodes a viewpoint-specific
+the subsequent attention layers. For dense prediction tasks,            geometric request: two query tokens that observe the same
+an unmerging step restores the original length by copying               3D surface point from different cameras must ultimately yield
+each destination’s updated representation back to its matched           distinct depth values and camera parameters. Compressing
+sources.                                                                such tokens conflates requests that are spatially proximate yet
+                                                                                                                                                             4
+
+
+
+                          =4.9                                                groups of G consecutive frames and perform token merging
+             0.25                                                             independently within each group of G×P tokens. This reduces
+             0.20                                                             the matching cost from O(S 2 ) to O(S · G), which scales
+Proportion
+
+
+
+             0.15                                                             linearly in S for a fixed group size G. By exploiting the
+             0.10                                                             locality identified above, intra-group matching achieves com-
+             0.05                                                             parable merge quality to the global strategy while reducing the
+             0.00                                                             matching complexity from quadratic to linear in the sequence
+                    0 2    5       10         15        20    25      30
+                                 Matching Distance (frames)                   length.
+                                                                                 Configuration. Within each group, destination tokens are
+Fig. 3. Distribution of inter-frame distances between merged source–          selected by cycling through a fixed set of spatial offsets across
+destination token pairs produced by standard token merging on query tokens.   consecutive frames, so that each frame contributes a different,
+                                                                              deterministic subset of its tokens as destinations. This is
+                                                                              a deterministic cyclic variant of the region-based random
+semantically distinct, directly degrading per-view predictions.
+                                                                              sampling used in ToMeSD [37] and FastVGGT [23], yielding
+Key-value tokens, by contrast, collectively form a shared
+                                                                              comparable merge quality while being slightly more efficient
+representation of the underlying 3D scene. When multiple
+                                                                              to compute. We set the group size to G = 20 as a practical
+frames observe the same region, their key-value tokens encode
+                                                                              trade-off between matching quality and computational cost.
+largely overlapping geometric information and are therefore
+                                                                              The query reduction factor is scaled with the input length:
+naturally amenable to aggressive compression.                                                        
+   Attention Structure. The algebraic structure of SDPA                                              
+                                                                                                      1 if S ≤ 100,
+(Eq. (1)) reinforces this asymmetry. Because the attention out-                                      
+                                                                                                     2 if 100 < S ≤ 300,
+put has one row per query token, reducing the query sequence                                   rQ =                                         (4)
+                                                                                                      3 if 300 < S ≤ 500,
+directly shrinks the output and requires an unmerging step to                                        
+                                                                                                     
+                                                                                                       4 if S > 500.
+                                                                                                     
+restore the original length, introducing approximation error at
+every restored position. Reducing the key-value sequence, by                  We ablate the group size choice in Sec. V-E.
+contrast, only coarsens the context each query attends over,
+and can therefore be applied at considerably higher reduction
+                                                                              C. Lightweight Key-Value Pruning
+factors.
+   Together with the empirical evidence in Figure 1, these ob-                   We now turn to the compression of key-value tokens. Since
+servations motivate our decoupled design: rather than applying                key-value tokens tolerate substantially higher reduction factors
+a single uniform reduction factor, we assign separate factors rQ              than query tokens, we can simplify not only the reduction
+and rKV (rKV > rQ in general) to query tokens and key-value                   factor but also the compression operator itself.
+tokens, respectively.                                                            From merging to pruning. Recall that in standard token
+                                                                              merging, each destination token xd is updated as the average of
+B. Intra-Group Query Merging                                                  itself and its n matched source tokens. Because each source
+                                                                              token is matched to its most similar destination token, the
+   Having established that query tokens are considerably more                 cosine similarity within matched pairs is extremely high in
+sensitive to compression than key-value tokens, we now de-                    practice. Figure 4 confirms this empirically: for both key
+scribe the query compression operator, which must preserve                    tokens and value tokens, the vast majority of matched source–
+reconstruction accuracy under a limited reduction budget.                     destination pairs exceed a cosine similarity of 0.9, so the
+We adopt the token merging framework (Sec. III-C) as our                      averaging only marginally affects destination representations.
+starting point and introduce intra-group matching to reduce                   The destination update can therefore be dropped: destination
+its computational overhead while maintaining merge quality.                   tokens retain their original values while source tokens are
+   Locality of Merge Pairs. Standard token merging partitions                 simply discarded.
+the full concatenated sequence of N = S × P tokens into
+source and destination sets and computes similarities between
+them, where S denotes the number of frames and P the                                       0.20
+                                                                                                                                           Key Tokens
+number of tokens per frame. We observe, however, that the                                                                                  Value Tokens
+                                                                                           0.16      =0.964
+resulting merges are overwhelmingly local. To quantify this,                                          =0.959
+                                                                                           0.12
+                                                                              Proportion
+
+
+
+
+we measure the inter-frame distance of every merged pair
+produced by applying standard token merging to query tokens.
+As shown in Figure 3, merges within the same frame are rare,                               0.08
+the distribution peaks sharply at distance 1, and virtually no                             0.04
+merges occur beyond 20 frames. This strong locality indicates
+that the full O(S 2 ) global matching is unnecessary: nearly all                           0.00
+                                                                                              1.00    0.96     0.92          0.88        0.84         0.80
+beneficial matches can be discovered within a small temporal                                                    Cosine Similarity
+neighborhood.
+                                                                              Fig. 4. Distribution of cosine similarities between matched source–destination
+   Intra-Group Matching. Motivated by this observation, we                    token pairs produced by standard token merging, measured separately for key
+partition the S input frames into ⌈S/G⌉ non-overlapping                       tokens and value tokens.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                           5
+
+
+
+   Without the averaging update, which destination each source                                                                          ATE                                                RPE trans                                                        RPE rot                                            Threshold
+token was matched to is never used, so the similarity com-                                          4×
+putation, which is the dominant cost of the matching step,
+can be skipped entirely, reducing the compression operator to
+
+
+
+
+                                                                     Degradation Ratio
+lightweight token pruning with negligible overhead.
+   Configuration. Because the compression reduces to pure
+                                                                                                    2×
+pruning without averaging or unmerging, the only remaining
+design choice is which tokens to retain. In practice, this choice
+is fairly forgiving: even random token-level sampling yields
+competitive results. We find that temporal stride sampling,
+which retains all tokens from every rKV -th frame and discards                                      1×
+the rest, performs slightly better while being deterministic and
+
+
+
+
+                                                                                                              L0
+                                                                                                                              L1
+                                                                                                                                          L2
+                                                                                                                                                         L3
+                                                                                                                                                                         L4
+                                                                                                                                                                                      L5
+                                                                                                                                                                                                   L6
+                                                                                                                                                                                                                  L7
+                                                                                                                                                                                                                                     L8
+                                                                                                                                                                                                                                                 L9
+                                                                                                                                                                                                                                                   0
+                                                                                                                                                                                                                                                   1
+                                                                                                                                                                                                                                                   2
+                                                                                                                                                                                                                                                   3
+                                                                                                                                                                                                                                                   4
+                                                                                                                                                                                                                                                   5
+                                                                                                                                                                                                                                                   6
+                                                                                                                                                                                                                                                   7
+                                                                                                                                                                                                                                                   8
+                                                                                                                                                                                                                                                   9
+                                                                                                                                                                                                                                                   0
+                                                                                                                                                                                                                                                   1
+                                                                                                                                                                                                                                                   2
+                                                                                                                                                                                                                                                   3
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L1
+                                                                                                                                                                                                                                                L2
+                                                                                                                                                                                                                                                L2
+                                                                                                                                                                                                                                                L2
+                                                                                                                                                                                                                                                L2
+trivial to implement. We further scale rKV with the input length                                                                                                                                                                                            Layer Index
+to maintain a roughly linear computation budget:
+                        (                                            Fig. 5. Per-layer sensitivity to key-value pruning in VGGT (24 layers). Each
+                          1         if S ≤ 100,                      group of bars reports the degradation ratio when a single layer’s reduction
+                 rKV =                                        (5)    factor is raised from 32 to 256, with all other layers held at 32. The red dashed
+                          ⌈S/40⌉ otherwise,                          line marks the 1.05× threshold used to separate high- and low-sensitivity
+                                                                     layers.
+where S denotes the number of input frames. Together,
+Eqs. (4) and (5) form a length-adaptive reduction schedule that                          4×
+                                                                                                    ATE           RPE trans             RPE rot              Threshold
+                                                                                                                                                                                                                           4×
+                                                                                                                                                                                                                                     ATE        RPE trans        RPE rot         Threshold
+                                                                                                                                                                                                                                                                                                                                         4×
+                                                                                                                                                                                                                                                                                                                                                    ATE           RPE trans              RPE rot            Threshold
+
+
+
+
+scales compression with the number of input frames, applying
+                                                                     Degradation Ratio
+
+
+
+
+                                                                                                                                                                                                       Degradation Ratio
+
+
+
+
+                                                                                                                                                                                                                                                                                                                     Degradation Ratio
+                                                                                         2×                                                                                                                                2×                                                                                                            2×
+
+
+minimal or no reduction on short sequences while enabling
+aggressive compression on long ones.                                                     1×   L0
+
+                                                                                                   L1
+
+                                                                                                        L2
+                                                                                                                                                                                                                           1×                                                                                                            1×
+
+
+
+                                                                                                             L3
+
+                                                                                                                  L4
+
+                                                                                                                       L5
+
+                                                                                                                              L6
+
+                                                                                                                                   L7
+
+                                                                                                                                          L8
+
+                                                                                                                                                  L9
+
+                                                                                                                                                         0
+
+                                                                                                                                                               1
+
+                                                                                                                                                                     2
+
+                                                                                                                                                                           3
+
+                                                                                                                                                                                 4
+
+                                                                                                                                                                                       5
+
+                                                                                                                                                                                             6
+
+                                                                                                                                                                                                   7
+
+
+
+
+                                                                                                                                                                                                                                L0
+
+                                                                                                                                                                                                                                     L1
+
+                                                                                                                                                                                                                                           L2
+
+                                                                                                                                                                                                                                                L3
+
+                                                                                                                                                                                                                                                      L4
+
+                                                                                                                                                                                                                                                            L5
+
+                                                                                                                                                                                                                                                                  L6
+
+                                                                                                                                                                                                                                                                           L7
+
+                                                                                                                                                                                                                                                                                L8
+
+                                                                                                                                                                                                                                                                                     L9
+
+
+                                                                                                                                                                                                                                                                                               0
+
+                                                                                                                                                                                                                                                                                                     1
+
+                                                                                                                                                                                                                                                                                                           2
+
+                                                                                                                                                                                                                                                                                                                 3
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                              L0
+
+                                                                                                                                                                                                                                                                                                                                                   L1
+
+                                                                                                                                                                                                                                                                                                                                                        L3
+
+                                                                                                                                                                                                                                                                                                                                                             L4
+
+                                                                                                                                                                                                                                                                                                                                                                  L5
+
+                                                                                                                                                                                                                                                                                                                                                                       L7
+
+                                                                                                                                                                                                                                                                                                                                                                              L8
+
+                                                                                                                                                                                                                                                                                                                                                                                     0
+
+                                                                                                                                                                                                                                                                                                                                                                                           1
+
+                                                                                                                                                                                                                                                                                                                                                                                                 2
+
+                                                                                                                                                                                                                                                                                                                                                                                                       3
+
+                                                                                                                                                                                                                                                                                                                                                                                                             5
+
+                                                                                                                                                                                                                                                                                                                                                                                                                   6
+
+                                                                                                                                                                                                                                                                                                                                                                                                                         7
+
+                                                                                                                                                                                                                                                                                                                                                                                                                               8
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                     9
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                           1
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                 2
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                       3
+                                                                                                                                                       L1
+
+                                                                                                                                                             L1
+
+                                                                                                                                                                   L1
+
+                                                                                                                                                                         L1
+
+                                                                                                                                                                               L1
+
+                                                                                                                                                                                     L1
+
+                                                                                                                                                                                           L1
+
+                                                                                                                                                                                                 L1
+
+
+
+
+                                                                                                                                                                                                                                                                                             L1
+
+                                                                                                                                                                                                                                                                                                   L1
+
+                                                                                                                                                                                                                                                                                                         L1
+
+                                                                                                                                                                                                                                                                                                               L1
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                   L1
+
+                                                                                                                                                                                                                                                                                                                                                                                         L1
+
+                                                                                                                                                                                                                                                                                                                                                                                               L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                     L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                           L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                                 L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                                       L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                                             L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                   L1
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                         L2
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                               L2
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                     L2
+                                                                                                                                        Layer Index                                                                                                              Layer Index                                                                                                             Layer Index
+
+
+
+
+                                                                     Fig. 6. Per-layer sensitivity to key-value pruning in π 3 (left, 18 layers),
+D. Layer-Adaptive Key-Value Reduction Schedule                       Depth-Anything-3 (middle, 14 layers) and VGGT-Ω (right, 24 layers). Each
+                                                                     group of bars is obtained with the same protocol as Figure 5. Zoom in for
+   As noted in prior work on KV-cache compression [38],              better view.
+different layers can exhibit vastly different sensitivities to
+key-value compression. We observe the same phenomenon in
+feed-forward 3D reconstruction models: most layers tolerate               Low-sensitivity layers are assigned an elevated reduction
+                                                                                                   •
+aggressive key-value pruning with negligible impact on ac-                factor of l · rKV , where the multiplier l controls how
+curacy, while a subset suffers substantial degradation under              aggressively these layers are pruned. We set l=3 by
+the same reduction factor. This motivates an adaptive strategy            default; ablations on this choice are provided in Sec. V-E.
+that assigns different key-value reduction factors to different        This simple two-tier, layer-granularity scheme requires only
+layers.                                                              a single offline probing pass per base model and adds no
+   To identify which layers are sensitive, we conduct a layer-       runtime overhead. As shown in the experiments (Sec. V)
+wise probing experiment. Starting from a uniform reduction           and ablations (Sec. V-E), the resulting schedule consistently
+factor of rKV =32 applied to all layers, we raise the reduction      improves the quality–efficiency trade-off across all four base
+factor of a single target layer to 256 while keeping all             models and all evaluated tasks.
+other layers at 32, and measure the resulting degradation in
+prediction accuracy. This procedure is repeated independently                                                                                                                                                              V. E XPERIMENTS
+for every global attention layer (in VGGT-Ω, this excludes 5            We integrate Spark3R into three representative feed-forward
+register attention layers at indices 2, 6, 9, 14, 20, which attend   3D reconstruction models, namely VGGT [14], π 3 [15], and
+only over per-frame register tokens); the per-layer degradation      Depth-Anything-3 (DA3, Giant variant) [16], and evaluate the
+ratios for VGGT are shown in Figure 5. Results for π 3 , Depth-      resulting quality–efficiency trade-offs across architectures. To
+Anything-3, and VGGT-Ω (Figure 6) exhibit similar patterns.          further evaluate Spark3R on newer backbones, we addition-
+   The results reveal highly non-uniform sensitivity across all      ally report results on VGGT-Ω [17], a model released after
+four models. Sensitive layers tend to concentrate in the middle-     our initial submission; these results are presented separately
+to-late portion of the models: layers 11–16 in both VGGT             throughout to keep the main comparison aligned with the
+and π 3 , layers 3–12 in Depth-Anything-3, and layers 10–13,         submission-time baselines. Qualitative comparisons are pro-
+15–17, and 21 in VGGT-Ω. The remaining layers stay below             vided in Sec. V-D, and ablation studies are presented in
+a degradation ratio of 1.05×, indicating that they can absorb        Sec. V-E.
+substantially more aggressive pruning without meaningful                Evaluation Protocol. Extending the protocol of
+accuracy loss.                                                       TTT3R [19], we retain all available frames up to a
+   We therefore partition all layers into two tiers based on         maximum of 1,000, so that the benchmark directly evaluates
+whether their degradation ratio exceeds 1.05×:                       each method’s ability to reconstruct long sequences at scale.
+   • High-sensitivity layers retain the base key-value reduc-        For the point map benchmarks (7-Scenes, NRGBD) and
+      tion factor rKV to preserve prediction quality.                long-sequence camera pose benchmarks (TUM-dynamics,
+                                                                                                                                                  6
+
+
+
+                                                               TABLE I
+E VALUATION OF P OINT M AP E STIMATION ON 7-S CENES [39] AND NRGBD [40]. R ED AND O RANGE BACKGROUNDS INDICATE THE BEST AND THE
+       SECOND BEST RESULTS , RESPECTIVELY. VGGT-Ω [17] WAS RELEASED AFTER OUR SUBMISSION AND IS THUS COMPARED SEPARATELY.
+
+
+                                                 7-Scenes                                                       NRGBD
+ Method                              Acc↓              Comp↓            NC↑                         Acc↓             Comp↓            NC↑
+                   Time (s)↓                                                        Time (s)↓
+                                Mean      Med.      Mean    Med.    Mean    Med.                Mean    Med.      Mean    Med.    Mean    Med.
+ CUT3R [18]            69.5     0.197    0.126      0.074   0.021   0.536   0.552     70.1      0.415   0.310     0.197   0.080   0.551   0.576
+ TTT3R [19]            69.2     0.103    0.061      0.056   0.024   0.566   0.599     70.3      0.262   0.181     0.117   0.040   0.571   0.604
+ VGGT [14]           1102.7     0.047    0.018      0.035   0.013   0.601   0.656    1110.4     0.042   0.030     0.025   0.008   0.798   0.907
+ DA3 [16]             976.4     0.015    0.006      0.018   0.009   0.620   0.687     983.3     0.012   0.006     0.015   0.004   0.898   0.979
+ π 3 [15]            830.2      0.012    0.006      0.016   0.010   0.646   0.729     835.7     0.014   0.007     0.016   0.005   0.884   0.974
+ FastVGGT [23]        247.2     0.043    0.010      0.025   0.009   0.595   0.646     245.7     0.024   0.017     0.018   0.007   0.768   0.891
+ ZipMap [30]           46.2     0.019    0.007      0.025   0.009   0.605   0.661      46.6     0.022   0.012     0.016   0.006   0.766   0.891
+ Ours+VGGT            40.7      0.017    0.007      0.020   0.010   0.617   0.681     40.9      0.014   0.009     0.016   0.005   0.863   0.964
+ Ours+DA3             58.0      0.015    0.006      0.018   0.009   0.620   0.687     56.9      0.012   0.006     0.015   0.004   0.899   0.979
+ Ours+π 3             34.1      0.012    0.006      0.016   0.010   0.644   0.726     34.3      0.014   0.008     0.016   0.005   0.880   0.971
+ Extension to VGGT-Ω (released after our initial submission):
+ VGGT-Ω [17]         505.3      0.015    0.007      0.014   0.007   0.608   0.667    508.4      0.015   0.009     0.008   0.005   0.829   0.948
+ Ours+VGGT-Ω         27.7       0.014    0.007      0.014   0.007   0.606   0.664     27.8      0.014   0.008     0.007   0.005   0.835   0.948
+
+
+
+ScanNet), this protocol yields sequences of approximately                   Spark3R+VGGT substantially improves over unaccelerated
+1,000 frames, considerably longer than those used in                        VGGT: on 7-Scenes, mean Accuracy improves from 0.047
+prior evaluations and creating a demanding testbed that                     to 0.017 and mean Completeness from 0.035 to 0.020. We
+stresses the scalability of each method. The remaining                      attribute this to the context reduction introduced by lightweight
+benchmarks consist of shorter sequences: Bonn (video depth)                 key-value pruning: as the input sequence grows, VGGT’s
+averages approximately 623 frames, KITTI (video depth)                      global attention must distribute a fixed attention budget across
+approximately 264, and Sintel (camera pose and video depth)                 all tokens, inevitably diluting per-token attention mass. By
+only approximately 46. This diversity also serves to verify that            compressing the key-value tokens, Spark3R keeps the effective
+Spark3R’s length-adaptive reduction schedule in Eqs. (4)–(5)                context in a regime where attention operates more robustly,
+introduces minimal quality degradation on shorter inputs.                   yielding sharper geometry.
+   Baselines and Implementation Details. We compare                            Comparison with other acceleration methods.
+against three categories of methods: (i) the unaccelerated feed-            Spark3R+VGGT runs faster than ZipMap on both 7-Scenes
+forward models themselves (VGGT, π 3 , and DA3), which                      and NRGBD while delivering higher accuracy, completeness,
+serve as quality upper bounds; (ii) existing acceleration                   and normal consistency. Spark3R+DA3 is slightly slower than
+methods for feed-forward models, including FastVGGT [23]                    ZipMap due to DA3’s heavy Dual-DPT head, yet outperforms
+and ZipMap [30], the latter being the current state-of-the-                 ZipMap on all three metrics across both datasets. Spark3R+π 3
+art approach that reports over 20× speedup over VGGT at                     runs faster than ZipMap and surpasses it on every metric.
+750 frames with linear scaling, albeit at the cost of fine-tuning           Among other acceleration methods, FastVGGT is roughly 6×
+a larger 1.4B model for 180K steps on 64 H100 GPUs; and                     slower than Spark3R+VGGT and yields lower reconstruction
+(iii) streaming 3D reconstruction models that process frames                quality, while the streaming methods CUT3R and TTT3R are
+sequentially, including CUT3R [18] and TTT3R [19]. Results                  slower than every Spark3R variant and exhibit substantially
+on VGGT-Ω and Spark3R+VGGT-Ω are reported in dedicated                      lower reconstruction quality owing to the absence of global
+rows of each table. All experiments run on a single NVIDIA                  cross-frame reasoning.
+H20 GPU in bfloat16, except for prediction heads that involve                  Extension to VGGT-Ω. On VGGT-Ω, Spark3R delivers
+SVD, which use float32 for numerical stability.                             an 18× speedup while matching the reconstruction quality
+                                                                            of unaccelerated VGGT-Ω on both datasets, confirming that
+                                                                            Spark3R generalizes to newer feed-forward architectures.
+A. Point Map Estimation
+   We evaluate scene-level point map estimation on 7-
+Scenes [39] and NRGBD [40] using three standard metrics:                    B. Camera Pose Estimation
+Accuracy (Acc), Completeness (Comp), and Normal Consis-                        We evaluate camera pose estimation on TUM-
+tency (NC). Results are reported in Tab. I.                                 dynamics [41], ScanNet [42], and Sintel [43], reporting
+   Comparison with unaccelerated baselines. Across the                      the Absolute Trajectory Error (ATE) and the Relative Pose
+three base models, Spark3R reduces inference time by 17×–                   Error for translation (RPEt ) and rotation (RPEr ), all computed
+27× on 7-Scenes and NRGBD. When applied to DA3 and π 3 ,                    after Sim(3) alignment. Results are presented in Tab. II.
+Spark3R preserves all three metrics to within negligible mar-                  Comparison with unaccelerated baselines. On the
+gins of their respective baselines, confirming that asymmet-                two long-sequence datasets (TUM-dynamics and ScanNet),
+ric token reduction introduces minimal degradation. Notably,                Spark3R delivers up to 28× speedup over the corresponding
+                                                                                                                                                 7
+
+
+
+                                                              TABLE II
+  E VALUATION OF C AMERA P OSE E STIMATION ON TUM- DYNAMICS [41], S CAN N ET [42], AND S INTEL [43]. R ED AND O RANGE BACKGROUNDS
+INDICATE THE BEST AND THE SECOND BEST RESULTS , RESPECTIVELY. VGGT-Ω [17] WAS RELEASED AFTER OUR SUBMISSION AND IS THUS COMPARED
+                                                            SEPARATELY.
+
+
+  Method                        TUM-dynamics                                    ScanNet                                Sintel
+                    Time (s)↓    ATE↓      RPEt ↓    RPEr ↓      Time (s)↓   ATE↓     RPEt ↓   RPEr ↓   Time (s)↓   ATE↓    RPEt ↓      RPEr ↓
+  CUT3R [18]           81.6       0.165    0.007      0.534        86.5       0.783   0.021    0.841       4.1      0.209       0.074   0.638
+  TTT3R [19]           81.4       0.110    0.009      0.451        87.1       0.424   0.021    0.595       4.1      0.208       0.093   0.734
+  VGGT [14]           993.7       0.018    0.009      0.294       1162.7      0.156   0.055    1.532       2.0      0.172       0.062   0.469
+  DA3 [16]            870.8       0.018    0.009      0.295       1018.1      0.057   0.013    0.350       2.6      0.102       0.053   0.441
+  π 3 [15]            739.4       0.022    0.008      0.295       865.1       0.056   0.011    0.264       1.6      0.073       0.038   0.294
+  FastVGGT [23]       253.8       0.020    0.010      0.297       256.8       0.078   0.025    0.565       2.4      0.167       0.070   0.522
+  ZipMap [30]          44.6       0.021    0.010      0.314        43.6       0.066   0.017    0.361       3.9      0.134       0.067   0.429
+  Ours+VGGT            38.4       0.016    0.010      0.297        41.3       0.065   0.019    0.403       1.6      0.172       0.058   0.478
+  Ours+DA3             54.0       0.016    0.008      0.291        57.8       0.057   0.012    0.320       2.6      0.100       0.050   0.431
+  Ours+π 3             32.2       0.022    0.008      0.298        34.6       0.058   0.012    0.280       1.4      0.073       0.038   0.295
+  Extension to VGGT-Ω (released after our initial submission):
+  VGGT-Ω [17]         448.7       0.008    0.005      0.263       525.1       0.067   0.018    0.463       1.3      0.039       0.026   0.238
+  Ours+VGGT-Ω         28.7        0.009    0.006      0.278       28.0        0.063   0.019    0.426       1.2      0.039       0.027   0.236
+
+
+
+baselines without sacrificing pose accuracy. When applied to                 evaluation metrics, with predicted depth maps aligned to the
+DA3 and π 3 , it matches the respective baselines to within                  ground truth using a per-sequence scale and shift. Results are
+negligible margins on all metrics. Spark3R+VGGT again                        reported in Tab. III.
+substantially improves over unaccelerated VGGT on ScanNet,
+with ATE dropping from 0.156 to 0.065, consistent with the                      Comparison with unaccelerated baselines. Across the
+attention-dilution effect discussed in Sec. V-A.                             three base models, Spark3R achieves 13×–18× speedup on
+   On Sintel, sequences contain at most 50 frames, well                      Bonn (avg. 623 frames) and 4×–6× on KITTI (avg. 264
+below the regime where global attention becomes a bottleneck.                frames) at the cost of minor depth degradation: Abs Rel
+Spark3R’s length-adaptive schedule accordingly sets both base                increases by at most 0.002 and δ < 1.25 drops by at most
+reduction factors to rQ =1 and rKV =1, yet the layer-adaptive                0.2. On Sintel (avg. 46 frames), Spark3R closely matches the
+schedule remains active: low-sensitivity layers still receive an             depth accuracy of every base model, further confirming the
+elevated key-value reduction factor of 3 rKV =3. The matched                 standalone benefit of the layer-adaptive mechanism noted in
+pose accuracy on these short sequences confirms the stan-                    Sec. V-B.
+dalone effectiveness of the layer-adaptive mechanism.
+   Comparison with other acceleration methods.                                  Comparison with other acceleration methods.
+Spark3R+VGGT runs faster than ZipMap on both TUM-                            Spark3R+VGGT runs faster than ZipMap on all three datasets
+dynamics and ScanNet while attaining comparable pose                         but trails it on depth metrics. Spark3R+DA3 is slightly slower
+accuracy. Spark3R+DA3 is again slightly slower than ZipMap                   than ZipMap on Bonn, while achieving comparable depth
+but outperforms it on all three pose metrics, and Spark3R+π 3                accuracy on Bonn and slightly better accuracy on KITTI.
+runs faster than ZipMap while surpassing it on every metric.                 On Sintel, ZipMap outperforms both Spark3R+VGGT and
+Among other acceleration methods, FastVGGT remains over                      Spark3R+DA3 in Abs Rel and δ < 1.25. Spark3R+π 3 runs
+6× slower than Spark3R+VGGT at comparable or lower                           faster than ZipMap on every dataset and surpasses it on every
+pose accuracy, while the streaming methods CUT3R and                         depth metric. Among other acceleration methods, FastVGGT
+TTT3R are slower than every Spark3R variant and exhibit                      is roughly 2×–6× slower than Spark3R+VGGT across Bonn
+substantially lower pose accuracy on ATE and RPEr .                          and KITTI while providing slightly better depth accuracy.
+   Extension to VGGT-Ω. On VGGT-Ω, Spark3R delivers                          The streaming methods CUT3R and TTT3R are slower than
+a 16× speedup on TUM-dynamics and a 19× speedup on                           every Spark3R variant and exhibit substantially lower depth
+ScanNet while matching the pose accuracy of unaccelerated                    accuracy on all three datasets.
+VGGT-Ω on ScanNet and Sintel and trailing it slightly on
+TUM-dynamics, further confirming the generality of Spark3R                      Extension to VGGT-Ω. On VGGT-Ω, Spark3R delivers a
+across feed-forward backbones.                                               13× speedup on Bonn and a 4.6× speedup on KITTI, match-
+                                                                             ing the depth accuracy of unaccelerated VGGT-Ω on Bonn
+                                                                             and trailing it slightly on KITTI. Sintel highlights the benefit
+C. Video Depth Estimation                                                    most clearly: VGGT-Ω alone obtains an Abs Rel of 0.091, far
+  We evaluate video depth estimation on Bonn [44],                           ahead of every other base model (0.217–0.287), and Spark3R
+KITTI [45], and Sintel [43], covering indoor, outdoor, and                   retains this advantage while becoming the fastest variant on
+synthetic scenes respectively. We adopt Absolute Relative                    every benchmark in Tab. III. These results further confirm that
+Error (Abs Rel) and the threshold accuracy δ < 1.25 as                       Spark3R generalizes across feed-forward backbones.
+                                                                                                                                                  8
+
+
+
+                                                                TABLE III
+E VALUATION OF V IDEO D EPTH E STIMATION ON B ONN [44], KITTI [45], AND S INTEL [43]. R ED AND O RANGE BACKGROUNDS INDICATE THE BEST
+    AND THE SECOND BEST RESULTS , RESPECTIVELY. VGGT-Ω [17] WAS RELEASED AFTER OUR SUBMISSION AND IS THUS COMPARED SEPARATELY.
+
+
+  Method                            Bonn                                    KITTI                                        Sintel
+                    Time (s)↓    Abs Rel↓     δ < 1.25↑     Time (s)↓     Abs Rel↓        δ < 1.25↑     Time (s)↓     Abs Rel↓        δ < 1.25↑
+  CUT3R [18]           58.3        0.072         95.4           21.6        0.117           87.8           4.2          0.680           52.7
+  TTT3R [19]           58.5        0.060         97.4           21.5        0.108           89.3           4.1          0.635           55.1
+  VGGT [14]           552.4        0.046         98.2           31.5        0.078           94.2           2.1          0.263           64.6
+  DA3 [16]            493.4        0.040         98.2           28.8        0.063           96.6           2.6          0.238           65.6
+  π 3 [15]            413.1        0.033         98.9           22.6        0.046           97.9           1.6          0.217           71.8
+  FastVGGT [23]       182.8        0.043         98.4           11.2        0.078           94.2           2.3          0.287           64.2
+  ZipMap [30]          32.8        0.040         98.5            7.5        0.065           95.2           3.8          0.222           68.9
+  Ours+VGGT            31.1        0.044         98.1           5.3         0.078           94.0           1.8          0.270           64.6
+  Ours+DA3             38.3        0.039         98.3           7.2         0.064           96.4           2.5          0.240           65.5
+  Ours+π 3             23.3        0.035         98.9           3.9         0.047           97.8           1.4          0.216           71.9
+  Extension to VGGT-Ω (released after our intial submission):
+  VGGT-Ω [17]         252.8        0.036         98.3           16.6        0.064           96.6           1.3          0.091           92.6
+  Ours+VGGT-Ω         19.2         0.035         98.4           3.6         0.067           96.0           1.2          0.091           92.6
+
+
+
+D. Qualitative Results                                                  and plateaus for G ≥ 8, confirming that beneficial merging
+   Figures 7 and 8 present qualitative point-cloud comparisons.         pairs are concentrated within a small temporal neighborhood,
+In Figure 7, Spark3R applied to π 3 and VGGT-Ω produces                 consistent with the locality analysis in Figure 3. Merging time
+point clouds virtually identical to the unaccelerated baselines.        remains low and roughly constant for moderate group sizes,
+For DA3, the original reconstruction exhibits a visible ge-             as the intra-group matching cost scales as O(S · G), linear
+ometric misalignment in the bottom-right region, which we               in the sequence length S for fixed G. At the global setting
+attribute to accumulated pose drift; Spark3R+DA3 corrects this          where G=S, however, the cost reverts to O(S 2 ): merging
+misalignment, consistent with the improved rotational pose              time exceeds 20 s on 512-frame inputs, becoming a significant
+accuracy reported in Tab. II. The effect is most pronounced             fraction of total inference time. Any group size in the range of
+for VGGT: the baseline suffers from severe pose drift and               roughly 8 to 64 achieves near-optimal ATE with low matching
+large-scale geometric distortions. By mitigating the attention-         overhead; we adopt G=20 as our default throughout all other
+dilution effect discussed in Sec. V-A, Spark3R restores coher-          experiments.
+ent pose estimates and substantially improves the reconstruc-
+tion.                                                                                             TABLE IV
+   In Figure 8, the streaming methods CUT3R and TTT3R                   A BLATION ON THE QUERY REDUCTION FACTOR rQ . B OLD INDICATES THE
+                                                                             BEST RESULT AND UNDERLINE INDICATES THE SECOND BEST.
+produce visibly degraded reconstructions, with CUT3R’s ge-
+ometry largely fragmented and TTT3R retaining coarser struc-                         rQ     Time (s)↓    ATE↓       RPEt ↓   RPEr ↓
+ture but still showing prominent artifacts. FastVGGT pro-
+                                                                                     1        89.9       0.0291     0.0081   0.2656
+duces noticeably blurred geometry in the blue dashed box;                            2        50.4       0.0291     0.0085   0.2713
+Spark3R+VGGT alleviates this blurriness, recovering sharper                          3        37.0       0.0292     0.0087   0.2765
+textures and cleaner structural details. ZipMap delivers a                           4        30.5       0.0293     0.0091   0.2811
+                                                                                     8        20.8       0.0298     0.0097   0.2977
+more complete reconstruction overall, yet still exhibits subtle                      12       17.1       0.0305     0.0105   0.3190
+geometric distortions—i.e., the upper and middle portions of                         16       15.4       0.0310     0.0111   0.3397
+the door in the red dashed box are visibly misaligned. Spark3R
+applied to π 3 , DA3, and VGGT-Ω eliminates these distortions,             Query Reduction Factor. Tab. IV provides a detailed
+producing sharp and structurally faithful reconstructions.              numerical breakdown of the query-token sensitivity introduced
+                                                                        in Figure 1, sweeping rQ with rKV fixed at 1 to isolate the
+E. Ablation Studies                                                     effect of query compression. ATE remains nearly constant
+   We conduct ablation studies on VGGT to validate each                 from rQ =1 through rQ =4, varying only between 0.0291 and
+design choice in Spark3R. Unless otherwise noted, all ex-               0.0293, while RPE metrics exhibit a mild but steady increase,
+periments use 256-frame sequences from the 7-Scenes [39]                with RPEr rising from 0.2656 to 0.2811. Meanwhile, inference
+dataset, except for the group size ablation, which uses 512-            time drops from 89.9 s to 30.5 s. Beyond rQ =4, degradation
+frame sequences to more clearly expose the quadratic cost of            becomes more apparent: ATE rises to 0.0298 at rQ =8 and
+global matching on longer inputs.                                       to 0.0310 at rQ =16, with RPE metrics following the same
+   Group Size for Intra-Group Query Merging. Figure 9                   trend. These results delineate a clear safe operating range
+plots ATE and wall-clock merging time as a function of                  for query compression, and the length-adaptive schedule in
+the group size G. ATE drops sharply from G=1 to G=8                     Eq. (4), which caps rQ at 4, is designed to stay well within
+                                                                                                                                                    9
+
+
+
+
+             VGGT                                    DA3                                       𝝅𝟑                            VGGT-𝜴
+
+
+
+
+         Ours+VGGT                               Ours+DA3                              Ours+𝝅𝟑                           Ours+VGGT-𝜴
+
+
+
+
+Fig. 7. Qualitative comparison with unaccelerated baselines. Each pair shows the original model and its Spark3R-accelerated counterpart. Spark3R
+preserves fine-grained geometric details and produces point clouds visually comparable to the unaccelerated baselines. Notably, for VGGT, Spark3R even
+improves the reconstruction quality by alleviating attention dilution on long sequences.
+
+
+
+this regime.                                                                                             TABLE V
+                                                                                 A BLATION ON THE KEY- VALUE REDUCTION FACTOR rKV . B OLD
+   Merging vs. Pruning for Key-Value Tokens. Figure 10                        INDICATES THE BEST RESULT AND UNDERLINE INDICATES THE SECOND
+compares two key-value compression strategies that share                                                  BEST.
+
+the same source/destination partitioning via temporal stride
+                                                                                          rKV       Time (s)↓   ATE↓     RPEt ↓   RPEr ↓
+sampling but differ in how source tokens are handled. Token
+merging computes bipartite cosine similarities between all                                1           89.9      0.0291   0.0081   0.2656
+                                                                                          2           49.8      0.0289   0.0081   0.2652
+source tokens and destination tokens to assign each source                                3           36.3      0.0290   0.0081   0.2635
+token to its most similar destination, then averages the matched                          4           29.6      0.0290   0.0082   0.2651
+pairs to update the destination representation. Token pruning                             8           19.4      0.0289   0.0085   0.2661
+                                                                                          16          14.5      0.0293   0.0088   0.2696
+simply discards all source tokens and retains the destination                             32          12.0      0.0302   0.0097   0.2810
+tokens unchanged. The top panel shows that both strategies
+yield nearly identical ATE across all tested input lengths from
+100 to 1,000 frames, confirming that the averaging step pro-                fluctuating between 0.0289 and 0.0290, while inference time
+vides minimal benefit for key-value tokens, as expected from                drops from 89.9 s to 19.4 s. Even at rKV =16, ATE rises only
+the high source-to-destination similarity observed in Figure 4.             marginally to 0.0293. Noticeable degradation appears only at
+The bottom panel reveals the critical practical difference: the             rKV =32, where ATE reaches 0.0302. This high tolerance to
+wall-clock time for token merging grows superlinearly with                  key-value compression confirms the wide safe operating range
+the number of input frames due to the bipartite similarity                  for key-value tokens and supports the length-adaptive schedule
+computation between source and destination tokens, exceeding                in Eq. (5), which yields rKV =7 for 256-frame inputs, well
+70 s at 1,000 frames, whereas token pruning incurs effectively              within the quality-preserving regime.
+zero overhead regardless of sequence length. Since the identity                Layer-Adaptive Key-Value Reduction Schedule. Tab. VI
+closely approximates the averaging update, replacing merging                fixes rQ =1 and rKV =8 and evaluates the layer-adaptive sched-
+with pruning eliminates the dominant matching cost without                  ule by varying the multiplier l applied to the base key-
+sacrificing reconstruction quality.                                         value reduction factor rKV for low-sensitivity layers, while
+  Key-Value Reduction Factor. Tab. V provides a detailed                    high-sensitivity layers retain the base reduction factor. At
+numerical breakdown of the key-value token sensitivity intro-               l=1, all layers use the same reduction factor and inference
+duced in Figure 1, sweeping rKV with rQ fixed at 1. Pose error              takes 19.6 s. Increasing l to 2 reduces time to 15.8 s with
+remains virtually flat from rKV =1 through rKV =8, with ATE                 no performance degradation, suggesting that low-sensitivity
+                                                                                                                                                                                 10
+
+
+
+
+                                      CUT3R                                                                                                      TTT3R
+
+
+
+
+                                   FastVGGT                                                                                                  ZipMap
+
+
+
+
+                               Ours+VGGT                                                                                                   Ours+DA3
+
+
+
+
+                                   Ours+𝝅𝟑                                                                                            Ours+VGGT-𝜴
+
+
+
+
+Fig. 8. Qualitative comparison with other acceleration methods. The streaming methods CUT3R and TTT3R produce fragmented and noisy reconstructions.
+FastVGGT produces blurred geometry in the blue dashed box, while ZipMap exhibits subtle structural distortions in the red dashed box (i.e., misaligned
+door parts). Spark3R+VGGT sharpens the reconstruction over FastVGGT, and Spark3R applied to π 3 , DA3, and VGGT-Ω further surpasses ZipMap with
+geometrically faithful outputs.
+
+
+
+
+      0.16
+                                                                          20
+                                                                               Merging Time (s)
+
+
+
+
+      0.14                                                                                                0.08
+                                                                          15                                               Merging
+      0.12                                                                                                                 Pruning
+                                                                                                          0.06
+ATE
+
+
+
+
+      0.10                                                                10
+                                                                                                    ATE
+
+
+
+
+      0.08                                                                5                               0.04
+      0.06
+                                                                                                          0.02
+             1   2   3     4   8   12 16 20 24 28 32 40 48 56 64 global
+                                        Group Size
+                                                                                                                     100    200      300   400    500               750   1000
+                                                                                                                                           Number of Input Frames
+Fig. 9. ATE and wall-clock merging time as a function of the group size G                                                  Merging
+on 512-frame sequences from 7-Scenes [39].                                                                      60         Pruning
+                                                                                                     Time (s)
+
+
+
+
+                                                                                                                40
+
+                                                                                                                20
+                                      TABLE VI
+                                                                                                                0
+  A BLATION ON THE LAYER - ADAPTIVE MULTIPLIER l. B OLD INDICATES
+                                                                                                                     100    200      300   400    500               750   1000
+    THE BEST RESULT AND UNDERLINE INDICATES THE SECOND BEST.                                                                               Number of Input Frames
+
+                 l       Time (s) ↓    ATE ↓         RPEt ↓   RPEr ↓                              Fig. 10. Merging vs. pruning for key-value tokens. Both strategies use the
+                 1         19.6        0.0289        0.0085   0.2661                              same temporal stride partitioning into source and destination tokens. Top: ATE
+                 2         15.8        0.0289        0.0084   0.2660                              as a function of the number of input frames; both achieve nearly identical
+                 3         14.4        0.0292        0.0084   0.2668                              pose error. Bottom: wall-clock token reduction time. Token merging grows
+                 4         13.7        0.0293        0.0084   0.2671                              superlinearly due to the bipartite similarity computation, while token pruning
+                 6         13.3        0.0294        0.0085   0.2693                              remains near zero throughout.
+                 8         12.8        0.0302        0.0085   0.2679
+                                                                                                                                                              11
+
+
+
+layers tolerate more aggressive pruning without losing useful                    [15] Y. Wang, J. Zhou, H. Zhu, W. Chang, Y. Zhou, Z. Li, J. Chen,
+information. Further increases continue to reduce inference                           J. Pang, C. Shen, and T. He, “π 3 : Scalable permutation-equivariant
+                                                                                      visual geometry learning,” arXiv preprint arXiv:2507.13347, 2025.
+time, reaching 12.8 s at l=8, but ATE begins to rise beyond                      [16] H. Lin, S. Chen, J. H. Liew, D. Y. Chen, Z. Li, G. Shi, J. Feng, and
+l=3. We adopt l=3 as the default setting of Spark3R, as it                            B. Kang, “Depth anything 3: Recovering the visual space from any
+provides a favorable quality–efficiency trade-off.                                    views,” arXiv preprint arXiv:2511.10647, 2025.
+                                                                                 [17] J. Wang, M. Chen, S. Zhang, N. Karaev, J. Schönberger, P. Labatut,
+                                                                                      P. Bojanowski, D. Novotny, A. Vedaldi, and C. Rupprecht, “Vggt-Ω,”
+                           VI. C ONCLUSION                                            in Proc. of CVPR, 2026.
+                                                                                 [18] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa,
+   We introduced Spark3R, a training-free, plug-and-play ac-                          “Continuous 3d perception model with persistent state,” in Proc. of
+                                                                                      CVPR, 2025, pp. 10 510–10 522.
+celeration framework for feed-forward 3D reconstruction mod-                     [19] X. Chen, Y. Chen, Y. Xiu, A. Geiger, and A. Chen, “Ttt3r: 3d
+els. Spark3R applies conservative intra-group token merging                           reconstruction as test-time training,” arXiv preprint arXiv:2509.26645,
+for query tokens and aggressive lightweight token pruning                             2025.
+for key-value tokens, and further integrates a layer-adaptive                    [20] S. Yuan, Y. Yang, X. Yang, X. Zhang, Z. Zhao, L. Zhang, and
+                                                                                      Z. Zhang, “Infinitevggt: Visual geometry grounded transformer for
+key-value reduction schedule. Spark3R integrates directly into                        endless streams,” arXiv preprint arXiv:2601.02281, 2026.
+VGGT, π 3 , Depth-Anything-3, and VGGT-Ω, achieving up                           [21] K. Deng, Z. Ti, J. Xu, J. Yang, and J. Xie, “Vggt-long: Chunk it, loop
+to 28× speedup on 1,000-frame inputs while maintaining                                it, align it–pushing vggt’s limits on kilometer-scale long rgb sequences,”
+                                                                                      arXiv preprint arXiv:2507.16443, 2025.
+competitive reconstruction quality across diverse benchmarks.                    [22] T. Ding, Y. Xie, Y. Liang, M. Chatterjee, P. Miraldo, and H. Jiang,
+   Limitations and Future Work. As a training-free frame-                             “Laser: Layer-wise scale alignment for training-free streaming 4d
+work, Spark3R inherits the quality ceiling of its base model:                         reconstruction,” 2026. [Online]. Available: https://arxiv.org/abs/2512.
+                                                                                      13680
+it can preserve or improve predictions by alleviating attention                  [23] Y. Shen, Z. Zhang, Y. Qu, X. Zheng, J. Ji, S. Zhang, and L. Cao,
+dilution, but cannot compensate for intrinsic failure modes.                          “Fastvggt: Training-free acceleration of visual geometry transformer,”
+Jointly fine-tuning the base model with Spark3R so that it                            arXiv preprint arXiv:2509.02560, 2025.
+                                                                                 [24] Z. Shu, C. Lin, T. Xie, W. Yin, B. Li, Z. Pu, W. Li, Y. Yao,
+adapts to the compressed token sequences is a promising                               X. Cao, X. Guo, and X.-X. Long, “Litevggt: Boosting vanilla vggt
+direction for future work.                                                            via geometry-aware cached token merging,” 2025. [Online]. Available:
+                                                                                      https://arxiv.org/abs/2512.04939
+                                                                                 [25] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud, “Dust3r:
+                              R EFERENCES                                             Geometric 3d vision made easy,” in Proc. of CVPR, 2024, pp. 20 697–
+                                                                                      20 709.
+ [1] J. L. Schonberger and J.-M. Frahm, “Structure-from-motion revisited,”       [26] V. Leroy, Y. Cabon, and J. Revaud, “Grounding image matching in 3d
+     in Proc. of CVPR, 2016, pp. 4104–4113.                                           with mast3r,” in Proc. of ECCV. Springer, 2024, pp. 71–91.
+ [2] N. Snavely, S. M. Seitz, and R. Szeliski, “Photo tourism: exploring         [27] Y. Wu, W. Zheng, J. Zhou, and J. Lu, “Point3r: Streaming 3d
+     photo collections in 3d,” ACM Trans. Graph., vol. 25, no. 3, p. 835–846,         reconstruction with explicit spatial pointer memory,” 2025. [Online].
+     Jul. 2006. [Online]. Available: https://doi.org/10.1145/1141911.1141964          Available: https://arxiv.org/abs/2507.02863
+ [3] J. L. Schönberger, E. Zheng, J.-M. Frahm, and M. Pollefeys, “Pixelwise     [28] D. Zhuo, W. Zheng, J. Guo, Y. Wu, J. Zhou, and J. Lu,
+     view selection for unstructured multi-view stereo,” in Proc. of ECCV.            “Streaming 4d visual geometry transformer,” 2026. [Online]. Available:
+     Springer, 2016, pp. 501–518.                                                     https://arxiv.org/abs/2507.11539
+ [4] Y. Yao, Z. Luo, S. Li, T. Fang, and L. Quan, “Mvsnet: Depth inference       [29] S. Elflein, R. Li, S. Agostinho, Z. Gojcic, L. Leal-Taixé, Q. Zhou, and
+     for unstructured multi-view stereo,” in Proc. of ECCV, 2018, pp. 767–            A. Osep, “Vgg-t3 : Offline feed-forward 3d reconstruction at scale,”
+     783.                                                                             2026. [Online]. Available: https://arxiv.org/abs/2602.23361
+ [5] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi,
+                                                                                 [30] H. Jin, R. Wu, T. Zhang, R. Gao, J. T. Barron, N. Snavely, and
+     and R. Ng, “Nerf: Representing scenes as neural radiance fields for view
+                                                                                      A. Holynski, “Zipmap: Linear-time stateful 3d reconstruction via
+     synthesis,” Communications of the ACM, vol. 65, no. 1, pp. 99–106,
+                                                                                      test-time training,” 2026. [Online]. Available: https://arxiv.org/abs/2603.
+     2021.
+                                                                                      04385
+ [6] B. Kerbl, G. Kopanas, T. Leimkühler, and G. Drettakis, “3d gaussian
+                                                                                 [31] T. Zhang, S. Bi, Y. Hong, K. Zhang, F. Luan, S. Yang, K. Sunkavalli,
+     splatting for real-time radiance field rendering.” ACM Transactions on
+                                                                                      W. T. Freeman, and H. Tan, “Test-time training done right,” 2025.
+     Graphics, vol. 42, no. 4, pp. 139–1, 2023.
+                                                                                      [Online]. Available: https://arxiv.org/abs/2505.23884
+ [7] T. Lu, M. Yu, L. Xu, Y. Xiangli, L. Wang, D. Lin, and B. Dai, “Scaffold-
+     gs: Structured 3d gaussians for view-adaptive rendering,” in Proc. of       [32] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N.
+     CVPR, 2024, pp. 20 654–20 664.                                                   Gomez, L. Kaiser, and I. Polosukhin, “Attention is all you need,” 2023.
+ [8] Q. Gao, J. Meng, C. Wen, J. Chen, and J. Zhang, “HiCoM: Hierarchical             [Online]. Available: https://arxiv.org/abs/1706.03762
+     coherent motion for dynamic streamable scenes with 3D gaussian              [33] T. Dao, D. Y. Fu, S. Ermon, A. Rudra, and C. Ré, “FlashAttention: Fast
+     splatting,” in Proc. of NeurIPS, 2024.                                           and memory-efficient exact attention with IO-awareness,” in Proc. of
+ [9] J. Fu, Q. Gao, C. Wen, Y. Wu, S. Ma, J. Zhang, and J. Zhang, “Recon-             NeurIPS, 2022.
+     gs: Continuum-preserved gaussian streaming for fast and compact re-         [34] M. Oquab, T. Darcet, T. Moutakanni, H. Vo, M. Szafraniec, V. Khalidov,
+     construction of dynamic scenes,” in Proc. of NeurIPS, 2025.                      P. Fernandez, D. Haziza, F. Massa, A. El-Nouby et al., “Dinov2:
+[10] L. Wang, S. Sun, and J. Zhao, “Virpnet: A multimodal virtual point               Learning robust visual features without supervision,” Transactions on
+     generation network for 3d object detection,” IEEE Transactions on                Machine Learning Research Journal, pp. 1–31, 2024.
+     Multimedia, vol. 26, pp. 10 597–10 609, 2024.                               [35] R. Ranftl, A. Bochkovskiy, and V. Koltun, “Vision transformers for dense
+[11] S. Yang, L. Xu, H. Li, J. Mu, J. Zeng, D. Lin, and J. Pang, “Robo3r:             prediction,” in Proc. of CVPR, 2021, pp. 12 179–12 188.
+     Enhancing robotic manipulation with accurate feed-forward 3d recon-         [36] D. Bolya, C.-Y. Fu, X. Dai, P. Zhang, C. Feichtenhofer, and J. Hoffman,
+     struction,” arXiv preprint arXiv:2602.10101, 2026.                               “Token merging: Your ViT but faster,” in ICLR, 2023.
+[12] Y. Wu, Q. Gao, R. Zhang, H. Li, and J. Zhang, “Language-assisted 3d         [37] D. Bolya and J. Hoffman, “Token merging for fast stable diffusion,”
+     scene understanding,” IEEE Transactions on Multimedia, vol. 27, pp.              2023. [Online]. Available: https://arxiv.org/abs/2303.17604
+     3869–3879, 2025.                                                            [38] A. Zweiger, X. Fu, H. Guo, and Y. Kim, “Fast kv compaction via
+[13] H. Xiong, Y. Zhuge, J. Zhu, L. Zhang, and H. Lu, “3ur-llm: An end-               attention matching,” 2026. [Online]. Available: https://arxiv.org/abs/
+     to-end multimodal large language model for 3d scene understanding,”              2602.16284
+     IEEE Transactions on Multimedia, vol. 27, pp. 2899–2911, 2025.              [39] J. Shotton, B. Glocker, C. Zach, S. Izadi, A. Criminisi, and A. Fitzgib-
+[14] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny,           bon, “Scene coordinate regression forests for camera relocalization in
+     “Vggt: Visual geometry grounded transformer,” in Proc. of CVPR, 2025.            rgb-d images,” in Proc. of CVPR, 2013, pp. 2930–2937.
+                                                                                                                                                             12
+
+
+
+[40] D. Azinović, R. Martin-Brualla, D. B. Goldman, M. Nießner, and                Jian Zhang (Member, IEEE) is an Associate Professor and leads the Visual-
+     J. Thies, “Neural rgb-d surface reconstruction,” in Proc. of CVPR, 2022,       Information Intelligent Learning LAB (VILLA) at the School of Electronic
+     pp. 6290–6301.                                                                 and Computer Engineering, Peking University, Shenzhen, China. He has
+[41] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers, “A              published over 120 technical articles in refereed international journals and
+     benchmark for the evaluation of rgb-d slam systems,” in Proc. of IROS.         proceedings and has received over 16000 citations. He serves as an Associate
+     IEEE, 2012, pp. 573–580.                                                       Editor for the Journal of Visual Communication and Image Representation.
+[42] A. Dai, A. X. Chang, M. Savva, M. Halber, T. Funkhouser, and
+     M. Nießner, “Scannet: Richly-annotated 3d reconstructions of indoor
+     scenes,” in Proc. of CVPR, 2017, pp. 5828–5839.
+[43] D. J. Butler, J. Wulff, G. B. Stanley, and M. J. Black, “A naturalistic open
+     source movie for optical flow evaluation,” in Proc. of ECCV. Springer,
+     2012, pp. 611–625.
+[44] E. Palazzolo, J. Behley, P. Lottes, P. Giguere, and C. Stachniss, “Re-
+     fusion: 3d reconstruction in dynamic environments for rgb-d cameras
+     exploiting residuals,” in Proc. of IROS. IEEE, 2019, pp. 7855–7862.
+[45] A. Geiger, P. Lenz, C. Stiller, and R. Urtasun, “Vision meets robotics:
+     The kitti dataset,” The International Journal of Robotics Research,
+     vol. 32, no. 11, pp. 1231–1237, 2013.
+
+
+
+
+Zecheng Tang is currently pursuing the M.S. degree in computer science
+and technology with Peking University Shenzhen Graduate School, Shen-
+zhen, China. His research interests include: 1) 3D reconstruction and neural
+rendering; 2) 3D vision-language multimodal learning.
+
+
+
+
+Jiaye Fu is currently pursuing the M.S. degree in computer science and
+technology with Peking University Shenzhen Graduate School, Shenzhen,
+China. His research interests include image/video coding, 3D reconstruction,
+and AIGC.
+
+
+
+
+Qiankun Gao is currently a Postdoctoral Researcher with the School of
+Electronic and Computer Engineering, Peking University, Shenzhen, China.
+His research interests include 3D vision, AI-generated content (AIGC), and
+continual learning.
+
+
+
+
+Haijie Li is currently a Master’s student at Peking University, advised by
+Prof. Jian Zhang, and he will start his Ph.D. program in September 2026. His
+research interests include: 1) 3D reconstruction and neural rendering; 2) 3D
+vision-language multimodal learning.
+
+
+
+
+Yanmin Wu received the Ph.D. degree in computer applied technology
+from the School of Electronic and Computer Engineering, Peking University,
+Shenzhen, China, in 2025. His research interests include 3D vision and vision-
+language multimodal learning, autonomous driving, and robotics.
+
+
+
+
+Jiaqi Zhang is now a Associate Researcher in the School of Computer
+Science, Peking University. His research interests include data compression
+and image/video coding.
+
+
+
+
+Siwei Ma (Fellow, IEEE) joined the School of Computer Science, Peking
+University, where he is currently a Professor. He has authored more than 300
+technical articles in refereed journals and proceedings in image and video
+coding, video processing, video streaming, and transmission. He served/serves
+as an Associate Editor for the IEEE Transactions on Circuits and Systems
+for Video Technology and Journal of Visual Communication and Image
+Representation.
+

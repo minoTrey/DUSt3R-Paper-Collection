@@ -72,7 +72,8 @@ _UNIT = r"\d+(?:\.\d+)?\s*(?:ms|s|min|GB|MB|FPS|dB|M|B)\b"
 DERIVED = re.compile(
     r"\(\s*[~≈<>]?\s*\d+(?:\.\d+)?\s*(?:ms|s|min|GB|MB|%)?\s*"
     r"(?:vs\.?|versus|→|/)\s*[~≈<>]?\s*\d"  # 패턴 A
-    rf"|{_UNIT}.{{0,60}}?{_UNIT}",  # 패턴 B: 단위값 2개
+    rf"|{_UNIT}.{{0,60}}?{_UNIT}"  # 패턴 B: 단위값 2개
+    r"|\d[\d,]{3,}\D{0,40}?\d[\d,]{3,}",  # 패턴 C: 콤마 천단위 두 수치(247,153 vs 5,550,940)
     re.I,
 )
 

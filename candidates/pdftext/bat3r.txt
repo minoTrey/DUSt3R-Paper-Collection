@@ -1,0 +1,2674 @@
+                                            Bootstrapping Articulated 3D Reconstruction
+                                                     from 2D Image Collections
+
+                                                   Jakub Zadrozny, Oisin Mac Aodha          , and Hakan Bilen
+
+                                                                     University of Edinburgh
+                                                                 jakubzadrozny.github.io/bat3r
+arXiv:2607.03891v1 [cs.CV] 4 Jul 2026
+
+
+
+
+                                              Abstract. 3D reconstruction of articulated objects from a single im-
+                                              age is challenging because large training datasets with paired image and
+                                              3D supervision are difficult to obtain. Recent point map–based methods
+                                              achieve strong performance but rely on synthetic datasets rendered from
+                                              manually created articulated 3D assets with carefully curated pose dis-
+                                              tributions. While camera viewpoints can be easily sampled, generating
+                                              realistic object articulations remains costly and labor-intensive. We pro-
+                                              pose a training framework that reduces this requirement by leveraging
+                                              unannotated 2D images collections with only a single rigged canonical
+                                              mesh per category. Starting from a weak 3D shape predictor trained on
+                                              canonical-pose renders, we iteratively estimate object articulation and
+                                              camera pose by fitting the mesh to predicted point maps. The recov-
+                                              ered articulations and viewpoints are then used to render updated syn-
+                                              thetic training data, progressively improving the predictor. Despite us-
+                                              ing substantially weaker 3D supervision, our models achieve performance
+                                              comparable with DualPM, which requires manually curated articulated
+                                              training datasets.
+
+                                              Keywords: 3D Reconstruction · Weak Supervision · Articulation
+
+
+                                        1   Introduction
+
+                                        Estimating the 3D shape of an object from a single image is an inherently ill-
+                                        posed task in computer vision, as multiple 3D structures can correspond to
+                                        the same 2D observation. The challenge becomes even more pronounced in the
+                                        presence of occlusions, whether self-occlusions or those caused by other objects
+                                        in the scene, which leave only partial information about the object’s geometry.
+                                        Addressing this problem therefore requires reasoning about the complete 3D
+                                        structure from limited visual evidence. This ability to infer and understand such
+                                        complex 3D shapes is fundamental for next-generation embodied systems that
+                                        must perceive, reason about, and interact with objects in the physical world.
+                                            Previous works addressing this problem typically rely on incorporating pri-
+                                        ors to constrain the otherwise ambiguous 3D reconstruction space, ensuring that
+                                        predicted shapes are both plausible and consistent with the input image. Such
+                                        priors have been introduced in several ways: through morphable 3D shape tem-
+                                        plates [25, 52], learned from 2D image collections [1, 21, 40] or by encoding shape
+2            J. Zadrozny et al.
+
+    Manually Created Meshes (DualPM)   Training Data Rendering
+
+
+                                 …
+                                                     …
+       Multiple Articulated Meshes
+
+     Automatic Generation (Ours)
+
+                                            🔥
+                                                2D→3D
+                                                  Net
+                             Mesh
+    Single Mesh 2D Images    Fitting                             Input Image   DualPM   Ours
+
+Fig. 1: While effective, supervised approaches for 3D shape estimation from 2D im-
+ages rely on the availability of large manually crafted and curated 3D shape datasets
+depicting objects of interest in a wide variety of poses (top left). We introduce a new
+approach that only requires a single mesh per category and an image collection as input
+(bottom left). From this, we are able to automatically generate paired training data,
+i.e., 2D images and corresponding 3D point clouds, that can be used to train supervised
+reconstruction methods. Our 3D prediction results are comparable to methods that are
+trained on richer manually created 3D articulated data, e.g., DualPM [13] (right).
+
+
+
+knowledge into neural networks with supervised 3D data [13, 42]. Among these
+approaches, supervised models trained on paired input images and corresponding
+3D data (e.g., meshes) have demonstrated particularly strong performance [5].
+    However, like most supervised approaches, the success of these methods is
+heavily reliant on the quality and diversity of available training data. While
+recent efforts have expanded the availability of synthetic 3D assets through
+large-scale dataset curation [6, 7, 20], these collections still suffer from limita-
+tions in realism and diversity. Moreover, the manual curation required to build
+larger, high-quality datasets is prohibitively expensive. This issue is especially
+pronounced for object-centric 3D reconstruction of deformable and articulated
+objects (e.g., animals), which require substantial amounts of diverse 3D data
+for effective supervised training. Outside of human-centric domains [2, 3, 36, 44],
+there remains a scarcity of 3D datasets for other complex articulated objects.
+    While obtaining large-scale articulated 3D data for a specific object category
+is challenging, as discussed above, single meshes depicting the category in a
+rest (i.e., canonical or neutral) pose are often readily available. Motivated by
+this observation, we ask whether it is possible to train a model to estimate the
+3D shape of an object from a single image given only a single 3D model of
+that category and a set of 2D images at training time? In doing so, we would
+significantly decrease the amount of manual curation required to generate such
+datasets and provide a scalable pathway to training models for categories that
+have limited 3D data available.
+    At first glance, this appears infeasible as a single mesh cannot capture the
+wide range of pose and shape variation observed in real-world images. Neverthe-
+less, we observe that training from rendered images obtained from a single 3D
+mesh can provide a strong initialization for basic shape and camera viewpoint
+estimation (see Fig. 1 for an overview). Building on this insight, we propose an
+    Bootstrapping Articulated 3D Reconstruction from 2D Image Collections          3
+
+iterative data generation procedure that progressively augments the training set
+with predicted paired 2D and 3D training instances that exhibit progressively
+more complex poses. In doing so, we demonstrate that it is possible to train
+the recent state-of-the-art DualPM [13] 3D shape estimation method on signif-
+icantly weaker 3D data yet still obtain comparable performance on challenging
+quadruped animal categories.
+    We make the following contributions: (i) We propose a new approach, Boot-
+strapping ArTiculated 3D Reconstruction (BAT3R), for automatically generat-
+ing paired 2D and 3D training data that can be used to train category-centric 2D
+to 3D shape prediction models while foregoing the need for expensive manually
+created 3D articulated training data. (ii) Despite being trained on significantly
+weaker 3D data, we demonstrate that our approach results in strong reconstruc-
+tion performance. Furthermore, we show that the iterative application of our
+method improves performance, closing the gap between our approach and fully
+supervised baselines.
+
+
+2   Related work
+There is a large body of work in computer vision that attempts to reconstruct a
+3D representation of a scene given a set of images depicting the scene, e.g., [14,26,
+28,34,38]. In this work, our focus is on a different type of 3D reconstruction task,
+that of reconstructing deformable objects from unstructured image collections.
+
+Unsupervised reconstruction. There is a family of unsupervised methods
+that have been proposed that can estimate the 3D shape of a rigid object cate-
+gory given a collection of images [9, 12, 19, 27, 37]. Unlike conventional structure
+from motion methods that assume the provided images are from different view-
+points of same object instance or scene at similar points in time, these methods
+instead take an unstructured set of images as input, i.e., a set of images de-
+picting the same object category, but not necessarily the same exact instance.
+The methods are unsupervised in the sense that no ground-truth 3D supervi-
+sion is available, but they instead make use of auxiliary 2D supervision such
+as foreground segmentation masks, semantic part segmentation masks, object
+keypoints, camera poses, etc. Successive methods have managed to remove some
+of the supervision signal required either partially (e.g., by removing the need for
+keypoint annotations [9]) or completely [27]. Due the rigid object assumptions
+made by these methods, they cannot estimate plausible 3D shapes for articu-
+lated/deformable objects.
+    Techniques have been proposed to address the more challenging non-rigid
+case whereby objects may deform or articulate. Given a collection of images
+and a skeleton, LASSIE [45] introduced a test-time optimization approach to
+reconstruct articulated categories. Later this was extended such that the skeleton
+could also be estimated from the images [46]. An alternative approach is to
+train a neural network to directly predict the articulated 3D shape. Skeleton-
+based priors have also been demonstrated to be effective in this setting as in
+4      J. Zadrozny et al.
+
+MagicPony [40] or 3D-Fauna [21], but other priors such as motion cues obtained
+from video sequences, as used in DOVE [39], are also effective. SAOR [1] does
+not require any 3D or video supervision, instead relying on the assumption that
+objects can be decomposed into a set of articulated parts which are learned
+during training. While impressive, the results of these unsupervised methods are
+still inferior to techniques that are trained with full 3D supervision.
+
+Supervised reconstruction. The above unsupervised methods broadly do not
+make use of any detailed 3D shape information during training. However, when
+available, this can impose a strong regularization signal ensuring that model
+predictions stay on the manifold of plausible 3D shapes. One approach is to
+align multiple 3D meshes of different instances of the same object category into
+a common model which captures the shape variation within the category. This
+has been shown to be highly effective for humans [25], quadrupeds [52] more
+generally, and specific species such as dogs [32, 33] and horses [53]. However, the
+3D alignment step is non-trivial and limits this approach to settings where a large
+number of 3D meshes containing instances of the same topology are available.
+    When large quantities of paired image and 3D data are available, it is possi-
+ble to directly apply supervised learning techniques to learn the mapping from
+images to 3D, e.g., [51]. Additionally, priors learned from deep generative (e.g.,
+diffusion-based) models have also been shown to be effective at assisting with
+3D extraction [23, 24, 42]. These supervised approaches require training data,
+but advances in rendering and the availability of large 3D asset collections have
+enabled the creation of paired datasets in the case of a limited number of de-
+formable categories such as animals, e.g., [10, 29, 43]. However, the generation of
+such datasets relies on the availability of 3D assets in diverse poses.
+    Inspired by point-based representations developed in the context of 3D re-
+construction networks [38] and canonical surface mapping [17, 18], DualPM [13]
+introduced a supervised approach for viewpoint invariant point map prediction
+for deformable object categories. It leverages large synthetically rendered im-
+ages and 3D point clouds to train a supervised model that can predict both
+the 3D position of visible and occluded parts of the object via a multi-layered
+output representation. DualPM produces state-of-the-art reconstruction results
+for quadrupeds. However, like the supervised methods previously discussed, it
+requires 3D training data depicting objects in diverse poses. In this work, we
+propose a new approach for automatic dataset generation that overcomes this
+requirement for diverse data. Specifically, we show that it is possible to generate
+rich training data via an iterative procedure that only requires a single rigged
+canonically posed mesh as input.
+
+
+3   Method
+Given a collection of RGB images {In }N n=1 depicting different instances of an
+articulated object category (e.g., horses), our goal is to train a single-image
+predictor Φ that reconstructs the object’s 3D geometry. At training time, we
+      Bootstrapping Articulated 3D Reconstruction from 2D Image Collections                                                                                      5
+
+assume we have access to a single canonical mesh M c representing the object
+in its rest pose. We also assume that M c is animation-ready, i.e., rigged and
+skinned with an articulation skeleton. Such meshes can be created manually or
+obtained using recent automatic rigging methods [35,48]. Importantly, we do not
+require additional instances of this mesh in different articulated poses.
+    For the image collection, we assume foreground segmentation masks are avail-
+able, which can be obtained using off-the-shelf segmentation methods [16, 31].
+The images require neither camera pose annotations nor 3D supervision. We also
+do not assume prior knowledge of the distribution of valid object articulations,
+and only require a coarse prior over camera viewpoints. Both object articula-
+tions and camera poses are estimated automatically during training. We use the
+DualPM point-map representation [13] for the single-image predictor, which we
+summarize next.
+
+
+3.1     Preliminaries: Dual Point Maps (DualPM)
+
+Our main contribution is a framework for automatically generating paired 2D–3D
+training data for articulated image-to-3D reconstruction. For the reconstruction
+model, we build on DualPM [13], which predicts two coupled, layered 3D point
+maps from a single image.
+    Given an input image I, for each foreground pixel u, the network predicts K
+intersection points between a ray passing through pixel u and the object surface
+(capturing both visible and occluded parts). Each intersection point at layer k
+is represented by a posed point Pk (u) ∈ R3 and a canonical point Qk (u) ∈ R3 .
+The posed point is expressed in the camera coordinate frame, while the canon-
+ical point is expressed in the object’s rest-pose coordinate system. Together,
+(Pk (u), Qk (u)) describe the same physical surface location in two coordinate
+frames. The posed map therefore provides a 3D reconstruction of the object in
+the camera coordinate frame, while the canonical map establishes dense corre-
+spondences mapping canonical points to posed points. This explicit canonical-
+to-posed mapping is the core mechanism driving our mesh fitting stage.
+    DualPM [13] is a fully supervised approach and it is trained using synthet-
+ically rendered images depicting articulated meshes where ground-truth posed
+and canonical coordinates are available for each surface point (both visible and
+occluded). We let P̂k (u) and Q̂k (u) denote the predicted posed and canonical
+points, respectively, and F denote the set of masked object (foreground) pixels.
+The posed point map is trained using the confidence-weighted regression loss:
+
+            \mathcal {L}_P = \frac {1}{K|F|} \sum _{u \in F} \sum _{1 \leq k \leq K} c_{P_k}(u)\, \| \hat {P}_k(u) - P_k(u) \|_2^2 - \alpha \log c_{P_k}(u),    (1)
+
+
+where Pk (u) and Qk (u) denote the ground truth posed and canonical points,
+cPk (u) denotes a predicted confidence for the posed point estimate. The total
+training objective is LDualP M = LP + LQ , where an analogous loss to LP is used
+for LQ .
+6             J. Zadrozny et al.
+
+Repeat For Different Views                                             Repeat For Each Image
+
+
+
+
+                                             2D Images
+                                  Train
+                             🔥                                               2D→3D
+                                 2D→3D                                         Net
+                                   Net
+      Canonical Mesh                                                                                  Point Cloud        Mesh Fitting
+                                                              …
+    Render
+                                                                                                                Render
+                                                         🔥
+                                                             2D→3D
+                                 Canonical                                   Articulated
+                                                               Net            Dataset
+                                  Dataset
+     Paired 2D + 3D                                                                              Paired 2D + 3D          Fitted Mesh
+                                                             Retrain
+                 Initial Phase                                                      Iterative Phase
+
+
+Fig. 2: Overview of our bootstrapping approach BAT3R. Left: We render the canonical
+rigged mesh from sampled camera viewpoints to create an initial paired 2D–3D training
+set, which is used to train the initial 2D to 3D predictor Φ0 . Right: Given an image
+collection, the current predictor Φi predicts posed and canonical point maps. We fit the
+canonical mesh to these predictions, recover an articulated mesh and camera viewpoint,
+and render the result to obtain new synthetic training pairs with exact point-map
+supervision. The predictor is then retrained on this generated dataset, yielding Φi+1 .
+The process is repeated for multiple iterations.
+
+
+
+3.2          BAT3R: Bootstrapping ArTiculated 3D Reconstruction
+
+The original DualPM framework requires a training collection of 2D images
+depicting the object of interest in various articulated poses, paired with corre-
+sponding ground-truth layered 3D point maps with canonical correspondences.
+In practice, this paired data is generated synthetically via layered rasteriza-
+tion of articulated 3D meshes. However, acquiring such high-quality datasets
+is highly non-trivial as creating realistic articulation data for rigged meshes is
+a challenging, time-consuming, and expensive process that typically demands
+the expertise of professional 3D artists. Furthermore, achieving comprehensive
+coverage of natural articulations is critical, as the predictive performance and
+generalization capabilities of the learned model are inherently limited by the
+pose and articulation diversity present within the training data. We propose an
+alternative solution that requires significantly less 3D supervision. Our method
+alternates between two steps: fitting the canonical mesh to predictions on the
+2D image collection, and using the fitted meshes to render new paired 2D–3D
+training data.
+    We assume we have access to an initial, potentially weak, 3D predictor Φi ,
+which can be initialized by training the predictor on image and 3D data rendered
+from a single canonical mesh (i.e., depicting a single pose). The high-level idea
+behind our approach is that we can use the initial predictor to generate plau-
+sible predictions for the supplied image collection and then make use of mesh
+alignment methods to fit the canonical mesh to the predicted point clouds to
+obtain realistic object poses that can be used to generate improved ground-truth
+3D training data. Below we detail a single iteration of our proposed refinement
+procedure, designed to yield an improved predictor, Φi+1 . An illustration of our
+method, BAT3R, is depicted in Fig. 2.
+    Bootstrapping Articulated 3D Reconstruction from 2D Image Collections              7
+
+    We first employ the current model Φi to infer the dual point clouds (derived
+from the dual point maps), i.e., the posed point cloud P and the corresponding
+canonical point cloud Q, for each image I in the training collection. Subsequently,
+we optimize for the best articulation of the provided canonical 3D mesh to the
+predicted posed point cloud for each instance. This fitting process is facilitated
+by the semantic correspondences provided by the dual point cloud representation
+(see Sec. 3.1). Although the geometric fidelity of the predicted point clouds may
+be imperfect (particularly during early stages of the refinement), their primary
+function is merely to guide the mesh articulation toward the target pose depicted
+in the input image. A key observation motivating our approach is that exact
+ground-truth 3D annotations for the input images are not required to iteratively
+improve the predictor. Instead, we rely on articulating the canonical mesh to fit
+the imperfect predictions, which inherently provides a fully accurate and self-
+consistent 3D structure for supervision. Furthermore, as a natural by-product of
+our mesh alignment process, we also recover the camera poses corresponding to
+the input images. Finally, these articulated meshes and estimated camera poses
+are utilized to render a novel, self-annotated training set, which serves as the
+supervisory signal to train the subsequent model iteration, Φi+1 .
+
+
+Initialization. In the most general case, we begin the process assuming no
+knowledge about the distribution of plausible 3D articulations and simply train
+a naïve initial model to serve as Φ0 , i.e., Φi for the first iteration where i = 0. To
+this end, we automatically create a dataset of 2D renders of the canonical mesh
+M c (i.e., a 3D mesh of the object in a rest pose) from many randomly sampled
+camera viewpoints. The distribution used to sample camera viewpoints should
+in general resemble the distribution that is expected to be encountered at test
+time. To complete the rendering pipeline we require an object texture, which
+can be hand-crafted or AI-generated, and a environment map which we sample
+from a collection of publicly available assets. This dataset of images of the object
+in the canonical pose from various viewpoints, with known 3D per-image shape,
+serves as our initial paired training data.
+
+
+Inference and mesh fitting. Our mesh fitting algorithm employs a gradient-
+based optimization loop to articulate and align the canonical 3D mesh to the
+predicted dual point clouds. The dual point map representation lends itself par-
+ticularly well to this purpose by establishing explicit dense correspondences be-
+tween the posed and the canonical states. Specifically, let V c = {vjc } denote
+the vertices of the canonical mesh M c , and let P = {pi } and Q = {qi } rep-
+resent the predicted (using Φi ) posed and canonical point clouds for a specific
+image I, respectively. First, each point indexed by i in the dual point map is
+assigned to the mesh vertex that minimizes the distances in the canonical space,
+i.e., j ∗ (i) = arg minj ∥qi − vjc ∥2 . Intuitively, during the fitting process, the cor-
+responding predicted posed point pi acts as a target attractor pulling on the
+articulated mesh vertex.
+8       J. Zadrozny et al.
+
+     Furthermore, when fitting the mesh to point clouds predicted from in-the-
+wild images, the template mesh M c will inherently exhibit anatomical discrep-
+ancies compared to the observed instance. To prevent the optimization from
+overfitting to these instance-specific structural variations, we subsample the pre-
+dicted dual point clouds to a sparse set of 200 control points. To ensure these
+control points are sampled uniformly along the surface of the object, we em-
+ploy a topology-aware farthest point sampling strategy. We define a surface-
+grounded distance metric D(qn , qm ) between any two predicted canonical points
+qn , qm ∈ Q. Let j ∗ (n) denote the index of the mesh vertex assigned to qn , and
+let dgeo (·, ·) represent the geodesic distance along the canonical mesh surface.
+We formulate the distance as the path length bridging the two points via the
+mesh surface:
+
+        D(q_n, q_m) = \|q_n - v^c_{j^*(n)}\|_2 + d_{geo}\left (v^c_{j^*(n)}, v^c_{j^*(m)}\right ) + \|v^c_{j^*(m)} - q_m\|_2                                        (2)
+
+For ease of notation, in all subsequent sections, we assume P and Q refer directly
+to these subsampled control point clouds.
+    The optimization process begins by determining an optimal global rigid trans-
+formation T g (comprising scaling, rotation, and translation) using the Kabsch
+algorithm [11], to align the canonical mesh (defined in the rest-pose coordinate
+frame) with the predicted posed point cloud P (residing in the camera space).
+Following this global alignment, we optimize the articulation parameters θ, de-
+fined as the excess joint rotations relative to the rest pose, alongside per-bone
+(scalar) scale parameters S to account for instance-specific anatomical propor-
+tions (e.g., variations in limb length). The state of the posed mesh is thus a
+function of the articulation, bone scales, and global rigid transform, yielding the
+posed vertices V P (θ, S, T g ) = {vjp (θ, S, T g )}.
+    To guide this process, we define a loss function consisting of a data term
+and geometric regularization constraints. The data term, Ldata , measures the
+discrepancy between each predicted posed point pi and its assigned articulated
+mesh vertex vjp∗ (i) :
+
+                              \mathcal {L}_{data} = \sum _{p_i \in P} \mathcal {H}_\delta \left ( \lVert p_i - v^p_{j^*(i)}(\theta , S, T^g) \rVert _2 \right ).    (3)
+
+
+To mitigate the influence of outliers and to accommodate natural deviations
+between the predicted point cloud and the specific instance’s true shape, we
+employ a robust Huber loss Hδ with δ = 0.1 for this distance.
+     Our objective is not only to overfit the point cloud, but rather to find a close,
+reasonable alignment while preserving the intrinsic structural properties of the
+fitted mesh, which ensures the 3D predictor Φ learns a geometrically correct
+prior. To this end, we incorporate a set of regularization losses to address over-
+fitting. First, inspired by physical energy minimization principles, we penalize the
+mean squared magnitude of the excess joint rotations (∥θ∥22 ), which encourages
+smooth and gradual curvatures. Second, we introduce penalties against devia-
+tions in (local) volume Lvol and edge lengths Ledge , between the canonical and
+        Bootstrapping Articulated 3D Reconstruction from 2D Image Collections                                                                                                                                                                              9
+
+articulated states, thereby preventing unrealistic stretching, shearing, or com-
+pression. Third, to ensure anatomical consistency, we regularize the bone scales
+via Lscale , which enforces left-right symmetry and penalizes extreme deviations
+from the canonical proportions. Finally, when presented with challenging artic-
+ulations, the 3D predictor tends to output noisy point clouds, especially early
+in the refinement process, which in turn results in self-intersections of the fitted
+meshes. To mitigate this effect, we apply a self-repulsion loss term, Lrep , which
+explicitly penalizes configurations where vertices separated by a large geodesic
+distance on the mesh surface collapse to a small Euclidean distance in the artic-
+ulated state, effectively preventing self-intersections. Crucially, to prevent these
+structural penalties from opposing the valid anatomical size variations captured
+by S, the geometric losses (Lvol , Ledge , Lrep ) are computed on the unscaled ar-
+ticulated mesh. We provide more details in the supplementary material.
+    The complete objective function is formulated as:
+
+   \label {eq:loss} \mathcal {L} = \mathcal {L}_{data} + \lambda _{angle} \lVert \theta \rVert _2^2 + \lambda _{vol} \mathcal {L}_{vol} + \lambda _{edge} \mathcal {L}_{edge} + \lambda _{scale} \mathcal {L}_{scale} + \lambda _{rep} \mathcal {L}_{rep}.  (4)
+
+The total loss L is jointly minimized using gradient descent with respect to the
+excess joint rotations θ, bone scales S, and the global rigid transform T g , as
+articulating the mesh necessitates corrections to the global alignment. Impor-
+tantly, the bone scales S act solely as auxiliary variables to absorb instance-
+specific anatomical variations for a more accurate data fit. Upon convergence,
+S is discarded, and we extract the unscaled articulated mesh to serve as the
+geometrically consistent 3D training target for the next iteration. Note that our
+regularization terms, apart from the angular penalty, which we assign a low
+weight λangle , do not hinder intricate yet natural deformations, as physically
+plausible articulations generally do not necessitate excessive stretching, com-
+pression, volume fluctuations, or self-intersections.
+    We empirically observe that our approach proves more effective at extracting
+accurate poses from lateral views compared to frontal and rear perspectives.
+To address this imbalance and boost performance on the challenging views, we
+employ a viewpoint augmentation strategy. Specifically, to form the training set
+for the next iteration, we render the fitted meshes from multiple different novel
+viewpoints (see supplement for details).
+
+
+4          Experiments
+4.1            Experimental setup
+Datasets. For our synthetic data evaluation, we strictly follow the training splits
+provided by DualPM [13] for the horse, cow, and sheep categories. Crucially,
+we do not access the ground-truth articulations and camera poses. Instead, we
+recover the articulations and camera poses using our refinement procedure. For
+our real-world evaluation, we collect purely 2D in-the-wild images. For horses, we
+utilize ∼11, 000 real images from the MagicPony [40] dataset. For chimpanzees,
+we assemble a training collection of ∼19, 000 images from AP-10K [47] and
+10     J. Zadrozny et al.
+
+OpenApePose [8] (restricted to chimpanzees). Finally, for elephants, we assemble
+a training collection of ∼21, 000 images comprising the Wild Elephant Dataset
+from Kaggle and frames extracted from YouTube videos using the Animal-in-
+Motion [50] pipeline.
+3D assets and rendering. Our approach requires a canonical 3D mesh. For the
+horse, cow, and sheep categories, we utilize the exact canonical assets provided
+by DualPM. For chimps and elephants, we acquire publicly available meshes from
+the internet. While we utilize manually rigged meshes in this work, our pipeline
+is agnostic to the rigging source and can be paired with modern auto-rigging
+solutions [22, 48].
+Evaluation protocol. Our evaluation spans both strict baseline comparisons
+and wider generalization tests. To this end, we utilize three quantitative test
+splits for the horse category: (1) Animodel-Points [10, 13]: the exact test split
+defined by DualPM; (2) Horse-Robust: a comprehensive, large-scale dataset of
+15, 000 samples (compared to ∼500 in Animodel-Points), where only the male
+horse template is available at training time, but the female template is used for
+evaluation; (3) Horse-Mixed : a standard in-distribution split (18, 000 samples)
+where models are both trained and evaluated on a mix of male and female
+templates. We utilize this split for controlled ablation studies.
+Evaluation metrics. Following the Animodel-Points benchmark protocol [10,
+13], we evaluate the geometric accuracy of our predicted point clouds using the
+Root-Mean-Square (RMS) bi-directional Chamfer Distance (CD), reported in
+centimeters. We evaluate under both full rigid alignment (using Iterative Closest
+Point (ICP)) and model-view alignment (restricted to scale and translation),
+thereby penalizing inaccurate camera pose predictions. In the ablation studies,
+we report with more granularity, i.e., the mean CD (mCD), the outlier ratio
+denoted as % (CD > 5cm) which measures the fraction of test samples exceeding
+a 5cm error threshold, and the angular camera rotation error ∆R (◦ ).
+Baselines. We compare against category-specific models [10, 17, 21, 40, 42], in-
+cluding the state-of-the-art DualPM [13], which is trained with full 3D supervi-
+sion. For real-world categories where 3D supervision is unavailable, we compare
+qualitatively against recent zero-shot 3D foundation models, namely SAM-3D [5]
+and Trellis.2 [41], which are evaluated in a zero-shot manner.
+Implementation summary. We employ the DualPM architecture as our point
+map predictor. When training on synthetic images, we disable bone scaling, as
+these datasets lack the individual anatomical variation present in real-world
+samples. Furthermore, we observed that the original DualPM training regime
+becomes unstable when supervised by the mesh articulations fitted to noisy
+initial predictions, which inherently contain extreme outliers despite geomet-
+ric regularization (particularly in the case of real-world images). To mitigate
+this instability, we adopt a modified optimization regime tailored for noisy, self-
+supervised targets (see the supplementary material for details). We typically run
+our refinement loop for four iterations (see Sec. 4.3 for analysis). Further imple-
+mentation details, including texture generation, camera pose distributions, and
+mesh fitting parameters, are provided in the supplementary material.
+      Bootstrapping Articulated 3D Reconstruction from 2D Image Collections                 11
+
+Table 1: Quantitative evaluation on the Animodel-Points dataset. We report the Root
+Mean Square Error (RMS) of the bi-directional Chamfer Distance in centimeters (↓).
+Our methods in this comparison (‘Canonical’ and ‘Ours (synt)’) are trained on the
+synthetic images from DualPM following original splits. We report both the results
+with and without rotation alignment. Best results in bold, 2nd best underlined.
+
+                   RMS Chamfer Distance (cm) ↓        Model-view RMS Chamfer Dist. (cm) ↓
+ Method
+                   Horse        Cow         Sheep        Horse           Cow        Sheep
+ A-CSM [17]     11.75 ± 3.83 9.52 ± 2.41 9.24 ± 2.40 38.13 ± 13.89 33.51 ± 11.52 29.04 ± 9.35
+ MagicPony [40] 11.19 ± 3.08 10.29 ± 2.08      –      20.82 ± 13.04 25.39 ± 13.43       –
+ Farm3D [10]    11.34 ± 3.22 9.63 ± 2.02 11.01 ± 1.87 29.52 ± 15.73 21.34 ± 12.85 21.52 ± 9.84
+ 3D-Fauna [21] 11.86 ± 3.03 10.54 ± 2.26 9.61 ± 2.15 15.70 ± 6.82 14.08 ± 4.20 12.24 ± 3.17
+ Trellis [42]    6.93 ± 4.13 6.80 ± 3.24 5.91 ± 2.93 36.82 ± 16.02 26.54 ± 13.14 26.56 ± 12.06
+ DualPM [13]    4.30 ± 1.50 3.18 ± 1.06 3.30 ± 1.20 5.49 ± 1.75 4.03 ± 2.11 4.22 ± 2.18
+ Canonical       7.88 ± 3.01 6.66 ± 2.31 6.62 ± 2.33 9.87 ± 4.55 7.85 ± 2.87 7.70 ± 2.66
+ Ours (synt) 5.65 ± 1.57 4.17 ± 1.15 4.35 ± 1.26 7.73 ± 2.06 5.30 ± 2.42 5.04 ± 1.71
+
+
+Table 2: Quantitative evaluation on the Horse-Robust test split. We report the Root
+Mean Square Error of the bi-directional Chamfer Distance (RMS CD) and Model-
+view (MV) RMS CD. Both variants of our approach outperform large-scale foundation
+models despite using orders of magnitude less 3D supervision. Trellis.2 relies purely on
+best-effort post-hoc rotation alignment which occasionally fails, inflating its error. Best
+results in bold, 2nd best underlined.
+
+   Metric (cm) ↓ Trellis.2 SAM-3D DualPM Canonical Ours (synt) Ours (real)
+   RMS CD     8.92             6.42      3.84        7.84         5.10           6.01
+   MV RMS CD 40.03             8.71      5.42       10.83         7.92           8.37
+
+
+
+4.2     Results
+
+Training on synthetic images. In Tab. 1 we quantitatively compare our ap-
+proach to existing single image 3D object reconstruction methods. We compare
+to both unsupervised and supervised methods, across the three object categories
+(horse, cow, and sheep) evaluated in DualPM. DualPM reports state-of-the-art
+performance on this task, and serves as a fully supervised upper bound for our
+approach. We observe that the model trained only on images rendered from the
+canonical mesh (‘Canonical’) is surprisingly effective, specifically on the com-
+paratively easier sheep category which exhibits less articulation than horses. In
+general, our method, trained on the exact synthetic image splits provided by
+DualPM, approaches its performance while also outperforming the other base-
+lines tested. See the supplementary material for a qualitative comparison with
+3D-Fauna [21] and DualPM [13] on the cow and sheep categories.
+Training on real images. Here we demonstrate the capabilities of our ap-
+proach trained exclusively on real-world in-the-wild image collections. In Tab. 2
+we compare the performance of our model trained on real-world images (‘Ours
+(real)’) to DualPM, our model trained only on images rendered from the canon-
+12      J. Zadrozny et al.
+
+ical mesh (‘Canonical’), our model trained on synthetic images (‘Ours (synt)’),
+and large image-to-3D supervised foundation models [5, 41] on the wide Horse-
+Robust evaluation set. Our approach successfully leverages the pose diversity
+contained in real-world images to improve performance from the ‘Canonical’ ini-
+tialization point close to the version trained on synthetic images (which contain
+far less inherent real-world diversity and hence the signal is easier to extract). Im-
+portantly, ‘Ours (real)’ outperforms large-scale supervised models, despite using
+orders of magnitude less 3D supervision.
+    Fig. 3 demonstrates our scalability to other object categories, i.e., chim-
+panzees and elephants, trained using real images. The image-to-3D foundation
+models struggle with complex articulations, frequently hallucinating limbs or
+producing overly straight, ‘canonicalized’ shapes due to strong symmetry priors.
+In contrast, our template-fitting approach guarantees anatomical correctness,
+and performs better on challenging, asymmetric articulations.
+
+4.3   Ablations
+In Tab. 3 we ablate the main components of our method on the Horse-Mixed test
+split. Our starting point is a Canonical (base) model, trained exclusively on rest-
+pose renders with standard Gaussian-sampled camera viewpoints (see the supple-
+mentary material for details). Replacing this with heavy-tailed Student’s t cam-
+era sampling immediately yields substantial gains by exposing the initialization
+network to extreme, outlier viewpoints. Next, we introduce our iterative pipeline
+(+ Refinement w/o reg.), which extracts posed training data from images. While
+this provides a substantial performance leap, greedy point-cloud fitting produces
+structural artifacts. Adding geometric penalties (+ Regularization) resolves this
+by enforcing physically plausible articulations. Finally, + Viewpoint augmenta-
+tion augments each fitted mesh with diverse novel viewpoints during rendering,
+forming our complete method. Fig. 4 qualitatively compares the performance of
+our full model trained on real-world images to the canonical initialization and
+fully supervised DualPM.
+    We additionally report a Random poses baseline, which trains the model
+on stochastically deformed meshes with unconstrained, unnatural articulations.
+Surprisingly, its relatively strong performance highlights that raw pose diversity
+alone provides a strong training signal (see supplementary material for details).
+Furthermore, we evaluate a Raw image baseline, where we bypass our render-
+ing step and train directly on the original image collection paired with the 3D
+supervision estimated from the previous iteration. As the initial mesh fitting is
+imperfect, this introduces natural inconsistencies between the 2D visual input
+and the 3D supervision. We observe that this setup fails to improve noticeably
+beyond its initialization, underlining the absolute necessity of strict 2D-3D con-
+sistency during training.
+    Fig. 5 presents an ablation on the number of iterations used in our approach.
+We observe a large jump in performance across all metrics after the first iteration
+of our method when compared to the canonical baseline. This improvement
+continues, approaching the performance of DualPM, but eventually plateaus.
+      Bootstrapping Articulated 3D Reconstruction from 2D Image Collections        13
+
+Table 3: Ablation study on the Horse-Mixed test split. Quantitative results evaluating
+the impact of removing individual pipeline components. Lower scores are better.
+
+        Ablation variant                    mCD (cm) % (mCD>5cm) ∆R(◦)
+        DualPM (ground-truth 3D)               3.04         4.00        2.21
+        Random poses baseline                  5.22         44.5        5.12
+        Raw image baseline                     6.96         64.4        8.38
+        Canonical (base)                      10.04         92.0        12.23
+        + Student’s t camera sampling         7.24          68.4         7.51
+        + Refinement (w/o fitting reg.)        5.59         55.1        6.73
+        + Regularization in mesh fitting       4.85         35.0        5.89
+        + Viewpoint augmentation (‘Ours’)      3.86         11.3        3.49
+
+
+
+
+4.4     Limitations
+While significantly reducing the amount of 3D supervision needed compared to
+DualPM, our approach still needs some limited 3D data during training. Specif-
+ically, we require a rigged and skinned mesh in a canonical rest pose. However,
+in practice this is not difficult to acquire for common object categories and
+automated rigging methods could be used if only a mesh is available. As demon-
+strated by our experimental results, our approach successfully extracts pose di-
+versity from real-world image collections to improve the predictor. However,
+Tab. 2 shows that a performance gap remains between training on real-world
+images, synthetic images, and ground-truth 3D. Finally, while our self-repulsion
+loss effectively prevents unnatural intersections, its current formulation activates
+broadly when body parts are in close proximity, which can occasionally hinder
+our ability to recover tight, compressed articulations where valid body parts rest
+against one another
+
+
+5     Conclusion
+Supervised learning-based approaches for 3D object reconstruction are only as
+effective as the data they are trained on. Unlike 2D images, which are available
+in abundance on the internet, diverse and high quality 3D datasets are much
+more challenging to create. To sidestep this issue, we introduced a new scalable
+and automated approach for 3D data generation called BAT3R. Starting from
+only a single rigged mesh and 2D image collection as input, we showed that it is
+possible to bootstrap from this initial limited data, via an iterative generation
+approach, to create diverse and articulated 3D training data. We evaluated the
+effectiveness of our approach on the challenging task of articulated 3D object
+reconstruction from a single input image. We approach the performance of fully
+supervised methods across multiple categories, even when only provided with a
+fraction of the ground-truth 3D training data.
+14            J. Zadrozny et al.
+
+                         SAM 3D                  TRELLIS.2               Ours (PC)          Ours (fitted mesh)
+Input image      Input view   Add. view   Input view   Add. view   Input view   Add. view   Input view   Add. view
+
+
+
+
+Fig. 3: Qualitative comparison on real-world images across three challenging cate-
+gories: horse, chimpanzee, and elephant. Trellis.2 [41] struggles with accurate real-world
+conditioning and relies on post-hoc rigid ICP alignment of their predicted 3D shape
+to a reference predicted point cloud (here we use ’Ours’). SAM-3D [5] exhibits strong
+generalization but struggles with complex articulations. Strong symmetry priors often
+cause hallucinated/missing limbs, overly straight ’canonicalized’ shapes, and failures
+on extreme out-of-distribution poses (e.g., the prone chimpanzee). In contrast, our
+predicted point clouds capture smooth deformations with natural curvature while dis-
+ambiguating symmetric parts. Moreover, our template-fitting guarantees anatomical
+correctness and recovers challenging articulations.
+       Bootstrapping Articulated 3D Reconstruction from 2D Image Collections                                                                                                                                                   15
+
+
+                                             Canonical                                    DualPM                                                   Ours (PC)                              Ours (fitted mesh)
+Input image                   Input view                       Add. view      Input view               Add. view                          Input view          Add. view                   Input view                  Add. view
+
+
+
+
+Fig. 4: Qualitative comparison on real-world horse images. We visualize point cloud
+predictions (input and novel views) and our extracted fitted meshes. While the ‘Canon-
+ical’ baseline captures the coarse pose, it struggles with complex geometry. It exhibits
+noisy topology, missing parts, and mixed-up appendages (e.g., confusing the rear legs).
+In contrast, our full model resolves these artifacts, yielding clean geometry that closely
+matches the fully supervised DualPM.
+
+
+                                  mCD (cm)                                                                      R( )                                                               % (mCD > 5cm)
+
+                                                                                                                                                         80
+  8
+      7.24
+
+
+
+
+                                                                                  7.51
+
+
+
+
+                                                                                                                                                              68.4
+
+
+
+
+                                                                              8
+                                                                                                                                                         70
+                                                                                                                                                         60
+  6                                                                           6
+                                                                5.22
+             5.03
+
+
+
+
+                                                                                                                                           5.12
+
+
+
+
+                                                                                                                                                         50
+                                                                                         4.89
+
+
+
+
+                                                                                                                                                                                                                       44.5
+                    4.32
+
+
+
+
+                                                                                                                                                                     40.7
+                           4.10
+
+                                   4.02
+
+                                          4.00
+
+                                                 3.98
+
+
+
+
+                                                                                                       4.10
+                                                                                                4.06
+                                                        3.86
+
+
+
+
+                                                                                                                                                         40
+                                                                                                              3.82
+
+                                                                                                                     3.81
+
+
+
+
+  4                                                                           4
+                                                                                                                                   3.49
+                                                                                                                            3.45
+                                                                       3.04
+
+
+
+
+                                                                                                                                                         30
+                                                                                                                                                                            23.4
+                                                                                                                                                  2.21
+
+
+
+
+                                                                                                                                                                                   17.0
+
+
+
+
+                                                                                                                                                         20
+                                                                                                                                                                                                 14.5
+
+
+
+
+  2
+                                                                                                                                                                                          14.3
+
+
+
+                                                                                                                                                                                                        13.8
+
+
+
+
+                                                                              2
+                                                                                                                                                                                                               11.3
+
+
+
+
+                                                                                                                                                         10
+                                                                                                                                                                                                                              4.0
+
+
+
+
+  0                                                                           0                                                                          0
+     se) al
+         r1
+         r2
+         r3
+         r4
+         r5
+         r6
+
+  Ra er 7
+  Po om
+
+     3DPM
+
+
+
+
+                                                                                   se) al
+                                                                                       r1
+                                                                                       r2
+                                                                                       r3
+                                                                                       r4
+                                                                                       r5
+                                                                                       r6
+
+                                                                                Ra er 7
+                                                                                Pondom
+
+                                                                                   3DPM
+
+
+
+
+                                                                                                                                                              se) al
+                                                                                                                                                                  r1
+                                                                                                                                                                  r2
+                                                                                                                                                                  r3
+                                                                                                                                                                  r4
+                                                                                                                                                                  r5
+                                                                                                                                                                  r6
+
+                                                                                                                                                           Ra er 7
+                                                                                                                                                           Pondom
+
+                                                                                                                                                              3DPM
+ (Baonic
+
+
+
+
+                                                                               (Baonic
+
+
+
+
+                                                                                                                                                          (Baonic
+(GTDuals
+         )
+
+
+
+
+                                                                              (GTDuals
+                                                                                      )
+
+
+
+
+                                                                                                                                                         (GTDuals
+                                                                                                                                                                 )
+     Ite
+     Ite
+     Ite
+     Ite
+     Ite
+     Ite
+
+
+
+
+                                                                                   Ite
+                                                                                   Ite
+                                                                                   Ite
+                                                                                   Ite
+                                                                                   Ite
+                                                                                   Ite
+
+
+
+
+                                                                                                                                                              Ite
+                                                                                                                                                              Ite
+                                                                                                                                                              Ite
+                                                                                                                                                              Ite
+                                                                                                                                                              Ite
+                                                                                                                                                              Ite
+       d
+     se
+
+
+
+
+                                                                                   se
+
+
+
+
+                                                                                                                                                              se
+     It
+
+
+
+
+                                                                                   It
+
+
+
+
+                                                                                                                                                              It
+     n
+   n
+
+
+
+
+                                                                                 n
+
+
+
+
+                                                                                                                                                            n
+Ca
+
+
+
+
+                                                                              Ca
+
+
+
+
+                                                                                                                                                         Ca
+
+
+
+
+Fig. 5: Performance across refinement iterations. Errors drops significantly after the
+first iteration compared to the canonical baseline, then improves over successive iter-
+ations and plateaus while approaching the fully supervised DualPM (rightmost bars).
+Notably, the outlier metric % (mCD>5cm) continues to show consistent improvements
+up through the seventh iteration.
+16      J. Zadrozny et al.
+
+Acknowledgements. JZ was supported by the United Kingdom Research and
+Innovation (grant EP/S023208/1), UKRI Centre for Doctoral Training in Robotics
+and Autonomous Systems at the University of Edinburgh, School of Informatics.
+OMA was supported by a Royal Society Research Grant. HB was supported by
+the EPSRC Visual AI grant EP/T028572/1.
+
+
+References
+ 1. Aygun, M., Mac Aodha, O.: Saor: Single-view articulated object reconstruction.
+    In: CVPR (2024)
+ 2. Black, M.J., Patel, P., Tesch, J., Yang, J.: Bedlam: A synthetic dataset of bodies
+    exhibiting detailed lifelike animated motion. In: CVPR (2023)
+ 3. Cai, Z., Zhang, M., Ren, J., Wei, C., Ren, D., Lin, Z., Zhao, H., Yang, L., Loy,
+    C.C., Liu, Z.: Playing for 3d human recovery. TPAMI (2024)
+ 4. Chen, D.Z., Siddiqui, Y., Lee, H.Y., Tulyakov, S., Nießner, M.: Text2tex: Text-
+    driven texture synthesis via diffusion models. In: ICCV (2023)
+ 5. Chen, X., Chu, F.J., Gleize, P., Liang, K.J., Sax, A., Tang, H., Wang, W., Guo,
+    M., Hardin, T., Li, X., et al.: Sam 3d: 3dfy anything in images. In: CVPR (2026)
+ 6. Deitke, M., Liu, R., Wallingford, M., Ngo, H., Michel, O., Kusupati, A., Fan, A.,
+    Laforte, C., Voleti, V., Gadre, S.Y., et al.: Objaverse-xl: A universe of 10m+ 3d
+    objects. NeurIPS (2023)
+ 7. Deitke, M., Schwenk, D., Salvador, J., Weihs, L., Michel, O., VanderBilt, E.,
+    Schmidt, L., Ehsani, K., Kembhavi, A., Farhadi, A.: Objaverse: A universe of
+    annotated 3d objects. In: CVPR (2023)
+ 8. Desai, N., Bala, P., Richardson, R., Raper, J., Zimmermann, J., Hayden, B.: Ope-
+    napepose: a database of annotated ape photographs for pose estimation. eLife
+    (2023)
+ 9. Goel, S., Kanazawa, A., Malik, J.: Shape and viewpoint without keypoints. In:
+    ECCV (2020)
+10. Jakab, T., Li, R., Wu, S., Rupprecht, C., Vedaldi, A.: Farm3d: Learning articulated
+    3d animals by distilling 2d diffusion. In: CVPR (2024)
+11. Kabsch, W.: A solution for the best rotation to relate two sets of vectors. Founda-
+    tions of Crystallography (1976)
+12. Kanazawa, A., Tulsiani, S., Efros, A.A., Malik, J.: Learning category-specific mesh
+    reconstruction from image collections. In: ECCV (2018)
+13. Kaye, B., Jakab, T., Wu, S., Ruprecht, C., Vedaldi, A.: Dualpm: dual posed-
+    canonical point maps for 3d shape and pose reconstruction. In: CVPR (2025)
+14. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G., et al.: 3d gaussian splatting
+    for real-time radiance field rendering. ACM TOG (2023)
+15. Kingma, D.P., Ba, J.: Adam: A method for stochastic optimization. arXiv preprint
+    arXiv:1412.6980 (2014)
+16. Kirillov, A., Mintun, E., Ravi, N., Mao, H., Rolland, C., Gustafson, L., Xiao, T.,
+    Whitehead, S., Berg, A.C., Lo, W.Y., et al.: Segment anything. In: ICCV (2023)
+17. Kulkarni, N., Gupta, A., Fouhey, D.F., Tulsiani, S.: Articulation-aware canonical
+    surface mapping. In: CVPR (2020)
+18. Kulkarni, N., Gupta, A., Tulsiani, S.: Canonical surface mapping via geometric
+    cycle consistency. In: ICCV (2019)
+19. Li, X., Liu, S., Kim, K., De Mello, S., Jampani, V., Yang, M.H., Kautz, J.: Self-
+    supervised single-view 3d reconstruction via semantic consistency. In: ECCV (2020)
+    Bootstrapping Articulated 3D Reconstruction from 2D Image Collections            17
+
+20. Li, Y., Takehara, H., Taketomi, T., Zheng, B., Nießner, M.: 4dcomplete: Non-rigid
+    motion estimation beyond the observable surface. In: ICCV (2021)
+21. Li, Z., Litvak, D., Li, R., Zhang, Y., Jakab, T., Rupprecht, C., Wu, S., Vedaldi,
+    A., Wu, J.: Learning the 3d fauna of the web. In: CVPR (2024)
+22. Liu, I., Xu, Z., Yifan, W., Tan, H., Xu, Z., Wang, X., Su, H., Shi, Z.: Riganything:
+    Template-free autoregressive rigging for diverse 3d assets. ACM TOG (2025)
+23. Liu, R., Wu, R., Van Hoorick, B., Tokmakov, P., Zakharov, S., Vondrick, C.: Zero-
+    1-to-3: Zero-shot one image to 3d object. In: ICCV (2023)
+24. Long, X., Guo, Y.C., Lin, C., Liu, Y., Dou, Z., Liu, L., Ma, Y., Zhang, S.H.,
+    Habermann, M., Theobalt, C., et al.: Wonder3d: Single image to 3d using cross-
+    domain diffusion. In: CVPR (2024)
+25. Loper, M., Mahmood, N., Romero, J., Pons-Moll, G., Black, M.J.: Smpl: A skinned
+    multi-person linear model. In: Seminal Graphics Papers: Pushing the Boundaries
+    (2023)
+26. Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng,
+    R.: Nerf: Representing scenes as neural radiance fields for view synthesis. Commu-
+    nications of the ACM (2021)
+27. Monnier, T., Fisher, M., Efros, A.A., Aubry, M.: Share with thy neighbors: Single-
+    view reconstruction by cross-instance consistency. In: ECCV (2022)
+28. Murez, Z., Van As, T., Bartolozzi, J., Sinha, A., Badrinarayanan, V., Rabinovich,
+    A.: Atlas: End-to-end 3d scene reconstruction from posed images. In: ECCV (2020)
+29. Niewiadomski, T., Yiannakidis, A., Cuevas-Velasquez, H., Sanyal, S., Black, M.J.,
+    Zuffi, S., Kulits, P.: Generative zoo. In: ICCV (2025)
+30. Oquab, M., Darcet, T., Moutakanni, T., Vo, H., Szafraniec, M., Khalidov, V.,
+    Fernandez, P., Haziza, D., Massa, F., El-Nouby, A., et al.: Dinov2: Learning robust
+    visual features without supervision. In: TMLR (2024)
+31. Ravi, N., Gabeur, V., Hu, Y.T., Hu, R., Ryali, C., Ma, T., Khedr, H., Rädle, R.,
+    Rolland, C., Gustafson, L., et al.: Sam 2: Segment anything in images and videos.
+    In: ICLR (2025)
+32. Rueegg, N., Zuffi, S., Schindler, K., Black, M.J.: Barc: Breed-augmented regression
+    using classification for 3d dog reconstruction from images. IJCV (2023)
+33. Rüegg, N., Tripathi, S., Schindler, K., Black, M.J., Zuffi, S.: Bite: Beyond priors
+    for improved three-d dog pose estimation. In: CVPR (2023)
+34. Schönberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: CVPR (2016)
+35. Song, C., Li, X., Yang, F., Xu, Z., Wei, J., Liu, F., Feng, J., Lin, G., Zhang, J.:
+    Puppeteer: Rig and animate your 3d models. In: NeurIPS (2025)
+36. Tesch, J., Becherini, G., Achar, P., Yiannakidis, A., Kocabas, M., Patel, P., Black,
+    M.J.: Bedlam2. 0: Synthetic humans and cameras in motion. In: NeurIPS (2025)
+37. Vicente, S., Carreira, J., Agapito, L., Batista, J.: Reconstructing pascal voc. In:
+    CVPR (2014)
+38. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric 3d
+    vision made easy. In: CVPR (2024)
+39. Wu, S., Jakab, T., Rupprecht, C., Vedaldi, A.: Dove: Learning deformable 3d ob-
+    jects by watching videos. IJCV (2023)
+40. Wu, S., Li, R., Jakab, T., Rupprecht, C., Vedaldi, A.: Magicpony: Learning artic-
+    ulated 3d animals in the wild. In: CVPR (2023)
+41. Xiang, J., Chen, X., Xu, S., Wang, R., Lv, Z., Deng, Y., Zhu, H., Dong, Y., Zhao,
+    H., Yuan, N.J., et al.: Native and compact structured latents for 3d generation. In:
+    CVPR (2026)
+18      J. Zadrozny et al.
+
+42. Xiang, J., Lv, Z., Xu, S., Deng, Y., Wang, R., Zhang, B., Chen, D., Tong, X.,
+    Yang, J.: Structured 3d latents for scalable and versatile 3d generation. In: CVPR
+    (2025)
+43. Xu, J., Zhang, Y., Peng, J., Ma, W., Jesslen, A., Ji, P., Hu, Q., Zhang, J., Liu, Q.,
+    Wang, J., et al.: Animal3d: A comprehensive dataset of 3d animal pose and shape.
+    In: ICCV (2023)
+44. Yang, Z., Cai, Z., Mei, H., Liu, S., Chen, Z., Xiao, W., Wei, Y., Qing, Z., Wei,
+    C., Dai, B., et al.: Synbody: Synthetic dataset with layered human models for 3d
+    human perception and modeling. In: ICCV (2023)
+45. Yao, C.H., Hung, W.C., Li, Y., Rubinstein, M., Yang, M.H., Jampani, V.: Lassie:
+    Learning articulated shapes from sparse image ensemble via 3d part discovery.
+    NeurIPS (2022)
+46. Yao, C.H., Hung, W.C., Li, Y., Rubinstein, M., Yang, M.H., Jampani, V.: Hi-lassie:
+    High-fidelity articulated shape and skeleton discovery from sparse image ensemble.
+    In: CVPR (2023)
+47. Yu, H., Xu, Y., Zhang, J., Zhao, W., Guan, Z., Tao, D.: Ap-10k: A benchmark for
+    animal pose estimation in the wild. In: NeurIPS Track on Datasets and Benchmarks
+    (2021)
+48. Zhang, J.P., Pu, C.F., Guo, M.H., Cao, Y.P., Hu, S.M.: One model to rig them all:
+    Diverse skeleton rigging with unirig. ACM TOG (2025)
+49. Zhang, J., Herrmann, C., Hur, J., Polania Cabrera, L., Jampani, V., Sun, D.,
+    Yang, M.H.: A tale of two features: Stable diffusion complements dino for zero-
+    shot semantic correspondence. In: NeurIPS (2023)
+50. Zhao, B.N., Wu, J., Wu, S.: Web-scale collection of video data for 4d animal re-
+    construction. In: NeurIPS Datasets and Benchmarks Track (2026)
+51. Zou, Z.X., Yu, Z., Guo, Y.C., Li, Y., Liang, D., Cao, Y.P., Zhang, S.H.: Triplane
+    meets gaussian splatting: Fast and generalizable single-view 3d reconstruction with
+    transformers. In: CVPR (2024)
+52. Zuffi, S., Kanazawa, A., Jacobs, D.W., Black, M.J.: 3d menagerie: Modeling the
+    3d shape and pose of animals. In: CVPR (2017)
+53. Zuffi, S., Mellbin, Y., Li, C., Hoeschle, M., Kjellström, H., Polikovsky, S., Hernlund,
+    E., Black, M.J.: Varen: Very accurate and realistic equine network. In: CVPR
+    (2024)
+    Bootstrapping Articulated 3D Reconstruction
+             from 2D Image Collections
+             – Supplementary Material
+
+            Jakub Zadrozny, Oisin Mac Aodha          , and Hakan Bilen
+
+                              University of Edinburgh
+                          jakubzadrozny.github.io/bat3r
+
+
+
+A     Additional results
+
+A.1    Additional qualitative comparisons
+
+See Fig. A1 for additional qualitative comparisons to the unsupervised 3D-
+Fauna [21] and fully-supervised DualPM [13] on the horse, cow, and sheep cat-
+egories. This comparison uses the same models as Tab. 1, i.e., trained on the
+synthetic images from DualPM following original splits.
+
+
+A.2    Performance across different object pose clusters
+
+To get a deeper understanding of the influence of object pose diversity on the
+performance of the trained 2D-to-3D predictor we partition the diverse range of
+poses in the dataset of [13] into ten distinct, semantic clusters using the K-Means
+algorithm. To ensure the clustering is invariant to the global camera viewpoint
+and focuses strictly on the intrinsic body configuration, we extract three key
+geometric features for each pose.
+    Let J denote the set of skeletal joints. For a given pose defined by the local
+joint transforms Tj we first compute the excess local joint rotations (from the rest
+pose) θj . Let θk represent the axis-angle rotation vector of the j-th joint, let θ
+be the stacked local joint rotations θj , and let xj (θ) and xcj denote the j-th joint
+3D position in the articulated state and the canonical rest pose, respectively.
+For each sample in the dataset we compute the following feature vector f =
+[fang , fsq , fdist ]⊤ , where we define:
+                                             1
+                                               P
+  – Mean angular deviation: fang = |J|            k∈J ∥θk ∥2 . This captures the aver-
+    age magnitude of local excess joint rotations across  P the entire      skeleton.
+                                                       1                2
+  – Mean squared angular deviation: fsq = |J|               k∈J  ∥θ k ∥ 2 . By penalizing
+    larger rotations more heavily, this feature effectively between poses char-
+    acterized by widespread, gradual bending versus those exhibiting localized,
+    extreme articulations.
+  – Aligned joint distance: fdist = k∈J ∥Talign (xk (θ)) − xck ∥2 . We apply the
+                                          P
+    Kabsch algorithm to find the optimal rigid transformation Talign (comprising
+    only rotation and translation) that aligns the articulated joints xk (θ) to
+20     J. Zadrozny et al.
+
+
+
+
+Fig. A1: Qualitative comparisons to the unsupervised 3D-Fauna [21], supervised Du-
+alPM [13], and Ours. 3D-Fauna struggles with challenging poses (see top two rows),
+whereas our approach obtains results comparable to the fully supervised DualPM. Our
+models in this comparison are trained on the synthetic images from DualPM following
+original splits.
+                              Bootstrapping Articulated 3D Reconstruction – Supplementary Material                                                                                                 21
+
+                                         Full Dataset                               Train Subset                         Alternative Train Subset                         Test Subset
+                                                                                                                                                  Cluster 0
+                         8                                                                                                                        Cluster 1
+                                                                                                                                                  Cluster 2
+                                                                                                                                                  Cluster 3
+                         6                                                                                                                        Cluster 4
+Aligned Joint Distance
+
+                                                                                                                                                  Cluster 5
+                                                                                                                                                  Cluster 6
+                                                                                                                                                  Cluster 7
+                         4                                                                                                                        Cluster 8
+                                                                                                                                                  Cluster 9
+
+                         2
+
+
+                         0
+                             0.1    0.2 0.3 0.4 0.5 0.6           0.7   0.1    0.2 0.3 0.4 0.5 0.6           0.7   0.1    0.2 0.3 0.4 0.5 0.6           0.7   0.1    0.2 0.3 0.4 0.5 0.6           0.7
+                                   Mean Angular Deviation (rad)               Mean Angular Deviation (rad)               Mean Angular Deviation (rad)               Mean Angular Deviation (rad)
+
+
+Fig. A2: Pose diversity across dataset splits. 2D scatter plots mapping dataset
+samples by their aligned joint distance (fdist ) and mean angular deviation (fang ). We
+visualize the geometric distribution of poses across the Full Dataset, the stratified Base
+Train Subset, the restricted Alternative Train Set, and the held-out Test Set. Crucially,
+the Alternative Train Set deliberately excludes highly deformed and out-of-distribution
+samples (clusters 0, 2, 3, 5, 6, and 9), isolating the core articulations to evaluate model
+generalization.
+
+
+                             their canonical counterparts xck . This feature measures the residual Euclidean
+                             distance after alignment, capturing the overall spatial deformation of the
+                             skeleton.
+    We then standardize the features to zero mean and unit variance, and apply
+K-Means clustering (K = 10) to assign each pose to its respective articulation
+cluster. Fig. A2 contains a scatter plots mapping dataset samples by their aligned
+joint distance (fdist ) and mean angular deviation (fang ).
+
+Dataset splitting and generalization sets. Here we measure DualPM’s ca-
+pacity to generalize to unseen or underrepresented articulations by constructing
+two distinct training set variants from the full dataset. First, we define a Base
+Train Set, which is generated by sampling from the entire dataset, stratified
+by the geometric K-Means cluster IDs (as defined in Sec. A.2). This ensures
+a proportional representation of all discovered articulation modes. Second, we
+construct an Alternative Train Set which represents the designed to test gen-
+eralization on non-trivial, intricate, out-of-distribution poses. For this set, we
+explicitly exclude all samples belonging to clusters which represent poses signif-
+icantly differing from the rest pose (cluster IDs {0, 2, 3, 5, 6, 9}). Since these
+clusters are underrepresented in the general dataset, they only comprise 5,000
+training samples, i.e., ≈ 31.5% of the original training set. We retain all 10,872
+samples from the allowed clusters ({1, 4, 7, 8}) that were already present in the
+base train set and compensate for the total volume of the alternative train set
+by sampling additional instances from the allowed clusters to match the size of
+the original train set (15,872 samples). This yields a deliberate overlap of exactly
+10,872 samples (approximately 68.5%) between the two training splits. The ex-
+act composition of our overall dataset, along with the two training splits and
+the held-out test set (non-intersecting with neither the original train set nor the
+alternative), is detailed in Tab. A1.
+22      J. Zadrozny et al.
+
+Results. Fig. A4 reports the per-cluster performance of our method compared
+to several baselines: our canonical-only initialization, the random poses baseline,
+and the fully-supervised DualPM trained on both the Base (wide) and Alterna-
+tive (narrow) splits.
+
+    First, we note that generalization of DualPM to in-distribution poses (e.g.,
+clusters 0, 6, and 9 are closely related to clusters 1, 7, 8) is good. Nevertheless,
+providing our approach with the wider variety of training images (which is easier
+to collect at scale compared to ground-truth poses) compensates the lack of
+ground-truth poses in these cases (our approach slightly outperforms the gold
+DualPM trained on the alternative test set).
+
+    We observe that DualPM generalizes reasonably well to structurally similar
+in-distribution poses (e.g., the held-out clusters 0, 6, and 9 share geometric
+similarities with the permitted training clusters 1, 7, and 8). Nevertheless, our
+proposed refinement, which leverages a wider variety of unannotated 2D training
+images, effectively compensates for the lack of ground-truth 3D supervision.
+On these structurally related clusters, our approach slightly outperforms the
+DualPM model trained on the restricted Alternative set.
+
+   Crucially, this experiment highlights that DualPM struggles to generalize
+to strictly out-of-distribution (OOD) articulations (e.g., clusters 2, 3, and 5,
+though we note cluster 5 also exhibits a significant viewpoint distribution shift).
+On these OOD clusters, our approach significantly outperforms the DualPM
+baseline trained on the Alternative train set. Interestingly, for clusters 2 and 5,
+even our naive canonical-trained model surpasses the narrow DualPM variant,
+indicating that explicit 3D supervision on limited articulation modes makes the
+network susceptible to pose-related overfitting.
+
+    Consequently, adapting fully-supervised methods like DualPM to novel cat-
+egories necessitates a comprehensive dataset of manually authored 3D articula-
+tions, which is a highly expensive and time-consuming process. Omissions in the
+training distribution directly bottlenecks downstream performance. In contrast,
+our refinement strategy provides a scalable alternative: by deriving geometric
+priors directly from widely available, diverse 2D image collections, we yield a
+more robust and generalized 3D estimator.
+
+    Furthermore, the per-cluster breakdown confirms the intuitive premise that
+the advantages of our refinement process (as well as explicit 3D ground truth)
+scale with increasing articulation complexity. As depicted in Fig. A4, our ap-
+proach achieves its most substantial margins of improvement over the canon-
+ical and random-pose baselines on clusters 2, 3, and 9. Visualized in Fig. A3,
+these clusters are characterized by highly non-trivial, extreme articulations. Con-
+versely, for clusters 4 and 8, which predominantly feature standing poses closely
+resembling the canonical rest state, all evaluated variants achieve comparable,
+accurate alignments.
+    Bootstrapping Articulated 3D Reconstruction – Supplementary Material    23
+
+
+
+
+Fig. A3: Examples of synthetic images from the DualPM [13] dataset split by the
+assigned cluster.
+24                   J. Zadrozny et al.
+
+
+                             Canonical (+ t-Student's cameras)          Random poses        Ours           DualPM (Base Train)          DualPM (Alt. Train)
+
+                                 Cluster 0 (EXCLUDED from alt. train)                                                       Cluster 1
+                                                                                       10
+               10
+                     8.69                                                                          8.21
+                                                                                       8
+                 8
+
+                                    6.01                                               6
+                 6
+     CD (cm)
+
+
+
+
+                                                                              5.19                               4.79
+                                                  4.22                                                                           3.72
+                 4                                                                     4
+                                                                 3.26                                                                          3.01           2.98
+
+                 2                                                                     2
+
+                 0                                                                     0
+                                 Cluster 2 (EXCLUDED from alt. train)                                         Cluster 3 (EXCLUDED from alt. train)
+               14
+                                                                                       14
+               12
+                     10.93                                                             12                                                                     11.48
+               10                                                             8.98     10                        9.74
+                                                                                                   8.91
+                 8                  7.31                                               8
+     CD (cm)
+
+
+
+
+                 6                                5.03                                 6
+                                                                                                                                 4.59
+                 4                                               3.22                  4                                                       3.15
+                 2                                                                     2
+                 0                                                                     0
+                                               Cluster 4                                                      Cluster 5 (EXCLUDED from alt. train)
+                                                                                       30
+                 4
+                     3.53                                                              25                                                                     24.41
+                                    3.33
+                 3                                2.85                                 20
+                                                                 2.48         2.43
+       CD (cm)
+
+
+
+
+                                                                                       15
+                 2
+                                                                                       10          9.44
+                                                                                                                 7.69
+                 1                                                                                                               5.80
+                                                                                       5                                                       3.99
+
+                 0                                                                     0
+                                 Cluster 6 (EXCLUDED from alt. train)                                                       Cluster 7
+                                                                                       8
+                 8   7.46                                                              7           6.65
+                                    6.33                                               6
+                                                                                                                 5.32
+                 6
+                                                                                       5
+       CD (cm)
+
+
+
+
+                                                  4.32                        4.38     4                                         3.94
+                 4                                               3.29                                                                          3.18           3.18
+                                                                                       3
+
+                 2                                                                     2
+                                                                                       1
+                 0                                                                     0
+                                               Cluster 8                                                      Cluster 9 (EXCLUDED from alt. train)
+
+                 6                                                                     12
+                     5.20                                                                          10.07
+                 5                                                                     10
+                                    4.31
+                 4                                3.70                                 8
+                                                                                                                 6.39
+       CD (cm)
+
+
+
+
+                                                                 3.02         2.95     6
+                 3
+                                                                                                                                 4.12                         4.49
+                 2                                                                     4                                                       3.10
+                 1                                                                     2
+
+                 0                                                                     0
+
+
+Fig. A4: mCD (cm) breakdown by cluster ID. While fully-supervised models like Du-
+alPM struggle to generalize to out-of-distribution poses (for the Alternative Train Set),
+our scalable refinement strategy (‘Ours’) leverages diverse unannotated 2D images to
+maintain high accuracy across all clusters.
+      Bootstrapping Articulated 3D Reconstruction – Supplementary Material           25
+
+Table A1: Distribution of articulation modes across dataset splits. For each cluster,
+we report the raw sample count alongside its relative percentage within that specific
+split. The Alternative Train split entirely excludes six clusters while upsampling the
+remaining four to maintain a consistent total training size.
+
+         Cluster ID          Overall    Base Train     Alt. Train            Test
+              0         9, 129 (9.1%) 1, 548 (9.8%)        0 (0.0%) 1, 895 (9.8%)
+              1       26, 427 (26.4%) 4, 390 (27.7%) 6, 276 (39.5%) 5, 386 (27.7%)
+              2         3, 124 (3.1%)     613 (3.9%)       0 (0.0%)     754 (3.9%)
+              3         3, 184 (3.2%)     522 (3.3%)       0 (0.0%)     643 (3.3%)
+              4       13, 335 (13.3%) 2, 008 (12.7%) 3, 012 (19.0%) 2, 470 (12.7%)
+              5         2, 560 (2.6%)     256 (1.6%)       0 (0.0%)     305 (1.6%)
+              6         5, 595 (5.6%)     870 (5.5%)       0 (0.0%) 1, 057 (5.4%)
+              7       12, 587 (12.6%) 1, 946 (12.3%) 2, 881 (18.2%) 2, 375 (12.2%)
+              8       16, 008 (16.0%) 2, 528 (15.9%) 3, 703 (23.3%) 3, 097 (15.9%)
+              9         8, 051 (8.1%) 1, 191 (7.5%)        0 (0.0%) 1, 450 (7.5%)
+            Total     100, 000 (100%) 15, 872 (100%) 15, 872 (100%) 19, 432 (100%)
+
+
+
+
+B     Ablations
+
+B.1     Further details on ablation variants
+
+In this section, we detail the specific ablation variants evaluated in Tab. 3. More-
+over, Fig. A5 shows a qualitative comparison of different ablation variants of our
+approach.
+     Our baseline, ‘Canonical (base)’, model consists of a 3D prediction module
+trained exclusively on synthetic renders of the provided mesh in its canonical
+(i.e., rest) pose. The camera poses for this base variant (defined in spherical
+coordinates) are determined as follows: the azimuth angle is sampled uniformly
+across the full 360◦ range, while the elevation and roll angles are drawn from
+a standard Gaussian distribution fitted to the empirical poses of the DualPM
+dataset, as detailed in Sec. B.3. The camera is centered at the mesh, with the
+radius dynamically adjusted to ensure the subject fills the image frame, leaving
+a relative bounding margin uniformly sampled from [0.1, 0.25].
+     We then evaluate an updated canonical baseline (‘+ Student’s t camera sam-
+pling’) that replaces the Gaussian sampling with the heavy-tailed Student’s t-
+distribution (see Sec. B.3). As shown in the results, this adjustment alone yields
+a substantial performance improvement by better exposing the network to ex-
+treme, outlier viewpoints during initialization.
+     Next, we introduce our iterative refinement pipeline (‘+ Refinement (w/o
+fitting reg.)’) as described in Sec. 3. In this ablation, the target mesh fitting is
+performed in a purely greedy manner, i.e., omitting all geometric regularization
+loss terms. Furthermore, we do not utilize the viewpoint augmentation step
+(Sec. B.4). Instead, each training image generates exactly one paired 2D-3D
+training instance using the camera pose estimated directly from the input image.
+26      J. Zadrozny et al.
+
+
+
+
+Fig. A5: Qualitative comparisons to different variants of our model. The canonical
+model (blue), despite being only trained on data from a single mesh, is surprisingly
+effective at generalizing to unusual poses (see fourth row). This is likely thanks to the
+strong prior provided by the DINOv2 [30] features used by DualPM. Similarly, the
+model trained on random poses (red) performs well, but upon close inspection there
+are noticeable artifacts, e.g., the crossed legs in the second row. Our results (green) are
+comparable to DualPM’s (yellow), but trained on a fraction of the 3D supervision.
+
+
+    Building on this, the ‘+ Regularization in mesh fitting’ variant reintroduces
+the structural regularization losses during the fitting phase to encourage physi-
+cally plausible mesh states.
+    Finally, the ‘+ Viewpoint augmentation’ variant augments each fitted mesh
+with diverse novel viewpoints during rendering which we describe below to ad-
+dress front/rear viewpoint performance. This final configuration represents our
+complete, proposed methodology (i.e., ‘Ours’).
+
+B.2    Random poses baseline
+Table 3 in the main text compares our proposed approach against a naive base-
+line (‘Random poses baseline‘), which trains the DualPM architecture entirely
+on stochastically generated mesh articulations. For this baseline, we synthesize
+a training dataset of N = 45, 000 samples. As detailed in Sec. 3, each pose is pa-
+rameterized by the excess joint rotations relative to the rest pose, parameterized
+as axis-angle vectors.
+    To sample a single random pose, we compute the rotation for each joint
+independently. First, a rotation axis is sampled uniformly at random from the
+    Bootstrapping Articulated 3D Reconstruction – Supplementary Material          27
+
+
+
+
+Fig. A6: Examples of training samples generated based on random articulations (see
+Sec. B.2). The σ of the Half-Normal distribution used to sample joint angles is shown
+on the left.
+
+
+
+unit sphere. The magnitude of this rotation (the angle) is then drawn from a
+Half-Normal distribution truncated at π. The variance of this distribution is
+governed by a shared pose-level complexity parameter σ, defined as σ = σ1 +
+t(σ2 − σ1 ). To ensure the generated dataset contains a natural, continuous blend
+of subtle, near-rest poses and highly deformed articulations, the interpolation
+factor t ∈ [0, 1] is sampled from a Beta(1, 3) distribution for each pose, with
+empirical bounds set to σ1 = 0.1 and σ2 = 0.5. To filter out highly degenerate
+or particularly extreme outliers, we evaluate the mean angular deviation of each
+generated pose (as defined in Sec. A.2) and discard all samples falling within
+the upper quartile (25%). Finally, in this ‘Random poses baseline‘ experiment
+we use the same camera pose sampling strategy as in the ‘+ Student’s t camera
+sampling’ ablation.
+    It is important to note that these stochastically sampled poses are entirely
+unconstrained by biomechanical limits. Consequently, the resulting articulated
+meshes frequently exhibit severe physical artifacts, including self-intersections,
+unnatural stretching, and volume loss (see visual examples in Fig. A6). Despite
+these severe geometric distortions, this baseline achieves unexpectedly compet-
+itive quantitative performance (see Tab. 3). See Fig. A5 for a qualitative com-
+parison to other ablation variants. This highlights the inherent robustness of
+the underlying architecture when exposed to high-variance spatial data, further
+validating the necessity of broad pose diversity during training.
+28      J. Zadrozny et al.
+
+B.3    Camera viewpoint analysis for robust synthetic sampling
+
+To systematically analyze the distribution of camera poses, we map each world-
+space camera into a normalized, body-centric spherical coordinate system invari-
+ant to the global orientation of the articulated mesh.
+    First, we establish a local orthogonal coordinate frame anchored to the sub-
+ject’s skeletal joints. This requires the manual definition of an origin joint, along-
+side two pairs of joints to dictate the forward axis and the horizontal reference
+plane. For example, on the horse mesh, a natural configuration utilizes the mid-
+dle of the spine as the origin, two adjacent spine joints for the forward axis, and
+the left and right hips to define the horizontal plane. These initial directional
+vectors serve as a rough basis for subsequent orthogonalization, meaning the
+selected joint pairs need not be strictly coplanar or intersecting.
+    Let ∆P denote the Cartesian position of the camera relative to the origin
+joint (both in world space). We project ∆P into the local body frame to extract
+the standard spherical camera parameters: azimuth, elevation, roll, and radius.
+The empirical distribution of camera poses within the synthetically generated
+DualPM dataset is visualized in Fig. A7. As the camera radius is consistently
+scaled to ensure the subject fills the image frame (as shown in Fig. A3), we
+restrict our quantitative analysis to the angular parameters: azimuth, elevation,
+and roll. In this convention, an azimuth of 0◦ designates a direct frontal view,
+±90◦ correspond to the lateral profiles, and ±180◦ indicates a strict rear view.
+While the azimuth angle exhibits a generally uniform distribution, its joint dis-
+tribution with elevation and roll reveals notable structural patterns.
+    A primary observation from Fig. A7 is the substantial presence of unusual
+viewpoints within the dataset. Furthermore, a per-cluster breakdown (e.g., clus-
+ters 2 and 6 in Fig. A7) indicates the presence of explicitly hand-crafted camera
+trajectories that deviate significantly from a neutral, zero-elevation, and zero-roll
+perspective.
+    Recall that to initialize our iterative refinement pipeline, we synthesize a
+dataset by rendering the canonical mesh from diverse viewpoints. To ensure
+an adequate representation of outlier views while preventing strict overfitting
+to the exact DualPM camera views, we sample the azimuth angle uniformly,
+whereas the elevation and roll angles are drawn from a Student’s t-distribution
+parameterized by fitting the empirical DualPM data. As illustrated in Fig. A8,
+the Student’s t-distribution effectively captures the heavy-tailed nature of the
+empirical viewpoint data, clearly outperforming a standard Gaussian fit. The
+quantitative impact of this heavy-tailed sampling strategy is validated in our
+ablations (see Tab. 3), demonstrating that robustly representing extreme view-
+points during canonical initialization is critical for the stability and accuracy of
+the final 3D estimator.
+
+
+B.4    Viewpoint augmentation
+
+Fig. A9 shows the fraction of test samples exceeding a mean 5cm error thresh-
+old (effectively representing significant reconstruction failures), stratified by the
+                  Bootstrapping Articulated 3D Reconstruction – Supplementary Material                                                    29
+
+                          Overall Dataset - Azimuth / Elevation                                        Overall Dataset - Azimuth / Roll
+              (70, 80]                                                           (140, 160]
+              (50, 60]                                            103            (100, 120]                                               103
+              (30, 40]                                                               (60, 80]
+                                                                  102                                                                     102
+              (10, 20]                                                               (20, 40]
+Elevation
+
+
+
+
+                                                                        Roll
+               (-10, 0]                                           101                 (-20, 0]                                            101
+            (-30, -20]                                                             (-60, -40]
+            (-50, -40]                                            100            (-100, -80]                                              100
+            (-70, -60]                                                         (-140, -120]
+                                                                  0                                                                       0
+            (-90, -80]                                                         (-180, -160]
+                  (-1 160]
+
+                    (-1 20]
+
+                      (-6 0]
+
+                         (-2 ]
+                                0]
+
+                                0]
+
+                    (10 ]
+
+                    (14 0]
+                                0]
+
+
+
+
+                                                                                         (-1 160]
+
+                                                                                           (-1 20]
+
+                                                                                             (-6 0]
+
+                                                                                                (-2 ]
+                                                                                                       0]
+
+                                                                                                       0]
+
+                                                                                           (10 ]
+
+                                                                                           (14 0]
+                                                                                                       0]
+                              -40
+
+
+
+
+                                0
+
+
+
+
+                                                                                                     -40
+
+
+
+
+                                                                                                       0
+                            , -8
+
+
+
+
+                             ,4
+
+                             ,8
+
+                             12
+
+                             16
+
+
+
+
+                                                                                                   , -8
+
+
+
+
+                                                                                                    ,4
+
+                                                                                                    ,8
+
+                                                                                                    12
+
+                                                                                                    16
+                             0,
+
+
+
+
+                                                                                                    0,
+                          , -1
+
+
+
+
+                                                                                                 , -1
+                          ,-
+
+
+
+
+                        (20
+
+                        (60
+
+
+
+
+                                                                                                 ,-
+
+
+
+
+                                                                                               (20
+
+                                                                                               (60
+                          0,
+
+
+
+
+                                                                                                 0,
+                         0,
+
+                         0,
+
+
+
+
+                                                                                                0,
+
+                                                                                                0,
+                        00
+
+
+
+
+                                                                                               00
+                      80
+
+                      40
+
+
+
+
+                                                                                             80
+
+                                                                                             40
+                  (-1
+
+
+
+
+                                                                                         (-1
+                                         Azimuth                                                                   Azimuth
+                             Cluster 2 - Azimuth / Elevation                                              Cluster 2 - Azimuth / Roll
+              (70, 80]                                            102            (140, 160]
+              (50, 60]                                                           (100, 120]                                               102
+              (30, 40]                                                               (60, 80]
+              (10, 20]                                            101                (20, 40]                                             101
+Elevation
+
+
+
+
+                                                                        Roll
+               (-10, 0]                                                               (-20, 0]
+            (-30, -20]                                            100              (-60, -40]                                             100
+            (-50, -40]                                                           (-100, -80]
+            (-70, -60]                                                         (-140, -120]
+                                                                  0                                                                       0
+            (-90, -80]                                                         (-180, -160]
+                    (-1 160]
+
+                      (-1 20]
+
+                        (-6 0]
+
+                           (-2 ]
+                                  0]
+
+                                  0]
+
+                      (10 ]
+
+                      (14 0]
+                                  0]
+
+
+
+
+                                                                                                   40 ]
+                                                                                                 (-1 20]
+
+                                                                                                   (-6 0]
+
+                                                                                                      (-2 ]
+                                                                                                             0]
+
+                                                                                                             0]
+
+                                                                                                 (10 ]
+
+                                                                                                 (14 0]
+                                                                                                             0]
+                                -40
+
+
+
+
+                                  0
+
+
+
+
+                                                                                                 60
+
+
+
+
+                                                                                                           -40
+
+
+
+
+                                                                                                             0
+                              , -8
+
+
+
+
+                               ,4
+
+                               ,8
+
+                               12
+
+                               16
+
+
+
+
+                                                                                                         , -8
+
+
+
+
+                                                                                                          ,4
+
+                                                                                                          ,8
+
+                                                                                                          12
+
+                                                                                                          16
+                               0,
+
+
+
+
+                                                                                                          0,
+                            , -1
+
+
+
+
+                                                                                             , -1
+
+                                                                                                       , -1
+                            ,-
+
+
+
+
+                          (20
+
+                          (60
+
+
+
+
+                                                                                                     (20
+
+                                                                                                     (60
+                            0,
+
+
+
+
+                                                                                                       0,
+                           0,
+
+                           0,
+
+
+
+
+                                                                                                      0,
+
+                                                                                                      0,
+                          00
+
+
+
+
+                                                                                                     00
+                        80
+
+                        40
+
+
+
+
+                                                                                           80
+                  (-1
+
+
+
+
+                                                                                         (-1
+
+                                                                                                 (-1
+                                         Azimuth                                                                   Azimuth
+                             Cluster 6 - Azimuth / Elevation                                              Cluster 6 - Azimuth / Roll
+              (70, 80]                                                           (140, 160]
+                                                                  102                                                                     102
+              (50, 60]                                                           (100, 120]
+              (30, 40]                                                               (60, 80]
+              (10, 20]                                            101                (20, 40]                                             101
+Elevation
+
+
+
+
+                                                                        Roll
+
+
+
+
+               (-10, 0]                                                               (-20, 0]
+            (-30, -20]                                            100              (-60, -40]                                             100
+            (-50, -40]                                                           (-100, -80]
+            (-70, -60]                                                         (-140, -120]
+                                                                  0                                                                       0
+            (-90, -80]                                                         (-180, -160]
+                    (-1 160]
+
+                      (-1 20]
+
+                        (-6 0]
+
+                           (-2 ]
+                                  0]
+
+                                  0]
+
+                      (10 ]
+
+                      (14 0]
+                                  0]
+
+
+
+
+                                                                                                   40 ]
+                                                                                                 (-1 20]
+
+                                                                                                   (-6 0]
+
+                                                                                                      (-2 ]
+                                                                                                             0]
+
+                                                                                                             0]
+
+                                                                                                 (10 ]
+
+                                                                                                 (14 0]
+                                                                                                             0]
+                                -40
+
+
+
+
+                                  0
+
+
+
+
+                                                                                                 60
+
+
+
+
+                                                                                                           -40
+
+
+
+
+                                                                                                             0
+                              , -8
+
+
+
+
+                               ,4
+
+                               ,8
+
+                               12
+
+                               16
+
+
+
+
+                                                                                                         , -8
+
+
+
+
+                                                                                                          ,4
+
+                                                                                                          ,8
+
+                                                                                                          12
+
+                                                                                                          16
+                               0,
+
+
+
+
+                                                                                                          0,
+                            , -1
+
+
+
+
+                                                                                             , -1
+
+                                                                                                       , -1
+                            ,-
+
+
+
+
+                          (20
+
+                          (60
+
+
+
+
+                                                                                                     (20
+
+                                                                                                     (60
+                            0,
+
+
+
+
+                                                                                                       0,
+                           0,
+
+                           0,
+
+
+
+
+                                                                                                      0,
+
+                                                                                                      0,
+                          00
+
+
+
+
+                                                                                                     00
+                        80
+
+                        40
+
+
+
+
+                                                                                           80
+                  (-1
+
+
+
+
+                                                                                         (-1
+
+                                                                                                 (-1
+
+
+
+
+                                         Azimuth                                                                   Azimuth
+
+
+Fig. A7: Camera viewpoint distribution heatmaps (in log-scale) in the DualPM [13]
+dataset for the entire dataset and selected clusters.
+
+
+
+ground-truth camera azimuth angle and the binned aligned joint distance (which
+serves as a proxy for pose complexity, as detailed in Sec. A.2). A key observation
+is that our base refinement process (prior to viewpoint augmentation) yields par-
+ticularly effective improvements for lateral views (corresponding to an azimuth
+of ±90◦ ) relative to the canonical-only baseline, outpacing the gains observed
+for frontal or rear perspectives.
+    A natural approach to mitigate this performance discrepancy is to leverage
+the highly accurate lateral predictions to bootstrap more reliable frontal and rear
+training samples. Specifically, we dynamically sample supplementary views based
+on the primary camera perspective during training. For a given base viewpoint
+categorized broadly as frontal, rear, or lateral we sample N ∈ {1, 2} additional
+viewpoints. Crucially, this strategy relies entirely on our predicted camera poses
+30                  J. Zadrozny et al.
+
+                              Elevation Distribution                                                         Roll Distribution
+          0.030                                                                          0.030
+                                                             Normal Fit                                                                 Normal Fit
+                                                             Student's t Fit                                                            Student's t Fit
+          0.025                                              Data Histogram              0.025                                          Data Histogram
+
+          0.020                                                                          0.020
+Density
+
+
+
+
+                                                                               Density
+          0.015                                                                          0.015
+
+          0.010                                                                          0.010
+
+          0.005                                                                          0.005
+
+          0.000                                                                          0.000
+                   80   60   40    20      0     20     40      60      80                       150   100   50         0          50   100     150
+                                  Elevation Angle ( )                                                             Roll Angle ( )
+
+
+Fig. A8: Parametric fitting of camera pose distributions. Density histograms of
+the empirical camera elevation (left) and roll (right) angles from the DualPM dataset,
+overlaid with Normal (Gaussian) and Student’s t-distribution fits. The Student’s t-
+distribution captures the heavy tails of the empirical data better compared to the
+standard Gaussian, motivating its use to robustly sample extreme viewpoints during
+our synthetic dataset initialization.
+
+
+
+rather than ground-truth annotations. As shown in Tab. 3, our estimated poses
+exhibit an average rotation error of only 3.5◦ , making them highly reliable for
+this routing. To mildly upsample historically challenging angles, we assign a
+higher probability (65%) of generating two supplementary views when the base
+view is lateral, compared to a lower probability (35%) when starting from a
+frontal or rear view.
+    The specific categories of these supplementary viewpoints are drawn from
+a conditional probability distribution designed to favor complementary angles.
+Namely, we heavily penalize sampling the identical view type again and introduce
+a soft bias that encourages lateral base views to sample frontal or rear perspec-
+tives. Importantly, this sampling bias is applied gently. While we explicitly favor
+synthesizing frontal and rear views from lateral inputs, we strictly maintain a
+non-zero probability for all cross-viewpoint combinations (e.g., generating lateral
+views from frontal ones, or frontal from frontal). This soft conditioning ensures
+that we successfully target the challenging angles without severely distorting the
+natural viewpoint distribution of the overall dataset.
+
+
+C                 Additional implementation details
+
+Mesh fitting and regularization. During the mesh fitting stage, we employ
+the Adam optimizer for 200 total steps. The initial learning rate is set to 2 ×
+10−2 for the joint rotation and bone scale (if they are enabled) parameters and
+1 × 10−3 for the rigid transformation parameters. To ensure stable convergence,
+the learning rate for the joint rotations is halved after every 100 steps.
+    For synthetic images, the empirical weights for the regularization terms de-
+fined in Eq. (3) are set as follows: the angle loss weight λangle = 1 × 10−5 , the
+repulsion weight λrep = 1.0, the edge length loss weight λedge = 100, and the
+    Bootstrapping Articulated 3D Reconstruction – Supplementary Material        31
+
+local volume loss weight λvol = 20. Bone scaling is disabled entirely for synthetic
+images, so λscale = 0. Because real-world images contain more instance variabil-
+ity and are more noisy, their mesh fitting setup is slightly different. First, we
+run the optimizer for 300 total steps. Then, the real-world parameters (shared
+by horse, chimpanzee, elephant categories) are λangle = 3 × 10−5 , λrep = 5.0,
+λedge = 3000, and the local volume loss stays at λvol = 20. We also use a non-
+zero λscale = 0.01 for real-world images. Note the loss terms operate in different
+range and these weights generally compensate for that.
+    To avoid test-set leakage, these synthetic hyperparameters were determined
+via visual inspection of the fit quality and physical realism on a small subset of
+the horse training data. These values demonstrated strong generalizability and
+were consequently directly carried over to the cow and sheep categories without
+further tuning. The real-world mesh fitting parameters were fine-tuned from the
+synthetic ones by visual inspection of a couple dozen samples from the three
+categories.
+Point map predictor training. To stabilize training, we accumulate gradients
+over two batches, slightly increase the Adam [15] momentum, apply a weight de-
+cay of 0.01, and utilize a sequential learning rate scheduler comprising a linear
+warmup (1K steps) followed by cosine annealing. While we maintain the original
+base learning rate, we reduce the training duration to 60K steps per refinement
+iteration, which helps offset the computational overhead of gradient accumula-
+tion. Retraining the baseline DualPM under this stabilized regime yielded only
+marginal improvements, confirming these modifications are specifically necessary
+for handling noisy, self-supervised targets.
+Textures. To synthesize paired 2D-3D data during the iterative refinement pro-
+cedure, the meshes must be textured. We use 1-2 manually designed textures
+bundled with the canonical meshes for cows, sheep, chimps, and elephants, and
+employ 4 textures automatically generated using Text2Tex [4]. Our approach
+inherits the feature extractor based on [49] from DualPM, which ensures strong
+generalization to appearance. We set the background texture and illumination
+sampling using the same set of HDRI environment maps as DualPM.
+Synthetic rendering pipeline. We utilize Blender as our primary rendering
+engine. Environmental lighting and background the sampled HDRI environment
+maps (as in [13]). To texture the articulated meshes, we apply four texture maps
+generated using Text2Tex [4] for the horse category (see Fig. A6 for examples
+rendered using our pipeline), and rely on two hand-crafted textures for the cows
+and one for the sheep.
+Iterative refinement and compute. Each refinement iteration of our ap-
+proach produces completely independent training datasets; we strictly discard
+all synthetic images and paired 2D-3D instances generated in previous stages
+    We typically run our refinement process for 4 iterations. Empirical obser-
+vations (see Fig. 5) indicate that the first two iterations yield the most crucial
+performance gains. The benefit of subsequent iterations is heavily dependent on
+the natural deformation complexity of the target category: performance on the
+horse category continues to improve up to iteration 7, whereas the cow and sheep
+32     J. Zadrozny et al.
+
+categories generally converge after 3 to 4 iterations (when training on synthetic
+images).
+    Each complete refinement iteration consists of four sequential stages: (1)
+pseudo-ground-truth inference using the model from the previous iteration (2−3
+hours), (2) Blender rendering of the new synthetic images (∼ 2 hours), (3)
+extraction of DINOv2 and Stable Diffusion features for the training images (4−5
+hours), and (4) predictor training with gradient accumulation for 60K steps (∼
+8−10 hours). This totals approximately 16-20 hours per iteration. Consequently,
+a 4-iteration model requires roughly 3 days to train. All reported runtimes were
+measured using 4 NVIDIA RTX A6000 GPUs. Note, that the time required for
+the first three steps scales with the dataset size. The provided timings correspond
+to the ca. 16, 000-sample dataset utilized in our ablations.
+                           Bootstrapping Articulated 3D Reconstruction – Supplementary Material                                                                                 33
+
+
+
+
+                                         Canonical + t-Student                                                                          Refinement (w/ reg.)
+                                                                                     0.8                                                                                        0.8
+              4
+
+
+
+
+                                                                                                         4
+                                                                                     0.7                                                                                        0.7
+                                                                                     0.6                                                                                        0.6
+              3
+
+
+
+
+                                                                                                         3
+Joints Dist. Bucket
+
+
+
+
+                                                                                           Joints Dist. Bucket
+                                                                                     0.5                                                                                        0.5
+                                                                                     0.4                                                                                        0.4
+              2
+
+
+
+
+                                                                                                         2
+                                                                                     0.3                                                                                        0.3
+                                                                                     0.2                                                                                        0.2
+              1
+
+
+
+
+                                                                                                         1
+                                                                                     0.1                                                                                        0.1
+                                                                                     0.0                                                                                        0.0
+              0
+
+
+
+
+                                                                                                         0
+                           ]
+
+                                  ]
+                                        0]
+
+                                                ]
+                                                    0]
+
+                                                           0]
+
+                                                                 0]
+
+                                                                          ]
+
+                                                                                 ]
+
+
+
+
+                                                                                                                      ]
+
+                                                                                                                             ]
+                                                                                                                                   0]
+
+                                                                                                                                           ]
+                                                                                                                                               0]
+
+                                                                                                                                                      0]
+
+                                                                                                                                                            0]
+
+                                                                                                                                                                     ]
+
+                                                                                                                                                                            ]
+                       60
+
+                                 20
+
+
+
+                                              -40
+
+
+
+
+                                                                       20
+
+                                                                              60
+
+
+
+
+                                                                                                                  60
+
+                                                                                                                            20
+
+
+
+                                                                                                                                         -40
+
+
+
+
+                                                                                                                                                                  20
+
+                                                                                                                                                                         60
+                                      , -8
+
+
+
+
+                                                          ,4
+
+                                                                ,8
+
+
+
+
+                                                                                                                                 , -8
+
+
+
+
+                                                                                                                                                     ,4
+
+                                                                                                                                                           ,8
+                                                    0,
+
+
+
+
+                                                                                                                                               0,
+                      , -1
+
+                             , -1
+
+
+
+
+                                                                         1
+
+                                                                                1
+
+
+
+
+                                                                                                                 , -1
+
+                                                                                                                        , -1
+
+
+
+
+                                                                                                                                                                    1
+
+                                                                                                                                                                           1
+                                                  (-2
+
+                                                         (20
+
+                                                               (60
+
+
+
+
+                                                                                                                                             (-2
+
+                                                                                                                                                    (20
+
+                                                                                                                                                          (60
+                                             0,
+
+
+
+
+                                                                                                                                        0,
+                                                                      0,
+
+                                                                             0,
+
+
+
+
+                                                                                                                                                                 0,
+
+                                                                                                                                                                        0,
+                                    00
+
+
+
+
+                                                                                                                               00
+                      80
+
+                             40
+
+
+
+                                         (-6
+
+
+
+
+                                                                                                                 80
+
+                                                                                                                        40
+
+
+
+                                                                                                                                    (-6
+                                                                     (10
+
+                                                                           (14
+
+
+
+
+                                                                                                                                                                (10
+
+                                                                                                                                                                      (14
+                                  (-1
+
+
+
+
+                                                                                                                             (-1
+             (-1
+
+                           (-1
+
+
+
+
+                                                                                                        (-1
+
+                                                    Azimuth                                                           (-1                      Azimuth
+                                             Camera mult. (Ours)                                                                          DualPM (GT 3D)
+                                                                                     0.8                                                                                        0.8
+              4
+
+
+
+
+                                                                                                         4
+
+
+
+
+                                                                                     0.7                                                                                        0.7
+                                                                                     0.6                                                                                        0.6
+              3
+
+
+
+
+                                                                                                         3
+Joints Dist. Bucket
+
+
+
+
+                                                                                           Joints Dist. Bucket
+
+
+
+
+                                                                                     0.5                                                                                        0.5
+                                                                                     0.4                                                                                        0.4
+              2
+
+
+
+
+                                                                                                         2
+
+
+
+
+                                                                                     0.3                                                                                        0.3
+                                                                                     0.2                                                                                        0.2
+              1
+
+
+
+
+                                                                                                         1
+
+
+
+
+                                                                                     0.1                                                                                        0.1
+                                                                                     0.0                                                                                        0.0
+              0
+
+
+
+
+                                                                                                         0
+                      (-1 60]
+
+                        (-1 0]
+
+                          (-6 ]
+                                      ]
+                                    0]
+
+                                    0]
+
+                                    0]
+
+
+                        (14 ]
+                                    0]
+
+
+
+
+                                                                                                                 (-1 60]
+
+                                                                                                                   (-1 0]
+
+                                                                                                                     (-6 ]
+                                                                                                                                 ]
+                                                                                                                               0]
+
+                                                                                                                               0]
+
+                                                                                                                               0]
+
+
+                                                                                                                   (14 ]
+                                                                                                                               0]
+                                     0
+                                  -40
+
+
+
+
+                                    0
+
+
+
+
+                                                                                                                                0
+                                                                                                                             -40
+
+
+
+
+                                                                                                                               0
+                                   2
+                                , -8
+
+
+
+
+                                 ,4
+
+                                 ,8
+
+                                 12
+
+                                 16
+
+
+
+
+                                                                                                                              2
+                                                                                                                           , -8
+
+
+
+
+                                                                                                                            ,4
+
+                                                                                                                            ,8
+
+                                                                                                                            12
+
+                                                                                                                            16
+                                 0,
+
+
+
+
+                                                                                                                            0,
+                              , -1
+
+                              , -1
+
+
+
+
+                                                                                                                         , -1
+
+                                                                                                                         , -1
+                             (-2
+
+                            (20
+
+                            (60
+
+
+
+
+                                                                                                                        (-2
+
+                                                                                                                       (20
+
+                                                                                                                       (60
+                              0,
+
+
+
+
+                                                                                                                         0,
+                             0,
+
+                             0,
+
+
+
+
+                                                                                                                        0,
+
+                                                                                                                        0,
+                            00
+
+
+
+
+                                                                                                                       00
+                      80
+
+                          40
+
+
+
+
+                                                                                                                 80
+
+                                                                                                                     40
+                        (10
+
+
+
+
+                                                                                                                   (10
+             (-1
+
+
+
+
+                                                                                                        (-1
+
+
+
+
+                                                    Azimuth                                                                                    Azimuth
+
+
+Fig. A9: Reconstruction failure rates across viewpoints and pose complexity.
+Heatmaps illustrating the fraction of test samples exceeding a 5cm error threshold
+(% (mCD>5cm)) across different model variants. The horizontal axis represents the
+camera azimuth angle (0◦ denotes frontal, ±90◦ lateral), while the vertical axis denotes
+pose complexity (binned aligned joint distance, increasing with Y coordinate). While
+the base refinement strategy significantly reduces errors for lateral views, frontal and
+rear perspectives remain challenging. Our proposed viewpoint augmentation strategy
+effectively bridges this gap by leveraging reliable lateral predictions to bootstrap the
+underperforming angles.
+

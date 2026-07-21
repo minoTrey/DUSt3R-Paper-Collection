@@ -1,0 +1,577 @@
+                                         MUT3R: Motion-aware Updating Transformer for Dynamic 3D Reconstruction
+
+                                                Guole Shen1 *, Tianchen Deng1 *, Xingrui Qin1 , Nailin Wang1 , Jianyu Wang2 , Yanbo Wang1 ,
+                                                                    Yongtao Chen1 , Hesheng Wang1 , Jingchuan Wang1
+                                                          1
+                                                            Shanghai Jiao Tong University 2 Nanyang Technological University
+
+
+                                                                     Abstract
+arXiv:2512.03939v1 [cs.CV] 3 Dec 2025
+
+
+
+
+                                            Recent stateful recurrent neural networks have achieved
+                                        remarkable progress on static 3D reconstruction but remain
+                                        vulnerable to motion-induced artifacts, where non-rigid re-
+                                        gions corrupt attention propagation between the spatial
+                                        memory and image feature. By analyzing the internal be-
+                                        haviors of state and image token updating mechanism, we
+                                        find that aggregating self-attention maps across layers re-
+                                        veals a consistent pattern: dynamic regions are naturally
+                                        down-weighted, exposing an implicit motion cue that the                         Figure 1. We present MUT3R, a training-free framework that de-
+                                        pretrained transformer already encodes but never explicitly                     rives motion cues from CUT3R’s attention maps and performs
+                                        uses. Motivated by this observation, we introduce MUT3R,                        early-layer motion suppression to enhance robustness in dynamic
+                                                                                                                        scenes; unlike pairwise DUSt3R, which requires extra temporal
+                                        a training-free framework that applies the attention-derived
+                                                                                                                        fusion, the streaming design of CUT3R carries historical context
+                                        motion cue to suppress dynamic content in the early lay-                        in its state tokens, making such dynamics directly reflected in
+                                        ers of the transformer during inference. Our attention-level                    self-attention. (SA denotes self-attention and CA denotes cross-
+                                        gating module suppresses the influence of dynamic regions                       attention in the figure.)
+                                        before their artifacts propagate through the feature hierar-
+                                        chy. Notably, we do not retrain or fine-tune the model; we
+                                                                                                                        transformer models. Recently, transformer-based feed-
+                                        let the pretrained transformer diagnose its own motion cues
+                                                                                                                        forward reconstruction models have demonstrated impres-
+                                        and correct itself. This early regulation stabilizes geomet-
+                                                                                                                        sive capability in estimating camera poses and dense geom-
+                                        ric reasoning in streaming scenarios and leads to improve-
+                                                                                                                        etry directly from images.
+                                        ments in temporal consistency and camera pose robustness
+                                        across multiple dynamic benchmarks, offering a simple and                          Methods such as DUSt3R [40] and MASt3R [21] recover
+                                        training-free pathway toward motion-aware streaming re-                         dense 3D-consistent structure by regressing pixel-aligned
+                                        construction.                                                                   pointmaps from image pairs, establishing reliable cross-
+                                                                                                                        view correspondences without explicit geometric supervi-
+                                                                                                                        sion. However, these models operate in a pairwise setting,
+                                        1. Introduction                                                                 where only two frames are jointly processed and rely on a
+                                                                                                                        global alignment method to align the predicted pointmap
+                                        Reconstructing 3D geometry from images underpins a wide                         into the global map. Some works like CUT3R [39] and
+                                        range of downstream applications in novel view synthe-                          Spann3R [36] further improve the framework to address
+                                        sis, AR/VR, autonomous navigation, and robotics. Clas-                          streaming inputs with a continuous update state and an ex-
+                                        sical Structure-from-Motion [2, 31] and Multi-view Stereo                       ternal memory database. Although CUT3R is trained on
+                                        pipelines [17, 44] address this problem by decomposing it                       dynamic sequences, dynamic content can still inject distur-
+                                        into correspondence matching, pose estimation, and depth                        bances into the spatial memory, degrading static-region re-
+                                        fusion. While effective in static and well-conditioned envi-                    construction and pose stability. This issue arises from the
+                                        ronments, these optimization-heavy methods struggle with                        inherent structural behavior of feed-forward 3D transform-
+                                        textureless regions, illumination changes, and dynamic con-                     ers, rather than from limitations in the data or supervision.
+                                        tent, motivating the shift toward more unified, feed-forward                    To understand this behavior, we revisit CUT3R’s internal
+                                            The first two authors contribute equally to this paper. Corresponding       mechanism. As a representative feed-forward transformer
+                                        author: Jingchuan Wang (jchwang@sjtu.edu.cn)                                    for streaming 3D reconstruction, its decoder continually ex-
+
+
+                                                                                                                    1
+changes information between image tokens and state to-                 ometric consistency [4, 31]. Feature-based pipelines de-
+kens, which act as a latent temporal memory. Through this              tect and describe local features, match them across im-
+process, we observe that temporally stable regions tend to             ages, filter correspondences via robust estimation and mini-
+reinforce consistent correspondences, whereas dynamic re-              mal solvers, and refine cameras and structure with bundle
+gions struggle to maintain alignment, producing character-             adjustment [1, 2, 7, 11, 30, 32]. Direct and semi-direct
+istic fluctuations in self-attention. This reveals that the pre-       methods instead minimize photometric error over poses and
+trained decoder naturally exhibits motion-sensitive at-                dense geometry, with recent deep SLAM and visual odom-
+tention patterns, even without any explicit motion mod-                etry (VO) systems integrating learned feature encoders with
+ule. Such patterns constitute an implicit motion signal                differentiable bundle adjustment for accurate real-time tra-
+that has not yet been explicitly exploited. Motivated by               jectory estimation [8–10, 12, 13, 16, 34, 35, 37]. Despite
+this insight, we introduce MUT3R, a training-free atten-               their maturity, these pipelines depend on multi-stage opti-
+tion adaptation framework that enhances CUT3R’s sensi-                 mization and strong static-scene assumptions, making them
+tivity to dynamics without modifying its architecture or               fragile under motion, occlusion, and illumination changes.
+retraining its weights. MUT3R first analyzes multi-layer               Feed-Forward 3D Reconstruction under Static Assump-
+self-attention responses from the frozen decoder and ag-               tions. The introduction of DUSt3R marked a turning
+gregates them into a patch-wise dynamic score map that                 point for feed-forward 3D reconstruction.           By treat-
+captures motion-driven fluctuations in attention. This map             ing multi-view geometry as the regression of 2D-aligned
+is then injected as a soft bias into the early decoder lay-            pointmaps, it enabled direct estimation of camera poses and
+ers via attention-level gating mechanism. The gating se-               3D structure in a single forward pass [40], significantly
+lectively attenuates unstable queries or keys depending                simplifying the traditional correspondence-and-refinement
+on the attention direction—image self-attention, state-to-             pipeline. MASt3R [21] extends DUSt3R by jointly learning
+image cross-attention, or image-to-state cross-attention—              dense matching and 3D reconstruction, yielding stronger
+thereby preventing motion interference from propagating                multi-view consistency and more reliable feed-forward ge-
+forward. Because later layers already exhibit strong ge-               ometry estimation. VGGT [38] provides a unified vi-
+ometric consistency, early-layer suppression becomes a                 sual–geometry backbone trained jointly on pose, depth, and
+structurally targeted intervention that preserves CUT3R’s              tracking signals, offering a foundation model that transfers
+pretrained 3D reasoning while filtering out transient mo-              effectively to a wide range of geometric tasks. While highly
+tion effects. Across dynamic reconstruction benchmarks,                capable on static multi-view inputs, these feed-forward
+MUT3R consistently improves depth stability, pose robust-              models lack mechanisms to handle non-rigid motion, oc-
+ness, and long-range temporal coherence. Overall, our                  clusion changes, and other dynamic effects, limiting their
+contributions are shown as follows:                                    applicability in dynamic scene reconstruction.
+• Unsupervised motion cues discovery. We observe that                  Reconstructing Dynamic Scenes from Monocular
+   pretrained feed-forward 3D transformers implicitly en-              Videos. Reconstructing dynamic scenes is challenging
+   code motion saliency within their attention maps, provid-           due to non-rigid motion, occlusion, and motion blur.
+   ing a reliable internal motion probe without requiring any          Existing approaches either jointly optimize geometry and
+   external supervision.                                               motion from video [18, 23, 25, 47], or learn neural 4D
+• Training-free dynamic information suppression. We                    representations that model dynamic radiance fields or scene
+   introduce a attention gating mechanism that uses dynamic            flow [14, 22, 27, 28]. Recently, several works have adapted
+   cues to suppress motion interference in early decoder lay-          foundation models to dynamic scenes. MonST3R fine-
+   ers, without adding additional network structure or fintun-         tunes the DUSt3R architecture on dynamic videos [46], and
+   ing the network.                                                    DAS3R introduces learned dynamic masks with dedicated
+• Concise and Effective. Our simple attention enhance-                 reconstruction branches [42]. Other work avoids retraining:
+   ment consistently improves robustness in dynamic envi-              Easi3R [5] performs training-free attention adjustment
+   ronments, yielding more stable video depth, more accu-              within the pairwise DUSt3R framework, whose attention
+   rate camera poses, and more temporally consistent 4D re-            reflects only two-frame differences and therefore requires
+   construction across diverse benchmarks.                             additional temporal fusion. In contrast, CUT3R’s state
+                                                                       tokens retain temporal history, producing stable motion
+2. Related Work                                                        cues in self-attention that we directly leverage without extra
+Classical SfM and SLAM. Classical 3D reconstruction                    temporal fusion.
+is primarily accomplished through Structure-from-Motion
+(SfM) from unordered images and visual SLAM from video                 Continuous Reconstruction Methods. In long-horizon
+sequences, both estimating camera trajectories and sparse              and interactive scenarios, frames arrive sequentially and
+or semi-dense 3D structure by enforcing multi-view ge-                 the system must update geometry online. CUT3R and
+
+                                                                   2
+Figure 2. Method pipeline. Given a sequence of input frames, each image is first encoded into visual tokens Ft by a frozen ViT encoder.
+The tokens are processed by the recurrent CUT3R decoder with a persistent state. Inside each decoder layer, self-attention (SA) and cross-
+attention (CA) jointly refine the image and state tokens. We analyze the attention responses from multiple layers to estimate a patch-level
+dynamic score map. These scores guide our attention-level gating module that suppresses dynamic regions during early-layer attention.
+The resulting motion-aware updating enables robust and consistence 3D reconstruction without finetuning the base model.
+
+TTT3r maintains a compact recurrent state that integrates               to maintain consistency in long-sequence scene reconstruc-
+new observations into a shared coordinate system[6, 39] .               tion. We therefore build upon CUT3R as our backbone and
+Spann3R uses an external spatial memory to predict per-                 systematically examine how dynamic content affects multi-
+image pointmaps directly in a global frame, and Point3R                 view streaming reconstruction. The state tokens in CUT3R
+employs a spatial pointer memory anchored at 3D posi-                   are serve as latent temporal memory, guiding image tokens
+tions for better retention of distant observations [36, 41].            through cross-attention. Although the state tokens do not
+STREAM3R formulates pointmap prediction with causal                     correspond to explicit physical entities, they act as latent
+attention, key–value caching, and windowed contexts so                  temporal memories whose interaction with image tokens
+that sequential inference scales to long videos with con-               allows the model to associate geometrically consistent re-
+trolled compute [20]. MUT3R is complementary to these                   gions across time, implicitly capturing motion and stability
+streaming architectures: it keeps network weights fixed                 cues. As a result, we observe that the image self-attention
+and introduces a lightweight, training-free motion-aware                maps begin to exhibit motion-sensitive behavior, where dy-
+attention bias that can be plugged into existing streaming              namic regions often lead to unstable or dispersed attention,
+pointmap transformers.                                                  while static regions maintain concentrated and consistent
+                                                                        responses.
+3. Method
+                                                                           This phenomenon motivates our method. As shown in
+Recent transformer-based feed-forward frameworks for 3D                 Figure 2, we directly analyze the self-attention maps of the
+reconstruction [40] rely on alternating self-attention and              pretrained CUT3R decoder to infer patch-level motion cues.
+cross-attention layers that iteratively align and refine image          These cues reveal which image regions behave consistently
+features. These methods achieve high accuracy 3D recon-                 across frames and which fluctuate due to motion. Building
+struction in static scenes, while have difficulties in dynamic          on this insight, MUT3R introduces a training-free, plug-
+scenes. To address this limitation, Easi3R [5] introduces a             and-play early-layer motion suppression mechanism that
+pair-wise attention adaptation module designed for dynamic              derives motion cues from self-attention and uses them to
+objects. While multi-view inputs and spatial memory nat-                attenuate motion-dominant responses. By filtering such un-
+urally provide stronger cues for dynamic perception, this               stable activations at early layers, MUT3R improves robust-
+regime is still underexplored and current methods often fail            ness and temporal stability in dynamic scenes—without any
+
+
+                                                                    3
+                                                                                                P̂t = Headpose (zt′ ),                (5)
+                                                                           where Headself (·) and Headworld (·) use DPT [29], and
+                                                                           Headpose (·) is an MLP. All outputs are in metric scale.
+                                                                              Importantly, our method does not modify the CUT3R ar-
+                                                                           chitecture or retrain it from scratch. Instead, we analyze the
+                                                                           attention maps inside the decoder and introduce a training-
+                                                                           free gating mechanism that adaptively suppresses motion-
+                                                                           dominated regions.
+                                                                           3.2. Self-Attention Driven Motion Cue Extraction
+Figure 3. Visualization of different level attention maps. From            We analyze the internal self-attention maps of the frozen
+left to right, we show the input RGB frame, self-attention re-             CUT3R [39] decoder to reveal how motion cues emerge
+sponses from shallow layer and deep decoder layer, and the aver-           without explicit supervision. Let the image feature tokens
+aged attention map across all layers. Blue indicates lower attention       be F ∈ RN ×C , where N is the number of tokens, and C the
+responses, while red indicates higher responses.                           feature dimension. The query, key, and value projections
+                                                                           are obtained by linear layers:
+retraining or architectural modification.
+                                                                                  Q = ℓQ (F),      K = ℓK (F),       V = ℓV (F),      (6)
+3.1. Architecture Overview: CUT3R Backbone
+                                                                           with Q, K, V ∈ RH×N ×Ch , where H denotes the number
+Our framework builds directly upon the frozen CUT3R [39]
+                                                                           of attention heads and Ch = C/H. The attention map at
+architecture, which reconstructs 3D geometry from sequen-
+                                                                           layer l is computed as:
+tial video frames through a recurrent transformer decoder.
+At each time step t, the system receives an input image It ,                                    
+                                                                                                   Ql K⊤
+                                                                                                         
+which is first encoded into token representations Ft through                      Al = Softmax √       l
+                                                                                                           , Al ∈ RH×N ×N . (7)
+                                                                                                      Ch
+a vision transformer encoder [45]:
+                                                                           To obtain a global motion prior, we average the attention
+                       Ft = Encoder(It ),                       (1)        maps along the batch, head, and key dimensions:
+where Ft ∈ RN ×C denotes the patch-level embeddings.                                                 k  L   H    N
+   To integrate the updated memory with current observa-                                        1 XXX
+                                                                                        Ā =           Al,h,:,k ,                     (8)
+tions, we adopt a transformer-based decoder in which the                                       HLNk
+                                                                                                       l=1 h=1 k=1
+memory tokens interact with the current frame features Ft
+and the pose token zt :                                                    resulting in a single Nq -dimensional vector that represents
+                                                                           the average attention strength of each query token across all
+        [St , z′t ⊕ F′t ] = Decoder([St−1 , zt ⊕ Ft ]) ,        (2)        layers and heads. Averaging over the key dimension cap-
+                                                                           tures how broadly each query attends to the rest of the im-
+where St denotes the updated memory state, F′t are the                     age: tokens with dispersed or unstable attention correspond
+enriched frame features, and z′t is a dedicated pose to-                   to dynamic regions, while those with concentrated atten-
+ken capturing global scene-level information. The decoder                  tion indicate stable, static areas. This aggregated vector thus
+alternates between four complementary attention opera-                     serves as a coarse motionness prior.
+tions. Image and state tokens first undergo their own self-                   As illustrated in Fig. 3, the self-attention responses ex-
+attention, followed by bidirectional cross-attention: image-               hibit a clear relationship with scene dynamics: shallow lay-
+to-state attention injects current visual evidence into the                ers tend to react to local appearance and texture changes,
+memory, while state-to-image attention propagates global                   while deeper layers-—after repeated interaction with the
+geometric context back to the frame. These interactions                    persistent state—produce more temporally stable patterns
+produce the updated state tokens St and the enriched image                 aligned with the underlying 3D structure. By aggregating
+tokens F′t , where St is carried forward as persistent mem-                these multi-layer attention responses, we obtain a coarse
+ory and F′t supports depth, pose, and 3D reconstruction.                   motionness prior that captures this implicit motion aware-
+   Based on F′t and zt′ , CUT3R predicts metric-scale 3D                   ness encoded by CUT3R, even without any explicit dy-
+pointmaps X in both the camera and world frames, as well                   namic supervision.
+as the 6-DoF camera pose P :                                                  To transform this aggregated response into a usable dy-
+                  X̂tself , Ĉtself = Headself (F′t ),          (3)        namic score, we apply a sigmoid normalization g = σ(Ā).
+                                                                           The sigmoid both rescales Ā into a stable [0, 1] range and
+             X̂tworld , Ĉtworld = Headworld (F′t , zt′ ),      (4)        sharpens the contrast between coherent, static tokens and
+
+
+                                                                       4
+unstable, motion-affected tokens—pushing them toward 0
+and 1 respectively. This yields a more discriminative yet
+still soft dynamic score suitable for attention gating.
+3.3. Attention-Based Motion Suppression
+To make the attention motion-aware, we define a unified
+gating function G∗ (gt ) that adjusts the attention logits based
+on the dynamic score gt . Figure 4 provides an overview of
+this mechanism, illustrating how gt is converted into addi-
+tive attention biases for self-attention and the two directions
+                                                                       Figure 4. Motion awareness attention gating. This figure illus-
+of cross-attention. The gated attention is formulated as:
+                                                                       trates how the dynamic score map gt is converted into attention bi-
+                            
+                               Ql K⊤
+                                                                      ases that suppress motion-dominated regions. The left part shows
+                                     l
+             Ãl = Softmax       √     + G∗ (gt ) ,          (9)       self-attention gating. The right part visualizes the bias terms for
+                                   d                                   both directions of cross-attention between image and state tokens.
+where ∗ ∈ {self, state, img} denotes the attention type. For           The picture depicts the gated update applied to the image tokens,
+                                                                       highlighting where our motion-aware suppression reduces state-
+the self-attention, the gating term suppresses static queries
+                                                                       induced changes in dynamic regions.
+from attending to dynamic keys:
+                                         (q)  (k)                     Together, they maintain temporal consistency without freez-
+           Gself (gt ) = β log 1 − (1 − gt ) gt .       (10)
+                                                                       ing dynamics entirely.
+        (q)       (k)                                                  Layer-wise evolution of image token embeddings. Be-
+where gt and gt denote the motion scores of the query
+and key patches, both derived from the same dynamic score              yond the gating formulation, it is crucial to understand how
+map gt . This gating operates in a pairwise manner over all            dynamic interference propagates through the decoder and
+query–key pairs (i.e., an N × N modulation matrix), and                how early-layer suppression alters this behavior. For both
+thus dynamically suppresses static–to–dynamic interactions             CUT3R and our method, we extract high-dimensional im-
+within the image tokens.                                               age features (ft ∈ RH×W ×C ) at multiple decoder lay-
+   When updating the state St , the gating function penalizes          ers and project them onto the first three PCA components,
+dynamic image regions:                                                 which are then averaged to form a single-channel inten-
+                                                                       sity map that is visualized using a pseudo-color scheme, as
+                                         (k) 
+               Gstate (gt ) = β log 1 − gt ,             (11)          shown in Figure 5. This visualization reflects the magnitude
+                                                                       and spatial coherence of image token embeddings across
+where dynamic keys in the image are suppressed in a per-               layers. Shallow layers produce highly fragmented patterns
+key fashion (i.e., a 1 × Nk modulation broadcast across                with irregular activations, reflecting localized and unstable
+queries). In the reverse direction (image ← state), the gating         feature responses. As we move to mid layers, these pat-
+is defined as:                                                         terns become smoother and more spatially organized, indi-
+                                         (q)                          cating that the decoder begins to integrate broader contex-
+                 Gimg (gt ) = β log 1 − gt ,              (12)         tual information. In deeper layers, the intensity maps appear
+which down-weights dynamic queries in a per-query man-                 globally more coherent, although small localized variations
+ner (i.e., an Nq × 1 modulation broadcast along the key                remain visible around dynamic regions.
+dimension). This asymmetric design allows each attention                   This progressive transition suggests that early decoder
+direction to adaptively suppress motion-dominated tokens               layers rely more heavily on appearance cues and exhibit
+while preserving stable correspondences.                               stronger sensitivity to scene dynamics, whereas deeper lay-
+   The hyperparameter β controls the gating sharpness.                 ers produce more geometry-consistent and stable represen-
+Specifically, intermediate values of gt lead to partial atten-         tations. Therefore, applying our motion-aware gating to the
+uation, allowing soft and differentiable control rather than           first few attention layers helps suppress unstable responses
+hard masking. This unified soft-mask formulation effec-                before they propagate through the network, allowing deeper
+tively suppresses static–dynamic interference. The motion-             layers to form more consistent geometric embeddings.
+ness map gt thus serves as a motion-aware routing weight                   As shown in Figure 5, in the shallow decoder layers, our
+that softly balances dynamic suppression. This asymmetric              method shifts the feature responses toward stable static re-
+gating mirrors the directional nature of information flow:             gions more quickly, leading to faster and more coherent fea-
+when transferring information from image to state, unstable            ture aggregation. Across the entire depth of the decoder,
+image regions are suppressed; when injecting state infor-              our embeddings evolve more smoothly, while CUT3R occa-
+mation into the image, unstable queries are down-weighted.             sionally exhibits abrupt changes in activation patterns. This
+
+
+                                                                   5
+Figure 5. Layer-wise PCA visualization of decoder embeddings before and after early-layer suppression. We visualize the evolution
+of image-token embeddings across different decoder layers, where Lk represents the embeddings after passing through the k-th decoder
+layer.
+
+observation supports our initial hypothesis that early-layer         4.1. Video Depth Evaluation
+attention inherently captures motion instability, and sup-
+                                                                     Following previous methods [20, 39, 46], we evaluate video
+pressing it leads to more stable geometric reasoning without
+                                                                     depth on Sintel [3], Bonn [26], KITTI [15] dataset, which
+retraining.
+                                                                     cover indoor and outdoor, realistic and synthetic dynamic
+                                                                     data. We report the standard metrics, including absolute
+4. Experiment                                                        relative error (Abs Rel) and the percentage of inlier pixels
+                                                                     within a 1.25 ratio to ground-truth depth (δ < 1.25), which
+We evaluate our method on a variety of tasks, including              together reflect both per-frame accuracy and the temporal
+video depth evaluation (Section 4.1), camera pose evalua-            consistency of depth across video sequences. All methods
+tion (Section 4.2) and 4D reconstruction (Section 4.3).              are first evaluated under the per-sequence scale setting. For
+                                                                     metric-scale methods, such as CUT3R and our MUT3R, we
+                                                                     further report results in the metric scale without alignment
+Baselines. We compare our approach with a broad range                to ground truth. As shown in Table1, across most datasets,
+of transformer-based 3D reconstruction methods. For                  our method consistently improves over existing streaming
+global or pairwise-view baselines, we include DUSt3R [40],           approaches, particularly our baseline CUT3R. By keeping
+MASt3R [21], MonST3R [46], and Easi3R [5], which per-                the decoder focused on stable static structure rather than
+form offline inference by jointly optimizing over image              reacting to transient motion in early layers, our approach
+pairs. We also consider Fast3R [43] and VGG-T [38], which            reduces noisy state updates and avoids the abrupt feature
+rely on bi-directional attention and therefore operate in a          shifts that often lead to large depth errors. As a result, the
+non-streaming, global manner. For streaming-based com-               predicted depth becomes more temporally consistent and
+parison, we evaluate against Spann3R [36], CUT3R [39],               less sensitive to transient motion across frames.
+Point3R [41], and STREAM3R [20], all of which process
+video causally by maintaining frame-to-frame continuity
+                                                                     4.2. Camera Pose Evaluation
+through either recurrent states or cached feature memories.          We evaluate our camera pose estimation on three dynamic-
+STREAM3R provides two variants: α (DUSt3R-based) and                 scene benchmarks in Table 2, including Sintel [3], TUM-
+β (VGG-T-based), where only the β model is currently pub-            dynamics [33], and ADT [19, 24]. Sintel and TUM-
+licly released. In our reporting, global and streaming meth-         dynamics contain significant non-rigid motion that chal-
+ods are grouped separately to contrast offline optimization          lenges correspondence-based pose estimation, while ADT
+with online, frame-by-frame inference. In the table, we              consists of egocentric videos with rapid motion and large
+categorize methods by Type, indicating whether they are              viewpoint changes. We report three standard metrics: Ab-
+optimization-based (Optim), streaming (Stream), or full-             solute Translation Error (ATE), Relative Translation Error
+attention (FA).                                                      (RPEtrans ), and Relative Rotation Error (RPErot ) [33]. All
+
+
+                                                                 6
+                                                                Sintel              Bonn              KITTI
+      Alignment            Method                Type
+                                                          AbsRel↓ δ < 1.25 ↑ AbsRel↓ δ < 1.25 ↑ AbsRel↓ δ < 1.25 ↑
+                           VGG-T [38]            FA        0.297         68.8       0.055       97.1       0.073        96.5
+                           Fast3R [43]           FA        0.653         44.9       0.193       77.5       0.140        83.4
+                           DUSt3R-GA [40]        Optim     0.656         45.2       0.155       83.3       0.144        81.3
+                           MASt3R-GA [21]        Optim     0.641         43.9       0.252       70.1       0.183        74.5
+                           MonST3R-GA [46]       Optim     0.378         55.8       0.067       96.3       0.168        74.4
+      Per-sequence scale
+                           Spann3R [36]          Stream    0.622         42.6       0.144       81.3       0.198        73.7
+                           STREAM3Rα [20]        Stream    0.478         51.1       0.075       94.1       0.116        89.6
+                           Point3R [41]          Stream    0.452         48.9       0.060       96.0       0.136        84.2
+                           CUT3R [39]            Stream    0.421         47.9       0.078       93.7       0.118        88.1
+                           Ours                  Stream    0.451         48.6       0.070       96.2       0.116        88.3
+                           MASt3R-GA [21]        Optim     1.022         14.3       0.272       70.6       0.467        15.2
+                           STREAM3Rα [36]        Stream    1.041         21.0       0.084       94.4       0.234        57.6
+      Metric scale         Point3R [41]          Stream    0.777         17.1       0.137       94.7       0.191        73.8
+                           CUT3R [39]            Stream    1.029         23.8       0.103       88.5       0.122        85.5
+                           Ours                  Stream    0.820         25.2       0.086       96.0       0.125        85.8
+
+Table 1. Video Depth Evaluation on the Sintel [3], Bonn [26], and KITTI [15] datasets. We evaluate scale-invariant and metric depth
+accuracy. Lower AbsRel and higher δ < 1.25 indicate better results. The best and second best results are shown in bold and underlined.
+
+                                            Sintel                TUM-dynamics                ADT
+           Method            Type
+                                     ATE↓ RPEtrans ↓ RPErot ↓ ATE↓ RPEtrans ↓ RPErot ↓ ATE↓ RPEtrans ↓ RPErot ↓
+           DUSt3R [40]       Optim    0.417    0.250      5.796    0.083    0.017     3.567    0.042     0.025     1.212
+           MASt3R [21]       Optim    0.185    0.060      1.496    0.038    0.012     0.448    0.015     0.125     0.354
+           MonST3R [46]      Optim    0.111    0.044      0.869    0.098    0.019     0.935    0.055     0.025     0.776
+           Easi3R [5]        Optim    0.110    0.042      0.758    0.105    0.022     1.064    0.042     0.015     0.655
+           Spann3R [36]     Stream    0.329    0.110      4.471    0.056    0.021     0.591    0.146     0.056     1.351
+           Point3R [41]     Stream    0.351    0.128      1.822    0.075    0.029     0.642      -         -         -
+           CUT3R [39]       Stream    0.213    0.066      0.621    0.046    0.015     0.473    0.084     0.025     0.490
+           Ours             Stream    0.228    0.062      0.751    0.042    0.015     0.445    0.058     0.023     0.477
+
+Table 2. Camera pose evaluation on the Sintel [3], TUM-dynamics [33], and ADT [19, 24] dataset. All metrics are lower-the-better. Best
+and second-best are bold and underlined.
+
+metrics are computed after aligning the predicted trajectory           rally consistent reconstruction. Following prior work, we
+to the ground-truth camera path using a Sim(3) transforma-             report three standard metrics: accuracy, completeness, and
+tion, following the protocol of [34, 39, 46]. Global methods           overall distance. Accuracy measures the nearest-point Eu-
+degrade substantially under motion, and we further observe             clidean distance from the reconstructed point cloud to the
+that in streaming models such as CUT3R, dynamic regions                ground truth, completeness measures the reverse direction,
+can introduce early-layer fluctuations that affect both the            and distance denotes their average, computed via symmet-
+image features and the recurrent state involved in pose esti-          ric point matching. Across all metrics, our method shows
+mation. By mitigating motion-driven noises, we limit their             clear improvements over CUT3R on DyCheck. By reduc-
+effect on pose-related image tokens as well as on the recur-           ing motion-induced feature fluctuations in the early layers,
+rent state, leading to cleaner cues and more stable trajecto-          our method produces more stable per-frame point clouds,
+ries.                                                                  which in turn leads to smoother and more geometrically
+                                                                       consistent surfaces across time. A qualitative comparison
+4.3. 4D Reconstruction Evaluation.                                     on Bonn and ADT dataset (Figure. 6) further shows that, in
+                                                                       dynamic regions where CUT3R tends to drift or lose con-
+We evaluate 4D reconstruction on the DyCheck [14] dataset
+                                                                       sistency, our method produces noticeably more stable and
+by measuring the geometric distance between the recon-
+                                                                       temporally coherent geometry.
+structed and ground-truth point clouds. DyCheck contains
+diverse, in-the-wild dynamic videos captured with handheld
+cameras, making it a challenging benchmark for tempo-
+
+
+                                                                   7
+Figure 6. Qualitative 4D reconstruction comparison on Bonn and ADT dataset. The region outlined in the image is marked in red to
+signify lower predictive accuracy, in green to signify higher accuracy.
+
+                   Accuracy↓ Completion↓ Distance↓                      Method                  Setting                 Abs Rel↓ δ<1.25 ↑
+  Method
+                   Mean Med. Mean Med. Mean Med.
+                                                                        CUT3R [39]              0, w/o gates             0.103     88.5
+  Optimization-based methods
+                                                                                                0-2 layers               0.099     91.2
+  DUS3R [40]      0.802 0.595    1.950   0.815   0.353 0.233
+                                                                                                0-8 layers               0.114     89.4
+  MonST3R [46] 0.851 0.689       1.734   0.958   0.353 0.254            Suppression depth
+                                                                                                0-12 layers              0.106     91.4
+  DAS3R [42]      1.772 1.438    2.503   1.548   0.475 0.352
+                                                                                                6-12 layers              0.113     86.6
+  Easi3R [5]      0.703 0.589    1.474   0.586   0.301 0.186
+                                                                                             w/o img self                0.111     87.2
+  Streaming methods
+                                                                        Gating configuration w/o img-to-state            0.089     94.1
+  CUT3R [39]     0.461 0.338 1.648 0.813 0.329 0.231
+                                                                                             w/o state-to-img            0.093     93.7
+  Ours           0.438 0.331 1.487 0.663 0.322 0.189
+                                                                        Our Full model          0-6 layers, all gates    0.086     96.0
+Table 3. Quantitative comparisons for point cloud reconstruc-
+tion on the DyCheck dataset [14]. Best results are shown in bold.       Table 4. Ablation Study. We evaluate the impact of applying
+                                                                        suppression at different depths with all gating types activated, and
+5. Ablation study                                                       additionally study the contribution of each gating component by
+                                                                        removing them one at a time at a fixed depth of L = 6.
+Table 4 reports ablations on the Bonn dataset under the
+metric-scale video depth evaluation protocol. We first vary
+the suppression depth of decoder layers and observe that                6. Conclusion
+applying suppression to the early-to-middle layers yields               We introduced MUT3R, a training-free method that lever-
+better performance, while deeper suppression leads to de-               ages the motion-sensitive attention patterns already present
+graded accuracy. This observation indicates that early-layer            in pretrained 3D transformers. By converting these im-
+attention responses are particularly sensitive to scene dy-             plicit cues into early soft attention gating, MUT3R sup-
+namics, and stabilizing them leads to clear improvements                presses motion interference while preserving CUT3R’s ge-
+in overall reconstruction quality. We then evaluate the                 ometric reasoning. Across multiple dynamic-scene bench-
+contribution of each gating configuration. Removing any                 marks, it consistently improves depth stability, pose accu-
+of the three gating modules–image self-attention, image-                racy, and temporal coherence—all without modifying ar-
+to-state, or state-to-image—consistently reduces perfor-                chitecture or retraining. This work provides new insights
+mance, showing that dynamic noise arises not only from                  for the dynamic 3D reconstruction community, highlight-
+image–state exchanges but, most prominently, from image                 ing the potential of using the attention-derived motion cue
+self-attention, which requires explicit filtering. Combining            in pretrained 3D transformers.
+all gating modules within the optimal depth range yields the
+best overall performance.
+
+
+                                                                    8
+References                                                                    ference on computer vision, pages 834–849. Springer, 2014.
+                                                                              2
+ [1] Sameer Agarwal, Noah Snavely, Steven M Seitz, and
+                                                                         [13] Jakob Engel, Vladlen Koltun, and Daniel Cremers. Direct
+     Richard Szeliski. Bundle adjustment in the large. In Euro-
+                                                                              sparse odometry. IEEE transactions on pattern analysis and
+     pean conference on computer vision, pages 29–42. Springer,
+                                                                              machine intelligence, 40(3):611–625, 2017. 2
+     2010. 2
+                                                                         [14] Hang Gao, Ruilong Li, Shubham Tulsiani, Bryan Russell,
+ [2] Sameer Agarwal, Yasutaka Furukawa, Noah Snavely, Ian Si-
+                                                                              and Angjoo Kanazawa. Monocular dynamic view synthesis:
+     mon, Brian Curless, Steven M Seitz, and Richard Szeliski.
+                                                                              A reality check. Advances in Neural Information Processing
+     Building rome in a day. Communications of the ACM, 54
+                                                                              Systems, 35:33768–33780, 2022. 2, 7, 8
+     (10):105–112, 2011. 1, 2
+                                                                         [15] Andreas Geiger, Philip Lenz, and Raquel Urtasun. Are we
+ [3] Daniel J Butler, Jonas Wulff, Garrett B Stanley, and                     ready for autonomous driving? the kitti vision benchmark
+     Michael J Black. A naturalistic open source movie for op-                suite. In 2012 IEEE conference on computer vision and pat-
+     tical flow evaluation. In European conference on computer                tern recognition, pages 3354–3361. IEEE, 2012. 6, 7
+     vision, pages 611–625. Springer, 2012. 6, 7
+                                                                         [16] Javier Hidalgo-Carrió, Guillermo Gallego, and Davide
+ [4] Carlos Campos, Richard Elvira, Juan J Gómez Rodrı́guez,                 Scaramuzza. Event-aided direct sparse odometry. In Pro-
+     José MM Montiel, and Juan D Tardós. Orb-slam3: An                      ceedings of the IEEE/CVF Conference on Computer Vision
+     accurate open-source library for visual, visual–inertial, and            and Pattern Recognition, pages 5781–5790, 2022. 2
+     multimap slam. IEEE transactions on robotics, 37(6):1874–
+                                                                         [17] Po-Han Huang, Kevin Matzen, Johannes Kopf, Narendra
+     1890, 2021. 2
+                                                                              Ahuja, and Jia-Bin Huang. Deepmvs: Learning multi-
+ [5] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and                  view stereopsis. In Proceedings of the IEEE conference on
+     Anpei Chen. Easi3r: Estimating disentangled motion from                  computer vision and pattern recognition, pages 2821–2830,
+     dust3r without training. arXiv preprint arXiv:2503.24391,                2018. 1
+     2025. 2, 3, 6, 7, 8                                                 [18] Johannes Kopf, Xuejian Rong, and Jia-Bin Huang. Ro-
+ [6] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and                  bust consistent video depth estimation. In Proceedings of
+     Anpei Chen. Ttt3r: 3d reconstruction as test-time training.              the IEEE/CVF Conference on Computer Vision and Pattern
+     arXiv preprint arXiv:2509.26645, 2025. 3                                 Recognition, pages 1611–1621, 2021. 2
+ [7] Tianchen Deng, Guole Shen, Tong Qin, Jianyu Wang, Wen-              [19] Skanda Koppula, Ignacio Rocco, Yi Yang, Joe Heyward,
+     tao Zhao, Jingchuan Wang, Danwei Wang, and Weidong                       Joao Carreira, Andrew Zisserman, Gabriel Brostow, and Carl
+     Chen. Plgslam: Progressive neural scene represenation                    Doersch. Tapvid-3d: A benchmark for tracking any point in
+     with local to global bundle adjustment. In Proceedings of                3d. Advances in Neural Information Processing Systems, 37:
+     the IEEE/CVF Conference on Computer Vision and Pattern                   82149–82165, 2024. 6, 7
+     Recognition (CVPR), pages 19657–19666, 2024. 2                      [20] Yushi Lan, Yihang Luo, Fangzhou Hong, Shangchen Zhou,
+ [8] Tianchen Deng, Guole Shen, Xun Chen, Shenghai Yuan,                      Honghua Chen, Zhaoyang Lyu, Shuai Yang, Bo Dai,
+     Hongming Shen, Guohao Peng, Zhenyu Wu, Jingchuan                         Chen Change Loy, and Xingang Pan. Stream3r: Scalable
+     Wang, Lihua Xie, Danwei Wang, Hesheng Wang, and Wei-                     sequential 3d reconstruction with causal transformer. arXiv
+     dong Chen. Mcn-slam: Multi-agent collaborative neural                    preprint arXiv:2508.10893, 2025. 3, 6, 7
+     slam with hybrid implicit neural scene representation. arXiv        [21] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Ground-
+     preprint arXiv:2506.18678, 2025. 2                                       ing image matching in 3d with mast3r. In European Confer-
+ [9] Tianchen Deng, Guole Shen, Chen Xun, Shenghai Yuan,                      ence on Computer Vision, pages 71–91. Springer, 2024. 1, 2,
+     Tongxin Jin, Hongming Shen, Yanbo Wang, Jingchuan                        6, 7
+     Wang, Hesheng Wang, Danwei Wang, et al. Mne-slam:                   [22] Zhengqi Li, Simon Niklaus, Noah Snavely, and Oliver Wang.
+     Multi-agent neural slam for mobile robots. In Proceedings                Neural scene flow fields for space-time view synthesis of dy-
+     of the Computer Vision and Pattern Recognition Conference,               namic scenes. In Proceedings of the IEEE/CVF conference
+     pages 1485–1494, 2025.                                                   on computer vision and pattern recognition, pages 6498–
+[10] Tianchen Deng, Yanbo Wang, Hongle Xie, Hesheng Wang,                     6508, 2021. 2
+     Rui Guo, Jingchuan Wang, Danwei Wang, and Weidong                   [23] Zhengqi Li, Richard Tucker, Forrester Cole, Qianqian Wang,
+     Chen. Neslam: Neural implicit mapping and self-supervised                Linyi Jin, Vickie Ye, Angjoo Kanazawa, Aleksander Holyn-
+     feature tracking with depth completion and denoising. IEEE               ski, and Noah Snavely. Megasam: Accurate, fast and ro-
+     Transactions on Automation Science and Engineering, 22:                  bust structure and motion from casual dynamic videos. In
+     12309–12321, 2025. 2                                                     Proceedings of the Computer Vision and Pattern Recognition
+[11] Daniel DeTone, Tomasz Malisiewicz, and Andrew Rabi-                      Conference, pages 10486–10496, 2025. 2
+     novich. Superpoint: Self-supervised interest point detection        [24] David G Lowe. Distinctive image features from scale-
+     and description. In Proceedings of the IEEE conference on                invariant keypoints. International journal of computer vi-
+     computer vision and pattern recognition workshops, pages                 sion, 60(2):91–110, 2004. 6, 7
+     224–236, 2018. 2                                                    [25] Jiahao Lu, Tianyu Huang, Peng Li, Zhiyang Dou, Cheng Lin,
+[12] Jakob Engel, Thomas Schöps, and Daniel Cremers. Lsd-                    Zhiming Cui, Zhen Dong, Sai-Kit Yeung, Wenping Wang,
+     slam: Large-scale direct monocular slam. In European con-                and Yuan Liu. Align3r: Aligned monocular depth estimation
+
+
+                                                                     9
+     for dynamic videos. In Proceedings of the Computer Vision           [38] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+     and Pattern Recognition Conference, pages 22820–22830,                   Vedaldi, Christian Rupprecht, and David Novotny. Vggt: Vi-
+     2025. 2                                                                  sual geometry grounded transformer. In Proceedings of the
+[26] Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe                Computer Vision and Pattern Recognition Conference, pages
+     Giguere, and Cyrill Stachniss. Refusion: 3d reconstruction               5294–5306, 2025. 2, 6, 7
+     in dynamic environments for rgb-d cameras exploiting resid-         [39] Qianqian Wang, Yifei Zhang, Aleksander Holynski,
+     uals. In 2019 IEEE/RSJ International Conference on Intel-                Alexei A Efros, and Angjoo Kanazawa. Continuous 3d per-
+     ligent Robots and Systems (IROS), pages 7855–7862. IEEE,                 ception model with persistent state. In Proceedings of the
+     2019. 6, 7                                                               Computer Vision and Pattern Recognition Conference, pages
+[27] Keunhong Park, Utkarsh Sinha, Peter Hedman, Jonathan T                   10510–10522, 2025. 1, 3, 4, 6, 7, 8
+     Barron, Sofien Bouaziz, Dan B Goldman, Ricardo Martin-              [40] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris
+     Brualla, and Steven M Seitz.         Hypernerf: A higher-                Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-
+     dimensional representation for topologically varying neural              sion made easy. In Proceedings of the IEEE/CVF Conference
+     radiance fields. arXiv preprint arXiv:2106.13228, 2021. 2                on Computer Vision and Pattern Recognition, pages 20697–
+                                                                              20709, 2024. 1, 2, 3, 6, 7, 8
+[28] Albert Pumarola, Enric Corona, Gerard Pons-Moll, and
+     Francesc Moreno-Noguer. D-nerf: Neural radiance fields              [41] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r:
+     for dynamic scenes. In Proceedings of the IEEE/CVF con-                  Streaming 3d reconstruction with explicit spatial pointer
+     ference on computer vision and pattern recognition, pages                memory. arXiv preprint arXiv:2507.02863, 2025. 3, 6, 7
+     10318–10327, 2021. 2                                                [42] Kai Xu, Tze Ho Elden Tse, Jizong Peng, and Angela Yao.
+                                                                              Das3r: Dynamics-aware gaussian splatting for static scene
+[29] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vi-
+                                                                              reconstruction. arXiv preprint arXiv:2412.19584, 2024. 2, 8
+     sion transformers for dense prediction. In Proceedings of
+     the IEEE/CVF international conference on computer vision,           [43] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff,
+     pages 12179–12188, 2021. 4                                               Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and Matt
+                                                                              Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images
+[30] Paul-Edouard Sarlin, Daniel DeTone, Tomasz Malisiewicz,
+                                                                              in one forward pass. In Proceedings of the Computer Vision
+     and Andrew Rabinovich. Superglue: Learning feature
+                                                                              and Pattern Recognition Conference, pages 21924–21935,
+     matching with graph neural networks. In Proceedings of
+                                                                              2025. 6, 7
+     the IEEE/CVF conference on computer vision and pattern
+                                                                         [44] Yao Yao, Zixin Luo, Shiwei Li, Tian Fang, and Long Quan.
+     recognition, pages 4938–4947, 2020. 2
+                                                                              Mvsnet: Depth inference for unstructured multi-view stereo.
+[31] Johannes L Schonberger and Jan-Michael Frahm. Structure-                 In Proceedings of the European conference on computer vi-
+     from-motion revisited. In Proceedings of the IEEE con-                   sion (ECCV), pages 767–783, 2018. 1
+     ference on computer vision and pattern recognition, pages
+                                                                         [45] Li Yuan, Yunpeng Chen, Tao Wang, Weihao Yu, Yujun Shi,
+     4104–4113, 2016. 1, 2
+                                                                              Zi-Hang Jiang, Francis EH Tay, Jiashi Feng, and Shuicheng
+[32] Guole Shen, Tianchen Deng, Yanbo Wang, Yongtao Chen,                     Yan. Tokens-to-token vit: Training vision transformers from
+     Yilin Shen, Jiuming Liu, and Jingchuan Wang. Grs-slam3r:                 scratch on imagenet. In Proceedings of the IEEE/CVF in-
+     Real-time dense slam with gated recurrent state. arXiv                   ternational conference on computer vision, pages 558–567,
+     preprint arXiv:2509.23737, 2025. 2                                       2021. 4
+[33] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram             [46] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-
+     Burgard, and Daniel Cremers. A benchmark for the evalua-                 pani, Trevor Darrell, Forrester Cole, Deqing Sun, and Ming-
+     tion of rgb-d slam systems. In 2012 IEEE/RSJ international               Hsuan Yang. Monst3r: A simple approach for estimating
+     conference on intelligent robots and systems, pages 573–580.             geometry in the presence of motion. In ICLR, 2025. 2, 6, 7,
+     IEEE, 2012. 6, 7                                                         8
+[34] Zachary Teed and Jia Deng. Droid-slam: Deep visual slam             [47] Zhoutong Zhang, Forrester Cole, Zhengqi Li, Michael Ru-
+     for monocular, stereo, and rgb-d cameras. Advances in neu-               binstein, Noah Snavely, and William T Freeman. Structure
+     ral information processing systems, 34:16558–16569, 2021.                and motion from casual videos. In European Conference on
+     2, 7                                                                     Computer Vision, pages 20–37. Springer, 2022. 2
+[35] Zachary Teed, Lahav Lipson, and Jia Deng. Deep patch vi-
+     sual odometry. Advances in Neural Information Processing
+     Systems, 36:39033–39051, 2023. 2
+[36] Hengyi Wang and Lourdes Agapito. 3d reconstruction with
+     spatial memory. In 2025 International Conference on 3D
+     Vision (3DV), pages 78–89. IEEE, 2025. 1, 3, 6, 7
+[37] Jianyuan Wang, Nikita Karaev, Christian Rupprecht, and
+     David Novotny. Vggsfm: Visual geometry grounded deep
+     structure from motion. In Proceedings of the IEEE/CVF con-
+     ference on computer vision and pattern recognition, pages
+     21686–21697, 2024. 2
+
+
+                                                                    10
+

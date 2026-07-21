@@ -1,0 +1,2071 @@
+                                          AdaptiveSplat: Texture Aware Controllable 3D
+                                             Gaussian Allocation for Feed-Forward
+                                                         Reconstruction
+
+                                            Badrinath Singhal1 , Srihari K G1 , Sreehari Iyer1 , Ankit Dhiman1,2 , and
+                                                               Venkatesh Babu Radhakrishnan1
+                                                        1
+                                                         Vision and AI Lab, Indian Institute of Science, Bangalore
+arXiv:2607.04256v1 [cs.CV] 5 Jul 2026
+
+
+
+
+                                                              2
+                                                                Samsung R & D Institute India - Bangalore
+                                                   {badrinaths, sriharig, sreeharid, ankitd, venky}@iisc.ac.in
+                                                      https://badrinaths.github.io/projects/adaptive-splat/
+
+
+
+
+                                                                                                                                                Ours          AnySplat
+                                                                Number of Gaussians              Visualizing Controllable 3D Gaussians
+
+                                                            Sparse                           Sparse
+                                                                                     Dense
+                                                                                                                                                                   Artifacts
+
+
+                                                                                                                                            PSNR: 31.89dB   PSNR: 30.93dB
+
+                                                                     AdaptiveSplat
+
+                                          Input Views                                                                               Dense                           Blurring
+                                                                                                      Novel View 1
+                                                                                                                     Novel View 2
+                                                                                                                                              SSIM: 0.81     SSIM: 0.75
+
+
+
+                                        Fig. 1: Overview: We demonstrate AdaptiveSplat’s ability to maintain scene fidelity
+                                        while controlling the allocation of primitives. Given input images and a target Gaussian
+                                        budget, our feed-forward approach produces sparse yet high-quality reconstructions. In
+                                        contrast, prior methods exhibit artifacts and over-smoothing at high sparsity.
+
+
+
+                                                Abstract. Current feed-forward 3D reconstruction methods predict pixel
+                                                aligned Gaussian primitives, resulting in highly redundant representa-
+                                                tions. A natural solution is to prune the redundant Gaussians, but naive
+                                                pruning introduces severe artifacts and often requires inference time fine-
+                                                tuning, breaking the feed-forward paradigm. Based on previous works,
+                                                high frequency regions require more Gaussian primitives, while low fre-
+                                                quency regions can be represented with significantly fewer primitives.
+                                                Motivated by this, we propose a novel approach to explicitly control
+                                                the number of Gaussians by leveraging local texture information. Our
+                                                approach achieves this through three key components: (1) texture es-
+                                                timation to capture spatial variation in scene detail, (2) texture-aware
+                                                pruning that removes redundant Gaussians from low frequency regions,
+                                                and (3) an adaptive Gaussian head that predicts the modified attributes
+                                                of the retained primitives without breaking the feed-forward paradigm.
+                                                Experiments on RE10K, ACID, DL3DV, Tanks and Temples, and DTU
+                                                demonstrate the effectiveness of our approach, while ablation studies
+                                                validate the contributions of its key components.
+2       Singhal et al.
+
+1   Introduction
+Feed-forward models for 3D reconstructions [4, 7, 23, 31, 51, 53, 54, 62, 70, 75, 80]
+generate 3D Gaussian representations [26] directly from input views. These ap-
+proaches predict pixel-aligned Gaussians, where each input pixel produces the
+parameters of a corresponding 3D Gaussian in the scene. While this design en-
+ables efficient feed-forward inference, it allocates Gaussians uniformly across the
+image without considering the underlying scene complexity. A straightforward
+way to reduce this redundancy is to prune the Gaussians. However, naive prun-
+ing strategies introduce severe artifacts in rendered novel views, often producing
+empty regions that disrupt scene continuity and degrade rendering quality.
+    Several works have explored compression techniques for 3D Gaussian rep-
+resentations [2, 14, 17, 42, 44, 45]. However, these approaches primarily focus on
+post-hoc quantization or encoding and typically require dense multi-view inputs
+along with scene-specific optimization. Such reliance on iterative optimization
+limits their applicability to the challenging feed-forward setting. Other works
+attempt to prune pixel-aligned Gaussians directly within feed-forward pipelines
+using geometry-driven heuristics such as overlap removal [75], opacity thresh-
+olding [80], or enforcing a single Gaussian per voxel [23]. While computationally
+simple, these strategies are largely agnostic to scene complexity and offer little
+control over the pruned Gaussians. Consequently, they may remove primitives
+that are necessary to represent high-frequency structures [43, 54]. These limita-
+tions raise an important question: Can we enable controllable 3D Gaussian
+density in feed-forward models without sacrificing their fidelity?
+    We draw inspiration from well-established statistical properties of natural
+images, whose power spectral density (PSD) follows an approximate power-law
+decay (P SD ∝ f1α , where f denotes spatial frequency and α ≈ 2) [56]. This
+observation implies that most visual energy is concentrated in low-frequency
+components, while high-frequency structures are sparse and localized. Conse-
+quently, different regions of a scene require different levels of representation den-
+sity: smooth areas with low-frequency content can be reconstructed with rela-
+tively few Gaussians, whereas highly textured regions containing fine structural
+details require denser Gaussian allocation. Prior work [43, 54] empirically sup-
+ports this hypothesis, demonstrating that high-frequency regions benefit from
+increased Gaussian density for accurate reconstruction. However, existing feed-
+forward architectures largely ignore this requirement due to their fixed pixel-
+aligned prediction strategy. To further illustrate this observation, we conduct a
+simple experiment shown in Fig. 2.
+    Motivated by this key insight, we propose AdaptiveSplat, a feed-forward
+framework that enables controllable 3D Gaussian allocation while preserving re-
+construction fidelity. Our method focuses on capturing the variance in visual
+complexity. This is achieved by estimating the texture of the scene. Based on
+this signal, we perform texture-aware pruning that removes redundant Gaus-
+sians more aggressively in smooth regions while preserving those necessary for
+detailed structures. To compensate for the removed primitives, we introduce a
+novel adaptive Gaussian head that re-predicts the attributes of the remaining
+                                                                  AdaptiveSplat         3
+
+
+
+
+Fig. 2: Toy experiment demonstrating core insight for AdaptiveSplat. (Left) A ren-
+dered view shows visible artifacts, such as "black patches" that are indicative of naive
+pruning in low-texture regions. (Right) The same scene is rendered after refining the
+remaining Gaussians. The rendering quality is significantly restored as the surviving
+Gaussians in the low-texture areas have adaptively expanded to fill the gaps, thereby
+eliminating the observed artifacts.
+
+Gaussians within the same feed-forward pipeline. This design enables flexible
+control over the Gaussian budget without requiring test-time optimization or
+post-pruning fine-tuning. Importantly, our approach can be seamlessly integrated
+into existing feed-forward 3D Gaussian pipelines without requiring architectural
+modifications. In summary, our contributions are as follows:
+
+ – Texture-Based Scene Energy Estimation: We introduce a texture-driven scene
+   energy estimation mechanism that quantifies the amount of high-frequency
+   content present in different image regions, enabling identification of areas
+   that require higher representational capacity.
+ – Texture-Aware Selective Pruning: Building on the estimated scene energy,
+   we propose a principled pruning strategy that selectively removes Gaussians
+   from low-texture regions while preserving those in high-detail areas.
+ – Adaptive Gaussian Head: To mitigate artifacts introduced by pruning, we de-
+   sign an adaptive Gaussian head that re-predicts the attributes of the retained
+   Gaussians, allowing the representation to adjust to the modified Gaussians.
+ – We perform extensive experiments for various feed-forward models on datasets
+   like RE10K, ACID, DL3DV, Tanks and Temples, and DTU.
+
+
+2     Related Work
+
+2.1   Radiance Fields and Multi View Reconstruction
+
+Reconstructing 3D scenes from multi-view images is a core computer vision
+problem. Modern radiance field methods like NeRF [9, 41] and 3D Gaussian
+Splatting (3DGS) [8, 26] achieve high-quality novel view synthesis, with 3DGS
+offering notable advantages in rendering speed through rasterization. [38] and
+[6] use structural anchors and contextual compression to reduce redundancy.
+These approaches have found success in applications such as 3D asset gener-
+ation [16, 27, 32, 36, 40, 68, 76, 78], scene editing [5, 10, 15, 19, 20, 22, 52, 63, 69],
+and dynamic scene reconstruction [26, 35, 39, 47, 64]. However, they often require
+4       Singhal et al.
+
+dense multi-view images which limit adaptability and efficiency in dynamic, real-
+time environments. Sparse-view reconstruction methods [4, 29, 36, 46, 62, 65, 71]
+leverage learned priors from datasets or foundational models [49]. Recently, Feed-
+forward methods [25, 30, 57–59] offer a compelling alternative, directly inferring
+3D representations with superior generalization across diverse scenes, bypassing
+the computationally expensive steps of Structure-from-Motion (SfM) [50] and ra-
+diance field optimization by directly predicting dense 3D scene representations
+from limited views [24, 43, 60, 67] but are rigid in number of 3D Gaussian pre-
+dictions. These methods have been extended to dynamic scenes [73], multi-view
+consistency [3], and estimating 3DGS representations [51, 54, 55, 70, 72, 77], even
+from just a few views [23, 80].
+
+
+2.2   Compression in 3D Gaussian Splatting
+
+Due to its explicit nature, 3DGS often requires a large number of Gaussians
+to represent a scene, leading to higher storage, processing time, and slow ren-
+dering. To address these challenges, several works focus on compressing 3DGS
+representations. EAGLES [17] prunes based on scene-wide influence, targeting
+low-contribution Gaussians (e.g., small scale, low opacity, occlusion) and Light-
+Gaussian [13] prunes based on estimated importance (ray hits, volume), PUP-
+3DGS [18] uses uncertainty estimation to estimate Gaussians’ importance by
+approximating second order gradient of loss. EfficientGS [37] estimates impor-
+tance of Gaussians per pixel by selecting Top-K Gaussians to be retained, and
+SOG-3DGS [42] applies image compression techniques. Other methods like [2]
+remove Gaussians with low gradients followed by fine-tuning, while [14] pro-
+poses pruning and densification based on alpha blending importance. However,
+a common limitation across these compression techniques is their reliance on
+quantization or their inability to dynamically modify the attributes of remaining
+Gaussians post-pruning, which can lead to visible artifacts. Moreover, all exist-
+ing methods require dense multi-view images of the scene to compress which
+fail in the sparse-view feed-forward setting. Interestingly, previous work like [66]
+has explored using wavelet based frequency decomposition to achieve high qual-
+ity synthesis for multiview images but no such method exists for 3D Gaussian
+Splatting representation.
+
+
+3     Method
+
+We introduce a controllable feed forward 3D Gaussian generation pipeline. Fig. 3
+shows the overall pipeline of our method.
+
+Problem Formulation Existing feed-forward 3D Gaussian prediction models
+generate a pixel-aligned set of 3D Gaussians Gk for each input view. Given m
+                                    H×W ×3
+views {(Ik , vk )}m
+                  k=1 , where Ik ∈ R       denotes the RGB image and vk its asso-
+ciated camera pose, such models produce a set of N = mHW primitives without
+                                                                                                               AdaptiveSplat           5
+
+
+                                             MASt3R/                        Center
+                                              VGGT                          Head
+
+
+
+
+                                                                                                Point Cloud
+
+                                                                                         Adaptive
+                                     Mask                                                GS Head
+               Input Images        Generation
+                                    Module
+                                                       Masks
+                                                                            (a)                                         3D Gaussian
+
+                                                                Lowest Texture                                 Images          Masks
+                                  Discrete
+                                  Wavelet
+                                 Transform
+                 Input Images                    Texture Maps
+
+
+
+
+                   Point Cloud                   SuperCluster
+
+                                      (b)                                                                (c)
+
+             Fig. 3: Our pipeline allocates the desired number of 3D Gaussians for real-time, novel-
+perCluster   view synthesis. (a) Initial Representation: We infer a 3D point cloud from context
+             images using the MASt3R/VGGT backbone. (b) SuperCluster Formation and
+             Texture Analysis: The point cloud is partitioned into SuperClusters, and texture
+ask 2
+             information is simultaneously analyzed using DWT to identify low-texture regions. (c)
+             Gaussian prediction: Based on the texture, masks are generated that are used in
+             Adaptive Gaussian Head to predict optimized attributes of remaining 3D Gaussian
+             primitives.
+                                                                                  Point Cloud
+                                                    Point Cloud
+             explicit control over representation          size. In contrast, we introduce explicit con-
+             trol over the number of retained Gaussians. Under a user-defined pruning bud-
+             get β ∈ [0, 1),Discrete
+                              our objective is to predict a compact subset G = {gi }B
+                            Wavelet                                                                   i=1 where
+                           Transform
+             B = ⌊(1 − β)N ⌋. Each Gaussian is parameterized as gi = {µi , si , qi , αi , ρi },
+             where µi ∈ R3 denotes the 3D mean, si ∈ R3 anisotropic             TextureMaps
+                                                                                              scale, qi ∈ R4 a
+               Images
+             unit quaternion (b)        TextureMaps
+                                  encoding rotation,        αi ∈ [0,
+                                                     SuperCluster     1] opacity, and ρi ∈ Rh spherical
+                                                                   SuperCluster             (c)
+             harmonics coefficients modeling view-dependent appearance.                          (c)
+
+
+
+             3.1       Texture-Based Scene Energy Estimation
+             We estimate spatially localized scene complexity using the Discrete Wavelet
+             Transform (DWT) applied to the input    Pimages.
+                                                          P Given images       {Ik }m
+                                                                                    k=1 , its single-
+             level 2D DWT is computed as Wij = u v Ik (u, v) · ψ (i − u, j − v), where ψ d
+                                                 d                       d
+
+             denotes the directional wavelet basis. This decomposes the image into three high-
+             frequency detail components corresponding to horizontal, vertical, and diagonal
+                                                                                                (k)
+             orientations. We define the local texture energy at pixel (i, j) in view k as Ei,j =
+                             d
+             P
+                d∈h,v,diag |Wij |, which aggregates directional high-frequency responses.
+
+
+             3.2       Texture-Aware Selective Pruning
+             Using a pretrained multi-view backbone, we extract a dense pointmap Pk =
+             {pi }HW                                                6
+                  i=1 from each input view Ik where each point p ∈ R encodes its 3D lo-
+             cation and RGB color. We aggregate all views to form a global point cloud
+6        Singhal et al.
+
+      Sm
+P = k=1 Pk , where P = {pi }N    i=1 . To obtain homogeneous regions, we partition
+P into K SuperClusters using K-means clustering. Clustering in (x, y, z, r, g, b)
+space encourages points that are spatially proximate and photometrically consis-
+tent to be grouped together. Such regions correspond to locally smooth surfaces
+that can be represented with fewer but spatially broader Gaussians. Formally,
+                                                               2           2
+each SuperCluster SCi is defined
+                               1
+                                   Pas SCi = {p ∈ P | |p − ci | ≤ |p − cj | K, ∀j ̸= i}
+where the centroid is ci = |SCi | p∈SCi p. The resulting clusters {SCi }i=1 form
+                                                  SK
+a disjoint partition of the point cloud such that i=1 SCi = P and SCi ∩SCj = ∅
+for i ̸= j.
+     We assign texture energy to each SuperCluster by averaging the wavelet coef-
+ficients associated with its constituent points p. Let πk (p) denote the projection
+                    P Ik via pointmap Pk . The SuperCluster energy is computed
+of point p onto image
+               1
+as ESCi = |SC    i|  p∈SCi Ē(π(p)) where Ē(p) denotes the wavelet coefficient of
+the pixel corresponding to the point p. These SuperCluster-level energies pro-
+vide a structured measure of regional complexity and guide subsequent Gaussian
+allocation under the pruning budget.
+
+Binary Mask Construction:
+
+{SC1 , . . . , SCK } denote the regions or-
+dered by increasing energy ESCj . Each               SuperCluster (SC)
+                                                                                       High
+                                                                         Retain Top 10% (White)
+
+region SCj has a nominal retention of
+γ|SCj | Gaussians, where γ = 0.1 (empir-                              Texture Energy
+
+
+ically validated, ablation provided). We
+choose
+Pℓ        the largest index ℓ such that
+   j=1 γ|SC     j | ≤ B. This ensures that we
+can effectively cover the entire low-texture                                           Low
+
+
+
+
+region with 3D Gaussians with fewer re- Fig. 4: Within each SuperCluster,
+tained Gaussians while pruning the rest. Gaussians are ranked by texture en-
+    For all regions j < ℓ, we retain ergy, and the top 10% (γ = 0.1) are
+the γ|SCj | Gaussians. For the final re- kept while the rest are masked out.
+gion SCℓ , we retain only |Rℓ | = B − This rule is applied only to low-energy
+Pℓ−1
+                                                clusters; high-energy clusters are fully
+   j=1 γ|SCj |. Let Gret denote the retained
+set of Gaussians. The corresponding bi- retained.
+nary mask entries for each context view
+i ∈ {1, . . . , m} are given by Mi,j =
+1[ Gj ∈ Gret ∩ Gi ] , j ∈ {1, . . . , HW } (see Fig. 4).
+
+3.3    Adaptive Gaussian Head
+
+Given the features F and binary masks M1 , . . . Mm , the Adaptive Gaussian Head
+fθ predicts refined Gaussian attributes for the retained indices:
+   fθ (F, M ) → {si , qi , αi , ρi }B
+                                    i=1 . The Adaptive Gaussian Head is built on the
+DPT architecture [48] with additional convolutional layers that fuse ViT [11] fea-
+tures extracted from the multiview feature map F with binary masks M1 , . . . , Mm .
+                                                                                                                                                                      AdaptiveSplat         7
+
+3.4   Training and Inference
+
+Training: To ensure that the model’s performance is stable across diverse bud-
+get rates β at test time, it is important that it generalizes well to a broad
+spectrum of pruning percentages during training. To achieve this, we train the
+Gaussian Head with β ∼ U[0, 1). This improves robustness of the method to
+different budgets β, enabling adaptation of the retained 3D Gaussians.
+    The network is trained using photometric loss on the rendered image from
+the retained 3D Gaussians at the target camera pose and the corresponding
+ground truth image using the following loss formulation L as follows:
+
+                  \mathcal {L} = \frac {1}{|v_t|} \sum _{v \in {v_t}} \left ( \|I_{v} - \hat {I}_{v}\|_2^2 + \lambda \cdot \mathrm {LPIPS} \left (I_{v}, \hat {I}_{v}\right ) \right ),    (1)
+
+
+Here vt represents the set of target camera views, Iv denotes the target ground
+truth image and Iˆv denotes the rendered image from the target view v. 3D Gaus-
+sians are obtained from Gaussian Head fθ using context view decoder features
+along with its corresponding masks M1 , M2 , . . . Mm . The weighting coefficient λ
+controls the perceptual regularization strength.
+
+Inference: At inference, the user selects a desired sparsity level β ∈ [0, 0.8].
+The system computes DWT from images, forms masks, and directly predicts
+adapted Gaussian attributes via the Gaussian Head.
+
+
+4     Experiments
+
+4.1   Experimental Setup
+
+Implementation Details Our approach builds upon the architecture of MASt3R
+[30] for sparse-view inputs and VGGT [57] for dense-views with a DPT [48] Gaus-
+sian Head to predict 3D Gaussian primitives similar to [23, 70], which integrates
+a Gaussian prediction head into the MASt3R/VGGT pipeline. This allows for
+extraction of 3D Gaussian attributes for each point in the point cloud, providing
+an initial 3D representation. These methods don’t require camera poses as in-
+put; thus, we also implement our approach on MVSplat [7] backbone which also
+takes camera pose as input. We choose K = 300 and γ = 10% for our pipeline
+(ablations provided on these hyperparameters) and λ is set to 0.001. We trained
+our model on 1 NVIDIA A100 40GB GPU for 48 GPU hours on each dataset.
+We use available pretrained checkpoints of the baseline feed-forward models for
+the evaluation.
+
+Datasets We train and evaluate our method on diverse real-world datasets
+following the experimental setup of pixelSplat [4] and AnySplat [23]. Our primary
+training and evaluation data is derived from RealEstate10K [79] (indoor, multi-
+view videos), ACID [34] (large-scale, dynamic outdoor drone scenes) and DL3DV
+[33] (large scale scene) datasets. These datasets provide multi-view images with
+8      Singhal et al.
+
+COLMAP-computed [50] camera poses, and we adhere to their official train-test
+splits. To assess zero-shot generalization, we also evaluate on the DTU dataset
+[1, 21], comprising high-quality, object-centric scans. We further report results
+on the Tanks and Temples dataset [28] in the supplementary material.
+
+Evaluation Criteria We benchmark our method on novel view synthesis us-
+ing widely adopted image quality metrics: Peak Signal-to-Noise Ratio (PSNR),
+Structural Similarity Index Measure (SSIM) [61], and Learned Perceptual Im-
+age Patch Similarity (LPIPS) [74]. Beyond these measures, we explicitly compare
+against β used for 3D scene representation. This metric directly demonstrates
+our approach’s efficiency in reducing redundancy while maintaining superior vi-
+sual fidelity.
+
+4.2   Comparisons with Baselines
+Comparisons with existing feed-forward methods are challenging because they
+lack controllable Gaussian allocation and are designed for dense, per-pixel predic-
+tion, unlike our approach. To enable fair comparison, we construct baselines by
+applying established pruning techniques on top of state-of-the-art feed-forward
+methods. We consider four representative sparse-view feed-forward methods: pix-
+elSplat [4], MVSplat [7], NoPoSplat [70], and HiSplat [54], as well as Gaussian
+Graph Network (GGN) [75], AnySplat [23], a recent method designed for dense-
+view settings. On top of the Gaussian primitives predicted by these models, we
+apply four representative pruning strategies: EAGLES [17], LightGaussian [13],
+EfficientGS [37], and PUP3DGS [18].
+    To compare with existing methods fairly, baselines must also operate un-
+der the feed-forward setting. However, directly applying pruning to the pre-
+dicted Gaussians is suboptimal, as most pruning strategies assume per-scene op-
+timization. While this optimization can partially recover reconstruction quality,
+it breaks the feed-forward assumption. To account for this trade-off, we evalu-
+ate baselines under two settings: (1) pruning followed by per-scene fine-tuning,
+which we refer to as with fine-tuning, and (2) direct pruning, which preserves
+the feed-forward property and is referred to as without fine-tuning. We evalu-
+ate our approach in both sparse-view and dense-view feed-forward settings. For
+sparse-view evaluation, we use two input views, following the protocol of pixel-
+Splat [4]. For dense-view settings we evaluate using 6, 9, 16, and 32 view inputs
+following the protocol of AnySplat [23]. We report results for the best-performing
+backbone, while detailed comparisons across all backbones pixelSplat, MVSplat,
+HiSplat, NoPoSplat, GGN, InstantSplat [12] and AnySplat are provided in the
+supplementary.
+
+4.3   Inference Time Analysis
+To highlight the practical benefits of controllable pruning, we report rendering
+throughput under different pruning strengths. We measure rendering speed by
+synthesizing 1000 novel views for each pruning strength and reporting the Frames
+Per Second (FPS).
+                                                             AdaptiveSplat       9
+
+4.4   Ablation Study
+We analyze the impact of the key design choices in our method. Each ablation
+isolates a specific component to evaluate its contribution to the overall perfor-
+mance.
+    • Texture Ablation: We analyse the importance of texture for ranking Super-
+Clusters. In our method, texture energy determines the order in which Super-
+Clusters are selected for pruning. In this ablation, we remove the texture-based
+ranking and train the model end-to-end while selecting SuperClusters randomly
+for pruning to evaluate the importance of texture guidance.
+    • Importance of Hyperparameter K and γ: We provide ablations on various
+choices of K and γ, which control the number of SuperClusters and the retention
+ratio within each SuperCluster.
+    • Adaptive vs Fixed Gaussian Head: Here, we replace the Adaptive Gaussian
+Head with a fixed, pretrained Gaussian head and directly select the retained
+Gaussians from its predictions without further adaptation. This allows us to
+evaluate the importance of learning adaptive Gaussian attributes after pruning.
+    • Binary Mask: To validate the importance of the binary mask, we train the
+Adaptive Gaussian Head with the mask as input and compare it with another
+Adaptive Gaussian head trained end-to-end without the mask.
+    Collectively, these ablations validate the importance of the key components
+of our method in achieving superior performance.
+
+4.5   Qualitative Texture Analysis
+The experiments so far focus on novel view synthesis to evaluate reconstruction
+quality. However, our method explicitly leverages texture signals to guide Gaus-
+sian allocation. To analyze this component more directly, we perform qualitative
+analysis with baselines focusing on the trends in the texture structure of the
+reconstructed scenes.
+
+
+5     Results
+5.1   Comparison with Baselines
+Quantitative Analysis Tab. 1 presents a detailed comparison of AdaptiveSplat
+against established baselines on the ACID and RE10K datasets with finetuning
+for sparse view input (additional evaluations without finetuning included in sup-
+plementary) and Tab. 2 presents results on the DL3DV dataset with finetuning
+on dense view (additional evaluations without finetuning included in supple-
+mentary). Performance is reported across β = {0.4, 0.6, 0.8}. Our method con-
+sistently outperforms existing pruning strategies across all datasets and β values.
+On ACID, AdaptiveSplat improves PSNR from 19.43dB (EAGLES) to 22.55dB
+at β = 0.4, while reducing LPIPS from 0.620 to 0.299. On RE10K, it achieves
+22.29 PSNR compared to 16.60 from LightGaussian and 16.53 from EAGLES.
+Improvements are even larger on DL3DV, for example with 6 views and β = 0.4,
+10                    Singhal et al.
+
+                    Ground Truth       Ours   LightGaussian   PUP-3DGS   EAGLES
+
+With ﬁnetuning
+Without ﬁnetuning
+
+
+
+
+Fig. 5: Comparison of results on RE10K and ACID scenes using β = 0.4 and β = 0.8 of
+target budget. We allocate fewer but larger 3D Gaussians to low texture SuperClusters
+by the feed-forward backbone.
+
+
+AdaptiveSplat reaches 20.45dB PSNR versus 11.36dB from LightGaussian. No-
+tably, while baseline methods degrade significantly at high pruning (β = 0.8),
+our method maintains strong performance across all view counts.
+   Overall, the trend remains the same, highlighting the superiority of the pro-
+posed approach. We report only the best-performing baselines here, while the
+remaining baseline comparisons, wider pruning ranges, ablation studies (with
+and without fine-tuning across various backbones), and cross-domain evaluation
+on the DTU dataset are deferred to the supplementary material.
+
+Qualitative Analysis We present a qualitative comparison of our method in
+Fig. 5 and Fig. 6. In all these results, we highlight two important issues with
+the baseline methods: (a) For non-finetuned cases, “black patch" artifacts can be
+consistently seen, which is indicative of empty spaces within the 3D scene where
+Gaussians were removed without any readjustment. Because of “black patches"
+artifacts, we see lower metrics across all baselines compared, whereas our results
+show consistent results without any such artifacts and simultaneously provide
+high fidelity. (b) For finetuned cases, results struggle with “blobby Gaussian”
+                                                                                              AdaptiveSplat            11
+
+                Ours         LightGaussian PUP-3DGS      EAGLES         Ours       LightGaussian PUP-3DGS        EAGLES
+
+𝛽 = 0.4
+𝛽 = 0.6
+𝛽=0.8
+
+
+
+
+                                    RE10K                                                    ACID
+
+Fig. 6: Qualitative comparison of our method with baseline methods (with fine-
+tuning) on a single scene from RE10K and ACID datasets. Our method faithfully
+represents a scene even with β = 0.8 (80% pruning)
+
+
+Table 1: Quantitative Results on ACID and RE10K Datasets. Comparison of
+pruning methods with NoPoSplat and HiSplat as backbones across different pruning
+ratios β.
+
+                                            β = 0.4                      β = 0.6                       β = 0.8
+                    Method        PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+HiSplat NoPoSplat
+
+
+
+
+                    EAGLES        11.115      0.592    0.344   10.834      0.617    0.316   10.316      0.656   0.265
+                    LightGauss.   10.835      0.632    0.350   10.706      0.636    0.346   10.611      0.638   0.343
+                    PUP-3DGS       9.672      0.640    0.266    8.616      0.672    0.203    7.722      0.705   0.137
+                        EAGLES
+                    EfficientGS   LightGaussian
+                                   9.171          PUP-3DGS
+                                              0.665    0.193     Ours
+                                                               9.290       0.661EAGLES
+                                                                                    0.196 LightGaussian
+                                                                                             9.303        PUP-3DGS
+                                                                                                        0.663   0.195 Ours
+      ACID
+
+
+
+
+                    EAGLES        19.433     0.620    0.555    19.769      0.605     0.565    19.464    0.618      0.556
+                    LightGauss.   19.785     0.604    0.566    19.594      0.612     0.560    18.660    0.628      0.541
+                    PUP-3DGS      19.382     0.617    0.558    18.529      0.643     0.538    18.003    0.659      0.527
+                    EfficientGS   19.762     0.607    0.565    19.677      0.608     0.564    19.310    0.619      0.556
+                    Ours          22.549     0.299    0.640    22.310     0.310      0.627    21.055    0.342      0.593
+HiSplat NoPoSplat
+
+
+
+
+                    EAGLES        11.017     0.573    0.415    10.846      0.588     0.399    10.530    0.614      0.367
+                    LightGauss.   10.185     0.625    0.393    10.282      0.625     0.397    10.373    0.623      0.397
+                    PUP-3DGS      10.298     0.599    0.371     9.737      0.623     0.332     8.772    0.656      0.263
+                    EfficientGS    8.742     0.658    0.262    8.841       0.655     0.266     8.801    0.658      0.263
+     RE10K
+
+
+
+
+                    EAGLES        16.526     0.598    0.556    16.404      0.606     0.552    16.243    0.614      0.547
+                    LightGauss.   16.598     0.596    0.558    16.421      0.604     0.552    16.056    0.618      0.542
+                    PUP-3DGS      16.472     0.601    0.558    16.083      0.618     0.543    15.588    0.638      0.529
+                    EfficientGS   16.525     0.598    0.556    16.404      0.606     0.551    16.242    0.613      0.546
+                    Ours          22.294     0.235    0.735    22.110     0.243      0.726    20.740    0.272      0.692
+
+
+
+
+artifact. This happens as existing pruning methods completely remove all Gaus-
+sians from a local region without replacing them. To compensate for the empty
+space, Gaussians from neighboring areas must expand, which distorts their shape
+and negatively impacts the quality of the overall representation. This effect per-
+sists even after further finetuning, as the fundamental problem of sub-optimal
+Gaussian allocation remains.
+12             Singhal et al.
+
+Table 2: Multiview Results on DL3DV Dataset. Comparison of pruning methods
+using the AnySplat base model across varying view counts and pruning ratios β.
+
+                                β = 0.4                    β = 0.6                    β = 0.8
+           Method     PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+           EAGLES      10.464    0.675    0.241    9.206    0.688    0.193    7.693    0.703    0.129
+6 Views
+
+
+
+
+           LightGauss. 11.361    0.671    0.262   10.295    0.683    0.223    9.169    0.697    0.177
+           PUP-3DGS 10.746       0.672    0.249    9.695    0.683    0.206    8.424    0.695    0.157
+           Ours        20.448    0.334    0.601   20.307    0.366    0.582   20.049    0.408    0.556
+           EAGLES      11.384    0.662    0.289    9.813    0.678    0.234    8.147    0.695    0.159
+9 Views
+
+
+
+
+           LightGauss. 13.252    0.652    0.325   12.272    0.665    0.294   10.874    0.682    0.244
+           PUP-3DGS 12.236       0.654    0.305   10.753    0.672    0.260    9.178    0.686    0.198
+           Ours        19.678    0.354    0.569   19.582    0.381    0.555   19.437    0.413    0.536
+           EAGLES       6.460    0.683    0.074    5.773    0.711    0.031    9.002    0.692    0.206
+16 Views
+
+
+
+
+           LightGauss. 14.580    0.646    0.366   13.806    0.661    0.343   12.375    0.678    0.295
+           PUP-3DGS 13.847       0.655    0.353   12.399    0.664    0.314   10.493    0.682    0.252
+           Ours        19.125    0.392    0.524   19.082    0.410    0.512   18.990    0.435    0.498
+           EAGLES      13.944    0.665    0.373   12.828    0.672    0.346   10.817    0.691    0.276
+32 Views
+
+
+
+
+           LightGauss. 14.362    0.663    0.375   13.835    0.669    0.361   12.531    0.683    0.322
+           PUP-3DGS 14.335       0.661    0.376   13.630    0.668    0.355   11.938    0.685    0.312
+           Ours        17.677    0.446    0.476   17.653    0.461    0.467   17.607    0.481    0.456
+
+
+
+
+    We also show effects of increasing β in Fig. 6, where we pick three broad prun-
+ing rates (β = {0.4, 0.6, 0.8}) and compare AdaptiveSplat with the baselines. As
+can be seen, baselines degrade the scene quality and completely fail to adapt
+existing Gaussian attributes at higher β value. In contrast, AdaptiveSplat op-
+timally re-adjusts 3D Gaussians to adapt to higher pruning rates, consistently
+maintaining the high scene quality. We show more qualitative results in the
+supplementary.
+
+
+5.2          Ablation Study
+
+Tab. 3 evaluates the contribution of key components of our method at a fixed
+pruning budget β = 0.4. Our analysis reveals that removing the Adaptive GS
+Head training significantly degrades performance, reducing PSNR from 22.55
+dB to 17.44 dB on ACID and from 22.29 dB to 19.81 dB on RE10K, which
+indicates that learning to adapt Gaussian attributes post-pruning is critical for
+recovering reconstruction quality. Similarly, excluding the DWT-based texture
+signal leads to noticeable performance decreases specifically from 22.55 dB to
+21.31 dB on ACID confirming the importance of texture guidance in ranking
+SuperClusters and allocating Gaussians effectively. Finally, removing the con-
+textual mask further degrades RE10K performance to 20.06 dB, highlighting
+its vital role in providing spatial context for the Adaptive Gaussian Head. The
+impact of hyperparameters K and γ is evaluated in Tab. 4, where increasing K
+generally improves reconstruction quality by producing finer SuperClusters that
+better identify low-texture regions and enable more precise allocation of larger
+Gaussians. However, these quality gains become marginal beyond K = 300 while
+                                                                  AdaptiveSplat     13
+
+Table 3: Ablation study. We evaluate the impact of training the GS Head, texture
+features, and the contextual mask at a fixed budget of β = 0.4.
+
+                                         ACID                     RE10K
+      Ablation Variant       PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+      w/o Texture                21.31   0.326   0.623    20.73    0.260    0.713
+      w/o Adaptive GS Head       17.44   0.445   0.490    19.81    0.399    0.617
+      w/o Binary Mask            22.52   0.318   0.642    20.06    0.339    0.656
+      Ours                   22.55       0.299   0.639    22.29    0.235    0.735
+
+
+
+training costs continue to rise. Regarding the retention ratio, we observe that re-
+taining γ = 0.10 of Gaussians achieves the best performance, particularly under
+high pruning scenarios such as β = 0.9. Larger γ values tend to introduce redun-
+dant Gaussians in the same regions, which ultimately degrades reconstruction
+quality, consistent with observations in prior works [13, 14, 17]. Overall, these
+results demonstrate that each individual component contributes significantly to
+the final performance, with their combination yielding the highest reconstruction
+quality across both the ACID and RE10K datasets.
+
+
+Table 4: Effect of the number of clusters k (left) and retention percentage γ (right)
+on reconstruction quality across scenes.
+
+  A. Varying number of clusters k            B. Varying retention percentage γ
+Config       PSNR↑ LPIPS↓ SSIM↑              Config      PSNR↑ LPIPS↓         SSIM↑
+k = 50       22.416      0.303       0.636   γ = 0.05    21.796     0.347      0.608
+k = 100      22.488      0.301       0.638   γ = 0.10    22.549     0.299      0.640
+k = 300      22.549      0.299       0.640   γ = 0.15    21.587     0.352      0.589
+k = 400      22.559      0.298       0.641   γ = 0.20    22.262     0.304      0.629
+
+
+
+
+5.3   Qualitative Texture Analysis
+We provide additional analysis focusing on scene texture preservation. Our method
+explicitly targets low-texture regions for pruning, allowing the model to allocate
+fewer but larger Gaussians in such areas while preserving fine details in highly
+textured regions. Fig. 7 presents a qualitative comparison of texture preserva-
+tion on a representative scene across different pruning ratios. We observe that
+baseline methods tend to oversmooth textured regions under pruning, leading
+to noticeable loss of high-frequency details. In comparison, our approach bet-
+ter maintains scene fidelity by leveraging texture-aware clustering and natural
+scene statistics. Furthermore, Fig. 8 provides additional qualitative comparisons
+across multiple scenes at β = 0.4, demonstrating that while baselines suffer from
+𝛽=0.8
+
+
+
+
+                                                                                                 𝛽=0.8
+14                                 Singhal et al.
+
+blurred edges, over-smoothing, and structural distortion, our method maintains
+sharp high-frequency details and structural integrity.
+
+
+                              𝛽=0.4                    𝛽=0.6                  𝛽=0.8
+    Ours
+    PUP3DGS LightGaussian
+    EAGLES
+
+
+
+
+                            A. Floor details    B. Sofa arm texture   C. Wall texture loss
+
+
+
+
+                            Ours       EAGLES   Ours      PUP3DGS     Ours      LightGaussian
+
+ Fig. 7: Texture Analysis (fixed                                                                         Fig. 8: Texture Analysis (varying
+ scene): Baselines smooth out the tex-                                                                   scene): Across the scenes we observe
+ tures whereas we retain texture of the                                                                  oversmoothed regions whereas we retain
+ scene across the regions.                                                                               the texture of the scene.
+
+
+
+
+    These
+      Ours results    consistently
+             LightGaussian PUP3DGS demonstrate
+                                    Eagles     that competing methods introduce
+excessive smoothing in high-texture areas, whereas our method preserves struc-
+   𝛽=0.4
+
+
+
+
+tural details more effectively under increasing pruning strengths. Fig. 9 shows
+the histogram of mean scale values demonstrating our insight empirically that
+mean scale values of 3D Gaussians corresponding to low texture regions are pre-
+dicted larger in our method to retain the quality of scene; thus, redundant 3D
+   𝛽=0.6
+
+
+
+
+Gaussians can be pruned.
+   𝛽=0.8
+
+
+
+
+                                                                                                                                                32 Views
+
+                                                                                                                                      PUP3DGS
+                                                                                                     Eagles       LightGaussian    PUP3DGS               Eagles         LightGaussian   PUP3DGS
+                                                                                         𝛽=0.4
+
+
+
+
+                                                                                                                                                 𝛽=0.4
+                                                                                         𝛽=0.6
+
+
+
+
+                                                                                                                                                 𝛽=0.6
+
+
+
+
+                                                    0.0 0.4 0.5     0.6 0.7 0.8 0.9
+ Fig. 9: Plot of mean scale values with                       𝛽 value
+ log10 frequency: Predicted 3D Gaus- Fig. 10: Plot of rendering speed in Frame
+ sians from our method are larger than tra- Per Second (FPS) with increasing pruning
+                                                                                         𝛽=0.8
+
+
+
+
+ ditional 3D Gaussian representation.
+                                                                                                                                                 𝛽=0.8
+
+
+
+
+                                            strength.
+
+
+
+
+                                                                                                         Eagles    LightGaussian   PUP3DGS                         Eagles     LightGaussian
+                                                                                                                                                           𝛽=0.4
+                                                                                             𝛽=0.4
+
+
+
+
+                                                                                                                                                           .6
+                                                                                             6
+                                                               AdaptiveSplat      15
+
+5.4   Inference Time Analysis
+Fig. 10 summarizes the FPS achieved
+across pruning strengths. As pruning
+strength increases, the reduced number
+of active Gaussians leads to faster ren-
+dering speeds and lower computational
+overhead, demonstrating the effectiveness
+of pruning for balancing reconstruction
+quality and runtime efficiency. We use
+the same GPU memory load as the base
+model [23, 70]. Fig. 11 presents a Pareto
+plot comparing inference time and quality
+of ours with other methods. Our method
+occupies the top-left region, achieving the
+highest PSNR at substantially lower la-
+tency than the finetuned baselines. Fur-      Fig. 11: Pareto Plot for inference time
+ther, we include additional discussions       and quality comparison for RE10K at β =
+and comparisons on inference latency          0.8
+analysis of ours with baselines in the sup-
+plementary.
+6     Conclusions and Future Work
+We introduce AdaptiveSplat, a novel, feed-forward framework for controllable
+3D Gaussian pruning. Our method’s core novelty is texture-aware Gaussian con-
+trol that significantly reduces primitives by targeting low-texture regions. By
+eliminating the need for expensive per-scene optimization, AdaptiveSplat pro-
+vides a practical solution for controllable 3D reconstruction, achieving a superior
+quality-efficiency trade-off even at extreme pruning rates. On smooth surfaces
+with high-frequency texture (such as intricate wall patterns) or specular high-
+lights, our method suffers from the same limitation as any pixel-aligned feed-
+forward model. We briefly discuss these limitations in the supplementary. Future
+work will focus on integrating a more nuanced understanding of both texture
+and geometry to enable more robust pruning decisions, paving the way for truly
+efficient 3D scene representation.
+
+
+Acknowledgement
+
+We sincerely thank Anudeep for careful review of our manuscript and for pro-
+viding valuable feedback and suggestions that significantly improved the quality
+of the article. This work is supported by Google and Kotak IISc AI-ML Cen-
+tre (KIAC). Badrinath Singhal is supported by TCS Research Scholarship and
+Qualcomm Innovation Fellowship (QIF).
+16      Singhal et al.
+
+References
+
+ 1. Aanæs, H., Jensen, R.R., Vogiatzis, G., Tola, E., Dahl, A.B.: Large-scale data for
+    multiple-view stereopsis. International Journal of Computer Vision pp. 1–16 (2016)
+ 2. Ali, M.S., Qamar, M., Bae, S.H., Tartaglione, E.: Trimming the fat: Efficient com-
+    pression of 3d gaussian splats through pruning. arXiv preprint arXiv:2406.18214
+    (2024)
+ 3. Asim, M., Wewer, C., Wimmer, T., Schiele, B., Lenssen, J.E.: Met3r: Measuring
+    multi-view consistency in generated images (2024)
+ 4. Charatan, D., Li, S.L., Tagliasacchi, A., Sitzmann, V.: pixelsplat: 3d gaussian splats
+    from image pairs for scalable generalizable 3d reconstruction. In: Proceedings of the
+    IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 19457–
+    19467 (2024)
+ 5. Chen, M., Laina, I., Vedaldi, A.: Dge: Direct gaussian 3d editing by consistent
+    multi-view editing. arXiv preprint arXiv:2404.18929 (2024)
+ 6. Chen, Y., Wu, Q., Lin, W., Harandi, M., Cai, J.: Hac: Hash-grid assisted context for
+    3d gaussian splatting compression (2024), https://arxiv.org/abs/2403.14530
+ 7. Chen, Y., Xu, H., Zheng, C., Zhuang, B., Pollefeys, M., Geiger, A., Cham, T.J.,
+    Cai, J.: Mvsplat: Efficient 3d gaussian splatting from sparse multi-view images.
+    arXiv preprint arXiv:2403.14627 (2024)
+ 8. Dhiman, A., Lu, T., Srinath, R., Arslan, E., Xing, A., Xiangli, Y., Radhakrishnan,
+    V.B., Sridhar, S.: Turbo-gs: Accelerating 3d gaussian fitting for high-resolution
+    radiance fields. In: Proceedings of the IEEE/CVF Conference on Computer Vision
+    and Pattern Recognition. pp. 15454–15464 (2026)
+ 9. Dhiman, A., Srinath, R., Rangwani, H., Parihar, R., Boregowda, L.R., Sridhar, S.,
+    Babu, R.V.: Strata-nerf : Neural radiance fields for stratified scenes. In: Proceed-
+    ings of the IEEE/CVF International Conference on Computer Vision (ICCV). pp.
+    17603–17614 (October 2023)
+10. Dong, J., Wang, Y.X.: 3DGS-drag: Dragging gaussians for intuitive point-based 3d
+    editing. In: The Thirteenth International Conference on Learning Representations
+    (2025), https://openreview.net/forum?id=7JUrBLDjCq
+11. Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner,
+    T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., et al.: An image is
+    worth 16x16 words: Transformers for image recognition at scale. arXiv preprint
+    arXiv:2010.11929 (2020)
+12. Fan, Z., Cong, W., Wen, K., Wang, K., Zhang, J., Ding, X., Xu, D., Ivanovic, B.,
+    Pavone, M., Pavlakos, G., et al.: Instantsplat: Sparse-view gaussian splatting in
+    seconds. arXiv preprint arXiv:2403.20309 (2024)
+13. Fan, Z., Wang, K., Wen, K., Zhu, Z., Xu, D., Wang, Z.: Lightgaussian: Unbounded
+    3d gaussian compression with 15x reduction and 200+ fps (2023)
+14. Fang, G., Wang, B.: Mini-splatting: Representing scenes with a constrained number
+    of gaussians. In: Proceedings of the European Conference on Computer Vision
+    (ECCV). pp. 165–181. Springer (2024)
+15. Fang, J., Wang, J., Zhang, X., Xie, L., Tian, Q.: Gaussianeditor: Editing 3d gaus-
+    sians delicately with text instructions. In: Proceedings of the IEEE Conference on
+    Computer Vision and Pattern Recognition (CVPR) (2024)
+16. Gao, R., Holynski, A., Henzler, P., Brussee, A., Martin-Brualla, R., Srinivasan, P.,
+    Barron, J.T., Poole, B.: Cat3d: Create anything in 3d with multi-view diffusion
+    models. Advances in Neural Information Processing Systems (2024)
+                                                                  AdaptiveSplat        17
+
+17. Girish, S., Gupta, K., Shrivastava, A.: Eagles: Efficient accelerated 3d gaussians
+    with lightweight encodings. In: Proceedings of the European Conference on Com-
+    puter Vision (ECCV). pp. 54–71. Springer (2024)
+18. Hanson, A., Tu, A., Singla, V., Jayawardhana, M., Zwicker, M., Goldstein, T.: Pup
+    3d-gs: Principled uncertainty pruning for 3d gaussian splatting. In: Proceedings of
+    the IEEE Conference on Computer Vision and Pattern Recognition (CVPR). pp.
+    5949–5958 (June 2025), https://pup3dgs.github.io/
+19. Haque, A., Tancik, M., Efros, A., Holynski, A., Kanazawa, A.: Instruct-nerf2nerf:
+    Editing 3d scenes with instructions. In: Proceedings of the IEEE/CVF Interna-
+    tional Conference on Computer Vision (2023)
+20. Hyung, J., Hwang, S., Kim, D., Lee, H., Choo, J.: Local 3d editing via 3d distillation
+    of clip knowledge. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 12674–12684 (2023)
+21. Jensen, R., Dahl, A., Vogiatzis, G., Tola, E., Aanaes, H.: Large scale multi-view
+    stereopsis evaluation. In: Proceedings of the IEEE Conference on Computer Vision
+    and Pattern Recognition (CVPR) (June 2014)
+22. Jiakai, Z., Xinhang, L., Xinyi, Y., Fuqiang, Z., Yanshun, Z., Minye, W., Yingliang,
+    Z., Lan, X., Jingyi, Y.: Editable free-viewpoint video using a layered neural repre-
+    sentation. In: ACM SIGGRAPH (2021)
+23. Jiang, L., Mao, Y., Xu, L., Lu, T., Ren, K., Jin, Y., Xu, X., Yu, M., Pang, J.,
+    Zhao, F., et al.: Anysplat: Feed-forward 3d gaussian splatting from unconstrained
+    views. ACM Transactions on Graphics (TOG) 44(6), 1–16 (2025)
+24. Keetha, N., Karhade, J., Jatavallabhula, K.M., Yang, G., Scherer, S., Ramanan,
+    D., Luiten, J.: Splatam: Splat, track & map 3d gaussians for dense rgb-d slam.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition (2024)
+25. Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang, Y., Fischer, T.,
+    Knapitsch, A., Zauss, D., Weber, E., Antunes, N., Luiten, J., Lopez-Antequera,
+    M., Bulò, S.R., Richardt, C., Ramanan, D., Scherer, S., Kontschieder, P.: MapA-
+    nything: Universal feed-forward metric 3D reconstruction. In: International Con-
+    ference on 3D Vision (3DV). IEEE (2026)
+26. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G.: 3d gaussian splatting for
+    real-time radiance field rendering. ACM Transactions on Graphics 42(4) (July
+    2023), https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
+27. Kim, J., Koo, J., Yeo, K., Sung, M.: Synctweedies: A general generative framework
+    based on synchronized diffusions. arXiv:2403.14370 (2024)
+28. Knapitsch, A., Park, J., Zhou, Q.Y., Koltun, V.: Tanks and temples: Benchmarking
+    large-scale scene reconstruction. ACM Transactions on Graphics 36(4) (2017)
+29. Koo, J., Park, C., Sung, M.: Posterior distillation sampling. In: Proceedings of the
+    IEEE Conference on Computer Vision and Pattern Recognition (CVPR) (2024)
+30. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: Proceedings of the European Conference on Computer Vision (ECCV). pp.
+    71–91. Springer (2024)
+31. Li, X., Wang, T., Gu, Z., Zhang, S., Guo, C., Cao, L.: Flashworld: High-quality 3d
+    scene generation within seconds (2025)
+32. Lin, C., Pan, P., Yang, B., Li, Z., Mu, Y.: Diffsplat: Repurposing image diffusion
+    models for scalable 3d gaussian splat generation. In: International Conference on
+    Learning Representations (ICLR) (2025)
+33. Ling, L., Sheng, Y., Tu, Z., Zhao, W., Xin, C., Wan, K., Yu, L., Guo, Q., Yu,
+    Z., Lu, Y., et al.: Dl3dv-10k: A large-scale scene dataset for deep learning-based
+18      Singhal et al.
+
+    3d vision. In: Proceedings of the IEEE/CVF Conference on Computer Vision and
+    Pattern Recognition. pp. 22160–22169 (2024)
+34. Liu, A., Tucker, R., Jampani, V., Makadia, A., Snavely, N., Kanazawa, A.: Infinite
+    nature: Perpetual view generation of natural scenes from a single image (2021),
+    https://arxiv.org/abs/2012.09855
+35. LIU, Q., Liu, Y., Wang, J., Lyu, X., Wang, P., Wang, W., Hou, J.: MoDGS:
+    Dynamic gaussian splatting from casually-captured monocular videos. In: The
+    Thirteenth International Conference on Learning Representations (2025), https:
+    //openreview.net/forum?id=2prShxdLkX
+36. Liu, R., Wu, R., Hoorick, B.V., Tokmakov, P., Zakharov, S., Vondrick, C.: Zero-1-
+    to-3: Zero-shot one image to 3d object (2023)
+37. Liu, W., Guan, T., Zhu, B., Xu, L., Song, Z., Li, D., Wang, Y., Yang, W.: Effi-
+    cientgs: Streamlining gaussian splatting for large-scale high-resolution scene rep-
+    resentation. IEEE MultiMedia 32(1), 61–71 (2025). https://doi.org/10.1109/
+    MMUL.2025.3543224
+38. Lu, T., Yu, M., Xu, L., Xiangli, Y., Wang, L., Lin, D., Dai, B.: Scaffold-gs: Struc-
+    tured 3d gaussians for view-adaptive rendering (2023), https://arxiv.org/abs/
+    2312.00109
+39. Luiten, J., Kopanas, G., Leibe, B., Ramanan, D.: Dynamic 3d gaussians: Tracking
+    by persistent dynamic view synthesis. In: 3DV (2024)
+40. Meng, X., Wang, C., Lei, J., Daniilidis, K., Gu, J., Liu, L.: Zero-1-to-g: Tam-
+    ing pretrained 2d diffusion model for direct 3d generation. arXiv preprint
+    arXiv:2501.05427 (2024)
+41. Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng,
+    R.: Nerf: Representing scenes as neural radiance fields for view synthesis. In: Pro-
+    ceedings of the European Conference on Computer Vision (ECCV) (2020)
+42. Morgenstern, W., Barthel, F., Hilsmann, A., Eisert, P.: Compact 3d scene rep-
+    resentation via self-organizing gaussian grids. In: Proceedings of the European
+    Conference on Computer Vision (ECCV). pp. 18–34. Springer Nature Switzer-
+    land, Cham (2025). https://doi.org/10.1007/978-3-031-73013-9_2, https:
+    //fraunhoferhhi.github.io/Self-Organizing-Gaussians/
+43. Nam, S., Sun, X., Kang, G., Lee, Y., Oh, S., Park, E.: Generative densification:
+    Learning to densify gaussians for high-fidelity generalizable 3d reconstruction.
+    arXiv preprint arXiv:2412.06234 (2024)
+44. Navaneet, K., Meibodi, K.P., Koohpayegani, S.A., Pirsiavash, H.: Compact3d:
+    Smaller and faster gaussian splatting with vector quantization. arXiv preprint
+    arXiv:2311.18159 (2023)
+45. Niedermayr, S., Stumpfegger, J., Westermann, R.: Compressed 3d gaussian splat-
+    ting for accelerated novel view synthesis. In: Proceedings of the IEEE Conference
+    on Computer Vision and Pattern Recognition (CVPR). pp. 10349–10358 (June
+    2024)
+46. Poole, B., Jain, A., Barron, J.T., Mildenhall, B.: Dreamfusion: Text-to-3d using
+    2d diffusion. arXiv (2022)
+47. Pumarola, A., Corona, E., Pons-Moll, G., Moreno-Noguer, F.: D-NeRF: Neural
+    Radiance Fields for Dynamic Scenes. In: Proceedings of the IEEE/CVF Conference
+    on Computer Vision and Pattern Recognition (2020)
+48. Ranftl, R., Bochkovskiy, A., Koltun, V.: Vision transformers for dense prediction.
+    In: Proceedings of the IEEE/CVF international conference on computer vision.
+    pp. 12179–12188 (2021)
+                                                                 AdaptiveSplat        19
+
+49. Rombach, R., Blattmann, A., Lorenz, D., Esser, P., Ommer, B.: High-resolution
+    image synthesis with latent diffusion models. In: Proceedings of the IEEE/CVF
+    conference on computer vision and pattern recognition. pp. 10684–10695 (2022)
+50. Schonberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: Proceedings
+    of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+    (June 2016)
+51. Smart, B., Zheng, C., Laina, I., Prisacariu, V.A.: Splatt3r: Zero-shot gaussian
+    splatting from uncalibrated image pairs (2024), https://arxiv.org/abs/2408.
+    13912
+52. Srinivasan, P.P., Deng, B., Zhang, X., Tancik, M., Mildenhall, B., Barron, J.T.:
+    Nerv: Neural reflectance and visibility fields for relighting and view synthesis. In:
+    Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition
+    (CVPR) (2021)
+53. Szymanowicz, S., Rupprecht, C., Vedaldi, A.: Splatter image: Ultra-fast single-view
+    3d reconstruction. In: Proceedings of the IEEE Conference on Computer Vision
+    and Pattern Recognition (CVPR) (2024)
+54. Tang, S., Ye, W., Ye, P., Lin, W., Zhou, Y., Chen, T., Ouyang, W.: Hisplat:
+    Hierarchical 3d gaussian splatting for generalizable sparse-view reconstruction.
+    In: The Thirteenth International Conference on Learning Representations (2025),
+    https://openreview.net/forum?id=SBzIbJojs8
+55. Tang, Y., Guo, Y., Li, D., Peng, C.: Spars3r: Semantic prior alignment and regu-
+    larization for sparse 3d reconstruction. arXiv preprint arXiv:2411.12592 (2024)
+56. Torralba, A., Oliva, A.: Statistics of natural image categories. In: LBMV07 Pre-
+    sentations. Carnegie Mellon (2007)
+57. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the IEEE/CVF Confer-
+    ence on Computer Vision and Pattern Recognition (2025)
+58. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE Conference on Computer Vision
+    and Pattern Recognition (CVPR). pp. 20697–20709 (June 2024)
+59. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+    arXiv:2507.13347 (2025)
+60. Wang, Y., Wu, Q., Xu, D.: F3d-gaus: Feed-forward 3d-aware generation on ima-
+    genet with cycle-aggregative gaussian splatting. arXiv preprint arXiv:2501.06714
+    (2025)
+61. Wang, Z., Bovik, A.C., Sheikh, H.R., Simoncelli, E.P.: Image quality assessment:
+    from error visibility to structural similarity. IEEE transactions on image processing
+    13(4), 600–612 (2004)
+62. Wewer, C., Raj, K., Ilg, E., Schiele, B., Lenssen, J.E.: latentsplat: Autoencoding
+    variational gaussians for fast generalizable 3d reconstruction. In: arXiv (2024)
+63. Wu, J., Bian, J.W., Li, X., Wang, G., Reid, I., Torr, P., Prisacariu, V.: GaussCtrl:
+    Multi-View Consistent Text-Driven 3D Gaussian Splatting Editing. Proceedings
+    of the European Conference on Computer Vision (ECCV) (2024)
+64. Wu, R., Gao, R., Poole, B., Trevithick, A., Zheng, C., Barron, J.T., Holynski,
+    A.: CAT4D: Create Anything in 4D with Multi-View Video Diffusion Models.
+    arXiv:2411.18613 (2024)
+65. Wu, R., Mildenhall, B., Henzler, P., Park, K., Gao, R., Watson, D., Srinivasan,
+    P.P., Verbin, D., Barron, J.T., Poole, B., et al.: Reconfusion: 3d reconstruction
+    with diffusion priors. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 21551–21561 (2024)
+20      Singhal et al.
+
+66. Xu, M., Zhan, F., Zhang, J., Yu, Y., Zhang, X., Theobalt, C., Shao, L., Lu, S.:
+    Wavenerf: Wavelet-based generalizable neural radiance fields. In: Proceedings of
+    the IEEE/CVF International Conference on Computer Vision. pp. 18195–18204
+    (2023)
+67. Xu, Y., Shi, Z., Yifan, W., Peng, S., Yang, C., Shen, Y., Gordon, W.: Grm: Large
+    gaussian reconstruction model for efficient 3d reconstruction and generation. arxiv:
+    2403.14621 (2024)
+68. Yang, C., Li, S., Fang, J., Liang, R., Xie, L., Zhang, X., Shen, W., Tian, Q.: Gaus-
+    sianobject: High-quality 3d object reconstruction from four views with gaussian
+    splatting. ACM Transactions on Graphics 43(6) (December 2024)
+69. Yao, Y., Zeng, Z., Gu, C., Zhu, X., Zhang, L.: Reflective gaussian splatting. arXiv
+    preprint (2024)
+70. Ye, B., Liu, S., Xu, H., Xueting, L., Pollefeys, M., Yang, M.H., Songyou, P.: No
+    pose, no problem: Surprisingly simple 3d gaussian splats from sparse unposed im-
+    ages. arXiv preprint arXiv:2410.24207 (2024)
+71. Yu, A., Ye, V., Tancik, M., Kanazawa, A.: pixelNeRF: Neural radiance fields from
+    one or few images. In: Proceedings of the IEEE Conference on Computer Vision
+    and Pattern Recognition (CVPR) (2021)
+72. Yu, J.J., Aumentado-Armstrong, T., Forghani, F., Derpanis, K.G., Brubaker,
+    M.A.: Polyoculus: Simultaneous multi-view image-based novel view synthesis. In:
+    Proceedings of the European Conference on Computer Vision (ECCV) (2024)
+73. Zhang, J., Herrmann, C., Hur, J., Jampani, V., Darrell, T., Cole, F., Sun, D.,
+    Yang, M.H.: Monst3r: A simple approach for estimating geometry in the presence
+    of motion. arXiv preprint arxiv:2410.03825 (2024)
+74. Zhang, R., Isola, P., Efros, A.A., Shechtman, E., Wang, O.: The unreasonable
+    effectiveness of deep features as a perceptual metric. In: Proceedings of the IEEE
+    conference on computer vision and pattern recognition. pp. 586–595 (2018)
+75. Zhang, S., Fei, X., Liu, F., Song, H., Duan, Y.: Gaussian graph network: Learn-
+    ing efficient and generalizable gaussian representations from multi-view images.
+    Advances in Neural Information Processing Systems 37, 50361–50380 (2024)
+76. Zhou, J., Zhang, W., Liu, Y.S.: Diffgs: Functional gaussian splatting diffusion. In:
+    Advances in Neural Information Processing Systems (NeurIPS) (2024)
+77. Zhou, S., Chang, H., Jiang, S., Fan, Z., Zhu, Z., Xu, D., Chari, P., You, S., Wang, Z.,
+    Kadambi, A.: Feature 3dgs: Supercharging 3d gaussian splatting to enable distilled
+    feature fields. In: Proceedings of the IEEE/CVF Conference on Computer Vision
+    and Pattern Recognition. pp. 21676–21685 (2024)
+78. Zhou, S., Fan, Z., Xu, D., Chang, H., Chari, P., Bharadwaj, T., You, S., Wang,
+    Z., Kadambi, A.: Dreamscene360: Unconstrained text-to-3d scene generation with
+    panoramic gaussian splatting. In: Proceedings of the European Conference on Com-
+    puter Vision (ECCV). pp. 324–342. Springer (2024)
+79. Zhou, T., Tucker, R., Flynn, J., Fyffe, G., Snavely, N.: Stereo magnification: Learn-
+    ing view synthesis using multiplane images. In: SIGGRAPH (2018)
+80. Ziwen, C., Tan, H., Zhang, K., Bi, S., Luan, F., Hong, Y., Fuxin, L., Xu, Z.: Long-
+    lrm: Long-sequence large reconstruction model for wide-coverage gaussian splats.
+    In: Proceedings of the IEEE/CVF International Conference on Computer Vision
+    (2025)
+                                                           AdaptiveSplat       A
+
+ Supplementary Material: AdaptiveSplat: Texture Aware
+  Controllable 3D Gaussian Allocation for Feed-Forward
+                    Reconstruction
+
+Table of Contents
+Section                        Description
+A. Additional Baselines       We created additional baselines for compar-
+                              isons
+B. Extension to Dense View Extension of our method for dense view and
+Input                         comparison with baselines
+C. Inference Latency          Inference time analysis of our method with
+                              baselines
+D. Results with Naive Pruning Results with opacity-based and low-resolution
+Baselines                     naive pruning
+E. Results on Different Back- Detailed RE10K and ACID results across
+bones                         pruning stages on NoPoSplat, HiSplat, pixel-
+                              Splat, and MVSplat
+F. Cross Domain Evaluation Train on ACID/RE10K, evaluate on DTU for
+                              out-of-distribution generalization
+G. Failure Case                DWT limitation under specular highlights and
+                               light-induced high frequencies
+H. Additional Ablation         Detailed ablation results on RE10K, ACID for
+                               evaluating the importance of each component
+
+
+A    Additional Baselines
+We implemented additional baselines where pruning masks are first generated
+using existing pruning pipelines and then concatenated with the Gaussian Head
+input to predict the attributes of the retained Gaussians. The Gaussian Head
+for these baselines is trained following the same procedure and loss functions as
+in our method to ensure fairness.
+    We evaluate these baselines on both the ACID and RE10K datasets, and
+the results are provided in Tables A and B. These enhanced baselines achieve
+stronger results than the post-hoc pruning baselines reported in the main paper,
+particularly at higher pruning ratios. However, our method still consistently
+outperforms them across all pruning levels and datasets, primarily due to our
+texture-aware region selection strategy, which better preserves scene structure
+under aggressive pruning.
+    It is also important to note that these additional baselines are not feed-
+forward: they require (1) predicting the full set of 3D Gaussians, (2) generating
+a pruning mask, and only then (3) predicting the attributes of the retained Gaus-
+sians in a second pass. This makes them inherently two-stage. In contrast, our
+B         Singhal et al.
+
+Table A: Results on Additional Baselines on ACID dataset: We created ad-
+ditional baselines where the mask is created using the pruning methods and used in
+Gaussian Head which predicts the attributes of retained Gaussians. We consistently
+outperform the baselines across all pruning strengths by a significant margin.
+
+                               β = 0.4                                 β = 0.6                                β = 0.9
+Method            PSNR↑        LPIPS↓       SSIM↑      PSNR↑        LPIPS↓           SSIM↑        PSNR↑       LPIPS↓            SSIM↑
+EAGLES            18.747       0.480        0.512      18.716       0.488            0.514        16.514      0.547             0.463
+LightGaussian     19.439       0.453        0.519      19.176       0.476            0.507        14.333      0.572             0.356
+PUP-3DGS          17.912       0.555        0.503      17.193       0.578            0.492        13.177      0.662             0.384
+Ours              22.549       0.299        0.640      22.310       0.310            0.627        18.476      0.379             0.553
+
+
+Table B: Results on Additional Baselines on RE10K dataset: We’ve imple-
+mented additional baseline where we create mask using the existing pruning methods
+and append to Gaussian Head which predicts attributes of retained Gaussians. We con-
+sistently outperform the baselines by a significant margin across all pruning strengths.
+
+                               β = 0.4                                 β = 0.6                                β = 0.9
+Method            PSNR↑        LPIPS↓       SSIM↑      PSNR↑        LPIPS↓           SSIM↑        PSNR↑       LPIPS↓            SSIM↑
+EAGLES            17.828       0.412        0.555      17.726       0.421            0.551        14.437      0.514             0.435
+LightGaussian     17.964       0.395        0.545      17.599       0.416            0.531        13.004      0.534             0.394
+PUP-3DGS          15.519       0.585        0.501      15.276       0.602            0.490        11.794      0.666             0.387
+Ours              22.294       0.235        0.735      22.110       0.243            0.726        17.848      0.314             0.645
+
+
+Table C: Extension to a posed feed-forward backbone (MVSplat) on ACID.
+All entries use the MVSplat backbone on the identical ACID test split; Ours adds the
+Adaptive Gaussian Head trained with mask conditioning. Vanilla MVSplat produces a
+fixed Gaussian count (β = 0); we additionally report Ours at β ∈ {0, 0.4, 0.6, 0.8}.
+
+              MVSplat                                                         Ours
+                β=0                      β=0                   β = 0.4                       β = 0.6                  β = 0.8
+Views PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+ 2    25.31     0.23    0.76   25.75     0.23   0.77   25.37    0.25       0.76   24.91        0.26    0.75   24.18     0.29      0.73
+ 4    22.21     0.29    0.69   22.58     0.28   0.71   22.61    0.29       0.70   22.43        0.31    0.69   22.03     0.33      0.68
+ 8    21.64     0.29    0.68   22.08     0.29   0.69   22.08    0.31       0.68   21.89        0.32    0.67   21.51     0.34      0.66
+ 16   21.91     0.29    0.69   22.31     0.29   0.70   22.32    0.30       0.69   22.14       0.315    0.68   21.77     0.33      0.68
+
+
+
+
+approach performs pruning within the feed-forward generation pipeline, offering
+controllable pruning during inference.
+   MASt3R and VGGT are foundation models that generalize well, so we built
+on AnySplat and NoPoSplat, which use them as backbones. Our method is pose-
+agnostic; to demonstrate this, we further extend it to MVSplat, a posed feed-
+forward method, on ACID dataset. Vanilla MVSplat returns a fixed Gaussian
+count (β = 0). We evaluate our approach over β ∈ {0, 0.4, 0.6, 0.8} (Tab. C),
+confirming that it works across both posed and unposed feed-forward methods.
+
+
+B     Extension to Dense View input
+We additionally evaluate our texture-aware pruning strategy on the InstantSplat
+framework. We used Tanks and Temples dataset for our experiment, specifically
+                                                                                             AdaptiveSplat             C
+
+Table D: Evaluation of our texture-aware pruning method on InstantSplat
+across 3, 4, and 10 views inputs. For each pruning strength, we apply our
+SuperCluster-based pruning before InstantSplat optimization and disable densification
+to keep the Gaussian count fixed. Across all settings, our method consistently preserves
+significantly higher reconstruction fidelity (PSNR, SSIM) and lower perceptual error
+(LPIPS) compared to InstantSplat’s native pruning-by-optimization baseline.
+
+    Pruning Strength                         β = 0.4                      β = 0.6                        β = 0.8
+    Input View Method PSNR LPIPS SSIM PSNR LPIPS SSIM PSNR LPIPS SSIM
+                      Baseline      21.565     0.217     0.745   19.320    0.321     0.662     15.482      0.479   0.508
+           3 Views
+                      Ours          21.536     0.215     0.762   21.464    0.261     0.746     21.484      0.276   0.747
+                      Baseline      21.815     0.201     0.735   19.673    0.310     0.681     15.564      0.469   0.510
+           4 Views
+                      Ours          23.932     0.176     0.820   23.692    0.215     0.804     23.530      0.236   0.799
+                      Baseline      24.754     0.141     0.852   20.655    0.249     0.746     14.827      0.416   0.558
+           10 Views
+                      Ours          27.649     0.113     0.896   27.310    0.138     0.886     27.178      0.154   0.882
+
+
+Table E: Results with AnySplat on DL3DV dataset: Here we do not finetune
+the remaining Gaussians.
+
+                                     β = 0.4                         β = 0.6                            β = 0.8
+           Method          PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+           EAGLES           5.892     0.709      0.033      5.577     0.723        0.013      5.413      0.725     0.006
+6 Views
+
+
+
+
+           LightGaussian    6.377     0.673      0.076      5.978     0.702        0.044      5.613      0.722     0.017
+           PUP3DGS          6.151     0.690      0.054      5.771     0.709        0.029      5.514      0.720     0.012
+           Ours            20.448     0.334      0.601     20.307     0.366        0.582     20.049      0.408     0.556
+           EAGLES           6.053     0.703      0.044      5.644     0.720        0.018      5.441      0.726     0.008
+9 Views
+
+
+
+
+           LightGaussian    6.689     0.656      0.099      6.180     0.688         0.06      5.733      0.717     0.026
+           PUP3DGS          6.438     0.675      0.078      5.926     0.702        0.041      5.587      0.718     0.018
+           Ours            19.678     0.354      0.569     19.582     0.381        0.555     19.437      0.413     0.536
+           EAGLES           6.139     0.699      0.047      5.689     0.719        0.019      5.481      0.726     0.007
+16 Views
+
+
+
+
+           LightGaussian    7.133     0.639      0.124      6.499     0.673        0.081      5.899      0.709     0.036
+           PUP3DGS          6.796     0.661      0.098      6.126     0.694        0.051      5.651      0.717     0.018
+           Ours            19.125     0.392      0.524     19.082     0.410        0.512     18.990      0.435     0.498
+           EAGLES           6.460     0.683      0.074      5.773     0.711        0.031      5.426      0.723     0.011
+32 Views
+
+
+
+
+           LightGaussian    7.482     0.629      0.147      6.826     0.657        0.103      6.038      0.697     0.040
+           PUP3DGS          7.239     0.642      0.129      6.388     0.682        0.073      5.665      0.714     0.025
+           Ours            17.677     0.446      0.476     17.653     0.461        0.467     17.607      0.481     0.456
+
+
+
+
+we used the ‘Horse’ scene from Tanks and Temples. We first use MASt3R to
+obtain the pixel-aligned point cloud from sparse-view images, construct texture-
+based SuperClusters, and rank them using our wavelet textureness metric. We
+prune points according to the desired pruning strength and then train the 3DGS
+stage for 1000 iterations. Importantly, we disable densification and pruning
+within InstantSplat to ensure that the Gaussian count remains fixed throughout
+the optimization pipeline.
+    We report results for 3, 4, and 10-view input settings and evaluate on novel
+views (Tab. D). Our method consistently achieves higher PSNR, SSIM, and
+lower LPIPS across all pruning strengths and view configurations. This demon-
+strates that the proposed texture-aware pruning not only preserves reconstruc-
+D       Singhal et al.
+
+Table F: Dense-view comparison on DL3DV. We report pretrained AnySplat vs.
+Ours at β = 0 across 9, 16, and 32 input views.
+
+              Views      Method            PSNR↑      LPIPS↓          SSIM↑
+                         AnySplat          19.83       0.301          0.601
+              9
+                         Ours              19.80       0.316          0.587
+                         AnySplat          18.87       0.362          0.535
+              16
+                         Ours              19.17       0.364          0.537
+                         AnySplat          17.24       0.420          0.486
+              32
+                         Ours              17.71       0.424          0.489
+
+Table G: Rendering speed vs. pruning strength. FPS increases steadily as more
+Gaussians are pruned while maintaining scene fidelity, demonstrating the utility of
+pruning as a mechanism for real-time, controllable efficiency during inference. The
+PSNR was obtained for each pruning strength on Tanks and Temples Horse scene.
+
+Pruning Strength (β)      0.0       0.4       0.5      0.6      0.7           0.8    0.9
+FPS                      191.4     226.7      236.3   255.0    281.4      301.3      313.8
+PSNR                     25.744   23.932     23.859   23.692   23.573     23.530    23.974
+
+
+
+
+tion quality but also enhances efficiency in multiview sparse-input pipelines with-
+out requiring any architectural changes to InstantSplat.
+    Additionally we provide results for dense view feed forward in Tab. E on
+DL3DV where we do not finetune the remaining Gaussians. The results are
+provided for 6, 9, 16 and 32 input views using VGGT as multiview feature
+extractor. The corresponding results for fine tune are included in main paper.
+Tab. F reports the pretrained AnySplat baseline against Ours at β = 0 on
+DL3DV across 9, 16, and 32 input views.
+
+
+C    Inference Latency
+
+To highlight the practical benefits of controllable pruning, we report rendering
+throughput under different pruning strengths. We adopt the InstantSplat setting
+for sparse-view reconstruction, where MASt3R provides the initial pixel-aligned
+points and the 3D Gaussian attributes are subsequently optimized. To ensure
+a fair comparison, we disable densification so that the number of Gaussians
+remains fixed to the MASt3R initialization. We used the Tanks and Temples
+dataset specifically the Horse scene for this analysis.
+    We measure rendering speed by synthesizing 1000 novel views for each prun-
+ing stage and reporting the Frames Per Second (FPS). We utilize our pruning
+technique to prune the Gaussians. Tab. G summarizes the FPS achieved across
+pruning strengths, and Fig. A visualizes this trend. As pruning strength in-
+creases, the reduced number of active Gaussians consistently improves rendering
+speed, demonstrating the effectiveness of pruning as a controllable knob for bal-
+                                                                AdaptiveSplat        E
+
+Table H: Inference latency comparison across methods (β = 0.9). Our ap-
+proach achieves latency similar to the non finetuned baseline while being significantly
+faster than baselines that require per-scene finetuning of retained Gaussians. This
+demonstrates that AdaptiveSplat preserves fast feed-forward inference while support-
+ing controllable pruning.
+
+Method                                               Time (s)                   PSNR
+EAGLES (With Finetuning)                             7.03                       16.243
+PUP3DGS (With Finetuning)                            7.09                       15.588
+LightGaussian (With Finetuning)                      5.64                       16.056
+EAGLES (Without Finetuning)                          1.39                       12.774
+PUP3DGS (Without Finetuning)                         2.00                       10.131
+LightGaussian (Without Finetuning)                   1.48                       10.327
+Ours                                                 2.53                       20.740
+
+
+
+
+        0.0   0.4   0.5    0.6   0.7   0.8   0.9
+                      𝛽 value
+Fig. A: Plot for FPS with increasing β Fig. B: Pareto Plot for inference time and
+Strength                               quality comparison for RE10K at β = 0.8
+
+
+
+
+ancing reconstruction quality and runtime efficiency. Fig. B presents pareto plot
+to compare inference time and quality analysis of ours with other methods.
+    We report the end-to-end latency of predicting 3D Gaussians from sparse
+input views. Tab. H summarizes the runtime across different baselines. Our
+method exhibits latency comparable to the non-finetuned baseline and is sub-
+stantially faster than baselines that require per-scene finetuning of the remaining
+Gaussians. This highlights that AdaptiveSplat retains the feed-forward efficiency
+of MASt3R while enabling controllable pruning without the overhead of opti-
+mization. Since rendering is efficient, changing β does not significantly affect the
+result in our method.
+
+
+D    Results with naive pruning baselines
+We include results with naive pruning baselines for completeness. We include
+results with pruning based on opacity as well as low resolution input to decrease
+number of 3D Gaussian primitives. Specifically we remove lowest opacity Gaus-
+sians till pruning budget β is met; similarly, we downscale the image till the
+F                   Singhal et al.
+
+                    Table I: Results with naive pruning baseline on AnySplat backbone.
+
+                                β = 0.4                          β = 0.6                                 β = 0.8
+            Views PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+               6        17.49        0.30     0.60     13.73        0.38           0.51       9.67         0.51      0.40
+ Opacity
+
+
+
+
+               9        17.77        0.32     0.56     14.27        0.39           0.49       10.08        0.50      0.38
+               16       17.59        0.37     0.51     14.72        0.41           0.46       10.41        0.51      0.35
+               32       16.17        0.44     0.44     14.43        0.46           0.41       10.85        0.53      0.34
+               6        16.45        0.49     0.49     10.60        0.66           0.24       6.65         0.69      0.19
+  Low Res
+
+
+
+
+               9        16.61        0.50     0.47     11.25        0.65           0.25       7.02         0.69      0.19
+               16       16.37        0.52     0.43     12.14        0.64           0.27       7.50         0.69      0.17
+               32       15.69        0.55     0.39     12.83        0.64           0.29       8.69         0.68      0.18
+               6        20.45        0.33     0.60     20.31       0.37            0.58       20.05        0.41      0.56
+  Ours
+
+
+
+
+               9        19.68        0.35     0.57     19.58       0.38            0.55       19.44        0.41      0.54
+               16       19.13        0.39     0.52     19.08       0.41            0.51       18.99        0.44      0.50
+               32       17.68        0.45     0.48     17.65       0.46            0.47       17.61        0.48      0.46
+
+
+Table J: Results on ACID dataset with various existing pruning methods without
+finetuning the remaining Gaussians using NoPoSplat and HiSplat as backbones.
+
+                                                        ACID Dataset
+      Pruning Method                        β = 0.4                     β = 0.6                            β = 0.8
+    (Without Finetuning)
+                                 PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+NoPoSplat
+
+
+
+
+            EAGLES               15.028      0.511    0.415    11.883      0.605      0.264     8.977       0.683    0.131
+            LightGaussian        19.670      0.363    0.578    15.502      0.484      0.433     11.228      0.622    0.233
+            PUP-3DGS             11.845      0.424    0.478    9.257       0.514      0.332     7.516       0.617    0.171
+            EfficientGS          15.189      0.446    0.468    12.316      0.524      0.376     8.886       0.653    0.196
+            EAGLES               14.921      0.538    0.452    11.001      0.636      0.272     10.999      0.636    0.272
+HiSplat
+
+
+
+
+            LightGaussian        21.986       0.32    0.705    21.986       0.32      0.705     17.095      0.455    0.549
+            PUP-3DGS             10.221      0.492    0.438    8.133       0.614      0.245     8.132       0.614    0.245
+            EfficientGS          14.333      0.416    0.528    10.866      0.571       0.32     8.394       0.682    0.158
+            Ours                 22.294     0.2991    0.640    22.110      0.310      0.627    20.740       0.342    0.593
+
+
+
+
+total number of pixels in multi view input images meets the β budget. Tab. I
+presents these results, we observe that this naive pruning degrades the scene as
+the remaining Gaussians are not refined to adjust for the removed primitives.
+
+
+E             Results on different backbones
+Here we present detailed results of our experiments on RE10K and ACID dataset
+for different pruning stages on NoPoSplat and HiSplat backbone. Tab. J, Tab. K
+presents results without finetuning on both ACID and RE10K, respectively, and
+Fig. C demonstrates results for ACID and RE10K for both with and without
+finetuning. We also include results with different feed-forward backbones with
+various pruning strategies. Specifically we use pixelSplat and MVSplat backbones
+on RE10K and ACID dataset with all pruning strategies discussed before (we’ve
+also added random 3D Gaussian pruning) along with before and after finetuning
+results. Tab. L on RE10K dataset and Tab. M on ACID dataset presents results
+of all pruning stages for 2 different feed-forward backbone on 4 different pruning
+                                                                                                                                                                           AdaptiveSplat                             G
+
+Table K: Results on RE10K dataset without finetuning the remaining Gaus-
+sians. We see baselines performance degrade with increase in pruning strength. In ex-
+treme pruning scenario, our method outperforms the baselines by a large margin.
+
+                                                                               β = 0.4                                                β = 0.6                                             β = 0.8
+             Pruning Method
+                                                         PSNR↑              LPIPS↓             SSIM↑             PSNR↑                LPIPS↓              SSIM↑             PSNR↑          LPIPS↓           SSIM↑
+             NoPoSplat
+
+
+
+
+                           EAGLES                         13.769                 0.483             0.461          10.908                0.588             0.289              8.117              0.669            0.139
+                           LightGaussian                  18.218                 0.357             0.621          13.642                0.486             0.444              8.435              0.621            0.206
+                           PUP-3DGS                       11.649                 0.396             0.510           8.901                0.490             0.352              6.743              0.589            0.174
+                           EfficientGS                    13.755                 0.407             0.520          10.686                0.513             0.384              7.842              0.631            0.209
+                           EAGLES                         16.258                 0.415             0.580          16.265                0.415             0.580              12.774             0.516            0.410
+             HiSplat
+
+
+
+
+                           LightGaussian                  14.425                 0.461             0.504          14.427                0.461             0.504              10.327             0.589            0.297
+                           PUP-3DGS                       13.577                 0.355             0.629          13.576                0.355             0.629              10.131             0.465            0.460
+                           EfficientGS                    13.635                 0.359             0.576          10.292                0.485             0.397              7.890              0.606            0.226
+                           Ours                          22.294                 0.235          0.735             22.110                 0.243             0.726             20.740              0.272        0.692
+
+
+Table L: Quantitative comparison on the RE10K dataset (No Finetune). We evaluate
+metrics across different pruning targets.
+
+                                            β = 0.4            β = 0.5            β = 0.6            β = 0.7            β = 0.8            β = 0.9
+Base Method                           PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+                         Random       14.67      0.480      0.530      13.22       0.520   0.470     11.70      0.550      0.400      10.10     0.590     0.320     8.43      0.640    0.240     6.70    0.690     0.140
+        pixelSplat
+
+
+
+
+                         LightGaus.   21.32      0.350      0.720      20.58       0.380   0.690     19.83      0.410      0.670      18.68     0.450     0.640     16.23     0.520    0.570     12.79   0.600     0.460
+                         EAGLES       24.75      0.190      0.840      23.14       0.240   0.810     20.52      0.310      0.750      17.72     0.400     0.620     13.58     0.490    0.470     9.79    0.580     0.290
+                         PUP-3DGS     16.21      0.380      0.620      15.41       0.390   0.610     14.16      0.420      0.590      12.68     0.450     0.540     11.01     0.500    0.470     9.03    0.580     0.340
+                         Random       19.27      0.440      0.570      16.99       0.500   0.470     14.65      0.560      0.380      12.28     0.610     0.290     9.88      0.660    0.200     7.43    0.710     0.100
+        MVSplat
+
+
+
+
+                         LightGaus.   7.71       0.690      0.130      7.33        0.700   0.110      7.02      0.710      0.100      6.69      0.720     0.090     6.19      0.730    0.070     5.77    0.740     0.050
+                         EAGLES       7.52       0.720      0.070      11.94       0.550   0.370     10.51      0.600      0.280      9.14      0.640     0.200     7.84      0.690    0.130     6.57    0.720     0.070
+                         PUP-3DGS     11.51      0.370      0.590      10.23       0.420   0.510      9.13      0.470      0.430      8.11      0.520     0.340     7.14      0.570    0.250     6.17    0.620     0.140
+Ours                                  22.29      0.230      0.740      22.24       0.240   0.730     22.11      0.240      0.730      21.77     0.250     0.720     20.74     0.270    0.690     17.85   0.310     0.650
+
+
+
+
+Table M: Detailed Results on the ACID dataset (No Finetune) comparing different
+backbone methods across varying numbers of 3D Gaussians.
+
+                                            β = 0.4            β = 0.5            β = 0.6            β = 0.7            β = 0.8            β = 0.9
+Base Method                           PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+                         Random       15.47      0.501      0.492      14.04       0.533   0.431     12.54      0.569      0.364      10.99     0.612     0.293     9.37      0.662    0.211     7.69    0.711     0.122
+pixelSplat
+
+
+
+
+                         LightGaus.   23.27      0.382      0.691      22.76       0.405   0.663     22.34      0.428      0.635      21.76     0.453     0.618     20.21     0.499    0.582     15.95   0.576     0.494
+                         EAGLES       25.14      0.252      0.794      22.58       0.305   0.742     19.63      0.381      0.669      16.66     0.462     0.561     13.58     0.551    0.434     10.35   0.642     0.271
+                         PUP-3DGS     19.65      0.341      0.658      17.96       0.372   0.639     13.78      0.451      0.528      11.65     0.514     0.449     11.65     0.512    0.449     9.55    0.589     0.322
+                         Random       18.72      0.483      0.489      16.46       0.531   0.412     14.28      0.579      0.334      12.15     0.624     0.251     10.07     0.672    0.169     8.02    0.714     0.091
+MVSplat
+
+
+
+
+                         LightGaus.   8.09       0.721      0.089      7.78        0.728   0.076      7.54      0.735      0.068      7.28      0.742     0.061     6.88      0.756    0.044     6.53    0.762     0.032
+                         EAGLES       14.86      0.509      0.462      13.12       0.556   0.378     11.56      0.598      0.294      10.13     0.641     0.212     8.79      0.682    0.141     7.52    0.721     0.074
+                         PUP-3DGS     11.43      0.394      0.561      10.26       0.442   0.489      9.32      0.491      0.412      8.53      0.542     0.334     7.80      0.591    0.241     7.05    0.652     0.141
+Ours                                  22.55      0.301      0.642      22.47       0.304   0.639     22.31      0.312      0.631      21.96     0.321     0.619     21.06     0.342    0.592     18.48   0.381     0.552
+
+
+
+
+Table N: Detailed Results on the ACID dataset with finetuning after pruning com-
+paring different backbone methods across varying pruning techniques.
+
+Method                                          β = 0.4            β = 0.5            β = 0.6            β = 0.7            β = 0.8            β = 0.9
+                                          PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+pixelSplat + EAGLES                           12.61      0.688      0.069      12.46   0.665   0.108    12.99      0.637      0.166     13.57     0.618     0.214    13.99     0.607    0.247    13.83   0.615     0.246
+pixelSplat + PUP-3DGS                         14.31      0.610      0.282      14.31   0.607   0.287    14.15      0.607      0.290     13.62     0.612     0.286    12.48     0.623    0.271    10.67   0.646     0.234
+MVSplat + LightGaus.                          11.99      0.688      0.136      11.41   0.695   0.131    10.80      0.703      0.119      9.98     0.717     0.101     9.28     0.729    0.085     8.38   0.744     0.065
+MVSplat + EAGLES                              12.50      0.677      0.122      12.42   0.677   0.135    12.15      0.679      0.144     11.60     0.687     0.142    10.62     0.705    0.118     9.03   0.739     0.069
+MVSplat + PUP-3DGS                             9.26      0.680      0.046       8.73   0.683   0.041     8.27      0.687      0.037      7.89     0.692     0.036     7.52     0.697    0.037     7.06   0.706     0.035
+Ours                                          22.55      0.301      0.642   22.47      0.304   0.639    22.31      0.312     0.631      21.96     0.321    0.619     21.06     0.342   0.592     18.48   0.381     0.552
+
+
+
+
+strategies where we don’t fine tune the remaining 3D Gaussians after pruning.
+The table demonstrates that our method achieves better results across most
+of the pruning stages consistently than any other baselines. Similarly Tab. N
+for ACID dataset and Tab. O for RE10K dataset contains results for different
+feed-forward backbones where we finetune the remaining 3D Gaussians.
+H              Singhal et al.
+
+Table O: Detailed Results on the RE10K dataset (With Finetuning) after pruning
+comparing different backbone methods across varying pruning techniques.
+
+Method                        β = 0.4            β = 0.5            β = 0.6            β = 0.7            β = 0.8            β = 0.9
+                        PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+pixelSplat + EAGLES     12.16   0.703          0.104   11.91   0.694    0.104   11.85   0.670   0.131   12.40   0.634   0.188   13.03   0.612   0.240   13.21   0.605   0.265
+pixelSplat + PUP-3DGS   14.31   0.610          0.282   14.31   0.607    0.287   14.15   0.607   0.290   13.62   0.612   0.286   12.48   0.623   0.271   10.67   0.646   0.234
+MVSplat + LightGaus.    10.94   0.702          0.113   10.80   0.701    0.123   10.40   0.702   0.126    9.73   0.706   0.119    9.05   0.710   0.109   8.04    0.720   0.090
+MVSplat + EAGLES        11.44   0.686          0.116   11.41   0.684    0.130   11.20   0.683   0.140   10.71   0.689   0.141    9.79   0.706   0.122   8.25    0.737   0.075
+MVSplat + PUP-3DGS      9.20    0.683          0.055   8.73    0.683    0.054   8.25    0.683   0.053    7.72   0.684   0.053    7.12   0.685   0.052   6.37    0.688   0.046
+Ours                    22.29   0.230          0.740   22.24   0.240    0.730   22.11   0.240   0.730   21.77   0.250   0.720   20.74   0.270   0.690   17.85   0.310   0.650
+
+
+
+
+    We’ve also included a detailed comparison of each scene with all baselines for
+a clearer understanding of our method’s performance. Fig. D ,Fig. E shows the
+trends of PSNR, LPIPS and SSIM over different pruning percentages with and
+without finetuning on RE10K and ACID datasets with and without finetuning
+3D Gaussians respectively with NoPoSplat backbone.
+    We can see from the plot that we consistently outperform all the baselines
+in all pruning scenarios Fig. F, Fig. G, Fig. H, Fig. I, Fig. J shows visual results
+on ACID dataset for pruning stages of β = 0.4 (40%), β = 0.5 (50%), β = 0.6
+(60%), β = 0.7 (70%) and β = 0.8 (80%) of 3D Gaussians where we take random
+pruning strategy on various feed-forward backbone. Similarly Fig. K Fig. L ,
+Fig. M, Fig. N, Fig. O shows results on RE10K dataset for different backbone
+with random pruning of 3D Gaussians.
+                                                   GT                  𝛽=0.4            𝛽=0.5               𝛽=0.6               𝛽=0.7
+                                  Ours
+                                  Wo Texture
+
+
+
+
+Fig. C: Results for RE10K and ACID dataset with β = 0.4 and β = 0.8 respectively.
+   Fig. P presents an example scene evaluated at different 3D Gaussian counts
+on ACID and RE10K, where we use random pruning on different feed-forward
+backbone. Similarly, Fig. Q shows the same scene compared against baselines
+incorporating the LightGaussian pruning method.
+                                                         AdaptiveSplat     I
+
+                                Without Finetuning
+
+
+
+
+           RE10K
+           ACID
+
+
+
+
+                    𝛽 values            𝛽 values      𝛽 values
+
+
+
+
+Fig. D: Plot of RE10K and ACID dataset where we compare our results with the
+relevant baselines without finetuning the remaining 3D Gaussians
+
+                                With Finetuning
+           RE10K
+           ACID
+
+
+
+
+                     𝛽 values            𝛽 values      𝛽 values
+
+
+
+
+Fig. E: Plot of RE10K and ACID dataset where we compare our results with the
+relevant baselines with finetuning the remaining 3D Gaussians
+J   Singhal et al.
+
+     Context   pixelSplat + Random   MVSplat + Random   NoPoSplat + Random   Ours   Ground Truth
+
+
+
+
+    Fig. F: Detailed Results comparison with β = 0.4 on ACID dataset
+     Context   pixelSplat + Random   MVSplat + Random   NoPoSplat + Random   Ours   Ground Truth
+
+
+
+
+    Fig. G: Detailed Results comparison with β = 0.5 on ACID dataset
+     Context   pixelSplat + Random   MVSplat + Random   NoPoSplat + Random   Ours   Ground Truth
+
+
+
+
+    Fig. H: Detailed Results comparison with β = 0.6 on ACID dataset
+                                                                                AdaptiveSplat     K
+ Context   pixelSplat + Random   MVSplat + Random   NoPoSplat + Random   Ours      Ground Truth
+
+
+
+
+ Fig. I: Detailed Results comparison with β = 0.7 on ACID dataset
+ Context   pixelSplat + Random   MVSplat + Random   NoPoSplat + Random   Ours      Ground Truth
+
+
+
+
+Fig. J: Detailed Results comparison with β = 0.8 on ACID dataset
+ Context   pixelSplat + Random   MVSplat + Random   NoPoSplat + Random   Ours      Ground Truth
+
+
+
+
+Fig. K: Detailed Results comparison with β = 0.4 on RE10K dataset
+L   Singhal et al.
+
+     Context   pixelSplat   MVSplat   NoPoSplat   Ours    Ground Truth
+
+
+
+
+    Fig. L: Detailed Results comparison with β = 0.5 on RE10K dataset
+     Context   pixelSplat   MVSplat   NoPoSplat   Ours   Ground Truth
+
+
+
+
+    Fig. M: Detailed Results comparison with β = 0.6 on RE10K dataset
+                                                     AdaptiveSplat    M
+
+ Context   pixelSplat   MVSplat   NoPoSplat   Ours     Ground Truth
+
+
+
+
+Fig. N: Detailed Results comparison with β = 0.7 on RE10K dataset
+ Context   pixelSplat   MVSplat   NoPoSplat   Ours     Ground Truth
+
+
+
+
+Fig. O: Detailed Results comparison with β = 0.8 on RE10K dataset
+ N                                            Singhal et al.
+
+                                      𝛽=0.0           𝛽=0.4         𝛽=0.7       𝛽=0.9   𝛽=0.0   𝛽=0.4             𝛽=0.7   𝛽=0.9
+
+
+
+pixelSplat + Random
+NoPoSplat + Random MVSplat + Random
+Ours
+
+
+
+
+                                                              Scene 1                                   Scene 2
+
+
+                                      𝛽=0.0           𝛽=0.4             𝛽=0.7   𝛽=0.9   𝛽=0.0   𝛽=0.4         𝛽=0.7       𝛽=0.9
+pixelSplat + Random
+NoPoSplat + Random MVSplat + Random
+Ours
+
+
+
+
+                                                              Scene 1                                   Scene 2
+
+ Fig. P: Detailed Comparison of baselines results for ACID (top) and RE10K (bottom)
+ datasets. We perform random pruning on top of the 3D Gaussians obtained from other
+ baselines.
+                                                                                             AdaptiveSplat            O
+
+                                      𝛽=0.0   𝛽=0.4         𝛽=0.7   𝛽=0.9   𝛽=0.0   𝛽=0.4             𝛽=0.7   𝛽=0.9
+
+
+
+                    pixelSplat + LG
+                    MVSplat + LG
+                    NoPoSplat + LG
+                    Ours
+
+
+
+
+Scene 1
+                                                      Scene 1                               Scene 2
+
+
+                                      𝛽=0.0   𝛽=0.4         𝛽=0.7   𝛽=0.9   𝛽=0.0   𝛽=0.4             𝛽=0.7   𝛽=0.9
+
+          Scene 2
+                    pixelSplat + LG
+                    MVSplat + LG
+                    NoPoSplat + LG
+                    Ours
+
+
+
+
+                                                      Scene 1                               Scene 2
+
+                    Fig. Q: Detailed Comparison of baselines results for ACID (top) and RE10K (bottom)
+                    datasets. We perform LightGaussian pruning on top of the 3D Gaussians obtained from
+                    other baselines.
+P             Singhal et al.
+
+Table P: Out-of-distribution performance comparison: Model trained on
+ACID and evaluated on DTU
+
+Method                   β = 0.4            β = 0.5            β = 0.6            β = 0.7            β = 0.8            β = 0.9
+                   PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+NoPoSplat           14.84                        0.444     0.358    14.09   0.479   0.324    13.15   0.514   0.286   11.98   0.550   0.242   10.59   0.588   0.192   8.86    0.634   0.129
+NoPo + LightGaus    14.85                        0.399     0.372    13.97   0.440   0.330    12.85   0.485   0.278   11.59   0.536   0.218   10.25   0.587   0.154   8.73    0.646   0.089
+Ours               15.23                         0.424     0.427    15.17   0.430   0.422    15.12   0.437   0.417   15.01   0.446   0.411   14.76   0.460   0.403   13.98   0.479   0.391
+
+
+
+
+F        Cross domain evaluation
+We also evaluate the cross domain performance of our model by training the
+model on one particular dataset and evaluating on the other. pecifically, we
+trained our model on the ACID dataset and evaluated on the DTU dataset;
+similarly, we also trained on the RE10K dataset and evaluated on the DTU
+dataset. Tab. P shows results where we train the baseline on ACID dataset
+and evaluate on DTU dataset whereas Tab. Q is trained on RE10K dataset
+and evaluated on DTU dataset. The baseline that we use is specifically built
+on NoPoSplat where we use LightGaussian pruning as one baseline and random
+pruning as another. We use only NoPoSplat as pixelSplat and MVSplat are not
+trained on large scale diverse dataset as MASt3R used in NoPoSplat. The Fig. R
+shows that our method achieves superior results compared to baselines for the
+same reason as we discussed in main paper.
+                                                         Original                           𝛽=0.4                      𝛽=0.7                    𝛽=0.9
+                                                         rendered
+                            NoPoSplat + Random
+                            NoPoSplat + LG
+                            Ours
+
+
+
+
+Fig. R: Cross-Domain Generalization on DTU: We train our method on the
+ACID dataset and evaluate its performance on the DTU dataset to test its out-of-
+distribution generalization capabilities. Our method outperforms baseline approaches
+in zero-shot pruning, demonstrating its ability to generalize across different datasets
+without prior training on the target domain.
+                                                                                                                                                  AdaptiveSplat                             Q
+
+Table Q: Out-of-distribution performance comparison: Model trained on RE10K and
+evaluated on DTU
+
+ Method                                     β = 0.4            β = 0.5            β = 0.6            β = 0.7            β = 0.8            β = 0.9
+                                      PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+ NoPoSplat                            16.18   0.4053   0.5160   15.22   0.4453   0.4678   14.05   0.4857   0.4127   12.62   0.5258   0.3489   10.97   0.5674   0.2739   9.00    0.6146   0.1789
+ NoPo + LightGaus                     16.26   0.3547   0.5033   15.10   0.3981   0.4482   13.50   0.4522   0.3791   11.93   0.5114   0.2983   10.40   0.5693   0.2082   8.80    0.6339   0.1165
+ Ours                                 16.19   0.4073   0.4746   16.14   0.4153   0.4693   16.02   0.4252   0.4606   15.81   0.4368   0.4513   15.38   0.4519   0.4389   14.29   0.4764   0.4232
+
+
+
+
+                                     Context                            DWT                                GT                PUP-3DGS(𝛽=0.8)                        Ours (𝛽=0.8)
+          Light Induced High Freq
+Scene 1
+          Specular Highlight
+Scene 2
+
+
+
+
+Fig. S: DWT misassigns high energy to a small sub-region of a flat SuperCluster,
+degrading quality at high β.
+
+
+
+G                                   Failure Case
+
+DWT limitation examples: As shown in Fig. S, due to light-induced high fre-
+quencies and specular highlights, DWT provides a misleading signal by assigning
+high energy to Gaussians concentrated in a small sub-region within the marked
+flat SuperCluster. This results in noticeable degradation at high β, whereas our
+method preserves quality in the remaining region. Addressing this limitation is
+left for future work.
+
+
+H                                   Additional Ablation
+H.1                                 Choice of k in K-Means Clustering
+
+Our scene partitioning relies on k-means clustering to form SuperClusters. An
+ablation study on the ACID dataset (Tab. R) reveals that increasing k generally
+improves reconstruction quality. This is because a higher k yields finer-grained
+SuperClusters, enabling more precise identification of low-texture regions and,
+consequently, more judicious placement of larger 3D Gaussians for an optimized
+trade-off between sparsity and visual fidelity. However, increasing k beyond 300
+yields only marginal improvements in quality while significantly increasing train-
+ing time. Tab. S further reports the contribution of each component (GS Head
+training, contextual mask, structured pruning) on ACID at β = 0.4 and β = 0.9.
+R       Singhal et al.
+
+Table R: Trade-off Between k and Resource Usage in Pruning. Comparison of
+results at different pruning stages for various k values used in scene partitioning. The
+second column shows the memory consumed during k − means clustering for each k.
+A higher k generally allows for finer partitioning but also increases runtime.
+
+ ACID                      β = 0.4                              β = 0.9
+k value      PSNR↑        LPIPS↓        SSIM↑       PSNR↑        LPIPS↓        SSIM↑
+    k=5       22.359        0.298        0.643       18.054        0.386        0.547
+    k=10      22.414        0.298        0.642       18.057        0.385        0.547
+    k=50      22.416        0.303        0.636       18.063        0.385        0.547
+    k=100     22.488        0.301        0.638       18.066        0.385        0.547
+    k=300     22.549        0.299        0.640       18.476        0.379        0.553
+    k=400     22.559        0.298        0.641       18.146        0.383        0.548
+
+
+
+H.2     Choice of γ values and percentage of retained 3D Gaussians
+Tab. T presents the results of our method when retaining various percentages
+of 3D Gaussians within low-texture SuperClusters. We observe that retaining
+γ = 0.10 (10%) of 3D Gaussians yields the best performance, with this optimal
+balance becoming particularly evident at high pruning levels (e.g., 13k (β = 0.9)
+3D Gaussians). This is because aggressive pruning necessitates a precise bal-
+ance of sparse, representative Gaussians that can effectively fill vacated regions
+without creating excessive overlap or redundancy. We notice that with increas-
+ing γ of primitives in a low-texture SuperCluster, we see a drop in the novel
+view metric. This is because increasing γ leads to redundant Gaussians in the
+same region, which leads to suboptimal quality. This insight is also exploited in
+previous works such as LightGaussian, MiniSplatting, GenerativeDensification,
+EAGLES, etc.
+
+H.3     Pruning by choosing SuperClusters randomly:
+Another ablation we perform is where we remove the texture aware pruning and
+choose SuperClusters randomly instead of taking texture into account. This way
+we are pruning the 3D Gaussians within a SuperCluster but the SuperCluster
+is chosen randomly. The results for the ablation are presented in Tab. U and
+Fig. T for RE10K dataset and in Tab. V for ACID dataset. The table shows
+that texture aware selection of SuperCluster is providing better results in most
+of the cases compared to random selection. Fig. U shows results for artifacts
+observed in case we use random SuperCluster for pruning rather than texture
+based method.
+
+H.4     Additional Ablation on RE10K
+
+We include extended ablations on RE10K across both moderate and aggressive
+pruning levels in Tab. W and Fig. V. These results confirm that each module
+                                                                              AdaptiveSplat              S
+
+Table S: Ablation on ACID dataset. We ablate various components of our method,
+demonstrating their importance.
+
+          Ablation                         β = 0.4            β = 0.9
+          Component                  PSNR↑ LPIPS↓ SSIM↑ PSNR↑ LPIPS↓ SSIM↑
+          w/o GS Head Training         17.44     0.445     0.490      9.20     0.688     0.118
+          Random Pruning Baseline      22.53     0.305     0.653      17.50    0.392     0.544
+          w/o Contextual Mask          22.52     0.318     0.642      17.62    0.424     0.529
+          Ours (Full)                 22.55      0.299     0.639     18.48    0.379      0.552
+
+
+Table T: Empirical results on retaining different percentages of 3D Gaussians in low
+texture SuperCluster, from the results we conclude that retaining γ = 0.10 3D Gaus-
+sians yields the best results
+
+                                              ACID Dataset
+                                    β = 0.4                                   β = 0.9
+          γ         PSNR↑       LPIPS↓            SSIM↑            PSNR↑       LPIPS↓            SSIM↑
+       γ = 0.05     21.796           0.347         0.608           17.327       0.430            0.526
+       γ = 0.10     22.549           0.299         0.640           18.106       0.384            0.548
+       γ = 0.15     21.587           0.352         0.589           17.053       0.494            0.429
+       γ = 0.2      22.262           0.304         0.629           17.452       0.451            0.496
+
+
+Table U: Ablation results on RE10K dataset to support texture based SuperCluster
+Selection. Here we chose SuperClusters randomly instead of using texture.
+
+              β Value    Texture Info              PSNR↑            LPIPS↓         SSIM↑
+                         No Texture                 20.73             0.260            0.714
+              0.4
+                         Ours                       22.29             0.235            0.735
+                         No Texture                 20.22             0.269            0.705
+              0.5
+                         Ours                       22.24             0.238            0.732
+                         No Texture                 19.69             0.279            0.695
+              0.6
+                         Ours                       22.11             0.243            0.726
+                         No Texture                 19.13             0.288            0.684
+              0.7
+                         Ours                       21.77             0.252            0.716
+                         No Texture                 18.54             0.298            0.671
+              0.8
+                         Ours                       20.74             0.273            0.693
+
+
+
+- Gaussian Adaptation, Masking, and Structured Pruning plays a distinct and
+essential role.
+    Key insights from RE10K ablations:
+ – Without Gaussian Adaptation: feed forward representation collapses un-
+   der strong pruning (13K), showing that adapting the remaining Gaussians
+   is critical for maintaining scene coverage.
+T       Singhal et al.
+
+                      GT       𝛽=0.4     𝛽=0.5        𝛽=0.6         𝛽=0.7
+
+
+
+
+         Ours
+         Wo Texture
+
+
+
+
+       Fig. T: Ablation on RE10K when SuperClusters are selected randomly.
+
+                           𝛽             𝛽                      𝛽
+
+
+
+
+Fig. U: Results of Ablations on RE10K: The ablation method begins to lose
+information around the edges of the chair, particularly in the circular area, while our
+method retains the details more effectively.
+
+                      GT       𝛽=0.4      𝛽=0.5       𝛽=0.6         𝛽=0.7
+         Ours
+         Wo Mask
+
+
+
+
+         Fig. V: Ablation on RE10K when the binary mask is not provided.
+                                                                   AdaptiveSplat           U
+
+Table V: Ablation results on ACID dataset to support wavelet based SuperCluster
+Selection
+
+           β Value       Texture Info      PSNR↑          LPIPS↓      SSIM↑
+                         No Texture          21.31        0.326        0.623
+           0.4
+                         Ours                22.55        0.299        0.640
+                         No Texture          20.89        0.335        0.615
+           0.5
+                         Ours                22.47        0.303        0.635
+                         No Texture          20.44        0.344        0.606
+           0.6
+                         Ours                22.31        0.311        0.627
+                         No Texture          19.96        0.353        0.596
+           0.7
+                         Ours                21.96        0.322        0.615
+                         No Texture          19.42        0.362        0.586
+           0.8
+                         Ours                21.06        0.342        0.594
+
+Table W: Ablation study on the RE10K dataset across different pruning regimes. The
+results highlight the contribution of each design component.
+
+                                        β = 0.4                        β = 0.9
+Ablation                      PSNR↑     LPIPS↓    SSIM↑     PSNR↑      LPIPS↓      SSIM↑
+Without Gaussian Adaptation   19.809    0.399     0.617     8.066      0.680       0.131
+Without Mask                  20.055    0.339     0.656     18.090     0.389       0.625
+Random Pruning Baseline       22.452    0.239     0.744     16.580     0.458       0.486
+Ours                          22.294    0.235     0.735     17.848     0.314       0.645
+
+
+
+
+ – Without Mask: performs notably worse than the full model, demonstrating
+   the importance of contextual, texture-aware selection rather than uniform
+   or naïve pruning.
+ – AdaptiveSplat: consistently outperforms all ablations at high compression,
+   validating the necessity of jointly learning masks and adaptive Gaussian
+   updates.
+

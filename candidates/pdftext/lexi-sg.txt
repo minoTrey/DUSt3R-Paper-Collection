@@ -1,0 +1,566 @@
+                                            LEXI-SG: Monocular 3D Scene Graph Mapping with Room-Guided
+                                                            Feed-Forward Reconstruction
+                                                       Christina Kassab∗1 , Hyeonjae Gil∗2 , Matı́as Mattamala3 , Ayoung Kim2 , Maurice Fallon1
+
+
+                                            Abstract— Scene graphs are becoming a standard represen-
+                                         tation for robot navigation, providing hierarchical geometric
+                                         and semantic scene understanding. However, most scene graph                                                               Rooms
+                                         mapping methods rely on depth cameras or LiDAR sensors.
+                                         In this work, we present LEXI-SG, the first dense monocular
+                                         visual mapping system for open-vocabulary 3D scene graphs
+arXiv:2605.13741v1 [cs.RO] 13 May 2026
+
+
+
+
+                                         using only RGB camera input. Our approach exploits the
+                                         semantic priors of open-vocabulary foundation models to parti-
+                                         tion the scene into rooms, deferring feed-forward reconstruction
+                                         to when each room is fully observed—enabling scalable dense                                                            Trajectory
+                                         mapping without sliding-window scale inconsistencies. We pro-
+                                         pose a room-based factor graph formulation to globally align
+                                         room reconstructions while preserving local map consistency
+                                         and naturally imposing the semantic scene graph hierarchy.
+                                         Within each room, we further support open-vocabulary object                                                               Objects
+                                         segmentation and tracking. We validate LEXI-SG on indoor
+                                         scenes from the Habitat-Matterport 3D and self-collected ego-
+                                         centric office sequences. We evaluate its performance against
+                                         existing feed-forward SLAM methods, as well as established
+                                         scene graphs baselines. We demonstrate improved trajectory
+                                         estimation and dense reconstruction, as well as, competitive
+                                         performance in open-vocabulary segmentation. LEXI-SG shows
+                                         that accurate, scalable, open-vocabulary 3D scene graphs can
+                                         be achieved from monocular RGB alone. Our project page and                                                      Reconstruction
+                                         office sequences are available here.
+
+                                                               I. INTRODUCTION
+                                            3D scene graphs represent scenes sparsely and
+                                         hierarchically—capturing both high-level semantic regions
+                                         like rooms and individual objects. These representations
+                                                                                                                  Fig. 1: LEXI-SG is the first dense monocular mapping
+                                         offer several advantages for autonomous robotic systems:
+                                                                                                                  system to build open-vocabulary 3D scene graphs from
+                                         they support downstream tasks such as navigation [1], can
+                                                                                                                  RGB input alone. We first partition the incoming image
+                                         operate in real-time [2], and can scale to large environments
+                                                                                                                  stream room by room. Within each room, we jointly estimate
+                                         [3]. Recent work has further enhanced their generalizability
+                                                                                                                  camera trajectories and dense geometry using feed-forward
+                                         by grounding open-vocabulary language models into scene
+                                                                                                                  reconstruction models, amortizing expensive model queries
+                                         graph representations [4], [5].
+                                                                                                                  while ensuring local scale consistency. The room graph
+                                            However, current methods typically require high-quality
+                                                                                                                  is then expanded to a full 3D scene graph using open-
+                                         depth and pose estimates [2], [1], [4], which presents a
+                                                                                                                  vocabulary object segmentation.
+                                         practical challenge in real-world deployments where such
+                                         inputs may be noisy or unavailable. Constructing and main-
+                                         taining accurate scene representations in real-world scenarios           leveraging scene semantics for pose estimation [9], [10].
+                                         requires robust localization and mapping. Two decades of                 These methods require careful calibration procedures along
+                                         SLAM research has provided a foundation for this task [6],               with complex front-end engineering to achieve high perfor-
+                                         [7], [8], with semantic SLAM systems extending this by                   mance and robustness in real settings.
+                                                                                                                     Recently, feed-forward reconstruction models [11], [12],
+                                           ∗ Indicates equal contribution
+                                                                                                                  [13] have emerged as a new reconstruction paradigm. By
+                                           1 Christina Kassab and Maurice Fallon are with the Department of
+                                                                                                                  leveraging large sets of training samples, these models can
+                                         Engineering Science, University of Oxford, UK. Email: {christina,
+                                         mfallon}@robots.ox.ac.uk                                                 infer dense reconstruction and pose estimates from uncali-
+                                           2 Hyeonjae Gil and Ayoung Kim are with the Department of Mechanical
+                                                                                                                  brated camera setups without additional sensing. While their
+                                         Engineering, Seoul National University, South Korea. Email: {h.gil,      reconstruction capabilities in smaller scenes (e.g., rooms)
+                                         ayoungk}@snu.ac.kr
+                                           3 Matı́as Mattamala is with the School of Informatics, University of   is impressive and more flexible than engineered pipelines,
+                                         Edinburgh, UK. Email: matias.mattamala@ed.ac.uk                          scalability is limited. Recent work has sought to integrate
+                                                              Room-Based Reconstruction                                                           Current     Transition Edge Estimation
+                                            Room transition
+                                            detected                                                                                              Batch
+                                                                              Subsample
+                                                                              previous batch
+                     DINO                                                                             MapA
+                                                                                                                                                                              Transition Pairs
+                                                                                                                                          Depth
+                                                                                                                                          &                 Previous
+                                                                                                                                          Poses             Batch
+
+                                                                                                                                                                       Transition
+                                                                                                                                                                       Edges
+
+
+                                  Loop Closure                                                                                                                               Optimisation
+                                                                                                                 Object Segmentation &
+                                                                                                                             Tracking
+                                                                                               DINO
+
+
+                                                                                                      Per-view       Merge
+                                                                 2D Object Tracking
+                                                                                                      features
+   Room A      Room B              Room C
+
+            Loop Closure Found?                                                                                              Per-object
+                                                                                                                              feature
+
+             Merge Batches &                                       3D Overlap Check
+             Recalculate Edges
+
+
+
+
+Fig. 2: LEXI-SG System Overview. RGB frames are segmented into rooms using DINO features. Upon detecting a room
+transition, the accumulated batch is passed through a feed-forward model (MapAnything—MapA in the figure) to produce
+per-frame depths and poses in a local room frame. Transition edges are estimated by feeding transition frame pairs through
+the same model. New rooms are checked for loop closures, with any match triggering a merge. Once finalized, rooms are
+processed by the object segmentation module. The pose graph is then globally optimized over Sim(3).
+
+these models into minimal “plug-and-play” SLAM systems                                                          Object-centric methods typically extract segments using
+to reconstruct larger scenes [14], [15], [16]. Integrating feed-                                             instance segmentation techniques, either in 2D using models
+forward SLAM methods with semantic scene representations                                                     such as SAM [2], [1], [20] or directly in 3D [4]. In the former
+remains largely unexplored, particularly at scale.                                                           case, segments are projected into 3D using depth images and
+   In this work, we present LEXI-SG (Language EXtended                                                       temporally fused to create coherent scene representations.
+Indoor Scene Graphs), a unified system for dense monocular                                                   Spatial relationships between objects can be encoded as
+mapping and semantic scene graph construction. Unlike                                                        edges connecting object nodes, as demonstrated in Concept-
+current feed-forward SLAM systems, LEXI-SG defers re-                                                        Graphs [2]. Other works extend this with higher-level layers
+construction until each room is fully observed, amortizing                                                   such as rooms in HOV-SG [1]. Clio [5] optimizes efficiency
+model queries while improving both scale consistency and                                                     by generating task-specific, compact scene graphs [5].
+scene understanding. Our contributions are:                                                                     In contrast dense methods assign semantic features to ev-
+  • LEXI-SG, the first dense monocular SLAM system that                                                      ery 3D point, bypassing explicit object segmentation. Open-
+    builds an open-vocabulary 3D scene graph from RGB                                                        Scene [21] and ConceptFusion [22] distill CLIP features into
+    alone, without depth, or ground-truth pose input.                                                        3D point clouds, while LERF [23] embeds CLIP descriptors
+  • A vision-only room identification method that detects                                                    directly into a radiance field. Rayfronts [24] extends dense
+    transitions using DINO.                                                                                  mapping beyond the depth range using semantic rays at
+  • A room-based reconstruction strategy that defers feed-                                                   map frontiers. While these methods offer fine-grained spatial
+    forward inference until a room is fully observed, avoid-                                                 resolution, they are often more computationally expensive
+    ing sliding-window scale inconsistencies.                                                                compared to object-centric representations.
+  • A Sim(3) room-level factor graph that globally aligns                                                       These methods typically rely on high-quality depth im-
+    per-room reconstructions while preserving local consis-                                                  ages which limits their use in real-world settings. LEXI-
+    tency and correcting monocular scale ambiguity.                                                          SG addresses this gap by constructing an open-vocabulary
+  • An open-vocabulary segmentation module that lifts 2D                                                     scene graph from monocular RGB input alone, leveraging
+    mask tracklets into the scene graph as 3D object nodes.                                                  feed-forward reconstruction in place of depth sensors and
+  • Evaluations on SLAM and scene graph tasks on stan-                                                       removing the dependency on ground truth poses.
+    dard datasets and self-collected office recordings.
+                                                                                                             B. Feed-Forward Monocular SLAM
+                             II. R ELATED W ORK                                                                 Visual SLAM has been studied for more than two decades
+                                                                                                             with many generations of engineered methods proposed
+A. 3D Scene Understanding using Foundation Models
+                                                                                                             for camera motion estimation and 3D scene reconstruction.
+   Recent open-vocabulary 3D scene understanding methods                                                     These approaches typically rely on feature extraction and
+have leveraged advances in visual foundation models such as                                                  tracking [6] or the minimization of photometric error [25] to
+CLIP [17], SAM [18] and DINO [19]. These representations                                                     estimate camera motion and reconstruct 3D scene structure.
+can be broadly categorized into two types: object-centric [2],                                               While effective in well-conditioned settings, they require
+[1], [20], such as scene graphs, and dense, which provide                                                    careful calibration and engineering, and remain brittle under
+per-pixel or per-point semantic representations [21], [22].                                                  challenging illumination, motion blur, or low-texture scenes.
+   Recent advances in feed-forward 3D reconstruction mod-
+els, such as MASt3R [12], VGGT [11] and MapAny-
+                                                                                                Room
+thing [13], have demonstrated the ability to infer dense geom-
+etry and camera poses directly from multi-view inputs. This
+has motivated a growing body of research on SLAM systems
+that can operate without camera intrinsics yet can still
+generate dense scene representations. MASt3R-SLAM [14]
+couples MASt3R’s two-view pointmap predictions with a
+tracking and global optimization back-end. Similarly, ViSTA-                 Room
+SLAM [16] predicts per-pair dense pointmaps and relative
+poses using a symmetric two-view association network.            Fig. 3: Transition edge estimation. The relative transform
+In contrast, VGGT-based approaches [15], [26] construct          Tri rj between adjacent rooms is estimated by retrieving
+submaps in a rolling manner and use pose graph optimization      transition image pairs (p, q) and computing Tpq via a feed-
+to minimize scale and spatial drift between submaps.             forward reconstruction model.
+   While LEXI-SG also uses feed-forward reconstruction
+models, it does not use them on a sliding-window basis, but      as E = ERR ∪ ERO . Room-to-room edges eri rj ∈ ERR
+instead exploits semantic information across different levels    connect neighboring room nodes and encode the relative
+to guide the reconstruction and pose estimation process. We      transformation Tri rj between their local reference frames.
+demonstrate that using room-level semantics can improve the      Room-to-object edges eri oi ∈ ERO connect each object node
+reconstruction results, refine the pose estimates, and enable    to its parent room node and encode the relative pose Tri oi
+scalable scene graph construction.                               of the object frame in the room’s local reference frame.
+                                                                 Room Pose Graph. For global optimization we operate on
+C. Semantic SLAM Systems
+                                                                 a sub-graph of G obtained by restricting to the room layer,
+   Semantic SLAM systems aim to tightly couple seman-
+tic and geometric information to jointly estimate camera                            GP = (VR , ERR ) ⊆ G,                   (1)
+poses and build scene representations. Early methods such        which we refer to as the room pose graph. Its nodes are the
+as SLAM++ [10] and CubeSLAM [27] integrate object                room reference poses Tri and its edges are the room-to-room
+detections into the SLAM pipeline to jointly optimize camera     relative transforms Tri rj , instantiated either as transition
+poses and object landmarks. Inspired by these works, LEXI-       edges between temporally adjacent rooms (Sec. III-D) or
+SG extends the tight coupling of semantics and geometry to       as loop closure edges between revisited rooms (Sec. III-
+a monocular feed-forward setting. Room-level information         E). The room pose graph is a Sim(3) pose graph and its
+is used to adaptively batch inputs for globally consistent       optimization is described in Sec. III-G. Room-to-object edges
+reconstruction and to guide object segmentation and tracking,    ERO encode parent–child containment in the hierarchy and
+producing a full 3D scene graph without depth sensors or         are not optimized.
+ground truth poses.
+                                                                 C. Room-Based Reconstruction
+                       III. M ETHOD
+                                                                    A common way to integrate feed-forward reconstruction
+A. System Overview                                               models into a SLAM pipeline is to query them on a sliding
+  A system overview of LEXI-SG is presented in Fig 2.            window basis. However, this strategy produces locally in-
+The only input to the system is a stream of RGB images.          consistent geometry across overlapping windows, leading to
+The system maintains a room pose graph for optimization          double-walled surfaces and scale drift—all of which degrades
+and incrementally populates a 3D scene graph with room           downstream object-level mapping. To avoid these limitations,
+and object nodes as output. The main modules of the              we propose a room-aware strategy that defers reconstruction
+system are: room-based reconstruction, object segmentation       until a room has been fully observed, and then reconstructs
+and tracking, loop closure, and global optimization.             it once from a single, curated batch of views. This results in
+                                                                 a minimal but effective approach.
+B. Graph Structure                                                  For each incoming frame, our system extracts DINO
+3D Scene Graph. The scene is represented as a hierarchical       features ft , which are compared against text encodings of
+graph G = (V, E) with two layers of nodes and two types of       transition cues (e.g. ‘doorways’ and ‘corridors’) yielding a
+edges. We denote nodes as V = VR ∪ VO . VR is the set of         per-frame semantic label. Since these predictions can be
+room nodes and VO is the set of object nodes.                    noisy, room transitions are governed by a hysteresis mech-
+   Each room node vri ∈ VR has an associated local               anism: a running confidence score is accumulated across
+reference frame Fri with reference pose Tri ∈ Sim(3),            frames, and a room transition is only triggered when this
+and a point cloud Pri . Each object node voi ∈ VO has an         score crosses a threshold. This requires there be a sustained
+associated frame oi with pose Tri oi ∈ Sim(3) expressed          signal to confirm a transition.
+relative to its parent room frame ri , a point cloud Poi ,          Upon detecting a room transition, the frames accumulated
+and a semantic feature vector foi . The edge set decomposes      since the last transition are finalized as a batch. A small
+        ViSTA-SLAM                         VGGT-SLAM                     MASt3R-SLAM                        LEXI-SG
+
+
+
+
+                                              Aria Ground Floor Sequence 3
+
+
+
+
+                                                   HM3D Sequence 824
+
+
+
+
+                                                   HM3D Sequence 829
+
+Fig. 4: Qualitative reconstruction results on our office dataset AOD and HM3D. LEXI-SG produces more accurate,
+globally consistent reconstructions with minimal double-walling and greater robustness across a range of indoor sequences.
+
+number of frames from the end of each batch are carried             frame indices in Fri and Frj respectively, the two images
+forward as an overlap into the following segment, ensuring          are passed through the feed-forward reconstruction model to
+continuity across rooms. The finalized batch is subsampled          obtain their relative transform Tpq . Here, Tri p denotes the
+and passed through a feed-forward reconstruction model,             pose of frame p expressed in Fri , and Trj q denotes the pose
+which converts the images into a dense 3D point cloud               of frame q expressed in Frj . The transform between the two
+together with per-frame depth estimates and poses defined           room reference frames is then recovered as:
+relative to the local reference frame Tri , anchored at the
+first image of the batch. This reference frame is subsequently                        Tri rj = Tri p · Tpq · T−1
+                                                                                                              rj q               (2)
+incorporated as a node in the room pose graph. In this way,         This process is repeated for all transition pairs, yielding a set
+each room is reconstructed exactly once from its full set           of transform estimates {Tri rj } which are stored as room-to-
+of observations, naturally reducing double-walling and scale        room edges eri rj ∈ ERR in the room pose graph.
+inconsistencies inherent in sliding-window approaches.
+                                                                    E. Loop Closure
+D. Transition Edge Estimation
+                                                                       As the agent traverses the environment, it may revisit
+   To construct an edge between two adjacent room nodes             previously observed rooms. To detect this, the loop closure
+vir and vjr , we estimate the relative transformation Tri rj        module maintains a database of room nodes encountered so
+between their respective local reference frames Fri and Frj .       far, and checks each newly finalized room node against this
+As illustrated in Fig. 3, this is achieved by retrieving a set of   database for potential matches.
+transition image pairs. We assume that the boundary between            For each new room node vri , its image features are
+two rooms is observed in the final frames of the preceding          compared against those of every room in the database using
+batch and the initial frames of the following batch.                cosine similarity. A candidate match vrj is confirmed if the
+   For each transition pair (p, q), where p and q denote            number of image feature pairs with a similarity score above
+TABLE I: Chamfer distance evaluation (m) on self-collected scenes from an office environment. X denotes rooms for
+which a valid reconstruction could not be recovered.
+                                                   Floor 1                                                       Ground Floor
+                     Room 0    Room 1    Room 2    Room3     Room 4   Room 5    Corridor       Room 0          Room 1 Room 2              Corridor
+ViSTA-SLAM            0.255       X       0.365       X      0.153     0.193        0.416         X               X           X               X
+VGGT-SLAM Sim(3)      0.215       X         X         X        X         X            X           X               X           X               X
+MASt3R-SLAM           0.203     0.225     0.201     0.210      X         X          0.163       0.213           0.152       0.130           0.147
+LEXI-SG               0.114     0.147     0.136     0.170    0.128     0.148        0.085       0.126           0.095       0.235           0.093
+
+
+
+τs exceeds a threshold τr . Upon finding a candidate match,      TABLE II: Absolute trajectory error (ATE (m)) on se-
+the image sets of the two nodes are merged to form a unified     lected scenes from Habitat-Matterport 3D. X denotes
+room batch. This merged batch is passed through the feed-        failed sequences or sequences with more than 2m of error.
+forward reconstruction model to produce a new set of local                             824      829      843      847      873      877       890
+poses and a unified room reconstruction, yielding a candidate    ViSTA-SLAM           0.351    0.309    1.154     1.884     X       0.576       X
+node ṽr with local reference frame Fr̃ that replaces both vri   VGGT-SLAM SL(4)        X        X        X         X       X         X         X
+                                                                 VGGT-SLAM Sim(3)     1.153    0.849    1.777     1.431     X       0.872     0.613
+and vrj in the room pose graph.                                  VGGT-SLAM 2          0.703    0.611    0.620       X     0.477     0.955     0.553
+   Before finalizing the merge, the geometric consistency        MASt3R-SLAM          0.693      X      1.521     0.717     X         X       1.695
+                                                                 LEXI-SG              0.343    0.143    0.628     0.461     X       0.554     0.712
+of the candidate node with its neighbors must be verified.
+For each room node vrk that shares a room-to-room edge
+with either vri or vrj , a new relative transformation Tr̃rk     TABLE III: Absolute trajectory error (ATE (m)) from
+is estimated via pairwise boundary frame matching, as de-        the Aria office environment. X denotes failed sequences or
+scribed in Sec. III-D. The merge is only accepted if valid       sequences with more than 2m of error.
+transformations can be estimated for all affected edges.                                      Floor 1                  Ground Floor
+                                                                                      Seq 1    Seq 2    Seq 3     Seq 1 Seq 2      Seq 3      avg
+   If the merge is accepted, the two original nodes are
+                                                                 ViSTA-SLAM           0.840    1.038    1.405     0.668   0.291     1.651     0.982
+removed from the room pose graph and replaced by the             VGGT-SLAM SL(4)      1.194      X        X       0.745   0.804       X         -
+candidate node ṽr . All room-to-room edges ERR previously       VGGT-SLAM Sim(3)     1.320    0.751    0.469     0.787   0.503       X         -
+                                                                 VGGT-SLAM 2          1.037    0.586      X       0.548   0.485       X         -
+incident to vri or vrj are deleted and replaced by the newly     MASt3R-SLAM          0.302      X      0.294     0.241   0.139     0.296       -
+verified loop closure edges connecting ṽr to its neighbors.     LEXI-SG              0.166    0.277    0.277     0.647   0.201     0.262     0.305
+The candidate node is then added to the database, and the
+original entries are removed. If no match is found, or if
+edge verification fails, the new node is added to the database   G. Global Optimization
+unchanged and the graph remains unmodified.                         We globally optimize the room pose graph GP =
+                                                                 (VR , ERR ) over the Sim(3) Lie group to minimize inconsis-
+F. Open-Vocabulary Object Segmentation and Tracking              tencies introduced by accumulated drift and noisy pairwise
+                                                                 estimates, allowing the optimizer to correct for the scale
+   Once a room has been finalized and any loop closures
+                                                                 ambiguity inherent in monocular reconstruction. Only the
+resolved, its image frames (drawn from the room’s existing
+                                                                 room reference poses Tri are optimized; object poses Tri oi ,
+batch) are passed to the object segmentation and tracking
+                                                                 stored in room-local frames, update implicitly, so the full 3D
+module, which populates the room with child object nodes
+                                                                 scene graph remains globally consistent. The resulting factor
+to complete the scene graph hierarchy.
+                                                                 graph is solved using the Levenberg–Marquardt optimizer.
+   Given RGB-D sequences for each room processed with a
+feed-forward reconstruction model, per-frame object masks                                   IV. E XPERIMENTS
+are generated using Recognize Anything [28] and Grounding
+Dino [29]. We use a SAM2-based [18] tracking module              A. Experimental Setup
+to propagate each seed mask to adjacent frames and form             We validated LEXI-SG across four standard SLAM and
+object-centric tracklets across views. This propagation step     scene graph tasks: Pose Estimation (Task 1), Dense Recon-
+turns an originally single-view signal into a multi-view         struction (Task 2), Room Segmentation (Task 3), and Open-
+signal, which provides a stronger support for subsequent         Vocabulary Object Segmentation (Task 4).
+3D object reconstruction. It also makes cross-view mask             All experiments are run on a workstation with an NVIDIA
+association possible directly in image space through mask-       RTX 4090 GPU. We provide the technical details of the
+level overlap, not solely relying on the 3D point cloud          LEXI-SG configuration, baselines, and datasets as follows.
+overlap. The propagated and merged mask tracklets are            LEXI-SG. We use MapAnything [13] as the feed-forward
+lifted into object-level point clouds. Each object point cloud   reconstruction model throughout, with a batch size of 60
+becomes an object node voi ∈ VO with pose Tri oi expressed       to ensure sufficient frame coverage across larger rooms and
+in the parent room frame and attached via a room-to-object       corridors. MapAnything was selected over models such as
+edge eri oi ∈ ERO completing the scene graph hierarchy.          VGGT and DepthAnything3 despite its marginally lower
+TABLE IV: Room segmentation evaluation. Precision and
+recall are calculated based on the metric provided by Hy-
+dra [31]. Hydra, HOV-SG and LEXI-SG GT use ground truth
+poses and RGB-D images in this experiment.
+                         824    829    843    873    877    890    Avg
+             LEXI-SG     0.52   0.58   0.77    X     0.54   0.62    -
+            LEXI-SG GT   0.56   0.75   0.77   0.78   0.59   0.81   0.71
+Precision
+              HOV-SG     0.81   0.86   0.88   0.95   0.74   0.94   0.86
+               Hydra     0.79   0.88   0.87   0.96   0.81   0.95   0.88
+             LEXI-SG     0.85   0.98   0.69    X     0.86   0.74    -
+            LEXI-SG GT   0.96   0.91   0.74   0.85   0.78   0.93   0.86
+ Recall
+              HOV-SG     0.80   0.88   0.87   0.67   0.92   0.87   0.84                      Aria Floor 1 Sequence 3
+               Hydra     0.78   0.85   0.78   0.80   0.88   0.62   0.79
+
+
+
+pose estimation accuracy because our experiments show that
+it is more robust in long corridors. However, LEXI-SG could
+be easily adapted to other similar models.
+Baselines. For Camera Pose Estimation (Task 1) and Dense
+Reconstruction (Task 2) we compared against MASt3R-
+SLAM [14], the Sim(3) and SL(4) variants of VGGT-                                            HM3D 877 First Floor
+SLAM [15], VGGT-SLAM2 [30] and ViSTA-SLAM [16].
+                                                                          Fig. 5: Qualitative room segmentation results on the AOD
+    For Room Segmentation (Task 3) we compared against
+                                                                          and HM3D sequences. Our approach reliably delineates
+HOV-SG [1] and Hydra [31]. For Open-Vocabulary Object
+                                                                          room boundaries by detecting transitional structures (such
+Segmentation (Task 4) we compared against comparable
+                                                                          as doorways and corridors) from RGB input alone—without
+object-centric methods such as ConceptGraphs [2].
+                                                                          relying on a depth sensor or geometric priors.
+Datasets. For pose estimation and reconstruction (Tasks 1
+and 2), we evaluate on multi-room datasets rather than single-               On the AOD sequences, MASt3R-SLAM achieves the
+room benchmarks such as TUM RGB-D [32], since a single                    second best performance. The performance of LEXI-SG on
+room constitutes one batch and would evaluate the feed-                   ground floor sequences 1 and 2 is reduced by some room
+forward model alone rather than our full system.                          segmentation errors, where portions of a large meeting room
+    Therefore, we evaluate on sequences from Habitat-                     are misclassified as corridor. As shown in Fig. 4, improved
+Matterport 3D (HM3D) [33], a large-scale dataset of multi-                pose estimation translates directly to more globally consistent
+room, multi-floor indoor home environments. Furthermore,                  reconstructions, with minimal double-walling and reduced
+we used self-collected sequences from a two-floor office                  overlap between adjacent rooms.
+environment recorded using Meta’s Project Aria glasses (Gen                  We attribute these gains to our room-based reconstruc-
+1) which we call the Aria Office Dataset (AOD). AOD                       tion: deferring feed-forward inference until a room is fully
+contains six sequences in total, three per floor, each spanning           traversed gives each batch maximal co-visibility, improving
+between 2 and 6 rooms and including loop closures. We treat               per-room reconstruction quality and reducing the drift that
+the output poses from the Meta’s multi-camera visual-inertial             accumulates when chaining many sliding-window batches.
+SLAM system as ground-truth. Although atypical, this sys-
+                                                                          C. Task 2 – Dense Reconstruction
+tem has been shown to achieve sub-centimetre accuracy in
+indoor settings [34], providing reliable ground truth. We use                We segment the reconstructed scenes from each method
+only the rectified forward-facing RGB camera with an FoV                  into individual rooms and evaluate the resulting geometry
+of 110◦ from the glasses in our experiments.                              against ground-truth terrestrial laser scans using the AOD
+    The semantic evaluations (Tasks 3 and 4) were performed               sequences. We use the same set of baselines listed above.
+using the protocol defined in OpenLex3D [35].                                To evaluate reconstruction accuracy we present chamfer
+                                                                          distance results in Tab. I. We calculate the chamfer distances
+B. Task 1 – Camera Pose Estimation                                        in the same manner as MASt3R-SLAM [14]. We denote
+   Results for HM3D and AOD sequences are presented                       with an X any rooms for which a valid reconstruction could
+in Tabs. II and III respectively. LEXI-SG achieves the                    not be recovered. On average LEXI-SG achieves the lowest
+lowest average trajectory error across the datasets. On                   reconstruction error, with MASt3R-SLAM achieving the
+HM3D, VGGT-SLAM2 achieves the next best performance,                      next best results. ViSTA-SLAM and VGGT-SLAM produced
+though all monocular methods struggle on the larger-scale                 reconstructions with overlapping rooms, though a small num-
+sequences. The SL(4) variant of VGGT-SLAM regularly                       ber of rooms could still be extracted and evaluated. VGGT-
+diverges on HM3D, with Sim(3) proving more stable. Our                    SLAM2 was excluded, as it either produced overlapping
+room-based image batching approach yields improvements                    rooms or failed to converge.
+on these sequences, demonstrating how monocular feed-                        Fig 4 shows qualitative comparisons with baseline meth-
+forward SLAM can be scaled to large environments.                         ods. Our room-based batching approach achieves greater
+                                                                              TABLE V: Semantic Segmentation Results on the Open-
+                                                                              Lex3D Benchmark (using ground-truth poses and depth).
+                                                                              S is the FREQ at synonyms, D is depictions, VS is visually
+                                                                              similar, C is clutter, M is missing and I is incorrect.
+                                                                               Data         Method              S ↑    D↓     VS ↓    C ↓     M ↓    I ↓
+                                                                                            ConceptGraphs [2]   0.41   0.01   0.11    0.24    0.02   0.22
+
+
+
+
+                                                                                Replica
+                                                                                            HOV-SG [1]          0.45   0.00   0.05    0.27    0.07   0.16
+                                                                                            OpenMask3D [4]      0.43   0.01   0.07    0.29    0.10   0.10
+                                                                                            LEXI-SG             0.42   0.00   0.07    0.19    0.16   0.16
+
+
+
+
+                                                                                ScanNet++
+                                                                                            ConceptGraphs [2]   0.26   0.02   0.05    0.10    0.13   0.44
+                                                                                            HOV-SG [1]          0.40   0.02   0.04    0.16    0.08   0.30
+                                                                                            OpenMask3D [4]      0.27   0.01   0.03    0.29    0.13   0.27
+                                                                                            LEXI-SG             0.40   0.01   0.04    0.19    0.12   0.24
+                                                                                            ConceptGraphs [2]   0.27   0.02   0.03    0.12    0.08   0.47
+
+
+
+
+                                                                                HM3D
+                                                                                            HOV-SG [1]          0.33   0.02   0.04    0.18    0.08   0.36
+                                                                                            OpenMask3D [4]      0.31   0.01   0.03    0.13    0.26   0.26
+                                                                                            LEXI-SG             0.41   0.01   0.03    0.14    0.16   0.26
+
+
+
+                                                                              E. Task 4 – Open-Vocabulary Semantic Segmentation
+                   LEXI-SG                                                       We evaluate our object segmentation module on the Open-
+                                                                              Lex3D benchmark [35], using its semantic segmentation met-
+   Synonyms   Depictions   Visually Similar   Clutter   Missing   Incorrect
+                                                                              ric. Results are reported in Tab. V. Following the same proto-
+Fig. 6: Visualization of OpenLex3D Benchmark on 00824                         col as used by ConceptGraphs, HOV-SG, and OpenMask3D,
+sequence of HM3D dataset using ground-truth poses                             we use the provided ground truth poses and depth images
+and depth. Our object segmentation module shows better                        for each segment. This allows us to isolate the semantic
+performance in the synonyms category (green) and fewer                        segmentation performance, ensuring that the evaluation is
+incorrect labels compared to other baselines.                                 not affected by potential misalignments between predicted
+                                                                              and ground-truth geometry. A perfect score corresponds to a
+local as well as global geometric consistency. These im-                      similarity (S) of 1.0, and 0.0 across all remaining categories.
+provements stem from LEXI-SG reconstructing each room                            On the Replica and ScanNet++ datasets, LEXI-SG
+in a single pass. In contrast, sliding-window approaches must                 achieves performance comparable to HOV-SG, and achieves
+fuse many partial reconstructions from overlap windows,                       the best synonym score on HM3D. These results suggest that
+blurring fine geometric detail.                                               tracking segments in 2D is more favourable than 3D merging
+                                                                              strategies based on IoU and cosine similarity thresholds, as
+                                                                              employed by ConceptGraphs and OpenMask3D. The strong
+D. Task 3 – Room Segmentation                                                 performance of HOV-SG suggests that DBSCAN feature
+                                                                              clustering yields more discriminative embeddings than av-
+   We evaluate on HM3D sequences following the evaluation
+                                                                              eraging; however, in our approach we opt for averaging as
+protocol of Hydra [31], and compare against HOV-SG and
+                                                                              it avoids additional computational overhead.
+Hydra. These methods use ground truth poses and depth
+images for their evaluations.                                                 F. Ablations
+   We present quantitative and qualitative room segmentation                     Tables VI and VII report ATE ablations for the main
+results in Tab. IV and Fig. 5, respectively. While relying only               components of LEXI-SG. Room-based reconstruction nearly
+on RGB image, LEXI-SG achieves comparable recall, albeit                      halves ATE on AOD over a sliding-window baseline, with
+with lower precision. This precision gap can be attributed                    a smaller but consistent improvement on HM3D, confirming
+to our room transition-based approach: by detecting room                      that deferring feed-forward inference until a room is fully
+boundaries through doorways and corridors, our method does                    observed reduces drift from chaining overlapping windows.
+not fully segment open-plan layouts present in the HM3D
+sequences, as illustrated in the bottom example of Fig. 5.
+                                                                              TABLE VI: Ablation results reporting average ATE (m)
+   We also evaluate LEXI-SG using the ground truth poses
+                                                                              on AOD and HM3D (excluding seq 877). Room-based
+and the depth images provided with HM3D. In this setting,
+                                                                              reconstruction improves performance on both datasets, with
+both precision and recall improve. LEXI-SG GT surpasses
+                                                                              the loop closure module yielding further improvements.
+HOV-SG and Hydra in recall, while precision increases but
+remains comparatively lower, again owing to the limitations                                     Room-Based         Loop
+in our method for room segmentation in open-plan spaces.                                       Reconstruction     Closure     AOD     HM3D
+Nevertheless, the results demonstrate that reasonably accu-                                           ✗                ✗      0.812   0.626
+rate room segmentation is achievable from monocular RGB                                               ✓                ✗      0.427   0.518
+                                                                                                      ✓                ✓      0.305   0.474
+alone, without access to ground-truth poses or depth.
+TABLE VII: Ablation on batch size showing average ATE                                  ACKNOWLEDGMENT
+(m) on AOD and HM3D. A batch size of 60 is best on both
+datasets; AOD is relatively insensitive to batch size while         The work at the University of Oxford was supported by
+smaller batches degrade HM3D performance.                         a Royal Society University Research Fellowship (Fallon,
+                                                                  Kassab), and the work at Seoul National University (Kim,
+                  Batch Size       AOD     HM3D                   Gil) is supported by the National Research Foundation
+                      30           0.467   1.074                  of Korea (NRF) grant funded by the Korea government
+                      60           0.305   0.474
+                      90           0.401   0.594
+                                                                  (MSIT)(No. RS-2024-00461409).
+
+                                                                                              R EFERENCES
+TABLE VIII: Runtime Summary for AOD seq 3 (4248
+frames). The system runs at 12.92 FPS without object               [1] A. Werby et al., “Hierarchical Open-Vocabulary 3D Scene Graphs for
+                                                                       Language-Grounded Robot Navigation,” Robot.: Sci. Syst., 2024.
+segmentation and 1.56 FPS with.                                    [2] Q. Gu et al., “ConceptGraphs: Open-Vocabulary 3D Scene Graphs for
+         Stage                       Time (s)   Share (%)              Perception and Planning,” in IEEE Int. Conf. Robot. Autom. (ICRA),
+         Feature extraction             35.63         1.31             2024.
+         Model inference               126.69         4.65         [3] A. Rosinol et al., “Kimera: from SLAM to Spatial Perception with
+         PCD building                    3.87         0.14             3D Dynamic Scene Graphs,” Int. J. Robot. Res., 2021.
+         Transition pairs               34.83         1.28         [4] A. Takmaz et al., “OpenMask3D: Open-Vocabulary 3D Instance
+         Loop closure (semantic)        31.27         1.15             Segmentation,” in Adv. Neural Inf. Process. Syst. (NeurIPS), 2023.
+         Loop closure (IoU)             96.54         3.55         [5] D. Maggio et al., “Clio: Real-time Task-Driven Open-Set 3D Scene
+         Object segmentation          2394.12         87.9             Graphs,” IEEE Robot. Autom. Lett., vol. 9, no. 10, pp. 8921–8928,
+         Optimisation                    0.01         0.00             2024.
+         Total w/o objects             328.84                      [6] C. Campos et al., “ORB-SLAM3: An Accurate Open-Source Library
+         Total w/ objects             2722.96        100.0             for Visual, Visual-Inertial and Multi-Map SLAM,” IEEE Trans. Robot.,
+                                                                       vol. 37, no. 6, pp. 1874–1890, 2021.
+                                                                   [7] T. Qin, P. Li, and S. Shen, “VINS-Mono: A Robust and Versa-
+                                                                       tile Monocular Visual-Inertial State Estimator,” IEEE Trans. Robot.,
+                                                                       vol. 34, no. 4, pp. 1004–1020, 2018.
+Loop closures further reduce error, with a smaller effect on       [8] A. J. Davison, I. D. Reid, N. Molton, and O. Stasse, “MonoSLAM:
+HM3D due to fewer revisited rooms                                      Real-Time Single Camera SLAM.” IEEE Trans. Pattern Anal. Mach.
+   Tab. VII reports ATE across varying batch sizes. A batch            Intell., vol. 29, no. 6, pp. 1052–1067, 2007.
+                                                                   [9] J. McCormac et al., “Fusion++: Volumetric Object-Level SLAM,” in
+size of 60 performs best: AOD is relatively insensitive to this        Intl. Conf. 3D Vision (3DV), 2018, pp. 32–41.
+choice, while smaller batches degrade HM3D performance            [10] R. F. Salas-Moreno et al., “SLAM++: Simultaneous Localisation and
+as they fail to capture sufficient coverage of larger rooms            Mapping at the Level of Objects,” in IEEE Conf. Comput. Vis. Pattern
+                                                                       Recognit. (CVPR), 2013.
+within a single pass. A batch of 60 also allows the retention     [11] J. Wang et al., “VGGT: Visual Geometry Grounded Transformer,” in
+of enough frames to support reliable object tracking.                  IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR), 2025.
+   Table VIII breaks down the per-stage runtime of the            [12] V. Leroy, Y. Cabon, and J. Revaud, “Grounding Image Matching in
+                                                                       3D with MASt3R,” in Eur. Conf. Comput. Vis. (ECCV), 2024.
+pipeline for an AOD sequence on a NVIDIA RTX PRO 6000,            [13] N. Keetha et al., “MapAnything: Universal Feed-Forward Metric 3D
+showing that object segmentation dominates the total cost at           Reconstruction,” in Intl. Conf. 3D Vision (3DV). IEEE, 2026.
+87.9%, followed by MapAnything inference at 4.65%. The            [14] R. Murai, E. Dexheimer, and A. J. Davison, “MASt3R-SLAM: Real-
+                                                                       Time Dense SLAM with 3D Reconstruction Priors,” in IEEE Conf.
+full pipeline runs at 12.92 FPS without object segmentation            Comput. Vis. Pattern Recognit. (CVPR), 2025.
+and at 1.56 FPS with object segmentation.                         [15] D. Maggio, H. Lim, and L. Carlone, “VGGT-SLAM: Dense RGB
+                                                                       SLAM Optimized on the SL (4) Manifold,” Adv. Neural Inf. Process.
+                                                                       Syst. (NeurIPS), vol. 39, 2025.
+                       V. CONCLUSION                              [16] G. Zhang, S. Qian, X. Wang, and D. Cremers, “ViSTA-SLAM:
+                                                                       Visual SLAM with Symmetric Two-view Association,” CoRR, vol.
+   We presented LEXI-SG, a monocular SLAM system                       abs/2509.01584, 2025.
+                                                                  [17] A. Radford et al., “Learning Transferable Visual Models From Natural
+that tightly couples feed-forward reconstruction with se-              Language Supervision,” Int. Conf. Mach. Learn. (ICML), 2021.
+mantic scene graph mapping, achieving globally consistent         [18] N. Ravi et al., “SAM 2: Segment anything in images and videos,” in
+reconstructions and competitive semantic understanding from            Intl. Conf. on Learning Representations (ICLR), 2025.
+                                                                  [19] O. Siméoni et al., “Dinov3,” CoRR, vol. abs/2508.10104, 2025.
+RGB input alone. Evaluations across pose estimation, dense        [20] S. Lu et al., “Ovir-3d: Open-vocabulary 3D Instance Retrieval Without
+reconstruction, room segmentation, and open-vocabulary ob-             Training on 3D Data,” in Conf. on Robot Learning (CoRL). PMLR,
+ject segmentation demonstrate state-of-the-art performance             2023, pp. 1610–1620.
+                                                                  [21] S. Peng et al., “OpenScene: 3D Scene Understanding with Open
+among monocular feed-forward SLAM methods. The two                     Vocabularies,” in IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR),
+primary limitations of the system are the reduced room seg-            2023.
+mentation precision in open-plan spaces, where the absence        [22] K. Jatavallabhula et al., “ConceptFusion: Open-set Multimodal 3D
+                                                                       Mapping,” in Robot.: Sci. Syst., 2023.
+of doorways or corridors prevents transition detection, and a
+                                                                  [23] J. Kerr et al., “LERF: Language Embedded Radiance Fields,” in IEEE
+pose accuracy ceiling imposed by the feed-forward model,               Int. Conf. Comput. Vis. (ICCV), 2023, pp. 19 672–19 682.
+since keyframes are not individually optimized in order to        [24] O. Alama et al., “RayFronts: Open-Set Semantic Ray Frontiers for
+preserve local batch consistency. Future work could address            Online Scene Understanding and Exploration,” in IEEE/RSJ Int. Conf.
+                                                                       Intell. Robots Syst. (IROS), 2025.
+the former by incorporating geometric or appearance-based         [25] J. Engel, T. Schöps, and D. Cremers, “LSD-SLAM: Large-scale direct
+cues to handle open-plan layouts.                                      monocular SLAM,” in Eur. Conf. Comput. Vis. (ECCV), 2014.
+[26] K. Deng et al., “VGGT-Long: Chunk it, Loop it, Align it - Pushing    [31] N. Hughes, Y. Chang, and L. Carlone, “Hydra: A Real-time Spatial
+     VGGT’s Limits on Kilometer-scale Long RGB Sequences,” CoRR,               Perception System for 3D Scene Graph Construction and Optimiza-
+     vol. abs/2507.16443, 2025.                                                tion,” in Robot.: Sci. Syst., 2022.
+[27] S. Yang and S. Scherer, “CubeSLAM: Monocular 3-D Object SLAM,”       [32] J. Sturm et al., “A Benchmark for the Evaluation of RGB-D SLAM
+     IEEE Trans. Robot., vol. 35, no. 4, pp. 925–938, 2019.                    Systems,” in IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS), 2012.
+[28] Y. Zhang et al., “Recognize Anything: A Strong Image Tagging         [33] S. K. Ramakrishnan et al., “Habitat-Matterport 3D Dataset (HM3D):
+     Model,” in IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR), 2024,        1000 Large-scale 3D Environments for Embodied AI,” in Adv. Neural
+     pp. 1724–1732.                                                            Inf. Process. Syst. (NeurIPS), 2021.
+[29] S. Liu et al., “Grounding DINO: Marrying DINO with grounded          [34] A. Krishnan et al., “Benchmarking Egocentric Visual-Inertial SLAM
+     pre-training for open-set object detection,” in Eur. Conf. Com-           at City Scale,” in IEEE Int. Conf. Comput. Vis. (ICCV), 2025.
+     put. Vis. (ECCV), 2024, pp. 38–55.                                   [35] C. Kassab et al., “OpenLex3D: A New Evaluation Benchmark for
+[30] D. Maggio and L. Carlone, “VGGT-SLAM 2.0: Real-time Dense Feed-           Open-Vocabulary 3D Scene Representations,” Adv. Neural Inf. Pro-
+     forward Scene Reconstruction,” CoRR, vol. abs/2601.19887, 2026.           cess. Syst. (NeurIPS), 2025.
+

@@ -88,4 +88,4 @@ Predicting rotation directly in world space diverges to noise/empty renders; the
 
 1. Triangle splats can be decoded directly from frozen video-diffusion latents in a single pass — the first non-volumetric feedforward latent scene decoder.
 2. A ray-centered Cholesky-shape + residual-rotation parameterization and a product window function are the ingredients that make flat-primitive gradient flow stable.
-3. Under identical training, 3DGS wins rendering but has no usable geometry, while triangles win geometry (cosine 0.853 vs 0.116) and convert to a game-engine mesh with a >7 dB PSNR advantage over 3DGS meshes at ~10× fewer vertices — a clear accuracy-vs-fidelity trade-off, reported honestly.
+3. Under identical training, 3DGS wins rendering but has no usable geometry, while triangles win geometry (cosine 0.853 vs 0.116) and convert to a game-engine mesh with a >7 dB PSNR advantage over 3DGS meshes at ~8× fewer vertices (0.5M vs 3DGS's 4M) — a clear accuracy-vs-fidelity trade-off, reported honestly.

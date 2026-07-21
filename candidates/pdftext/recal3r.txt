@@ -1,0 +1,1241 @@
+                                         R E C AL 3R: R ELIABILITY-C ALIBRATED L EARNING
+                                         R ATES FOR S TREAMING 3D R ECONSTRUCTION
+                                           Xinze Li1 , Yiyuan Wang1,2 , Pengxu Chen3 , Weifeng Su1,4 , Weisi Lin5 , Wentao Cheng1∗
+                                          1
+                                            Beijing Normal-Hong Kong Baptist University
+                                          2
+                                            Hong Kong Baptist University
+                                          3
+                                            Jilin University
+                                          4
+                                            Guangdong Provincial Key Laboratory of Interdisciplinary Research and Application for Data Science
+                                          5
+                                            Nanyang Technological University
+
+
+
+
+                                                           ···                ···          ···             ···             ···           ···          ···         ···
+
+
+
+                                                                                     State-Token Reliability
+arXiv:2607.05356v2 [cs.CV] 17 Jul 2026
+
+
+
+
+                                                                                     Reliability Map 𝐑
+                                                   𝑆!"#                                                                      𝜷 𝒕 = 𝟏 − 𝐑 𝒕 𝛽 base + 𝐑 𝒕 ⊙ 𝜷."
+                                                                                                                     ···
+                                                                  Decoder
+                                                                 Recurrent Forward                                          𝛽 base                          𝜷."
+                                                                                                                                                                         𝑆!
+                                                                                     Uncalibrated Learning Rate
+                                                                                                       #
+                                                                                     Uncalibrated Rate 𝜷
+                                                                                                                                               𝐑𝒕                  TTT-Style Update
+                                                   𝑋!                                                                ···
+
+
+
+
+                                                                                                                                 magic3r_viewer_snapshot_transparent.png
+
+
+
+
+                                                                                                   CUT3R                                                                ReCal3R
+
+
+                                         Figure 1: Given the current image and the recurrent scene state, ReCal3R derives a candidate learn-
+                                         ing rate and estimates state token reliability from intermediate signals produced by the recurrent
+                                         forward pass. This prevents unreliable state tokens from receiving aggressive updates and leads to
+                                         cleaner reconstructions than CUT3R over long image streams.
+
+                                                                                                         A BSTRACT
+                                                        Streaming 3D reconstruction relies on a compact recurrent scene state to process
+                                                        long image streams in linear time and bounded memory. However, repeated up-
+                                                        dates can gradually corrupt this state, causing reliable historical information to
+                                                        be overwritten by noisy or ambiguous observations. We introduce ReCal3R, a
+                                                        reliability-calibrated learning rate method for recurrent 3D reconstruction. In-
+                                                        stead of directly applying a candidate learning rate, our method estimates state
+                                                        token reliability from the maintained scene state and uses it to calibrate a can-
+                                                        didate learning rate derived from token alignment, state reconstruction residual,
+                                                        and recent update pressure. The resulting token-wise learning rate interpolates
+                                                        between a conservative base rate and the candidate rate, suppressing aggressive
+                                              ∗
+                                                  Corresponding author: Wentao Cheng. Email: wentaocheng@bnbu.edu.cn
+
+
+                                                                                                                 1
+         updates on unreliable tokens while preserving adaptation to informative frames.
+         Applied to CUT3R as a training-free calibration rule, ReCal3R reaches strong per-
+         formance on long sequences in pose, depth, and reconstruction quality, including
+         a 3.7× reduction in ATE, with comparable runtime and memory. Code is available
+         at: https://github.com/Powertony102/ReCal3R
+
+
+
+1   I NTRODUCTION
+
+Embodied agents, AR/VR systems, and mobile robots increasingly operate as continuous observers
+of the world: they consume image streams that are unbounded in length, arrive in real time, and
+must be integrated into a coherent geometric understanding on the fly. Recent feed-forward 3D
+geometry models such as DUSt3R (Wang et al., 2024) and VGGT (Wang et al., 2025a) have shown
+impressive geometry, pose, and correspondence prediction from RGB image sets. Yet they are
+primarily designed for finite view collections rather than online state maintenance. Streaming 3D
+reconstruction reframes the problem: a bounded scene representation must be continuously updated
+as new frames arrive, enabling linear time processing with bounded memory.
+Recurrent reconstruction implements this formulation with a compact latent scene state that is up-
+dated and read out online. CUT3R (Wang et al., 2025b) is the canonical recurrent state model in this
+space, compressing the growing history into a bounded state. However, compact recurrence alone
+does not guarantee accuracy over long streams. As the input sequence grows, errors can accumulate
+inside the state, and reliable historical content may be overwritten by noisy or ambiguous observa-
+tions. The central difficulty is therefore not only how to bound the representation, but how to update
+the bounded state reliably over time.
+This limitation has motivated inference time modifications of recurrent state updates. TTT3R (Chen
+et al., 2025) casts the recurrent transition as Test-Time Training (Sun et al., 2025), treating the scene
+state as fast weights and deriving a closed-form per-token learning rate from the alignment between
+the maintained state and incoming observations. Recent and concurrent methods further adjust
+the update policy using temporal and spatial adaptive signals, or by selectively updating memory
+components (Zheng et al., 2026; Dong et al., 2026). These methods improve stability over long
+streams, but their update rules are still largely driven by the current observation and its relation to
+the maintained state. They do not explicitly measure whether the state tokens being updated remain
+reliable carriers of historical geometry.
+This missing diagnosis becomes important over long streams. A state token that repeatedly absorbs
+weak or ambiguous evidence may drift into regions of the latent space that are no longer decoded
+reliably. A later frame can still appear compatible with this degraded token and induce a large
+update, further amplifying state corruption. Thus, a candidate learning rate should not be used as
+the final update strength by default; it should be calibrated according to the reliability of the state
+tokens that receive the update.
+We introduce ReCal3R, a reliability-calibrated learning rate method for streaming 3D reconstruc-
+tion. ReCal3R first forms a candidate learning rate that combines token alignment, state recon-
+struction residual, and recent update pressure, so that updates are encouraged by well matched and
+unexplained observations while being reduced on repeatedly updated tokens. It then estimates state
+token reliability from the maintained scene state and uses this reliability to calibrate the candidate
+rate. The final learning rate interpolates between a conservative base rate and the candidate rate
+according to state token reliability. Reliable tokens can still adapt to informative observations, while
+unreliable tokens are protected from overly aggressive updates. The method requires no training and
+can be directly applied to CUT3R without modifying the recurrent architecture.
+On ScanNet (Dai et al., 2017) sequences of 1,000 frames, ReCal3R achieves strong performance on
+long streams across pose, depth, and reconstruction quality. It reduces ATE by 3.7× over CUT3R at
+the longest evaluated sequence length, while maintaining comparable runtime and memory. Across
+depth and reconstruction benchmarks, ReCal3R preserves stable geometry where prior streaming
+baselines gradually degrade.
+In summary, ReCal3R advances streaming 3D reconstruction in three aspects:
+
+
+                                                   2
+      1. We reveal a reliability gap in recurrent state writing: existing adaptive updates mainly
+         follow the incoming observation, but do not explicitly assess whether the state token being
+         updated remains a reliable carrier of historical geometry.
+      2. We propose ReCal3R, a learning rate calibration method that first constructs a candidate
+         rate from token alignment, state reconstruction residual, and recent update pressure, and
+         then calibrates it using state token reliability. The mechanism is closed-form, requires no
+         training, and can be applied on top of CUT3R.
+      3. We show strong performance on long streams in pose, depth, and reconstruction quality,
+         while preserving the linear time and bounded memory formulation of recurrent reconstruc-
+         tion.
+
+
+2     R ELATED W ORK
+
+2.1   G ENERALIZABLE 3D R ECONSTRUCTION
+
+Classical Structure-from-Motion (SfM) pipelines Schonberger & Frahm (2016); Pan et al. (2024);
+Zhu et al. (2018); Ni et al. (2007) recover geometry through iterative correspondence estimation and
+bundle adjustment, but their optimization and matching costs limit real time and long stream per-
+ception. Recent 3D reconstruction foundation models instead predict dense geometry and cameras
+directly from RGB images in a feed-forward manner. One major line follows the shared coordinate
+pointmap paradigm introduced by DUSt3R Wang et al. (2024), which directly regresses dense 3D
+structure from image pairs without requiring known camera parameters. This formulation has been
+extended by MASt3R Leroy et al. (2024), which grounds dense matching in metric 3D space. Follow
+up works such as MonST3R Zhang et al. (2025a) adapt the pointmap formulation to dynamic scenes,
+while Fast3R Yang et al. (2025) improves multi-view scalability within a feed-forward pipeline.
+A parallel line is represented by VGGT Wang et al. (2025a), which departs from pairwise pointmap
+matching and performs global geometry reasoning over a finite set of input views. Despite their
+architectural differences, these feed-forward formulations are primarily designed for finite view col-
+lections rather than online state maintenance. Streaming reconstruction therefore requires additional
+mechanisms for selecting, caching, compressing, or recurrently updating observations over time.
+
+2.2   S TREAMING 3D R ECONSTRUCTION WITH P ERSISTENT M EMORY
+
+To support online reconstruction, recent methods introduce explicit or implicit memory mechanisms
+across frames. Spann3R Wang & Agapito (2025) maintains a spatial memory, CUT3R Wang et al.
+(2025b) uses a compact recurrent state, and Point3R Wu et al. (2026) anchors memory to explicit 3D
+pointers for stronger long range recall. Another route adapts VGGT style reasoning to causal infer-
+ence with key value caching or cache compression. Representative methods include STream3R Lan
+et al. (2025), StreamVGGT Zhuo et al. (2025), and InfiniteVGGT Yuan et al. (2026a), as well as
+recent long stream systems such as STAC Wang et al. (2026b), LongStream Cheng et al. (2026a),
+and HorizonStream Cheng et al. (2026b).
+These methods reduce the cost of processing long streams either by caching attention histories or
+by folding observations into a compact state. The recurrent route avoids maintaining a full attention
+history, but makes the quality of each state update critical: aggressive updates can overwrite stable
+historical content, while conservative updates may miss newly observed geometry.
+
+2.3   T EST-T IME T RAINING IN S TREAMING 3D R ECONSTRUCTION
+
+Test-Time Training (TTT) provides a useful view of online state adaptation. TTT layers Sun et al.
+(2025) interpret recurrent hidden states as fast weights updated at inference time, offering a way to
+compress long contexts into a finite state. Test-Time Training Done Right Zhang et al. (2025b) fur-
+ther improves this formulation with larger update chunks, strengthening the efficiency and capacity
+of test-time state updates. This view is related to recurrent alternatives to full attention, including
+linear attention Katharopoulos et al. (2020), state space models such as Mamba Gu & Dao (2024),
+and test-time memory mechanisms such as Titans Behrouz et al. (2025).
+
+
+                                                  3
+Within 3D reconstruction, Test3R Yuan et al. (2026b) performs inference time geometric adaptation
+by optimizing cross view consistency at test time. More closely related to streaming reconstruc-
+tion, TTT3R Chen et al. (2025) treats the recurrent state in CUT3R as fast weights and modulates
+state updates according to the alignment confidence between the current observation and the main-
+tained state. Recent and concurrent methods further modify the state update policy. TTSA3R Zheng
+et al. (2026) uses temporal state evolution and spatial observation quality to regulate updates, while
+MeMix Dong et al. (2026) reduces unnecessary writing by selectively updating memory compo-
+nents. These methods improve stability over long streams, but their update rules are still mainly
+driven by the current observation, temporal consistency, or memory selection. They do not ex-
+plicitly measure whether the state tokens being modified have themselves become unreliable after
+repeated updates.
+A complementary TTT based direction scales feed-forward reconstruction rather than modifying
+recurrent state updates. VGG-T3 Elflein et al. (2026) replaces the variable length key value repre-
+sentation in VGGT style global attention with fixed size MLP fast weights. ZipMap Jin et al. (2026)
+and tttLRM Wang et al. (2026a) use TTT layers to aggregate image observations into compact scene
+states. These methods build dedicated large scale reconstruction models for efficient global context
+compression, while ReCal3R targets an existing recurrent reconstruction model and modifies only
+its update rule.
+
+3     M ETHOD
+3.1   P RELIMINARIES : S TATEFUL R ECURRENT U PDATE
+
+Problem Setup. Streaming 3D reconstruction processes an image stream {I(t) }Tt=1 on-the-fly,
+distilling scene context into a persistent latent state. At each step t, an encoder maps the input frame
+I(t) into image tokens X(t) ∈ RK×C , while the model carries a compact state S(t−1) ∈ RM ×C
+summarizing all past frames. Each row of the compact state acts as a state token, which serves as
+a persistent latent slot for historical scene content. We denote by A(t) ∈ RM ×K the pre-softmax
+cross-attention logits between state tokens and image tokens, which characterize their alignment.
+
+Uniform Recurrent Update. The vanilla recurrent framework of CUT3R Wang et al. (2025b)
+writes the current frame into the state with uniform intensity:
+                                                               
+                              S(t) = S(t−1) + softmaxj A(t) VX(t) ,                (1)
+where VX(t) is the value projection of the current image tokens and softmaxj normalizes along the
+image-token dimension. This update treats the write strength as uniform across state tokens, without
+explicitly accounting for whether the current frame is redundant or whether a state token remains
+reliable after repeated updates. As a result, useful historical content may be gradually overwritten in
+long streams.
+
+Test-Time-Training View. TTT3R Chen et al. (2025) reinterprets the recurrent transition as test-
+time training, in which the state plays the role of fast weights adapted at inference:
+                                                                      
+                             S(t) = S(t−1) − β (t) ⊙ ∇ S(t−1) , X(t) ,                       (2)
+
+where ∇(·, ·) is the update direction induced by the interaction between the state and the current
+frame, and β (t) ∈ [0, 1]M ×1 is a per-token learning rate. By modulating the step size, Eq. (2)
+generalizes the uniform addition of Eq. (1) and exposes a natural interface for controlling how ag-
+gressively each state token is overwritten.
+
+Motivation. TTT3R derives the learning rate from the alignment between state tokens and image
+tokens. However, alignment alone is not a complete measure of update utility: a rich new frame may
+be weakly aligned simply because the current state only contains textureless anchors. This suggests
+two questions beyond raw alignment: how much new content the current frame brings to the state,
+and whether the corresponding state token is reliable enough to support a strong update. ReCal3R
+answers these questions separately by estimating an uncalibrated learning rate and calibrating it with
+state token reliability.
+
+
+                                                   4
+3.2   OVERVIEW: S TATE R ELIABILITY FOR C ALIBRATED U PDATING
+
+The motivation above suggests that alignment alone is insufficient for controlling long stream state
+updates. In ReCal3R, we therefore place state token reliability at the center of the update mecha-
+nism. Before directly following an uncalibrated learning rate, the model first estimates whether the
+corresponding state tokens remain reliable under long-term recurrent updates. The resulting relia-
+bility scores calibrate the final learning rate vector by interpolating between a conservative baseline
+and the uncalibrated rate.
+
+Reliability-Calibrated Learning Rate. We define the final learning rate vector as
+                                          
+                           β (t) = 1 − R(t) β base + R(t) ⊙ β̃ (t) ,                                 (3)
+
+where β base is a small conservative rate, β̃ (t) is the uncalibrated learning rate vector, R(t) collects
+the reliability scores of all state tokens, 1 is an all-one vector, and ⊙ denotes element-wise multi-
+plication. Eq. (3) performs an element-wise interpolation between the conservative baseline and the
+uncalibrated rate. Reliable state tokens allow the final rate to approach the uncalibrated rate, while
+unreliable tokens keep it close to the conservative baseline. Substituting β (t) into Eq. (2) yields the
+ReCal3R update.
+
+State Token Reliability (§3.3). State token reliability estimates how safely a state token can sup-
+port a strong update. It considers both the token’s accumulated deviation from its learned initializa-
+tion and the concentration of its attention on the current frame. A large deviation suggests that the
+token has been repeatedly modified, while diffuse attention indicates an ambiguous relation to the
+current frame. A low reliability score therefore keeps the final learning rate close to the conservative
+baseline, instead of directly following an aggressive uncalibrated rate.
+
+Uncalibrated Learning Rate (§3.4). The uncalibrated learning rate estimates the candidate up-
+date strength before reliability calibration. It combines the alignment gate inherited from TTT3R,
+a state reconstruction residual score, and recent update pressure. The residual score increases the
+rate when the current frame contains content not well explained by the accumulated state, while
+recent update pressure suppresses tokens that have been activated repeatedly. This gives a candidate
+learning rate vector that reflects alignment, unexplained frame content, and update saturation, but
+is not applied directly. Together, state token reliability and the uncalibrated learning rate separate
+estimating a candidate update strength from deciding how much it should influence the final learning
+rate.
+
+3.3   S TATE T OKEN R ELIABILITY
+
+Long stream reconstruction repeatedly writes new information into the same compact state. As a
+result, a state token may become unreliable for two different reasons. First, it may have accumulated
+large changes from its learned initialization, indicating that the token has been heavily modified by
+previous updates. Second, even if the token itself remains stable, its relation to the current frame may
+be ambiguous when its attention is diffuse over many image tokens. ReCal3R therefore estimates
+state token reliability from these two aspects: accumulated state deviation and attention entropy.
+The resulting reliability score does not define a new update direction; it only calibrates how much
+the uncalibrated learning rate should influence the final learning rate in Eq. (3).
+
+State Deviation and Attention Entropy. For each state token m, we first measure its accumulated
+                                               (t)     (t−1)      (0)
+deviation from the learned initialization as ∆m = ∥Sm         − Sm ∥2 . We min-max normalize this
+                                                                (t)
+deviation over all state tokens at the current step, yielding dm ∈ [0, 1]. We also measure the
+ambiguity of the token-frame relation using normalized attention entropy. Let
+                                                                       
+                          a(t)
+                            m  =  softmax    A (t)
+                                               m,:   ,   e(t)
+                                                          m   = H̄   a(t)
+                                                                      m ,                     (4)
+        (t)
+where am is the attention distribution from state token m to the current image tokens, and H̄(·)
+                                                                                  (t)
+denotes Shannon entropy normalized by its maximum possible value. Thus em ∈ [0, 1], with a
+large value indicating diffuse attention and an ambiguous relation to the current frame.
+
+                                                   5
+                                                                      (t)          (t)
+In the following reliability pooling, we use the complements 1 − dm and 1 − em as positive cues,
+corresponding to state stability and attention concentration, respectively.
+
+Reliability from Cue Agreement. For clarity, we first describe the pooling for a single state token
+at one time step, and omit the token and time indices. Given normalized deviation d and normalized
+entropy e, we combine state stability 1 − d and attention concentration 1 − e through an agreement-
+based pooling function:
+                                              (1 − d)(1 − e)
+                                     ρ=                        .                                 (5)
+                                           (1 − d)(1 − e) + de
+                                                                                                    (t)
+Applying Eq. (5) to each state token at each time step gives the intermediate reliability estimate ρm .
+Eq. (5) assigns high reliability only when the state token is both stable and clearly associated with
+the current frame. It assigns low reliability when both cues indicate unreliability. When the two cues
+disagree, the estimate remains in an ambiguous range instead of making an overconfident decision.
+This behavior is useful because sharp attention alone should not make a heavily modified token
+reliable, and a stable token should not receive a strong learning rate when its attention to the current
+frame is diffuse.
+
+Confidence Calibration. The intermediate estimate ρ is still unreliable when it lies near the am-
+biguous value 0.5. We use the distance from this maximally ambiguous point to measure how
+decisive the estimate is:
+                                     R = ρ(2ρ − 1)2 .                                          (6)
+The factor (2ρ − 1)2 is close to zero when ρ is ambiguous and close to one when ρ is decisive.
+Multiplying it by ρ makes the final reliability high only when the state token is both reliable and
+confidently diagnosed as such. Applying Eq. (6) to each state token at each time step gives the reli-
+ability vector R(t) used in Eq. (3). Beyond these intuitive constructions, both the agreement-based
+pooling in Eq. (5) and the confidence weighting in Eq. (6) admit a probabilistic interpretation: under
+a single latent-variable model of state token reliability, ρ coincides with the Bernoulli posterior over
+a binary reliability latent, while R is its confidence-weighted counterpart that down-weights am-
+biguous diagnoses. We defer this derivation, which further recasts the reliability-calibrated update
+in Eq. (3) as a soft two-regime write policy, to Appendix A.
+
+3.4   U NCALIBRATED L EARNING R ATE
+
+After estimating state token reliability, ReCal3R computes the learning rate vector before reliability
+calibration. This uncalibrated rate should be large only when three conditions are jointly satisfied:
+the current frame is well aligned with the state tokens, the accumulated state cannot fully explain
+the current frame, and the same state tokens have not been repeatedly updated in recent frames. We
+define                                                         
+                                     β̃ (t) = r(t) g(t) ⊙ ϕ h(t) ,                                 (7)
+
+where β̃ (t) is the uncalibrated learning rate vector, g(t) is the token-wise alignment gate derived by
+TTT3R Chen et al. (2025), r(t) is a state reconstruction residual score shared by all tokens, h(t) is
+a nonnegative update pressure vector over state tokens, and ⊙ denotes element-wise multiplication.
+The function ϕ maps update pressure to an attenuation factor; we instantiate it element-wise as
+ϕ(x) = exp(−x).
+
+State Reconstruction Residual Score. The residual score measures how well the accumulated
+                                                                                (t)
+state explains the current frame. We reconstruct each projected image token x̃k = (VX(t) )k from
+                                                                                    (t)
+the state through the transposed attention relation, denote the reconstruction by x̂k , and form the
+mean reconstruction residual
+                                               K                2
+                                           1 X (t)          (t)
+                                   ϵ(t) =          x̃k − x̂k      .                              (8)
+                                          K                     2
+                                              k=1
+
+The residual score r(t) ∈ [0, 1] is obtained by magnitude-normalizing ϵ(t) and passing it through a
+                                                                                              (t)
+sigmoid with a margin τr that absorbs irreducible reconstruction noise; the construction of x̂k and
+
+
+                                                    6
+the exact mapping are deferred to Appendix A.6. Thus r(t) grows when the current frame carries
+structure the accumulated state cannot predict, so a redundant but strongly aligned frame contributes
+little to the learning rate.
+
+Recent Update Pressure. The update-pressure vector summarizes the recent write history as an
+                                                                   (t)       (t−1)              (t)
+exponential moving average of the per-token alignment gate, hm = λhm                + (1 − λ)gm , with
+decay λ = 0.95 (effective window 1/(1 − λ) ≈ 20 frames). Through ϕ(x) = exp(−x), recently
+saturated tokens receive a smaller uncalibrated rate, leaving reliability calibration to decide whether
+a token can safely follow it.
+
+Multiplicative Form. The product in Eq. (7) makes the uncalibrated learning rate depend on align-
+ment, state reconstruction residual, and recent update pressure at the same time. Weak alignment
+lowers the token-specific rate, a small residual score suppresses updates for frames already explained
+by the state, and high update pressure suppresses tokens that have recently received frequent updates.
+Thus, β̃ (t) serves as a candidate learning rate vector, but it is not applied directly; the final learning
+rate is obtained after reliability calibration in Eq. (3).
+
+
+4     E XPERIMENTS
+
+We evaluate ReCal3R on three streaming 3D tasks: camera pose estimation (Section 4.1), 3D recon-
+struction (Section 4.2), and video depth estimation (Section 4.3). These tasks evaluate complemen-
+tary aspects of long stream reconstruction: global camera consistency, accumulated 3D geometry,
+and dense depth prediction over time.
+
+Baselines. We compare ReCal3R with representative streaming reconstruction methods under the
+same online evaluation protocol. CUT3R Wang et al. (2025b) serves as the compact recurrent base-
+line with fixed state updates. TTT3R Chen et al. (2025) introduces a Test-Time Training view and
+modulates state updates using the alignment between the current observation and the maintained
+state. For a fair comparison, we adopt the TTT3R-based variant of MeMix Dong et al. (2026) as
+our baseline, as it employs the same token alignment strategy as our method; we refer to this variant
+simply as MeMix throughout the experiments. TTSA3R Zheng et al. (2026) uses temporal state evo-
+lution and spatial observation quality to regulate state updates. ReCal3R differs from these methods
+by constructing a candidate learning rate and calibrating it with state token reliability estimated from
+the maintained scene state.
+
+Evaluation Protocol. All methods are evaluated in streaming order without access to future
+frames. Unless otherwise stated, we use the official pretrained weights and follow the input res-
+olution and preprocessing protocol of CUT3R. For each dataset, all methods are evaluated on the
+same valid sequences under the standard split, using identical temporal order and sampled frame
+indices. Runtime and peak GPU memory are measured on a single NVIDIA RTX PRO 6000 GPU
+with 96 GB of device memory. We use the standard metric for each task: ATE after Sim(3) alignment
+for camera pose estimation, accuracy, completeness, and normal consistency for 3D reconstruction,
+and Abs Rel together with δ < 1.25 for video depth estimation.
+
+4.1   C AMERA P OSE E STIMATION
+
+We evaluate camera pose accuracy on TUM-Dynamics Sturm et al. (2012) and ScanNet Dai et al.
+(2017), following the evaluation protocol of prior 3D reconstruction methods Wang et al. (2025b);
+Leroy et al. (2024); Zhang et al. (2025a). We report Absolute Trajectory Error (ATE) after Sim(3)
+alignment between the estimated and ground truth camera trajectories. To evaluate long stream
+robustness, we report results over increasing numbers of input frames.
+Fig. 2 shows how pose accuracy changes as more frames are processed. CUT3R accumulates large
+trajectory error on both datasets, indicating that compact recurrence alone is not sufficient for stable
+pose estimation over long streams. TTT3R improves over CUT3R by adapting the state update
+strength from observation-state alignment, and MeMix and TTSA3R further reduce drift through
+selective memory updates or temporal and spatial update signals.
+
+
+                                                    7
+Figure 2: Camera pose estimation. Absolute Trajectory Error (ATE, ↓) on ScanNet Dai et al.
+(2017) (left) and TUM-Dynamics Sturm et al. (2012) (right) over increasing stream lengths. Camera
+trajectories are evaluated after Sim(3) alignment to the ground truth trajectories.
+
+
+ReCal3R shows the clearest advantage in the long stream regime. On ScanNet, it maintains sub-
+stantially lower ATE as the number of input frames increases, whereas the competing streaming
+baselines continue to accumulate drift. On TUM-Dynamics, some baselines are competitive at the
+shortest evaluated length, but their errors grow more rapidly as the stream becomes longer. In con-
+trast, ReCal3R remains stable over longer sequences and achieves the lowest ATE in the later part
+of the evaluation. On 1,000-frame ScanNet sequences, ReCal3R reduces ATE by 3.7× compared
+with CUT3R while maintaining comparable runtime and memory. These results suggest that relia-
+bility calibration improves the stability of recurrent state updates, leading to more accurate camera
+trajectories over long image streams.
+
+4.2      3D R ECONSTRUCTION
+
+We evaluate 3D reconstruction on 7-Scenes Shotton et al. (2013) and NRGBD Azinović et al. (2022).
+For both datasets, we use a keyframe sampling stride of 2 for evaluated stream lengths below 500
+frames and a stride of 1 for evaluated stream lengths of 500 frames or longer. Following prior
+work, we compare the predicted pointmaps with the ground-truth point clouds and report accuracy,
+completeness, and normal consistency. Accuracy and completeness measure geometric distance in
+opposite directions, while normal consistency evaluates local surface quality.
+
+Table 1: Multi view 3D reconstruction. Mean accuracy (↓), completeness (↓), and normal con-
+sistency (↑) on 7-Scenes Shotton et al. (2013) and NRGBD Azinović et al. (2022) over increasing
+numbers of input frames. Best in bold, second best underlined.
+
+                                                                     (a) 7-Scenes.
+                   300 Frames                   400 Frames                    500 Frames                   600 Frames                   700 Frames
+Method
+          Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑
+CUT3R      0.144      0.077     0.557   0.177      0.114     0.549    0.200      0.099     0.544   0.197      0.144     0.540   0.210      0.130     0.539
+TTT3R      0.044      0.028     0.602   0.057      0.031     0.595    0.070      0.038     0.586   0.085      0.042     0.573   0.099      0.051     0.570
+MeMix      0.040      0.027     0.603   0.049      0.032     0.597    0.067      0.038     0.587   0.077      0.039     0.579   0.090      0.044     0.574
+TTSA3R     0.033      0.025     0.613   0.041      0.024     0.607    0.051      0.030     0.600   0.057      0.031     0.593   0.069      0.035     0.588
+ReCal3R    0.023      0.024     0.619   0.025      0.026     0.618    0.029      0.026     0.614   0.031      0.026     0.610   0.034      0.028     0.608
+
+                                                                     (b) NRGBD.
+                   300 Frames                   400 Frames                    500 Frames                   600 Frames                   700 Frames
+Method
+          Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑ Acc. ↓ Comp. ↓ NC ↑
+CUT3R      0.226      0.135     0.596   0.290      0.110     0.578    0.327      0.202     0.564   0.371      0.202     0.552   0.388      0.233     0.550
+TTT3R      0.105      0.030     0.646   0.140      0.074     0.633    0.136      0.041     0.630   0.172      0.051     0.616   0.197      0.073     0.608
+MeMix      0.063      0.018     0.670   0.134      0.066     0.634    0.109      0.034     0.634   0.135      0.041     0.623   0.160      0.055     0.614
+TTSA3R     0.091      0.023     0.669   0.106      0.040     0.665    0.085      0.025     0.660   0.106      0.030     0.651   0.123      0.043     0.644
+ReCal3R    0.078      0.016     0.685   0.086      0.030     0.684    0.070      0.018     0.675   0.090      0.022     0.666   0.093      0.031     0.658
+
+
+Tab. 1 reports quantitative reconstruction results under increasing stream lengths, and Fig. 3 pro-
+vides qualitative comparisons. On 7-Scenes, ReCal3R achieves the strongest overall performance
+
+
+                                                                          8
+across all evaluated sequence lengths. Its advantage becomes more pronounced as more frames are
+accumulated, indicating that reliability calibration helps preserve the quality of the recurrent scene
+state during long stream reconstruction.
+On NRGBD, MeMix attains the best accuracy at the shortest sequence length, but ReCal3R becomes
+stronger as the stream grows and achieves the best accuracy from 400 to 700 frames. It also obtains
+the best completeness and normal consistency across all evaluated lengths. These results suggest that
+ReCal3R is not merely improving a single metric, but more consistently preserves both geometric
+coverage and local surface quality over time.
+The qualitative results in Fig. 3 show the same outcome. Baseline methods tend to accumulate
+distortions or incomplete surfaces as the recurrent state is updated over many frames. In contrast,
+ReCal3R produces more coherent scene geometry with fewer accumulated artifacts. This supports
+the role of state token reliability in calibrating candidate updates: unreliable state tokens are pre-
+vented from receiving overly aggressive updates, while reliable tokens can still incorporate newly
+observed geometry.
+
+                CUT3R            TTT3R           MeMix               TTSA3R             ReCal3R
+Whiteroom
+Kitchen
+Office
+Redkitchen
+
+
+
+
+Figure 3: Qualitative comparison for 3D reconstruction on representative scenes from 7-Scenes
+and NRGBD. ReCal3R produces more coherent geometry under long-sequence reconstruction, with
+reduced structural distortion and better-preserved surface details.
+
+
+4.3          V IDEO D EPTH E STIMATION
+
+We evaluate video depth estimation on Bonn Palazzolo et al. (2019) and TUM-Dynamics Sturm
+et al. (2012). We report Absolute Relative Error (Abs Rel) and the threshold accuracy δ < 1.25.
+Following the standard protocol of each dataset, Bonn is evaluated with a single scale alignment
+for each sequence, while TUM-Dynamics is evaluated in metric scale without scale alignment. We
+report results over increasing stream lengths to evaluate temporal stability under longer inputs.
+Fig. 4 compares depth prediction quality as the input stream becomes longer. CUT3R shows clear
+degradation on both datasets, especially on TUM-Dynamics, where Abs Rel increases and threshold
+accuracy drops as more frames are accumulated. TTT3R improves over CUT3R, and MeMix and
+TTSA3R further reduce errors in several settings by using selective memory updates or temporal
+and spatial update signals.
+ReCal3R achieves the strongest overall performance across the two datasets and metrics, with the
+most visible advantage in longer streams. On Bonn, ReCal3R obtains the lowest Abs Rel across
+the evaluated lengths and remains competitive in threshold accuracy. On TUM-Dynamics, although
+some baselines are competitive at the shortest length, ReCal3R degrades more slowly as the stream
+grows and gives the best results in the longer sequence range. These trends suggest that reliability
+
+
+                                                  9
+Figure 4: Video depth estimation. Abs Rel (↓) and δ < 1.25 (↑) on Bonn Palazzolo et al. (2019)
+(top) and TUM-D Sturm et al. (2012) (bottom) over increasing numbers of input views. Bonn is
+evaluated in scale mode with a single per-sequence scale alignment, while TUM-D is evaluated in
+metric mode without scale alignment.
+
+
+
+calibration helps preserve stable depth predictions during recurrent state updates, especially when
+accumulated state errors become more pronounced over time.
+
+
+4.4   A BLATION S TUDY
+
+Tab. 2 ablates the two main components of ReCal3R on 1,000-frame pose estimation: the uncal-
+ibrated learning rate and the reliability calibration. To isolate the contribution of the uncalibrated
+learning rate, we replace it with the original TTT3R rate while keeping reliability calibration. To
+isolate the contribution of reliability calibration, we remove the reliability term and directly use the
+uncalibrated learning rate as the final learning rate.
+The variant with the TTT3R rate removes our un-
+calibrated learning rate construction and uses the     Table 2: State update ablation. ATE (↓) on
+original TTT3R rate as the candidate rate. Its im-     1,000-frame ScanNet and TUM-Dynamics
+provement over TTT3R shows that reliability cal-       sequences.
+ibration is useful even when the candidate rate is
+inherited from an existing alignment-based rule.                                        Dataset
+                                                       Method
+The variant without reliability directly applies our                               ScanNet     TUM-D
+uncalibrated learning rate, which combines to-
+                                                         CUT3R                      0.7865      0.3330
+ken alignment, state reconstruction residual, and
+                                                         TTT3R                      0.4230      0.1599
+recent update pressure. It also improves over ReCal3R w/ TTT3R rate                 0.2431      0.1152
+TTT3R, indicating that the proposed rate pro- ReCal3R w/o reliability               0.2502      0.1169
+vides a stronger update signal than alignment ReCal3R                               0.2106      0.0769
+alone. Combining this rate with reliability cali-
+bration gives the best performance, reducing ATE
+to 0.2106 on ScanNet and 0.0769 on TUM-Dynamics. These results show that ReCal3R benefits
+from both a more informative candidate rate and a reliability calibration step before state updating.
+We note that ReCal3R does not dominate every entry: on relatively short streams it is comparable
+to its variants, and its default setting trades a slightly lower long stream ATE for stable cross-length
+behavior, reflecting a balance between long-term stability and frame-level adaptivity.
+
+
+                                                  10
+The appendix further extends this decomposition to the other tasks and internal factors. Ap-
+pendix B.1 evaluates the two variants on video depth estimation and 3D reconstruction. Ap-
+pendix B.2 separates the diagnostic cues used for state token reliability, while Appendices B.3
+and B.4 analyze the effects of state reconstruction residual, recent update pressure, and the con-
+servative base rate.
+
+5   C ONCLUSION
+
+We presented ReCal3R, a reliability calibrated learning rate method for streaming 3D reconstruc-
+tion. ReCal3R derives a candidate learning rate from token alignment, state reconstruction residual,
+and recent update pressure, and calibrates it using state token reliability estimated from the main-
+tained scene state. This separates the update strength suggested by the incoming observation from
+the reliability of the state token that receives the update. The resulting closed form and training
+free rule improves long stream stability across pose estimation, video depth estimation, and 3D re-
+construction while preserving the runtime and memory profile of CUT3R. One limitation is that
+conservative updates can occasionally reduce fine frame-level details, even though they improve the
+overall consistency of long stream reconstruction. Future work could extend reliability calibrated
+updates to other forms of streaming 3D models beyond compact recurrent states.
+
+R EFERENCES
+Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman, Matthias Nießner, and Justus Thies.
+  Neural rgb-d surface reconstruction. In Proceedings of the IEEE/CVF Conference on Computer
+  Vision and Pattern Recognition, pp. 6290–6301, 2022.
+Ali Behrouz, Peilin Zhong, and Vahab Mirrokni. Titans: Learning to memorize at test time. arXiv
+  preprint arXiv:2501.00663, 2025.
+Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and Anpei Chen. Ttt3r: 3d reconstruction
+  as test-time training. arXiv preprint arXiv:2509.26645, 2025.
+Chong Cheng, Xianda Chen, Tao Xie, Wei Yin, Weiqiang Ren, Qian Zhang, Xiaoyang Guo, and Hao
+  Wang. Longstream: Long-sequence streaming autoregressive visual geometry. In Proceedings of
+  the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 272–283, 2026a.
+Chong Cheng, Peilin Tao, Nanjie Yao, Guanzhi Ding, Xianda Chen, Yuansen Du, Xiaoyang Guo,
+  Wei Yin, Weiqiang Ren, Qian Zhang, Zhengqing Chen, and Hao Wang. Horizonstream: Long-
+  horizon attention for streaming 3d reconstruction. arXiv preprint arXiv:2605.23889, 2026b.
+Angela Dai, Angel X. Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias
+  Nießner. Scannet: Richly-annotated 3d reconstructions of indoor scenes. In Proc. Computer
+  Vision and Pattern Recognition (CVPR), IEEE, 2017.
+Jiacheng Dong, Huan Li, Sicheng Zhou, Wenhao Hu, Weili Xu, and Yan Wang. Memix: Writing
+   less, remembering more for streaming 3d reconstruction. arXiv preprint arXiv:2603.15330, 2026.
+Sven Elflein, Ruilong Li, Sérgio Agostinho, Zan Gojcic, Laura Leal-Taixé, Qunjie Zhou, and Aljosa
+  Osep. Vgg-t3 : Offline feed-forward 3d reconstruction at scale. arXiv preprint arXiv:2602.23361,
+  2026.
+Albert Gu and Tri Dao. Mamba: Linear-time sequence modeling with selective state spaces. arXiv
+  preprint arXiv:2312.00752, 2024.
+Haian Jin, Rundi Wu, Tianyuan Zhang, Ruiqi Gao, Jonathan T. Barron, Noah Snavely, and Alek-
+  sander Holynski. Zipmap: Linear-time stateful 3d reconstruction via test-time training. arXiv
+  preprint arXiv:2603.04385, 2026.
+Angelos Katharopoulos, Apoorv Vyas, Nikolaos Pappas, and François Fleuret. Transformers are
+  rnns: Fast autoregressive transformers with linear attention. In Proceedings of the 37th Interna-
+  tional Conference on Machine Learning, 2020.
+
+
+                                                11
+Yushi Lan, Yihang Luo, Fangzhou Hong, Shangchen Zhou, Honghua Chen, Zhaoyang Lyu, Shuai
+  Yang, Bo Dai, Chen Change Loy, and Xingang Pan. Stream3r: Scalable sequential 3d reconstruc-
+  tion with causal transformer. arXiv preprint arXiv:2508.10893, 2025.
+Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3d with mast3r.
+  In European Conference on Computer Vision, pp. 71–91. Springer, 2024.
+Kai Ni, Drew Steedly, and Frank Dellaert. Out-of-core bundle adjustment for large-scale 3d re-
+  construction. In 2007 IEEE 11th International Conference on Computer Vision, pp. 1–8. IEEE,
+  2007.
+Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe Giguere, and Cyrill Stachniss. Refu-
+  sion: 3d reconstruction in dynamic environments for rgb-d cameras exploiting residuals. In 2019
+  IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), pp. 7855–7862.
+  IEEE, 2019.
+Linfei Pan, Dániel Baráth, Marc Pollefeys, and Johannes L Schönberger. Global structure-from-
+  motion revisited. In European Conference on Computer Vision, pp. 58–77. Springer, 2024.
+Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings
+  of the IEEE conference on computer vision and pattern recognition, pp. 4104–4113, 2016.
+Jamie Shotton, Ben Glocker, Christopher Zach, Shahram Izadi, Antonio Criminisi, and Andrew
+  Fitzgibbon. Scene coordinate regression forests for camera relocalization in rgb-d images. In
+  Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 2930–2937,
+  2013.
+Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram Burgard, and Daniel Cremers. A bench-
+   mark for the evaluation of rgb-d slam systems. In 2012 IEEE/RSJ international conference on
+   intelligent robots and systems, pp. 573–580. IEEE, 2012.
+Yu Sun, Xinhao Li, Karan Dalal, Jiarui Xu, Arjun Vikram, Genghan Zhang, Yann Dubois, Xinlei
+  Chen, Xiaolong Wang, Sanmi Koyejo, Tatsunori Hashimoto, and Carlos Guestrin. Learning to
+  (Learn at test time): RNNs with expressive hidden states. In Aarti Singh, Maryam Fazel, Daniel
+  Hsu, Simon Lacoste-Julien, Felix Berkenkamp, Tegan Maharaj, Kiri Wagstaff, and Jerry Zhu
+  (eds.), Proceedings of the 42nd International Conference on Machine Learning, volume 267 of
+  Proceedings of Machine Learning Research, pp. 57503–57522. PMLR, 13–19 Jul 2025. URL
+  https://proceedings.mlr.press/v267/sun25h.html.
+Chen Wang, Hao Tan, Wang Yifan, Zhiqin Chen, Yuheng Liu, Kalyan Sunkavalli, Sai Bi, Lingjie
+  Liu, and Yiwei Hu. tttlrm: Test-time training for long context and autoregressive 3d reconstruc-
+  tion. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+  pp. 36582–36592, 2026a.
+Hengyi Wang and Lourdes Agapito. 3d reconstruction with spatial memory. In 2025 International
+  Conference on 3D Vision (3DV), pp. 78–89. IEEE, 2025.
+Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David
+   Novotny. Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision
+   and Pattern Recognition Conference, pp. 5294–5306, 2025a.
+Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Con-
+  tinuous 3d perception model with persistent state. In Proceedings of the Computer Vision and
+  Pattern Recognition Conference, pp. 10510–10522, 2025b.
+Runze Wang, Yuxuan Song, Youcheng Cai, and Ligang Liu. Stac: Plug-and-play spatio-temporal
+  aware cache compression for streaming 3d reconstruction. arXiv preprint arXiv:2603.20284,
+  2026b.
+Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geo-
+  metric 3d vision made easy. In Proceedings of the IEEE/CVF conference on computer vision and
+  pattern recognition, pp. 20697–20709, 2024.
+
+
+                                               12
+Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r: Streaming 3d reconstruction with
+  explicit spatial pointer memory. Advances in Neural Information Processing Systems, 38:69675–
+  69699, 2026.
+Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai,
+   Franziska Meier, and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one
+   forward pass. In Proceedings of the Computer Vision and Pattern Recognition Conference, pp.
+   21924–21935, 2025.
+Shuai Yuan, Yantai Yang, Xiaotian Yang, Xupeng Zhang, Zhonghao Zhao, Lingming Zhang, and
+  Zhipeng Zhang. Infinitevggt: Visual geometry grounded transformer for endless streams. arXiv
+  preprint arXiv:2601.02281, 2026a.
+Yuheng Yuan, Qiuhong Shen, Shizun Wang, Xingyi Yang, and Xinchao Wang. Test3r: Learning
+  to reconstruct 3d at test time. Advances in Neural Information Processing Systems, 38:100445–
+  100464, 2026b.
+Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Forrester Cole, Deqing Sun, Ming-
+  Hsuan Yang, et al. Monst3r: A simple approach for estimating geometry in the presence of
+  motion. In International Conference on Learning Representations, volume 2025, pp. 82863–
+  82886, 2025a.
+Tianyuan Zhang, Sai Bi, Yicong Hong, Kai Zhang, Fujun Luan, Songlin Yang, Kalyan
+  Sunkavalli, William T. Freeman, and Hao Tan. Test-time training done right. arXiv preprint
+  arXiv:2505.23884, 2025b.
+Zhijie Zheng, Xinhao Xiang, and Jiawei Zhang. Ttsa3r: Training-free temporal-spatial adaptive
+  persistent state for streaming 3d reconstruction, 2026. URL https://arxiv.org/abs/
+  2601.22615.
+Siyu Zhu, Runze Zhang, Lei Zhou, Tianwei Shen, Tian Fang, Ping Tan, and Long Quan. Very
+  large-scale global sfm by distributed motion averaging. In Proceedings of the IEEE conference
+  on computer vision and pattern recognition, pp. 4568–4577, 2018.
+Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou, and Jiwen Lu. Streaming 4d visual
+  geometry transformer. arXiv preprint arXiv:2507.11539, 2025.
+
+
+
+
+                                              13
+Appendix
+A     D ERIVATION OF THE R ELIABILITY C ALIBRATION
+
+This appendix derives the pooled reliability ρ (Eq. 5) and the calibrated reliability R (Eq. 6) of
+Sec. 3.3 from a single latent-variable model. Following the per-token presentation in the main text,
+we consider one state token at one time step and omit the token and time indices throughout the
+derivation. This construction offers a probabilistic interpretation of the two quantities used in the
+main text: (i) under the product-likelihood model, the pooled reliability ρ coincides with a Bernoulli
+posterior, so its variance can be read as a second-order statistic of the same belief; and (ii) the
+reliability-calibrated update of Eq. 3 can be viewed as the decision rule associated with this model.
+
+A.1   A B INARY R ELIABILITY L ATENT
+
+For the state token under consideration, we introduce a binary latent variable
+
+                                              z ∈ {0, 1},                                           (9)
+
+where z = 1 asserts that the receiving token is a dependable carrier of historical geometry and may
+safely absorb the evidence-driven write, while z = 0 asserts that it should not. We stress that z
+is an inference device only: it is never thresholded into a hard write/freeze decision. The update
+direction and its nominal magnitude β̃ remain governed by the attention mechanism; z serves solely
+to produce a calibrated soft reliability used to interpolate the rate.
+Absent any token-specific evidence we have no reason to presume reliability either way, so we place
+a non-informative Bernoulli prior
+                                         p(z = 1) = π0 = 12 .                                      (10)
+All token-dependent information enters exclusively through the likelihoods below, which keeps the
+prior from acting as a hidden hyperparameter.
+
+A.2   T WO D IAGNOSTIC L IKELIHOODS
+
+Reliability is assessed from two normalized cues: the state-side deviation d ∈ [0, 1] (departure of
+the token from its learned initialization) and the observation-side attention entropy e ∈ [0, 1] of the
+current state-to-frame attention. Both are constructed so that a small value indicates a reliable token.
+We therefore adopt the minimal Bernoulli-consistent forms, which are monotone in this sense and
+symmetric between the two hypotheses,
+
+                                      p(d | z) ∝ (1 − d)z d 1−z ,
+                                                                                                   (11)
+                                      p(e | z) ∝ (1 − e)z e 1−z .
+
+A linear likelihood is a simple choice consistent with these two requirements that introduces no
+additional shape hyperparameter; we adopt it for this reason, not because it is uniquely determined.
+
+Factorized likelihood.    We model the joint likelihood as a product,
+
+                                   p(d, e | z) = p(d | z) p(e | z) .                               (12)
+
+The two cues are read from different sources: d from the token’s accumulated deviation from its
+learned initialization, and e from the entropy of its current attention distribution. This distinction
+motivates the product form and yields the closed-form posterior below. The resulting rule is con-
+junctive: ρ → 1 requires both cues to be healthy, so when they disagree the gate defers to the more
+conservative one.
+
+
+                                                  14
+A.3   VARIATIONAL P OSTERIOR AND I TS C LOSED F ORM
+
+We approximate the intractable posterior p(z | d, e) with a variational Bernoulli q(z) =
+Bernoulli(ρ) and maximize the ELBO. Writing ℓ1 = (1 − d)(1 − e) and ℓ0 = de for the un-
+normalized joint likelihoods under the two hypotheses,
+                                                              π0 ℓ1               (1 − π0 ) ℓ0
+         L(ρ) = Eq [log p(d, e, z)] − Eq [log q(z)] = ρ log         + (1 − ρ) log              .    (13)
+                                                               ρ                     1−ρ
+Differentiating and setting ∂L/∂ρ = 0,
+                          π0 ℓ1       (1 − π0 ) ℓ0        π0 ℓ 1   (1 − π0 ) ℓ0
+                    log         − log              = 0 =⇒        =              ,                   (14)
+                           ρ             1−ρ               ρ          1−ρ
+which yields the closed-form optimum
+                                                    π0 ℓ1
+                                      ρ⋆ =                        .                                 (15)
+                                             π0 ℓ1 + (1 − π0 ) ℓ0
+
+Substituting the non-informative prior π0 = 12 from Eq. 10 cancels the prior factors and recovers the
+reliability of the main text,
+                                             (1 − d)(1 − e)
+                                     ρ=                       .                                 (16)
+                                          (1 − d)(1 − e) + de
+This recovers the product opinion pool of the two cues: under the model of Secs. A.1 and A.2, ρ
+coincides with the posterior p(z = 1 | d, e). We use this correspondence to motivate the form of
+Eq. 5, rather than to claim optimality among all possible fusion rules.
+
+Posterior mean. Since z is binary, the Bernoulli family already contains the exact posterior, so
+the optimum ρ equals p(z = 1 | d, e) under this model:
+                                         ρ = p(z = 1 | d, e) .                                      (17)
+We therefore treat ρ as a posterior mean and its variance as the corresponding second-order statistic
+in what follows.
+
+A.4   F ROM P OOLED R ELIABILITY TO C ALIBRATED R ELIABILITY
+
+The posterior q ⋆ = Bernoulli(ρ) supplies two complementary statistics: its mean records which
+hypothesis is favored, while its variance records how decisively. The variance is
+                                         Varq⋆ [z] = ρ(1 − ρ),                                      (18)
+
+which attains its maximum 41 at ρ = 12 . Normalizing by this maximum gives a unit-range ambiguity
+score
+                                    ρ(1 − ρ)
+                               v=             = 4ρ(1 − ρ) ∈ [0, 1],                          (19)
+                                        1/4
+with v → 1 at maximal ambiguity and v → 0 when the posterior is decisive. The corresponding
+confidence is its complement,
+                               c = 1 − v = 1 − 4ρ(1 − ρ) = (2ρ − 1)2 ,                              (20)
+recovering the confidence factor (2ρ − 1)2 in Eq. 6. Weighting the reliability by its own confidence
+defines the calibrated reliability,
+                                        R = ρ(2ρ − 1)2 .                                        (21)
+Identical to Eq. 6. Intuitively, ρ chooses a direction and c reports how sure we are of it; a token earns
+an aggressive write only when it is both judged reliable and judged so confidently. Near ρ = 12 the
+direction is essentially a coin flip, c → 0 drives R → 0, and the rate retreats to the conservative
+baseline.
+
+
+                                                   15
+A.5   T HE R ELIABILITY-C ALIBRATED U PDATE AS A T WO -R EGIME P OLICY
+
+Finally we connect R to the learning rate vector. For each token, the latent suggests a soft two-
+regime reading: use the uncalibrated rate when the token is reliable (z = 1), and the conservative
+rate β base otherwise (z = 0). Replacing the raw posterior mean ρ with the confidence-weighted
+reliability R routes ambiguous diagnoses to the fallback rather than to a near-even blend. Applying
+this policy element-wise to all state tokens gives exactly the vector interpolation of the main text,
+                                                
+                             β (t) = 1 − R(t) β base + R(t) ⊙ β̃ (t) ,                             (22)
+
+which is Eq. 3.
+
+A.6   S TATE R ECONSTRUCTION R ESIDUAL S CORE r(t)
+
+We detail the state reconstruction residual score deferred from Sec. 3.4. Let X̃(t) ≡ VX(t) denote
+the value projection of the current image tokens X(t) introduced in Sec. 3.1. Analogously, VS(t−1)
+denotes the value projection of the current state. We reconstruct the projected image tokens by
+attending to this state-side value projection through the transposed attention matrix,
+                                                           
+                                 X̂(t) = softmaxm A(t)⊤ VS(t−1) .                             (23)
+
+Both are already available from the standard recurrent forward pass, so computing r(t) requires no
+extra decoder call. The score is the sigmoid of the magnitude-normalized residual, offset by a margin
+τr that absorbs irreducible reconstruction noise,
+                                           PK        (t)     (t) 2
+                                         1
+                                                                       !
+                              (t)       K    j=1 X̃j − X̂j       2
+                             r =σ            PK        (t) 2
+                                                                   − τr .                        (24)
+                                           1
+                                           K   j=1 X̃j     2
+                                                             +ε
+
+When the frame carries structure the accumulated state cannot predict, the residual grows and r(t) →
+1; for redundant frames the residual is small and r(t) attenuates, so a redundant but strongly aligned
+frame contributes little to the write.
+
+B     A BLATION S TUDY
+B.1   D ECOUPLING R ELIABILITY AND THE U NCALIBRATED R ATE
+
+We disentangle the two controls behind ReCal3R’s state update to verify that each contributes inde-
+pendently. The w/ TTT3R rate variant replaces our uncalibrated rate with TTT3R’s bare alignment
+rate while retaining reliability calibration, so any gain isolates the state-side whether decision. The
+w/o reliability variant keeps our uncalibrated rate, which combines alignment, state reconstruction
+residual, and update pressure, but disables reliability calibration, thereby isolating the observation-
+side how much enrichment. Both variants outperform TTT3R across all three tasks. On 1000-frame
+ScanNet, ATE falls from 0.423 to 0.243 for w/ TTT3R rate and to 0.250 for w/o reliability; on 700-
+frame 7-Scenes, accuracy drops from 0.099 to 0.043 and 0.050, and normal consistency rises from
+0.570 to 0.603 and 0.595. Notably, w/ TTT3R rate differs from TTT3R only through reliability
+calibration, yet it already yields a large gain, showing that the reliability signal is not a disguised
+global learning rate reduction but a token-specific estimate. Conversely, w/o reliability confirms that
+residual- and pressure-aware modulation suppresses redundant or saturated writes even when the
+receiving state is assumed reliable. The full model then achieves the strongest overall trade-off, in-
+cluding the best long stream ATE on ScanNet (0.211 at 1000 frames), the best relative depth error on
+Bonn (0.053 at 700 frames), the best reconstruction accuracy on 7-Scenes (0.034 at 700 frames), and
+the lowest rotational error on 300-frame ScanNet (RPErot = 0.901). These results indicate that the
+two controls address complementary failure modes: reliability calibration handles representational
+deviation on the state side, while the uncalibrated rate handles observation-side redundancy and sat-
+uration. We therefore find that stable long stream state writing requires answering both whether to
+write and how much to write. We note a stability–plasticity trade-off: by enforcing conservative long
+stream writes, ReCal3R markedly improves global drift (ATE) while trading off a small amount of
+per-frame local sharpness (RPE), a pattern shared across TTT-style updates on CUT3R.
+
+
+                                                  16
+Table 3: Pillar decoupling ablation. We isolate each control of ReCal3R. ReCal3R w/ TTT3R rate
+replaces our uncalibrated rate with TTT3R’s alignment rate while keeping reliability calibration
+(state-side whether); ReCal3R w/o reliability keeps our uncalibrated rate but disables reliability
+calibration (observation-side how much). Results are reported on camera pose estimation (ScanNet-
+50), video depth estimation (Bonn, scale-invariant), and 3D reconstruction (7-Scenes). For 7-Scenes,
+we report mean metrics only. Best in bold, second best underlined.
+
+                                         (a) Camera pose estimation on ScanNet-50.
+
+                                        300 Frames                               500 Frames                                   1000 Frames
+Method                     ATE ↓         RPEt ↓        RPEr ↓       ATE ↓         RPEt ↓           RPEr ↓           ATE ↓       RPEt ↓      RPEr ↓
+CUT3R                      0.4863        0.0421        1.1472       0.6394        0.0343           1.0332       0.7865           0.0237     0.8429
+TTT3R                      0.1940        0.0446        1.3822       0.2486        0.0329           0.8801       0.4230           0.0244     0.8571
+ReCal3R w/ TTT3R rate      0.1651        0.0534        1.1648       0.1698        0.0346           1.0154       0.2431           0.0247     0.8044
+ReCal3R w/o reliability    0.1729        0.0518        1.2145       0.1767        0.0356           1.3171       0.2502           0.0247     0.7592
+ReCal3R                    0.1739        0.0593        0.9008       0.1627        0.0377           1.0890       0.2106           0.0250     0.9069
+
+                                 (b) Video depth estimation on Bonn (scale-invariant).
+
+                                                   300 Frames                 500 Frames                        700 Frames
+              Method                       Rel ↓       δ < 1.25 ↑        Rel ↓       δ < 1.25 ↑             Rel ↓        δ < 1.25 ↑
+              CUT3R                        0.0681        0.9326          0.0664        0.9350           0.0697               0.9268
+              TTT3R                        0.0581        0.9467          0.0594        0.9545           0.0632               0.9442
+              ReCal3R w/ TTT3R rate        0.0544        0.9447          0.0533        0.9562           0.0562               0.9502
+              ReCal3R w/o reliability      0.0548        0.9468          0.0535        0.9567           0.0565               0.9508
+              ReCal3R                      0.0535        0.9480          0.0512        0.9562           0.0532               0.9515
+
+                          (c) 3D reconstruction on 7-Scenes. We report mean metrics only.
+
+                                        300 Frames                               500 Frames                                    700 Frames
+Method                     Acc. ↓        Comp. ↓        NC ↑        Acc. ↓        Comp. ↓           NC ↑            Acc. ↓       Comp. ↓     NC ↑
+CUT3R                       0.144          0.077        0.557       0.200           0.099           0.544           0.210         0.130      0.539
+TTT3R                       0.044          0.028        0.602       0.070           0.038           0.586           0.099         0.051      0.570
+ReCal3R w/ TTT3R rate       0.024          0.025        0.617       0.035           0.028           0.613           0.043         0.030      0.603
+ReCal3R w/o reliability     0.028          0.024        0.613       0.040           0.028           0.608           0.050         0.031      0.595
+ReCal3R                     0.023          0.024        0.619       0.029           0.026           0.614           0.034         0.028      0.608
+
+
+
+B.2      E XPLORATION OF D IAGNOSTIC C UES
+
+Single cue vs. fusion. Table 4 reports reliability estimates built from deviation alone, entropy
+alone, and their fusion. The fact that the two single-cue variants are already strong is itself informa-
+tive: both deviation and entropy provide useful reliability evidence, so the reliability mechanism is
+not tied to a single accidental diagnostic. Deviation measures state-side displacement in the updated
+memory, while entropy reflects ambiguity in the attention distribution; when these cues co-vary, ei-
+ther cue can recover much of the benefit, which explains their close ATE, depth, and reconstruction
+results. We nevertheless retain the fusion because its role is not to win every individual entry, but
+to remove the need to choose a cue by hand and to remain stable under different failure modes. In
+particular, its conjunctive form defers to the more conservative cue when the two disagree, giving
+the most stable rotational accuracy on 300-frame ScanNet (RPErot = 0.901). The trade-off is that
+this conservatism can let a single cue match or slightly edge fusion on some metrics; we prefer the
+fused estimate for its more reliable default behavior.
+
+Fixed-anchor vs. moving-anchor state deviation. The reliability estimate uses a state-deviation
+cue to estimate whether a receiving state token has undergone excessive rewriting. Using the row
+notation of Sec. 3.1, the fixed-anchor cue for state token m is
+                                                  dinit,(t)
+                                                   m        = S(t−1)
+                                                               m     − S(0)
+                                                                        m                      .                                              (25)
+                                                                                           2
+A natural alternative is to replace the fixed initial anchor with a moving reference, given by the
+running average of the token trajectory:
+                                            t−1
+                                          1 X (τ )
+                          S̄(t−1)
+                            m     =             S ,               davg,(t) = S(t−1) − S̄(t−1)                            .                    (26)
+                                          t τ =0 m                 m          m         m
+                                                                                                                     2
+
+
+
+                                                                    17
+Table 4: Diagnostic-cue ablation. Reliability estimates built from state deviation alone, attention
+entropy alone, and their fusion (full ReCal3R). Single-cue and fused estimates perform comparably
+across pose, depth, and reconstruction, while the fusion is hyperparameter-free and most stable
+in rotation. Results on camera pose (ScanNet-50), video depth (Bonn, scale-invariant), and 3D
+reconstruction (7-Scenes). Best in bold; ties after rounding are also bolded.
+
+                                                 (a) Camera pose estimation on ScanNet-50.
+
+                                       300 Frames                                       500 Frames                                     1000 Frames
+Method                    ATE ↓         RPEt ↓            RPEr ↓         ATE ↓            RPEt ↓           RPEr ↓          ATE ↓           RPEt ↓       RPEr ↓
+Deviation only            0.1753         0.0574           1.2350         0.1627           0.0369             1.0544        0.2110          0.0251        0.7762
+Entropy only              0.1786         0.0604           1.3662         0.1605           0.0375             1.1796        0.2111          0.0253        0.7185
+ReCal3R (fusion)          0.1739         0.0593           0.9008         0.1627           0.0377             1.0890        0.2106          0.0250        0.9069
+
+                                       (b) Video depth estimation on Bonn (scale-invariant).
+
+                                                   300 Frames                           500 Frames                            700 Frames
+              Method                       Rel ↓          δ < 1.25 ↑            Rel ↓         δ < 1.25 ↑              Rel ↓        δ < 1.25 ↑
+              Deviation only              0.0534            0.9442              0.0513            0.9550              0.0537          0.9498
+              Entropy only                0.0534            0.9442              0.0517            0.9555              0.0536          0.9508
+              ReCal3R (fusion)            0.0535            0.9480              0.0512            0.9562              0.0532          0.9515
+
+                              (c) 3D reconstruction on 7-Scenes. We report mean metrics only.
+
+                                       300 Frames                                        500 Frames                                    700 Frames
+Method                    Acc. ↓         Comp. ↓           NC ↑           Acc. ↓          Comp. ↓             NC ↑         Acc. ↓          Comp. ↓         NC ↑
+Deviation only            0.023            0.025           0.619          0.028             0.026             0.616           0.033         0.028          0.609
+Entropy only              0.023            0.024           0.618          0.029             0.025             0.617           0.034         0.027          0.608
+ReCal3R (fusion)          0.023            0.024           0.619          0.029             0.026             0.614           0.034         0.028          0.608
+
+
+
+Table 5: State-deviation cue ablation. We compare the proposed first-state anchor with a running-
+average anchor across different sequence lengths. 7-Scenes reports Acc./Comp./NC, and ScanNet
+reports ATE.
+
+                                                                    7-Scenes                                                            ScanNet
+Method                              300 Frames                     500 Frames                     700 Frames            300 Frames    500 Frames     1000 Frames
+                           Acc. ↓    Comp. ↓      NC ↑    Acc. ↓    Comp. ↓     NC ↑     Acc. ↓    Comp. ↓     NC ↑       ATE ↓         ATE ↓          ATE ↓
+ReCal3R w/ running avg.    0.023       0.024      0.619   0.029       0.026     0.617     0.036      0.028     0.606      0.1829        0.1674         0.2151
+ReCal3R                    0.023       0.024      0.619   0.029       0.026     0.614     0.034      0.028     0.608      0.1739        0.1627         0.2106
+
+
+
+
+This variant keeps all other components unchanged and only replaces the displacement cue in the
+reliability estimation.
+The comparison is motivated by a subtle design choice in streaming reconstruction. Although the
+model processes frames online, the reconstructed geometry and camera trajectory are maintained
+in a fixed reference frame rather than in a coordinate system that should freely drift with the state
+trajectory.
+Therefore, the diagnostic cue should preserve information about accumulated departure from the
+initial reference. The fixed-anchor deviation in Eq. 25 serves this purpose: it measures how far a
+token has been rewritten from its initial reference and therefore exposes long stream state deviation.
+In contrast, the running-average variant in Eq. 26 uses a moving anchor that is itself affected by
+previous updates. As a result, gradual state deviation can be absorbed into the running average,
+making the token appear locally stable even when it has accumulated a large deviation from the
+original reconstruction reference.
+We report this ablation on relative pose estimation and multi-view reconstruction in Tab. 5. The
+running-average variant is consistently inferior to the fixed-anchor design. This suggests that, for
+streaming reconstruction over long streams, the diagnostic cue should not only capture local fluc-
+tuation around the token’s recent trajectory, but should also retain a fixed reference for detecting
+                                                                       (0)
+accumulated state deviation. The results support our choice of using Sm as the state-side anchor in
+
+
+                                                                                18
+Table 6: Uncalibrated-rate ablation. We ablate the state reconstruction residual and update pres-
+sure attenuation inside β̃ while retaining the inherited alignment gate g. Residual only uses g · r,
+pressure only uses g · exp(−h), and full β̃ uses g · r · exp(−h). Results are reported on camera pose
+estimation (ScanNet-50), video depth estimation (Bonn, scale-invariant), and 3D reconstruction (7-
+Scenes). For 7-Scenes, we report mean metrics only. Best in bold, second best underlined.
+
+                                        (a) Camera pose estimation on ScanNet-50.
+
+                                         300 Frames                           500 Frames                               1000 Frames
+Method                         ATE ↓        RPEt ↓      RPEr ↓      ATE ↓         RPEt ↓       RPEr ↓       ATE ↓        RPEt ↓       RPEr ↓
+Residual only (g · r)          0.1804       0.0477       1.1208     0.2162        0.0332       0.9099       0.3221       0.0248       0.8846
+Pressure only (g · exp(−h))    0.1737       0.0456       1.0831     0.2097        0.0330       0.9615       0.3273       0.0248       0.7935
+Full β̃                        0.1729       0.0518       1.2145     0.1767        0.0356       1.3171       0.2502       0.0247       0.7592
+
+                                (b) Video depth estimation on Bonn (scale-invariant).
+
+                                                     300 Frames               500 Frames                700 Frames
+              Method                          Rel ↓      δ < 1.25 ↑      Rel ↓      δ < 1.25 ↑      Rel ↓      δ < 1.25 ↑
+              Residual only (g · r)           0.0557       0.9481       0.0557        0.9572        0.0590           0.9502
+              Pressure only (g · exp(−h))     0.0561       0.9469       0.0560        0.9560        0.0602           0.9489
+              Full β̃                         0.0548       0.9468       0.0535        0.9567        0.0565           0.9508
+
+                          (c) 3D reconstruction on 7-Scenes. We report mean metrics only.
+
+                                         300 Frames                              500 Frames                             700 Frames
+Method                         Acc. ↓       Comp. ↓       NC ↑      Acc. ↓        Comp. ↓       NC ↑        Acc. ↓       Comp. ↓       NC ↑
+Residual only (g · r)           0.034        0.025        0.608       0.059         0.036       0.595        0.079            0.042    0.583
+Pressure only (g · exp(−h))     0.033        0.026        0.611       0.057         0.031       0.597        0.078            0.038    0.584
+Full β̃                         0.028        0.024        0.613       0.040         0.028       0.608        0.050            0.031    0.595
+
+
+
+
+the reliability estimate. Because the global reconstruction remains expressed in the first-frame co-
+                    (0)
+ordinate system, Sm provides the most faithful reference for measuring actual geometric deviation
+rather than deviation from a moving internal baseline. It is also more efficient: unlike the running
+average, it avoids per-frame trajectory aggregation and therefore does not incur the accompanying
+FPS drop.
+
+
+B.3      A NATOMY OF THE U NCALIBRATED R ATE
+
+Anatomy of the uncalibrated rate. Following the per-token convention of Sec. 3.4, we omit the
+token and time indices and write the uncalibrated learning rate as β̃ = g · r · ϕ(h) = g · r · exp(−h).
+Here, g is the alignment gate inherited from TTT3R, r is the state reconstruction residual, and
+ϕ(h) = exp(−h) is the update pressure attenuation. To isolate the latter two factors, we form a
+residual-only variant β̃ = g · r and a pressure-only variant β̃ = g · exp(−h), each retaining the
+alignment gate but removing one modulator. As described in Sec. 3.4, the residual suppresses writes
+from redundant frames that carry little unexplained content, while update pressure throttles tokens
+that have absorbed disproportionate recent evidence, preserving capacity for under-written slots.
+Table 6 shows that removing either factor degrades performance across pose, depth, and reconstruc-
+tion. On 1000-frame ScanNet, ATE rises from 0.250 (full β̃) to 0.322 and 0.327 when only the
+residual or only update pressure is kept; the same ordering holds on 7-Scenes (0.050 → 0.079 and
+0.078 at 700 frames) and on Bonn across all horizons. Notably, neither single factor dominates
+the other, indicating that they address non-interchangeable aspects of write quality rather than two
+estimates of the same quantity.
+This pattern is the empirical signature of the multiplicative design in Eq. 7. Because the factors com-
+bine as a product, either one can independently veto an unsafe write: a redundant frame attenuates
+r and suppresses the update globally, while a saturated token attenuates exp(−h) and suppresses its
+own update even on an informative frame. Dropping a factor removes one veto path, which is why
+no single-factor variant recovers the full rate.
+
+
+                                                                  19
+B.4        S ENSITIVITY TO THE C ONSERVATIVE FALLBACK R ATE
+
+The conservative fallback rate β base controls the residual plasticity of low-reliability state tokens.
+In Eq. 3, a smaller β base makes the update increasingly rely on the reliability calibration, and de-
+generates to freezing low-reliability tokens when β base = 0. In contrast, a larger β base allows
+low-reliability tokens to keep absorbing information, but also weakens the protective effect of the
+reliability calibration by assigning non-negligible updates even when the state-side diagnosis is un-
+certain. We therefore evaluate different choices of β base while keeping all other components fixed.
+
+Table 7: Sensitivity to the conservative fallback rate. Camera pose estimation results on ScanNet-
+50 sequences under different values of β base . ATE, RPEtrans , and RPErot are reported for 300-,
+500-, and 1000-frame input streams. Lower is better for all metrics.
+
+                     300 Frames                   500 Frames                     1000 Frames
+ β base
+            ATE ↓ RPEtrans ↓ RPErot ↓ ATE ↓ RPEtrans ↓ RPErot ↓ ATE ↓ RPEtrans ↓ RPErot ↓
+      0      0.362    0.125       6.711   0.281    0.080       3.268     0.244     0.044       1.721
+    0.01     0.306    0.107       4.559   0.223    0.063       1.893     0.200     0.037       1.273
+    0.05     0.212    0.073       2.071   0.167    0.044       1.279     0.190     0.027       0.818
+     0.1     0.174    0.059       0.901   0.163    0.038       1.089     0.211     0.025       0.867
+     0.2     0.164    0.048       1.098   0.193    0.033       0.867     0.308     0.025       0.853
+
+
+As shown in Tab. 7, setting β base = 0 is consistently suboptimal. This indicates that a low reliability
+score should not completely disable state writing: even when the current update is considered unre-
+liable, a small fallback path is still needed to maintain minimal plasticity and accumulate evidence
+for subsequent frames. Meanwhile, the preferred fallback strength depends on the sequence horizon.
+On shorter sequences, a stronger fallback can be beneficial because the fixed-size state has not yet
+accumulated severe update pressure over long streams, and allowing low-reliability tokens to keep
+updating improves short-term adaptation. However, as the input stream becomes longer, overly large
+fallback rates become less favorable, since they bypass the reliability calibration and allow uncertain
+tokens to receive repeated non-negligible writes. This accumulated effect is particularly visible on
+long sequences, where excessive fallback rates degrade global trajectory accuracy.
+Overall, the results reveal a clear stability–plasticity trade-off. A zero fallback is too conservative,
+while an overly large fallback weakens the purpose of reliability-calibrated gating under accumu-
+lation over long streams. The default value β base = 0.1 provides a strong overall trade-off across
+sequence lengths and pose metrics, and is used in all main experiments.
+
+
+C      M ORE R ESULTS
+
+C.1        E FFICIENCY AND EFFECTIVENESS .
+
+As shown in Fig. 5, ReCal3R achieves a 3.7× ATE reduction over CUT3R on 1,000-frame ScanNet
+sequences, while maintaining comparable FPS and nearly identical GPU memory usage. This con-
+firms that ReCal3R improves long stream reconstruction accuracy without increasing the streaming
+state size or computational budget, achieving both effective and efficient online reconstruction.
+
+C.2        C AMERA P OSE E STIMATION
+
+We provide additional qualitative comparisons of camera trajectory estimation in Fig. 6. Consistent
+with the quantitative results in the main paper, ReCal3R produces trajectories that remain substan-
+tially closer to the ground truth over long streams, while CUT3R exhibits more noticeable drift
+accumulation. This advantage follows directly from our reliability-calibrated state-writing formula-
+tion. By decoupling whether a state token should be updated from how much new evidence it should
+absorb, ReCal3R prevents degraded or ambiguous state tokens from repeatedly incorporating un-
+reliable observations. At the same time, reliable tokens can still adapt to genuinely novel content
+through the uncalibrated (candidate) learning rate. As a result, ReCal3R better preserves the geo-
+metric consistency of the recurrent state throughout the sequence, yielding more accurate and robust
+
+
+                                                  20
+                                    CUT3R    TTT3R     TTT3R+Memix                 TTSA3R   ReCal3R
+
+ 0.786                                         23.5                   23.3                              30.5
+  CUT3R                                        CUT3R 22.7             TTSA3R
+                                                                                                         TTT3R
+                                                                                                        +Memix
+                                                     TTT3R
+                                                                               19.9
+                                                                               ReCal3R
+
+
+
+          0.423                                              12.7
+           TTT3R 0.381
+                                                              TTT3R
+                                                             +Memix
+                 TTT3R
+                +Memix   0.339
+                          TTSA3R
+                                   0.211
+                                   ReCal3R                                                  6.0 TTT3R
+                                                                                                6.0              6.4 6.1
+                                                                                                                 TTSA3R ReCal3R
+                                                                                            CUT3R
+
+
+
+
+               ATE                                           FPS                                    GPU Mem
+Figure 5: Streaming inference comparison. On 1,000-frame ScanNet sequences, ReCal3R achieves
+the lowest ATE among baselines while maintaining competitive FPS and CUT3R-level GPU mem-
+ory usage.
+
+
+camera pose estimation with only lightweight, plug-and-play modifications to the CUT3R transition
+rule.
+
+C.3   A DDITIONAL Q UALITATIVE R ESULTS ON DL3DV
+
+We provide additional qualitative visualizations on representative DL3DV sequences in Fig. 7. Im-
+portantly, these results are obtained in a fully streaming manner without any state reset or sequence-
+wise reinitialization. All visualizations are shown directly from the model outputs over the entire
+sequence, thereby reflecting the unmodified long stream behavior of the method.
+
+
+
+
+                                                              21
+               CUT3R                            TTT3R                           ReCal3R
+Scannet
+TUM-D
+
+
+
+
+Figure 6: Qualitative comparison of camera pose estimation. ReCal3R produces camera trajec-
+tories that more faithfully follow the ground truth over long sequences, with reduced drift accumu-
+lation compared with CUT3R.
+
+
+
+
+                                                22
+Figure 7: Additional qualitative results on DL3DV. The visualizations are produced directly
+from uninterrupted streaming inference over the full sequence, without applying any state reset
+or sequence-wise reinitialization.
+
+
+
+
+                                              23
+

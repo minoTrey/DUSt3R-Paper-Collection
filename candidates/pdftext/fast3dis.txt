@@ -1,0 +1,834 @@
+                                              FAST3DIS: Feed-forward Anchored Scene
+                                              Transformer for 3D Instance Segmentation
+
+                                                        Changyang Li, Xueqing Huang, Shin-Fang Chng,
+                                                           Huangying Zhan, Qingan Yan, and Yi Xu
+
+                                                                        Goertek Alpha Labs
+                                                                   {first.last}@goertekusa.com
+arXiv:2603.25993v1 [cs.CV] 27 Mar 2026
+
+
+
+
+                                               Abstract. While recent feed-forward 3D reconstruction models provide
+                                               a strong geometric foundation for scene understanding, extending them
+                                               to 3D instance segmentation typically relies on a disjointed post-hoc
+                                               clustering paradigm. Grouping dense pixel-wise embeddings via non-
+                                               differentiable clustering scales poorly with the number of views and dis-
+                                               connects representation learning from the final segmentation objective.
+                                               In this paper, we present a Feed-forward Anchored Scene Transformer
+                                               for 3D Instance Segmentation (FAST3DIS), an end-to-end approach
+                                               that effectively bypasses post-hoc clustering. Built upon a foundational
+                                               depth backbone, our method is efficiently adapted to learn instance-
+                                               specific semantics while retaining its zero-shot geometric priors. We for-
+                                               mulate a learned 3D anchor generator coupled with an anchor-sampling
+                                               cross-attention mechanism for view-consistent 3D instance segmenta-
+                                               tion. By projecting 3D object queries directly into multi-view feature
+                                               maps, our method samples context efficiently. Furthermore, we intro-
+                                               duce a dual-level regularization strategy, that couples multi-view con-
+                                               trastive learning with a dynamically scheduled spatial overlap penalty
+                                               to explicitly prevent query collisions and ensure precise instance bound-
+                                               aries. Experiments on complex indoor 3D datasets demonstrate that our
+                                               approach achieves competitive segmentation accuracy with significantly
+                                               improved memory scalability and inference speed over state-of-the-art
+                                               clustering-based methods.
+
+                                               Keywords: 3D reconstruction, 3D instance segmentation, multi-view
+                                               attention, contrastive learning
+
+
+                                         1   Introduction
+                                         Holistic 3D scene understanding is a fundamental task of next-generation spa-
+                                         tial intelligence, enabling applications in augmented reality, robotics, and au-
+                                         tonomous navigation to perceive the world not just as a collection of pixels, but
+                                         as distinct, meaningful entities. While traditional approaches treated geomet-
+                                         ric reconstruction (e.g., SLAM, MVS) and semantic understanding as separate,
+                                         sequential pipelines, the field has recently transitioned toward feed-forward mod-
+                                         els [10,14,16,18,34,36,38,39,42]. These methods have demonstrated remarkable
+                                         capabilities in recovering dense 3D geometry directly from unposed images.
+2         Li et al.
+
+    Building upon these geometric foundations, approaches like PanSt3R [49]
+have achieved feed-forward multi-view panoptic segmentation. In such setups,
+adjacent objects of different categories can be naturally separated relying on
+semantic labels. However, in the more challenging setting of class-agnostic in-
+stance segmentation, where the model must separate objects purely based on
+physical structure and spatial separation, explicit feature-space regularization
+is required. Recent works like IGGT [16] and UNITE [14] have attempted to
+integrate instance-level understanding into the reconstruction pipeline. How-
+ever, these methods rely on a disjointed post-hoc clustering paradigm: they
+predict dense, high-dimensional embeddings for every pixel and subsequently
+employ heuristic, non-differentiable clustering algorithms (e.g., HDBSCAN [20])
+to group these embeddings into discrete objects. While effective in certain scenar-
+ios, this approach suffers from severe scalability bottlenecks. The clustering step
+is computationally expensive, scaling quadratically with the number of input
+views, making it infeasible for high-resolution or large-scale scene processing.
+    To overcome these limitations, we propose FAST3DIS, a fully end-to-end
+framework for multi-view 3D instance segmentation that fundamentally elimi-
+nates the need for post-hoc clustering. Leveraging the powerful geometric priors
+of foundational depth models, we introduce a 3D-anchored, query-based Trans-
+former architecture that formulates instance segmentation as a direct set pre-
+diction problem in continuous 3D space. Specifically, instead of grouping dense
+point-wise embeddings via expensive 3D heuristic clustering, our model directly
+decodes multi-view consistent masks from 2D observations. Our approach di-
+verges from prior art through three core contributions:
+
+    – 3D-Anchored Cross-Attention for Dense Segmentation: We formulate ob-
+      ject queries as dynamic 3D anchors that serve as explicit spatial probes
+      in continuous geometric space. We effectively extend sparse 3D detection
+      paradigms [40] to dense mask generation by projecting these 3D anchors
+      into multi-view feature maps to sample local context via anchor-sampling
+      cross-attention, which replaces dense global attention with deterministic 3D-
+      to-2D query projections. This explicitly enforces multi-view geometric con-
+      sistency while reducing the cross-attention complexity to scale linearly with
+      the number of queries and views, thereby decoupling memory requirements
+      from spatial resolution.
+    – Explicit Feature and Spatial Regularization: To achieve robust class-agnostic
+      separation in a single forward pass, we introduce a dual-level regularization
+      strategy. In the feature space, a multi-view contrastive loss pulls representa-
+      tions of the same 3D instance together across views while pushing distinct
+      instances apart. In the spatial domain, we propose a dynamically scheduled
+      overlap penalty that actively prevents distinct queries from claiming the
+      same physical region, ensuring sharp instance boundaries without yielding
+      artificial background gaps.
+    – Optimized Inference Efficiency and Scalability: By fundamentally bypassing
+      the need for test-time heuristics and clustering, our approach significantly
+      reduces the memory footprint and delivers orders-of-magnitude inference
+      Feed-forward Anchored Scene Transformer for 3D Instance Segmentation      3
+
+      speedups without compromising competitive segmentation accuracy. This
+      provides a highly scalable foundation for real-time 3D scene understanding.
+
+
+2     Related Work
+
+2.1     Feed-Forward 3D Reconstruction
+
+The 3D reconstruction paradigm has recently shifted from multi-stage optimiza-
+tion (e.g., COLMAP [28,29]) to unified feed-forward Transformers [35]. Methods
+like DUSt3R [38], Fast3R [43], and FLARE [46] demonstrated the ability to di-
+rectly regress dense 3D pointmaps and camera parameters from unposed image
+collections. To overcome the batch-processing limitations of these offline meth-
+ods, subsequent models such as CUT3R [37], SLAM3R [19], and WINT3R [17]
+introduced incremental, real-time 3D reconstruction for streaming inputs.
+    Concurrently, visual geometry models, like VGGT [36], FastVGGT [31], and
+Depth Anything V3 (DA3) [18], have significantly advanced zero-shot metric
+depth estimation and spatial recovery. However, despite their robust geometric
+priors, these models lack semantic awareness and cannot distinguish object iden-
+tities. Our framework addresses this gap by utilizing DA3 as a frozen geometric
+backbone. Through a LoRA [8] adaptation, we extract instance-level semantics
+while fully preserving the model’s generalized 3D reconstruction capabilities.
+
+
+2.2     Multi-View Instance Segmentation
+
+Early multi-view semantic approaches focus on fusing geometric and visual fea-
+tures. SAB3R [3] generates implicit multi-view semantic representations but
+lacks explicit consistency constraints. Alternatively, methods like Uni3R [33] and
+LSM [6] incorporate Vision-Language Models (VLMs, e.g., LSeg [1], CLIP [25])
+into 3D Gaussian Splatting [11]. While achieving cross-view semantic consis-
+tency, these VLM-driven representations are inherently category-level, failing to
+effectively discriminate between distinct instances of the same semantic class.
+    In the 2D domain, Mask2Former [4] established a unified mask classification
+paradigm by formulating segmentation as a set prediction problem. It utilizes
+learnable object queries, bipartite matching, and masked cross-attention to di-
+rectly output mask probabilities. Extending 2D query-based segmentation to
+unposed multi-view scenarios introduces significant challenges in cross-view as-
+sociation. For example, PanSt3R [49] jointly predicts geometry and panoptic
+masks based on MUSt3R [2]. However, lacking explicit multi-view consistency
+constraints during training, PanSt3R optimizes masks primarily within individ-
+ual 2D views. Consequently, it relies on a post-hoc quadratic binary optimization
+over the reconstructed point cloud to resolve cross-view conflicts, compromising
+its feed-forward efficiency.
+    To explicitly enforce multi-view consistency without test-time optimization,
+recent models like IGGT [16] and UNITE [14] adopt a post-hoc clustering
+paradigm. They learn a dense metric feature space via contrastive losses to group
+4      Li et al.
+
+pixels belonging to the same instance, followed by non-differentiable density-
+based clustering (e.g., HDBSCAN [20]). While effective conceptually, this clus-
+tering step creates a severe latency and memory bottleneck. As the view count
+increases, dense point-wise clustering scales poorly, becoming computationally
+infeasible and highly sensitive to heuristic hyperparameters.
+
+
+2.3   Class-Agnostic 3D Instance Segmentation
+
+Traditional 3D instance segmentation approaches, such as Mask3D [30], rely
+heavily on extensive point-level annotations. To bypass the need for massive
+3D annotations, a prominent line of research leverages the zero-shot capabil-
+ities of 2D foundation models (e.g., SAM [13], SAM2 [27], CropFormer [24]).
+Training-free methods like SAM3D [44] and MaskClustering [41] extract dense
+2D masks from multi-view images and project them onto 3D point clouds via
+camera poses. Segment3D [9] instead trains directly on SAM-generated pseudo-
+labels alongside limited ground truth, requiring only 3D point clouds during
+inference. Open3DIS [22] partitions the 3D space into geometrically uniform su-
+perpoints to facilitate robust 2D-to-3D matching. Recent extensions, including
+Any3DIS [21] and SAM2Object [47], incorporate SAM2’s tracking capabilities to
+enhance multi-view temporal consistency. However, these 2D-lifting pipelines are
+fundamentally bottlenecked by severe multi-view occlusions and their reliance
+on hand-crafted, heuristic mask consolidation rules.
+
+
+2.4   3D-to-2D Query Projection
+
+To predict instance masks end-to-end across multiple views without any post-
+hoc optimization or spatial clustering, we draw inspiration from sparse 3D object
+detection frameworks (e.g., DETR3D [40] and Deformable DETR [48]). These
+methods pioneered the use of 3D-to-2D query projection, where 3D reference
+points are projected onto 2D camera views to sample local features for sparse
+bounding box regression. We adapt and extend this mechanism for dense 3D in-
+stance segmentation in unconstrained, unposed environments. We utilize learn-
+able 3D anchors within the scene volume, coupled with anchor-sampling cross-
+attention to efficiently query features from different views by projecting 3D lo-
+cations into 2D feature maps, bypassing the complexity of global attention.
+
+
+3     Method
+
+We propose FAST3DIS, an end-to-end feed-forward framework for multi-view
+3D instance segmentation from unposed images, as illustrated in Figure 1. Given
+a set of S unposed RGB images I = {I1 , . . . , IS } of shape H × W , our model
+predicts a set of 3D-consistent binary masks and class identities without requiring
+intermediate depth supervision or post-hoc clustering.
+      Feed-forward Anchored Scene Transformer for 3D Instance Segmentation            5
+
+
+
+
+Fig. 1: Overview of the FAST3DIS framework. Given unposed multi-view RGB images:
+(1) Dual-Pass Backbone: A frozen Depth Anything V3 (DA3) [18] extracts dense depth
+and camera parameters, while a LoRA [8]-adapted pathway extracts multi-scale view
+features F. (2) Geometry-Injected Pixel Decoder: The predicted geometry is injected
+to generate a 3D-aware feature pyramid Fdec and mask features Fmask . (3) 3D Anchor
+Generator: Explicit 3D anchors A and content queries Cq are produced conditioned on
+the global scene context γ. (4) Anchor-Sampling Transformer Decoder: 3D Anchors are
+onto the 2D views to sample local multi-view features from Fdec . Finally, the predicted
+geometry and masks M̂ are assembled into 3D instances.
+
+
+
+3.1    Dual-Pass LoRA-Adapted Geometric Backbone
+
+To leverage strong geometric priors without the need for multi-view optimiza-
+tion, we adopt the pre-trained Depth Anything V3 (DA3) [18] as our foundational
+backbone. While DA3 excels at zero-shot metric depth and camera pose estima-
+tion, fine-tuning such a large-scale model for semantic instance segmentation
+often leads to catastrophic forgetting of its inherent 3D structural knowledge.
+    We propose a dual-pass adaptation strategy. We freeze the original DA3
+parameters entirely and introduce Low-Rank Adaptation (LoRA) [8] modules
+into the linear projections of DA3’s backbone. During a forward pass, we execute
+two distinct pathways for each batch:
+
+ – Geometry Pass: LoRA is disabled. We route the input images I through
+   the frozen DA3 pipeline to extract dense metric depth maps D, along with
+   the associated camera intrinsics K and extrinsics E.
+ – Feature Pass: LoRA is enabled. We extract multi-scale view feature maps
+   F = {F 1/32 , F 1/16 , F 1/8 , F 1/4 } from the DA3 backbone. The trainable LoRA
+   parameters allow the backbone to adapt to instance-discriminative represen-
+   tations while implicitly sharing the underlying geometric feature space.
+
+
+3.2    Geometry-Injected Pixel Decoder
+
+To bridge the semantic features and the spatial 3D geometry, we employ a Dense
+Prediction Transformer (DPT) [26] style pixel decoder. Standard pixel decoders
+operate purely in the 2D domain, which is insufficient for 3D consistency. There-
+fore, we explicitly inject the predicted 3D geometry into the decoding process.
+    Specifically, we unproject the depth map D into a dense 3D point map
+Pworld ∈ RS×3×H×W in the global coordinate system. This dense point map
+6      Li et al.
+
+is downsampled to 1/32 resolution via interpolation, projected to the embed-
+ding dimension, and directly added to the deepest backbone feature F 1/32 . Fol-
+lowing this geometry injection, a chain of feature fusion blocks progressively
+upsample and fuse the feature pyramid, and produce the refined multi-scale
+                      1/32   1/16   1/8
+features Fdec = {Fdec , Fdec , Fdec } for the Transformer decoder, alongside a
+                                               H  W
+high-resolution mask feature Fmask ∈ RS×C× 4 × 4 . To ensure cross-view stabil-
+ity, Fmask is explicitly regularized by a geometric consistency loss (Section 3.6).
+
+
+3.3   Learned 3D Anchor Generator
+
+Extending standard query-based 2D segmentation models (e.g., Mask2Former [4])
+to 3D might struggle to consistently associate the same physical object across
+dramatically different viewpoints. To physically ground the queries, we intro-
+duce a learned 3D anchor generator. We define Nq learnable 3D anchor points
+Ainit ∈ RNq ×3 , and employ a multi-layer perceptron (MLP) to predict a dynamic
+3D shift ∆A conditioned on the global scene context γ obtained via global aver-
+age pooling of the deepest feature F1/32 . The refined anchors are computed as:
+
+                                    A = A_{init} + \text {MLP}(\gamma )                       (1)
+Concurrently, the generator outputs Nq content queries Cq ∈ RNq ×C . These
+3D anchors act as explicit spatial priors, representing the physical centers of
+potential objects in the continuous world coordinate system.
+
+
+3.4   Anchor-Sampling Cross-Attention Decoder
+
+The core bottleneck in multi-view attention mechanisms is the sequence length.
+Standard cross-attention between Nq queries and all pixels across S views yields
+a prohibitive computational complexity of O(Nq · S · HW ). Building upon the
+multi-scale paradigm of Mask2Former [4], we employ an anchor-sampling cross-
+attention that bypasses global dense matching, reducing the spatial complexity
+from O(HW ) to O(1).
+    Our Transformer decoder consists of L layers. Following Mask2Former, we
+adopt a round-robin routing strategy for the multi-scale features: at each decoder
+                                                                   m
+layer l, the cross-attention operates on a specific feature scale Fdec ∈ Fdec .
+           (l−1)
+    Let Cq       and A(l−1) denote the content queries and the corresponding 3D
+anchors by the previous layer (or initialized by the generator when l = 1). Inside
+the l-th decoder layer, the queries are processed through three main steps:
+    1. Query Self-Attention: We first inject the 3D spatial priors into the
+content queries using a Fourier-based 3D positional encoding (PE3D ):
+
+                             q_i = C_{q, i}^{(l-1)} + \text {PE}_{\text {3D}}(A_i^{(l-1)})    (2)
+
+These queries are then processed via a Multi-Head Self-Attention (MHSA) [35]
+module, interacting with each other to reason about global scene context.
+      Feed-forward Anchored Scene Transformer for 3D Instance Segmentation                                                                                                                                     7
+
+   2. Anchor-Sampling Cross-Attention: Instead of globally attending to
+                        m
+the dense feature map Fdec , each updated query qi explicitly leverages its cor-
+                       (l−1)
+responding 3D anchor Ai      . For each view s ∈ {1, . . . , S}, we project the 3D
+anchor onto the 2D view using the predicted extrinsics Es and intrinsics Ks :
+                                        [u_{i,s}, v_{i,s}, z_{i,s}]^\top = K_s \left ( E_s \cdot [A_i^{(l-1)}, 1]^\top \right )                                                                               (3)
+
+The normalized 2D coordinates (ui,s /zi,s , vi,s /zi,s ) are then used to bilinearly
+                                  dec
+sample the chosen feature map Fm      , yielding a view-specific local feature vector
+ (l)     C
+fi,s ∈ R . The cross-attention for the i-th query is then performed exclusively
+over its S spatially sampled features:
+              \text {CrossAttn}(q_i, \mathcal {K}, \mathcal {V}) \quad \text {where} \quad \mathcal {K} = \mathcal {V} = \{f_{i,1}^{(l)}, f_{i,2}^{(l)}, \dots , f_{i,S}^{(l)}\}                              (4)
+This forces the query to aggregate visual evidence from the same physical 3D
+location across all views, explicitly enforcing multi-view geometric consistency.
+    3. Iterative Anchor Refinement: After a Feed-Forward Network (FFN)
+                                  (l)
+updates the content query to Cq , we apply an iterative refinement to the 3D
+anchors. We pass the updated content query through a lightweight MLP to
+predict a residual 3D shift ∆A(l) , allowing the model to progressively adjust the
+physical location of the anchor to better center on the target object:
+                                                                 A_i^{(l)} = A_i^{(l-1)} + \text {MLP}(C_q^{(l)})                                                                                             (5)
+    After L layers of progressive semantic refinement and spatial adjustment, the
+final outputs are highly discriminative query embeddings and precisely localized
+3D instance centers, which are then routed to the mask generation module.
+
+3.5    Multi-View Mask Generation and 3D Assembly
+The Transformer decoder ultimately produces Nq updated query embeddings.
+These embeddings are passed through two parallel branches: a classification head
+that predicts the objectness (or class logits) p ∈ RNq ×2 , and an MLP that
+generates mask embeddings Emask ∈ RNq ×C .
+   To obtain the final 2D instance masks for each view, we expand the mask
+embeddings Emask to shape S × Nq × C, and compute the dot product between
+these embeddings and the high-resolution per-view pixel features Fmask :
+                                             \hat {M}_{s} = \sigma \left ( \mathcal {E}_{\text {mask}} \cdot F_{\text {mask}}^{(s)} \right ) \in \mathbb {R}^{N_q \times \frac {H}{4} \times \frac {W}{4}} 
+                                                                                                                                                                                                              (6)
+
+where σ denotes the sigmoid activation function, and M̂s represents the multi-
+view consistent 2D binary masks for the s-th view.
+    During inference, for each query i with an objectness score above a predefined
+threshold θ, we collect all valid pixels (u, v) across all views where the predicted
+                     (i,u,v)
+mask probability M̂s         > θ. Utilizing the purely feed-forward metric depth Ds
+and camera parameters Ks , Es from our geometry pass, we directly unproject
+these pixels into the 3D world space. The union of these unprojected points
+across all views inherently forms the dense, complete 3D point cloud of the i-th
+instance, achieving unified 3D instance segmentation in a single forward pass.
+8      Li et al.
+
+3.6   Training Objectives
+
+Our framework is trained end-to-end following the set prediction paradigm. We
+first establish an optimal one-to-one bipartite matching between the Nq pre-
+dictions and the Ngt ground-truth objects using the Hungarian algorithm [15].
+Since FAST3DIS performs class-agnostic instance segmentation, the matching
+cost only considers the objectness probability and the geometric mask similar-
+ity. Once the optimal assignment is determined, the network is optimized using
+a unified objective encompassing standard 2D segmentation losses, explicit 3D
+feature consistency, and a dynamic boundary overlap penalty.
+
+Standard Segmentation Losses. For the matched queries, we utilize a combi-
+nation of traditional instance segmentation losses. To handle the foreground-
+background class imbalance and optimize the class-agnostic objectness score, we
+apply the Sigmoid Focal Loss (Lcls ). For the dense mask prediction, we employ
+Binary Cross-Entropy (BCE) loss (Lbce ) for pixel-wise classification, paired with
+the Sørensen–Dice loss (Ldice ) to enforce global shape agreement and mitigate
+the impact of object scale variations.
+
+View-Consistent Contrastive Optimization. While standard segmentation losses
+operate independently on individual 2D views, they lack the cross-view geometric
+constraints necessary for 3D segmentation. We explicitly regularize the under-
+lying dense mask feature space via a point-level supervised contrastive loss [12].
+Specifically, we perform instance-balanced sampling across the multi-view fea-
+ture maps to construct a dense subset of points I, where each point i ∈ I is
+mapped to its ground-truth instance identity yi . For a point i, let zi denote its
+L2 -normalized feature, and let P (i) ≡ {p ∈ I \ {i} : yp = yi } be the set of its
+positive matches. The multi-view geometric consistency loss is formulated as:
+
+                 \mathcal {L}_{\text {geo}} = \sum _{i \in I} \frac {-1}{|P(i)|} \sum _{p \in P(i)} \log \frac {\exp (z_i \cdot z_p / \tau )}{\sum _{a \in I \setminus \{i\}} \exp (z_i \cdot z_a / \tau )}    (7)
+
+
+where τ is a temperature hyperparameter. By optimizing densely sampled pixel
+features, this formulation yields a discriminative feature space directly optimized
+for precise boundary separation.
+
+Dynamic Spatial Overlap Penalty. During preliminary experiments, we observed
+a frequent failure mode where multiple queries would "hijack" or compete for
+the same physical instance across views. Relying solely on standard segmenta-
+tion losses with Hungarian matching on the more complex 3D-consistent class-
+agnostic segmentation is challenging. Without class supervision to penalize queries
+for merging adjacent objects, the model lacks a critical natural regularizer. For
+example, while a query may perfectly segment an object in one view, occlu-
+sions can cause its mask to inappropriately expand in alternate views. Global
+bipartite matching cannot provide the strict, pixel-level cross-view exclusivity
+required here, inevitably leading to overlapping masks and semantic bleeding.
+               Feed-forward Anchored Scene Transformer for 3D Instance Segmentation                                                                                                                                                                                                                                                                                   9
+
+Furthermore, while our contrastive loss Lgeo enforces instance distinction in the
+feature space, its sample-based nature cannot guarantee the defense of hard
+spatial boundaries at the pixel level.
+    To explicitly penalize active queries for claiming the same spatial region, we
+introduce a confidence-weighted pairwise overlap loss. Let pi ∈ [0, 1]M denote
+the flattened multi-view spatial probability map for the i-th query, and ci denote
+its predicted objectness score. The loss is computed as the sum of weighted dot
+products between all distinct query pairs:
+
+
+                                                                                   \mathcal {L}_{\text {overlap}} = \frac {1}{N_q(N_q-1)} \sum _{i=1}^{N_q} \sum _{j \neq i} (c_i \mathbf {p}_i) \cdot (c_j \mathbf {p}_j)                                                                                                                                           (8)
+
+
+    However, naively applying a static, strong overlap penalty creates a subopti-
+mal optimization landscape. If the penalty is too aggressive during early training,
+it encourages “lazy” queries that universally predict low confidence scores and are
+thus filtered into the background class, safely avoiding overlap collisions. Con-
+versely, maintaining a high penalty during the training encourages the network
+to predict artificial background safety zones between adjacent instances.
+    To resolve this, we dynamically schedule the overlap weight λoverlap (t) over
+the normalized training progress t ∈ [0, 1]. Initially (t ≤ 0.6), λoverlap expo-
+nentially warms up to its maximum, allowing queries to freely explore without
+large penalties. Subsequently, it linearly decays to a minimal floor, ensuring tight
+convergence on object boundaries to reduce artificial background gaps.
+
+Overall Objective. To facilitate deep supervision, the primary segmentation and
+overlap losses are applied to the outputs of all intermediate Transformer decoder
+layers. The final training objective is formulated as:
+
+
+   \mathcal {L}_{\text {total}} = \sum _{l=1}^{L} \Big ( \lambda _{\text {cls}}\mathcal {L}_{\text {cls}}^{(l)} + \lambda _{\text {bce}}\mathcal {L}_{\text {bce}}^{(l)} + \lambda _{\text {dice}}\mathcal {L}_{\text {dice}}^{(l)} + \lambda _{\text {overlap}}(t)\mathcal {L}_{\text {overlap}}^{(l)} \Big ) + \lambda _{\text {geo}}\mathcal {L}_{\text {geo}}    (9)
+
+
+
+4                Experiments
+4.1                     Experimental Setup
+Implementation Details. All evaluations are conducted on a computing node
+equipped with a 32-core AMD EPYC 9654 processor and a single NVIDIA H200
+GPU (144GB VRAM). Both our FAST3DIS and IGGT resize all input images
+to a long-edge resolution of 504 pixels, following DA3 and VGGT standard.
+
+Datasets. Our model is trained exclusively on the Aria Synthetic Environments
+Dataset [23], which provides highly photorealistic simulated indoor environments
+with rich multi-view multi-modal annotations. Due to the computational over-
+head considering the size of the full dataset (100, 000+ scenes), we sampled 40%
+of the scenes to form our training set. We conducted a statistical analysis of
+10     Li et al.
+
+the ground-truth instance distributions across the training scenes and set the
+number of learnable 3D anchors and content queries in our model to Nq = 80.
+    To assess the zero-shot generalization and geometric robustness, our evalu-
+ations are on three highly diverse, standard 3D scene understanding datasets:
+(1)ScanNet V2 [5]: A widely adopted, large-scale dataset containing complex,
+real-world indoor scenes. (2) ScanNet++ [45]: A recent benchmark that pro-
+vides high-resolution indoor scenes captured with sub-millimeter laser scanners.
+(3) Replica [32]: A dataset consisting of highly photorealistic synthetic indoor
+environments with high-fidelity geometry and dense semantic annotations.
+
+Baselines. Conventional 3D instance segmentation methods operating on pre-
+reconstructed, high-fidelity point clouds or posed RGB-D sequences may achieve
+higher absolute “segmentation scores”. However, such methods impose strict data
+and preprocessing dependencies. In contrast, our method requires only unposed
+multi-view RGB images, harnessing the powerful geometric priors of the DA3
+backbones to simultaneously recover 3D geometry and instance boundaries.
+    Thus, the primary objective of our evaluation is to compare against recent
+state-of-the-art feed-forward 3D scene understanding models. Despite the fact
+that PanSt3R [49] shares similar geometric foundation, we do not focus our
+primary comparison on it due to its divergent task formulation (panoptic seg-
+mentation) and its reliance on test-time optimization, as previously discussed.
+Instead, we explicitly position our method against IGGT [16], which represents
+the post-hoc clustering paradigm for class-agnostic 3D instance segmentation.
+We aim to demonstrate that our purely end-to-end architecture structurally re-
+solves the severe latency and memory bottlenecks inherent in clustering, while
+maintaining highly competitive segmentation accuracy.
+    Despite this positioning, our quantitative evaluation on class-agnostic 3D
+instance segmentation includes a broader comparison. Specifically, we compare
+with : (1) Geometry-only clustering methods HDBSCAN [20] and Felzenszwalb et
+al. [7] relying entirely on spatial coordinates; (2) 2D-driven models SAM3D [44]
+and Segment3D [9], which leverage the 2D segmentation capabilities of SAM [13]
+and project them into 3D space; and (3) PanSt3R and IGGT.
+
+4.2   Efficiency and Scalability Analysis
+The key advantage of FAST3DIS over IGGT lies in its end-to-end inference
+efficiency and memory scalability. While IGGT utilizes efficient geometric back-
+bones VGGT, their overall inference pipeline is heavily bottlenecked by the post-
+hoc clustering stage. In the post-hoc clustering paradigm, algorithms like HDB-
+SCAN require constructing dense, high-dimensional pairwise distance matrices
+across all point embeddings. When attempting to accelerate this process using
+GPU-optimized implementations (e.g., cuML’s GPU HDBSCAN), the O(N 2 )
+memory footprint quickly becomes a fatal flaw. In our testing environment,
+IGGT equipped with GPU HDBSCAN triggers an Out-Of-Memory (OOM) er-
+ror when attempting to process images. However, real-world scene reconstruction
+and segmentation often necessitate significantly more dense view coverage. To
+      Feed-forward Anchored Scene Transformer for 3D Instance Segmentation         11
+
+
+
+
+Fig. 2: Comparisons with IGGT [16]. Left: Inference time comparison (log scale).
+Right: Qualitative segmentation results. Red circles highlight small objects that IGGT
+fails to isolate and incorrectly merges into the supporting background.
+
+
+process larger numbers of views without hitting the VRAM ceiling, one is forced
+to fallback to the CPU implementation. While this avoids OOM errors, the ex-
+treme latency makes it unscalable.
+    As illustrated in Figure 2, the latency gap between FAST3DIS and IGGT
+widens exponentially as the number of views increases. At 30 input views, the
+inference time for FAST3DIS is 7.9 seconds. In contrast, IGGT requires 910.8
+seconds with GPU HDBSCAN, and 1141.5 seconds using the CPU version. Our
+method achieves over a 115× speedup. At 50 input views, while IGGT on GPU
+fails entirely due to OOM, IGGT on CPU takes approximately 4663.3 seconds
+to process a single scene. In comparison, FAST3DIS smoothly handles the same
+50-view input in 18.4 seconds, representing a 250× acceleration. Our experi-
+ments show that the additional VRAM overhead introduced by our method is
+marginal compared to the frozen DA3 backbone itself. We evaluated up to 350
+images (682.7 seconds) in a single forward pass without approaching the hard-
+ware limits, demonstrating that our architecture is structurally equipped for
+large-scale, unconstrained multi-view environments.
+
+4.3    Qualitative Evaluation
+To gain deeper insights into the structural advantages of our end-to-end ar-
+chitecture, we qualitatively compare the segmentation outputs of FAST3DIS
+against IGGT. As discussed, IGGT relies on HDBSCAN to group 3D points. In
+contrast, FAST3DIS predicts masks directly via physically distinct 3D anchors.
+This architectural difference is evident in two challenging scenarios:
+ – Segmentation of Small Objects. A critical vulnerability of clustering-
+   based method is the scale and density imbalances. Figure 2 shows example
+   2D segmentation masks, highlighting scenarios where small objects rest on
+   large supporting structures (e.g., small items on a table and on a bathroom
+   sink). In IGGT’s feature space, these small objects generate relatively few
+   3D points compared to the massive supporting surfaces. HDBSCAN might
+   cause them to be "swallowed" and merged into the background object. In
+   contrast, FAST3DIS is more sensitive to small objects.
+12      Li et al.
+
+
+
+
+Fig. 3: Qualitative comparison with IGGT. Red circles highlight adjacent objects that
+IGGT incorrectly merges into a single instance.
+
+
+
+ – Separation of Adjacent Objects. Another major failure mode of cluster-
+   ing occurs when distinct objects of similar semantics are physically adjacent
+   or touching. As shown in Figure 3, IGGT sometimes struggles with "semantic
+   bleeding". Because the contrastive loss pulls similar features together, and
+   the objects share a continuous physical boundary, the local geometric den-
+   sity remains uninterrupted. Consequently, HDBSCAN merges the adjacent
+   objects into a single instance. In comparison, FAST3DIS’s queries compete
+   for exclusive spatial occupancy and better locate the boundaries between
+   adjacent instances, driven by 3D anchors and the spatial overlap penalty.
+
+
+
+4.4   Quantitative Evaluation
+
+To quantitatively evaluate the performance of our proposed method, we employ
+the standard Average Precision (AP) metrics widely adopted for 3D instance
+segmentation tasks. In the class-agnostic setting, we ignore the semantic class
+labels in the annotations and focus purely on object localization and boundary
+quality. We report the AP at Intersection-over-Union (IoU) thresholds of 25%
+(AP25 ) and 50% (AP50 ), as well as the overall AP, which is averaged across IoU
+thresholds ranging from 50% to 95% with a step size of 5%.
+    Unlike other baselines that operate directly on pre-aligned ground-truth ge-
+ometries, feed-forward 3D reconstruction models (FAST3DIS, IGGT, PanSt3R)
+predict point clouds and camera poses in a first-view relative, unscaled local
+coordinate system. We apply a Sim(3) trajectory alignment followed by an ICP
+refinement to align their predictions for evaluation. Correspondences are estab-
+lished by mapping each predicted point to its nearest ground-truth vertex. To
+ensure a fair and computationally feasible comparison, due to the GPU memory
+and latency limitations faced by IGGT as discussed, we uniformly sample 50
+views along the camera trajectory to reconstruct and evaluate each scene.
+      Feed-forward Anchored Scene Transformer for 3D Instance Segmentation             13
+
+Table 1: 3D Instance Segmentation Evaluation on ScanNet, ScanNet++,
+and Replica. We report standard Average Precision (AP) metrics. The best results
+are highlighted in bold, and the second-best results are underlined.
+
+                               ScanNet V2 [5] ScanNet++ [45] Replica [32]
+            Method
+                               AP25 AP50 AP AP25 AP50          AP    AP25 AP50 AP
+            HDBSCAN [20]       5.6    0.6   0.2   2.4    0.6   0.2   2.3   0.1   0.0
+            Felzenszwalb [7]   10.0   2.2   0.8   2.9    1.1   0.5   1.6   1.4   1.0
+            SAM3D [44]         23.3   8.0   2.4   19.2   7.0   2.2   28.3 16.1 7.1
+            Segment3D [9]      17.2   7.2   2.5   17.3   8.1   3.1   15.8 9.3 4.0
+            PanSt3R [49]    22.5 3.5  0.8 21.7           6.2   1.7   20.7 6.2 1.7
+            IGGT [16]       28.7 11.2 2.8 10.0           2.2   0.6   15.2 3.9 1.1
+            FAST3DIS (Ours) 31.6 9.6 3.8 14.7            3.5   1.0   30.3 13.8 5.1
+
+
+
+
+    Quantitative results are reported in Table 1. On ScanNet V2 and Replica,
+FAST3DIS demonstrates competitive performance, outperforming our primary
+baseline IGGT, and achieves comparable results to 2D-driven foundation models.
+    Insight on Highly Cluttered Scenes: It is worth noting the general per-
+formance degradation observed for both FAST3DIS and IGGT on the Scan-
+Net++ dataset. Through empirical analysis, we attribute this to a fundamental
+capacity bottleneck when facing dense annotations. ScanNet++ scenes are ex-
+haustively annotated, frequently containing upwards of 100 to 200 ground-truth
+instances per scene. For FAST3DIS, our Transformer decoder was intention-
+ally configured with Nq = 80 queries based on the statistical distribution of
+our training data, causing the network to naturally miss objects in hyperscale
+scenes. Interestingly, while IGGT is not bounded by a fixed query count, its per-
+formance also drops sharply. Our analysis reveals that clustering-based pipelines
+suffer from severe under-segmentation in these highly cluttered environments.
+Due to semantic bleeding, IGGT might merges distinct objects into single large
+clusters, typically predicting only 20 to 30 instances per Scannet++ scene.
+
+
+4.5    Ablation Studies
+
+To validate the specific optimization designs of FAST3DIS, we conduct ablation
+studies focusing explicitly on our custom loss formulations designed for class-
+agnostic multi-view segmentation. Figure 4 illustrates the following cases:
+
+ – Necessity of Feature and Spatial Regularization. A natural question
+   is whether existing feed-forward panoptic models (e.g., PanSt3R) can be di-
+   rectly repurposed for class-agnostic instance segmentation by simply discard-
+   ing their semantic classification branches. To simulate this naive adaptation,
+   we ablate both our view-consistent contrastive loss (Lgeo ) and the spatial
+   overlap penalty (Loverlap ). This effectively reduces our training objective to
+   a standard multi-view Mask2Former [4] formulation.
+   The empirical results reveal a severe degradation in mask quality and in-
+   stance separation. Without explicit 3D feature regularization and spatial
+14      Li et al.
+
+
+
+
+Fig. 4: Qualitative ablation of our proposed regularization strategies. Left: Impact
+of explicit feature and spatial regularization. The full model successfully maintains
+consistent instance identities across different viewpoints (highlighted in green). Without
+Lgeo and Loverlap (see Section 3.6), the model suffers from severe cross-view association
+failures (the table and the pillow, highlighted in read) and “query hijacking”, resulting
+in physically overlapping masks. Right: Impact of the dynamic overlap penalty. A
+fixed, static penalty forces the network to conservatively predict artificial background
+gaps (black regions) between adjacent objects. In contrast, our dynamic scheduling
+ensures more precise and contiguous instance boundaries.
+
+
+   anti-collision constraints, the network exhibits frequent “query hijacking”
+   where multiple queries converge on and claim the exact same physical object.
+   Furthermore, the predicted multi-view masks suffer from highly ambiguous
+   and blurry boundaries. This proves that while standard bipartite matching
+   is sufficient for panoptic tasks (where distinct semantic labels naturally pull
+   adjacent objects apart), pure class-agnostic 3D segmentation fundamentally
+   requires additional spatial regularization to extract object boundaries.
+ – Fixed vs. Dynamic Overlap Penalty. Having established the absolute
+   necessity of the overlap penalty to prevent “query hijacking”, we analyze the
+   impact of its weighting strategy. Applying a consistently high static weight
+   for Loverlap helps to force queries to claim disjoint regions, but meanwhile
+   introduces another failure mode: The network becomes overly conservative,
+   predicting thick "black gaps" that are artificial background safety zones
+   due to low confidence of all queries, between adjacent instances to safely
+   avoid any penalty collision. Conversely, maintaining a consistently low over-
+   lap weight fails to fully resolve the initial hijacking problem. Our proposed
+   dynamic weight scheduling directly addresses this dilemma. By exponentially
+   warming up the penalty during early training to separate queries, and lin-
+   early decaying it in the final stages, the model is encouraged to confidently
+   extend predictions to the true object edges.
+
+
+
+5    Conclusion
+In this paper, we presented FAST3DIS, a fully end-to-end framework for multi-
+view 3D instance segmentation that fundamentally overcomes the severe latency
+and memory bottlenecks of traditional post-hoc clustering paradigms. By in-
+corporating a learned 3D anchor generator coupled with an efficient anchor-
+sampling cross-attention mechanism, our approach avoids the quadratic com-
+plexity of global attention and explicitly enforces multi-view geometric con-
+    Feed-forward Anchored Scene Transformer for 3D Instance Segmentation             15
+
+sistency. Furthermore, our dual-level regularization strategy, which integrates
+multi-view contrastive learning with a dynamically scheduled spatial overlap
+penalty to effectively prevents query collisions and ensures precise boundary.
+Experiments demonstrate that FAST3DIS not only achieves highly competi-
+tive segmentation accuracy within the pure feed-forward 3D paradigm on stan-
+dard benchmarks, but also delivers orders-of-magnitude inference speedups over
+clustering-based methods, particularly as the number of input views scales.
+
+
+References
+
+ 1. Boyi, L., Weinberger, K., Belongie, S., Koltun, V., Ranftl, R.: Language-driven
+    semantic segmentation. arXiv preprint arXiv:2201.03546 (2022)
+ 2. Cabon, Y., Stoffl, L., Antsfeld, L., Csurka, G., Chidlovskii, B., Revaud, J., Leroy,
+    V.: Must3r: Multi-view network for stereo 3d reconstruction. In: Proceedings of the
+    IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 1050–
+    1060 (2025)
+ 3. Chen, X., Xia, T., Yang, J., Chai, J., Cheng, Z.: Sab3r: Semantic-augmented back-
+    bone in 3d reconstruction. arXiv preprint arXiv:2506.02112 (2025)
+ 4. Cheng, B., Misra, I., Schwing, A.G., Kirillov, A., Girdhar, R.: Masked-attention
+    mask transformer for universal image segmentation (2022)
+ 5. Dai, A., Chang, A.X., Savva, M., Halber, M., Funkhouser, T., Nießner, M.: Scannet:
+    Richly-annotated 3d reconstructions of indoor scenes. In: Proc. Computer Vision
+    and Pattern Recognition (CVPR), IEEE (2017)
+ 6. Fan, Z., Zhang, J., Cong, W., Wang, P., Li, R., et al.: Large spatial model: End-to-
+    end unposed images to semantic 3d. In: Advances in Neural Information Processing
+    Systems. vol. 37, pp. 40212–40229 (2024)
+ 7. Felzenszwalb, P.F., Huttenlocher, D.P.: Efficient graph-based image segmentation.
+    International journal of computer vision 59(2), 167–181 (2004)
+ 8. Hu, E.J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., Chen,
+    W., et al.: Lora: Low-rank adaptation of large language models. Iclr 1(2), 3 (2022)
+ 9. Huang, R., Peng, S., Takmaz, A., Tombari, F., Pollefeys, M., Song, S., Huang, G.,
+    Engelmann, F.: Segment3d: Learning fine-grained class-agnostic 3d segmentation
+    without manual labels. arXiv preprint arXiv:2312.17232 (2023)
+10. Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang, Y., Fischer, T.,
+    Knapitsch, A., Zauss, D., Weber, E., Antunes, N., Luiten, J., Lopez-Antequera,
+    M., Bulò, S.R., Richardt, C., Ramanan, D., Scherer, S., Kontschieder, P.: MapA-
+    nything: Universal feed-forward metric 3D reconstruction. In: International Con-
+    ference on 3D Vision (3DV). IEEE (2026)
+11. Kerbl, B., Kopanas, G., Leimkuehler, T., Drettakis, G.: 3d gaussian splatting for
+    real-time radiance field rendering. ACM Trans. Graph. 42(4) (2023)
+12. Khosla, P., Teterwak, P., Wang, C., Sarna, A., Tian, Y., Isola, P., Maschinot,
+    A., Liu, C., Krishnan, D.: Supervised contrastive learning. Advances in neural
+    information processing systems 33, 18661–18673 (2020)
+13. Kirillov, A., Mintun, E., Ravi, N., Mao, H., Rolland, C., Gustafson, L., Xiao, T.,
+    Whitehead, S., Berg, A.C., Lo, W.Y., Dollár, P., Girshick, R.: Segment anything.
+    In: 2023 IEEE/CVF International Conference on Computer Vision (ICCV). pp.
+    3992–4003 (2023)
+16      Li et al.
+
+14. Koch, S., Wald, J., Matsuki, H., Hermosilla, P., Ropinski, T., Tombari, F.: Unified
+    semantic transformer for 3d scene understanding. arXiv preprint arXiv:2512.14364
+    (2025)
+15. Kuhn, H.W.: The hungarian method for the assignment problem. Naval research
+    logistics quarterly 2(1-2), 83–97 (1955)
+16. Li, H., Zou, Z., Liu, F., Zhang, X., Hong, F., Cao, Y., Lan, Y., Zhang, M., Yu, G.,
+    Zhang, D., et al.: Iggt: Instance-grounded geometry transformer for semantic 3d
+    reconstruction. arXiv preprint arXiv:2510.22706 (2025)
+17. Li, Z., Zhou, J., Wang, Y., Guo, H., Chang, W., et al.: Wint3r: Window-based
+    streaming reconstruction with camera token pool. arXiv preprint arXiv:2509.05296
+    (2025)
+18. Lin, H., Chen, S., Liew, J.H., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth anything 3: Recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+19. Liu, Y., Dong, S., Wang, S., Yin, Y., Yang, Y., Fan, Q., Chen, B.: Slam3r: Real-
+    time dense scene reconstruction from monocular rgb videos. In: 2025 IEEE/CVF
+    Conference on Computer Vision and Pattern Recognition (CVPR). pp. 16651–
+    16662 (2025)
+20. McInnes, L., Healy, J.: Accelerated hierarchical density based clustering. In: 2017
+    IEEE international conference on data mining workshops (ICDMW). pp. 33–42.
+    IEEE (2017)
+21. Nguyen, P., Luu, M., Tran, A., Pham, C., Nguyen, K.: Any3dis: Class-agnostic 3d
+    instance segmentation by 2d mask tracking. In: 2025 IEEE/CVF Conference on
+    Computer Vision and Pattern Recognition (CVPR). pp. 3636–3645 (2025)
+22. Nguyen, P., Ngo, T.D., Kalogerakis, E., Gan, C., Tran, A., Pham, C., Nguyen,
+    K.: Open3dis: Open-vocabulary 3d instance segmentation with 2d mask guidance.
+    In: 2024 IEEE/CVF Conference on Computer Vision and Pattern Recognition
+    (CVPR). pp. 4018–4028 (2024)
+23. Pan, X., Charron, N., Yang, Y., Peters, S., Whelan, T., Kong, C., Parkhi, O.,
+    Newcombe, R., Ren, Y.C.: Aria digital twin: A new benchmark dataset for ego-
+    centric 3d machine perception. In: Proceedings of the IEEE/CVF International
+    Conference on Computer Vision. pp. 20133–20143 (2023)
+24. Qi, L., Kuen, J., Shen, T., Gu, J., Li, W., Guo, W., Jia, J., Lin, Z., Yang, M.H.:
+    High quality entity segmentation. In: 2023 IEEE/CVF International Conference
+    on Computer Vision (ICCV). pp. 4024–4033 (2023)
+25. Radford, A., Kim, J.W., Hallacy, C., Ramesh, A., Goh, G., et al.: Learning transfer-
+    able visual models from natural language supervision. In: Proceedings of the 38th
+    International Conference on Machine Learning. vol. 139, pp. 8748–8763 (2021)
+26. Ranftl, R., Bochkovskiy, A., Koltun, V.: Vision transformers for dense prediction.
+    In: Proceedings of the IEEE/CVF international conference on computer vision.
+    pp. 12179–12188 (2021)
+27. Ravi, N., Gabeur, V., Hu, Y.T., Hu, R., Ryali, C., Ma, T., Khedr, H., Rädle, R.,
+    Rolland, C., Gustafson, L., et al.: Sam 2: Segment anything in images and videos.
+    arXiv preprint arXiv:2408.00714 (2024)
+28. Schönberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: Conference
+    on Computer Vision and Pattern Recognition (CVPR) (2016)
+29. Schönberger, J.L., Zheng, E., Pollefeys, M., Frahm, J.M.: Pixelwise view selection
+    for unstructured multi-view stereo. In: European Conference on Computer Vision
+    (ECCV) (2016)
+    Feed-forward Anchored Scene Transformer for 3D Instance Segmentation               17
+
+30. Schult, J., Engelmann, F., Hermans, A., Litany, O., Tang, S., Leibe, B.: Mask3d:
+    Mask transformer for 3d semantic instance segmentation. In: 2023 IEEE Interna-
+    tional Conference on Robotics and Automation (ICRA). pp. 8216–8223 (2023)
+31. Shen, Y., Zhang, Z., Qu, y., Zheng, X., Ji, J., et al.: Fastvggt: Training-free accel-
+    eration of visual geometry transformer. arXiv preprint arXiv:2509.02560 (2025)
+32. Straub, J., Whelan, T., Ma, L., Chen, Y., Wijmans, E., Green, S., Engel, J.J.,
+    Mur-Artal, R., Ren, C., Verma, S., et al.: The replica dataset: A digital replica of
+    indoor spaces. arXiv preprint arXiv:1906.05797 (2019)
+33. Sun, X., Jiang, H., Liu, L., Nam, S., Kang, G., et al.: Uni3r: Unified 3d reconstruc-
+    tion and semantic understanding via generalizable gaussian splatting from unposed
+    multi-view images. arXiv preprint arXiv:2508.03643 (2025)
+34. Tang, Z., Fan, Y., Wang, D., Xu, H., Ranjan, R., Schwing, A., Yan, Z.: Mv-dust3r+:
+    Single-stage scene reconstruction from sparse views in 2 seconds. In: Proceedings of
+    the Computer Vision and Pattern Recognition Conference. pp. 5283–5293 (2025)
+35. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N., Kaiser,
+    Ł., Polosukhin, I.: Attention is all you need. Advances in neural information pro-
+    cessing systems 30 (2017)
+36. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the Computer Vision
+    and Pattern Recognition Conference. pp. 5294–5306 (2025)
+37. Wang, Q., Zhang, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d per-
+    ception model with persistent state. In: 2025 IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition (CVPR). pp. 10510–10522 (2025)
+38. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE/CVF conference on computer
+    vision and pattern recognition. pp. 20697–20709 (2024)
+39. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+    arXiv:2507.13347 (2025)
+40. Wang, Y., Guizilini, V.C., Zhang, T., Wang, Y., Zhao, H., Solomon, J.: Detr3d: 3d
+    object detection from multi-view images via 3d-to-2d queries. In: Conference on
+    robot learning. pp. 180–191. PMLR (2022)
+41. Yan, M., Zhang, J., Zhu, Y., Wang, H.: Maskclustering: View consensus based
+    mask graph clustering for open-vocabulary 3d instance segmentation. In: 2024
+    IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR).
+    pp. 28274–28284 (2024)
+42. Yang, J., Sax, A., Liang, K.J., Henaff, M., Tang, H., Cao, A., Chai, J., Meier, F.,
+    Feiszli, M.: Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition (CVPR) (June 2025)
+43. Yang, J., Sax, A., Liang, K.J., Henaff, M., Tang, H., Cao, A., Chai, J., Meier,
+    F., Feiszli, M.: Fast3r: Towards 3d reconstruction of 1000+ images in one forward
+    pass. In: 2025 IEEE/CVF Conference on Computer Vision and Pattern Recognition
+    (CVPR). pp. 21924–21935 (2025)
+44. Yang, Y., Wu, X., He, T., Zhao, H., Liu, X.: Sam3d: Segment anything in 3d scenes.
+    arXiv preprint arXiv:2306.03908 (2023)
+45. Yeshwanth, C., Liu, Y.C., Nießner, M., Dai, A.: Scannet++: A high-fidelity dataset
+    of 3d indoor scenes. In: Proceedings of the IEEE/CVF International Conference
+    on Computer Vision. pp. 12–22 (2023)
+18      Li et al.
+
+46. Zhang, S., Wang, J., Xu, Y., Xue, N., Rupprecht, C., Zhou, X., Shen, Y., Wet-
+    zstein, G.: Flare: Feed-forward geometry, appearance and camera estimation from
+    uncalibrated sparse views. In: 2025 IEEE/CVF Conference on Computer Vision
+    and Pattern Recognition (CVPR). pp. 21936–21947 (2025)
+47. Zhao, J., Zhuo, J., Chen, J., Ma, H.: Sam2object: Consolidating view consistency
+    via sam2 for zero-shot 3d instance segmentation. In: 2025 IEEE/CVF Conference
+    on Computer Vision and Pattern Recognition (CVPR). pp. 19325–19334 (2025)
+48. Zhu, X., Su, W., Lu, L., Li, B., Wang, X., Dai, J.: Deformable detr: Deformable
+    transformers for end-to-end object detection. arXiv preprint arXiv:2010.04159
+    (2020)
+49. Zust, L., Cabon, Y., Marrie, J., Antsfeld, L., Chidlovskii, B., Revaud, J., Csurka,
+    G.: Panst3r: Multi-view consistent panoptic segmentation. In: Proceedings of the
+    IEEE/CVF International Conference on Computer Vision. pp. 5856–5866 (2025)
+

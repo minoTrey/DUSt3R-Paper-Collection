@@ -1,0 +1,1171 @@
+                                             CAM3R: Camera-Agnostic Model for 3D
+                                                      Reconstruction
+
+                                         Namitha Guruprasad1 , Abhay Yadav1 , Cheng Peng2 , and Rama Chellappa1
+                                                    1
+                                                      Johns Hopkins University, Baltimore, MD 21218, USA
+                                                         {ngurupr1, ayadav13, rchella4}@jhu.edu
+                                                    2
+                                                      University of Virginia, Charlottesville, VA 22904, USA
+arXiv:2603.22631v1 [cs.CV] 23 Mar 2026
+
+
+
+
+                                                                     xuz7wn@virginia.edu
+                                                                         Project Page
+
+
+
+
+                                 Fig. 1: CAM3R provides a robust, feed-forward 3D reconstruction for two-view and
+                                 multi-view scenarios across disparate optical manifolds, including pinhole, fisheye and
+                                 panoramic cameras, where recent 3D foundation models fail. Above, we highlight
+                                 CAM3R’s performance on unseen scenes from the 360Loc dataset, visualizing both
+                                 raw two-view predictions and multi-view reconstructions.
+
+
+                                             Abstract. Recovering dense 3D geometry from unposed images remains
+                                             a foundational challenge in computer vision. Current state-of-the-art
+                                             models are predominantly trained on perspective datasets, which implic-
+                                             itly constrains them to a standard pinhole camera geometry. As a result,
+2      N. Guruprasad et al.
+
+      these models suffer from significant geometric degradation when applied
+      to wide-angle imagery captured via non-rectilinear optics, such as fisheye
+      or panoramic sensors. To address this, we present CAM3R, a Camera-
+      Agnostic, feed-forward Model for 3D Reconstruction capable of process-
+      ing images from wide-angle camera models without prior calibration.
+      Our framework consists of a two-view network which is bifurcated into a
+      Ray Module (RM) to estimate per-pixel ray directions and a Cross-view
+      Module (CVM) to infer radial distance with confidence maps, pointmaps,
+      and relative poses. To unify these pairwise predictions into a consistent
+      3D scene, we introduce a Ray-Aware Global Alignment framework for
+      pose refinement and scale optimization while strictly preserving the pre-
+      dicted local geometry. Extensive experiments on various camera model
+      datasets, including panorama, fisheye and pinhole imagery, demonstrate
+      that CAM3R establishes a new state-of-the-art in pose estimation and
+      reconstruction.
+
+
+1   Introduction
+
+The reconstruction of 3D environments from 2D imagery remains a cornerstone
+task in computer vision. Recent foundation models [13, 16, 35–37] can achieve
+3D reconstruction through a single feed-forward pass by learning a prior from
+large-scale 3D data. However, these models are grounded in the pinhole camera
+assumption because of its simple expression and availability. This bias leads
+to significant geometric artifacts when these models are evaluated on wide-angle
+imagery captured via non-linear optics, such as fisheye or 360◦ panoramic lenses.
+    To mitigate this, a common solution involves undistorting wide-angle im-
+ages to simulate a rectified pinhole projection before processing via downstream
+reconstruction models. This rectification process forces extreme stretching or
+discards peripheral regions with high curvature [30]. Furthermore, it often re-
+quires running Structure-from-Motion (SfM) or other optimizations, defeating
+the purpose of feed-forward models.
+    Recent deep learning models directly establish the relationship between a 3D
+imaging ray and its corresponding pixel, making minimal assumptions regarding
+the underlying camera model and offering a more interpretable framework that
+aligns with human visual perception [18]. However, these methods have been
+confined to monocular contexts [23], lacking a robust extension to multi-view
+settings. These observations prompt an investigation to check whether naive
+fine-tuning of such state-of-the-art models on wide-angle datasets is sufficient
+to rectify geometric degradation. As these models directly regress 3D structures
+in a single forward pass, they encounter optimization challenges when learning
+multi-view structures and non-linear projections arising from distorted camera
+geometry at the same time, which complicates the overall learning objective
+[33, 38].
+    In this paper, we propose CAM3R, a Camera-Agnostic feed-forward Model
+for 3D Reconstruction from uncalibrated and unposed imagery across a variety
+of camera types. The core of our architecture is a two-view network capable
+                   CAM3R: Camera-Agnostic Model for 3D Reconstruction           3
+
+of regressing a dense scene representation without requiring prior intrinsic and
+extrinsic metadata. Our approach simultaneously addresses two challenges: (a)
+handling non-linear distortions in wide-angle imagery and (b) extracting 3D
+contextual cues for robust pose estimation. For the former, we propose a Ray
+Module (RM) designed for a two-view setting which learns a ray representation
+capable of processing wide-angle lens geometries, even when the input pair orig-
+inates from heterogeneous camera models. For the latter, we introduce a Cross-
+view Module (CVM), which learns the relationship between image pairs to
+generate 3D representations: radial distance with confidence maps, pointmaps,
+and the relative pose between the two views. To integrate pairwise predic-
+tions into a globally consistent 3D reconstruction, we introduce Ray-Aware
+Global Alignment. Traditional bundle adjustment often fails on distorted im-
+ages due to the pinhole assumption, where pixel distances linearly correspond
+to 3D distances [31, 36]. Our Ray-Aware strategy lifts optimization into a 3D,
+ray-consistent space. Using constraints from the two-view network, we prune
+the scene graph to retain reliable edges and optimize camera poses and relative
+scales for global consistency.
+    In summary, our primary contributions are as follows:
+ – Unified Camera-Agnostic Framework: We present CAM3R, a unified
+   feed-forward pipeline that performs joint lens calibration and 3D reconstruc-
+   tion from unposed imagery across multiple camera geometries.
+ – Decoupled Supervision Strategy: We introduce a robust supervision
+   strategy for the Ray Module and Cross-view Module across highly heteroge-
+   neous camera sources by jointly training rays, dense pointmaps, and relative
+   poses.
+ – Ray-Aware Global Alignment: We propose a global alignment procedure
+   that fuses local pairwise predictions into a globally consistent 3D coordinate
+   system. Our method leverages a ray-aware optimization to maintain struc-
+   tural fidelity across diverse lens types.
+ – State-of-The-Art Performance: We demonstrate that our unified formu-
+   lation achieves state-of-the-art results in two-view and multi-view reconstruc-
+   tion. Notably, CAM3R provides significant performance gains in challenging
+   cross-modality scenarios, including large Field-of-View (FoV) and panoramic
+   captures.
+
+
+2     Related Work
+2.1   Distorted Camera Intrinsics
+Camera intrinsic calibration involves estimating the parameters necessary to
+establish a mapping between the two-dimensional image plane and the three-
+dimensional coordinate system. Classical approaches [4,6] rely on fixed paramet-
+ric forms, which prove effective for narrow FoV sensors with negligible optical
+aberrations. However, they struggle with extreme FoV cameras. To support ex-
+treme FoV geometries, many models [10,15,32] rely on higher-order parameters.
+4         N. Guruprasad et al.
+
+However, they are prone to over-fitting due to complex parameter dependen-
+cies. Popular deep learning calibration frameworks [3, 34] infer focal length and
+distortion parameters directly from a single natural image. While these meth-
+ods achieve reasonable results in canonical settings, they often exhibit limited
+generalization to unseen lens designs and are susceptible to training-set biases.
+In most downstream tasks, particularly 3D reconstruction, the fundamental ob-
+jective is to determine the direction and distance of the light ray that formed
+each pixel [18]. Building on this insight, recent works [23] have shifted toward
+learning continuous representations that map each pixel to a 3D ray direction.
+However, these advancements remain largely confined to monocular settings.
+
+2.2     Structure-from-Motion (SfM) and Multi-View Stereo (MVS)
+SfM formulates 3D reconstruction by simultaneously solving for sparse geome-
+try and the underlying camera trajectory from an unordered image collection.
+Traditional frameworks, such as COLMAP [28], operate through a rigid sequen-
+tial pipeline: (a) extracting and matching local features [7, 9, 20, 27], (b) solv-
+ing two-view epipolar geometry (c) optimizing a multi-view sparse graph via
+global bundle adjustment [31]. To obtain dense surfaces, MVS [29] is employed
+to triangulate dense 3D geometry from SfM-calibrated viewpoints. However, such
+pipelines are highly susceptible to error propagation, where inaccuracies in initial
+SfM pose estimations degrade the fidelity of the downstream dense reconstruc-
+tion. Recently, a paradigm shift has emerged with the introduction of geomet-
+ric vision foundation models, such as DUSt3R [36], MASt3R [16], Pow3R [13],
+VGGT [35], and π 3 [37]. These models bypass traditional multi-stage pipelines
+by directly regressing dense 3D pointmaps by implicitly capturing camera poses
+and scene geometry in a single feed-forward pass. Despite their versatility, these
+methods remain fundamentally limited by their reliance on the pinhole camera
+model, which dominates the training data and can lead to degraded performance
+on images from non-linear or wide-field-of-view lenses.
+
+3      Method
+In this section, we begin by providing a brief notation for a better understanding
+of CAM3R’s architectural design. Following this, we describe our two-view feed-
+forward network comprising the Ray Module (RM) and the Cross-view Module
+(CVM), along with the multi-task supervised loss functions that govern their
+optimization. Finally, we introduce our Ray-Aware Global Alignment strategy
+to integrate the pairwise predictions from our two-view network into a globally
+consistent 3D reconstruction.
+
+Notations.
+    – Input Data: Consider a pair of uncalibrated views (images) I1 (u), I2 (u) ∈
+      RW ×H×3 captured from varying lens geometries (panorama, fisheye, pin-
+      hole), where, u = (u, v) denotes the pixel coordinates for each image.
+                     CAM3R: Camera-Agnostic Model for 3D Reconstruction                                                                                                                                                                                                                                                5
+
+ – Directional Rays: Let di ∈ (S2 )W ×H represent the per-pixel directional rays
+   for view i, where each unit vector di (u, v) denotes the angular bearing of a
+   pixel in the camera’s local coordinate system. The mapping ψ : R2 7→ S2
+   projects 2D pixel coordinates u onto the spherical domain (θ, ϕ). To represent
+   these ray directions, we use Spherical Harmonic expansion where Ylm denotes
+   the basis functions of degree l and order m.
+ – Radial Distance and Confidence: Let ri ∈ (R+ )W ×H represent the per-pixel
+   Euclidean distance from the camera’s optical center along each corresponding
+   directional ray di (u). To account for uncertainty, we predict a confidence
+   map σi ∈ (R+ )W ×H , where higher values indicate greater reliability in the
+   estimated radial distance.
+ – Pointmap Representation: Let X i,i ∈ RW ×H×3 be the dense pointmap for a
+   given view i, which is the element-wise product of the estimated ray direc-
+   tions and their corresponding radial distances:
+
+                                                                                                     X^{i,i}(\mathbf {u}) = \mathbf {d}_i(\mathbf {u}) \cdot r_i(\mathbf {u}) \label {eq:rayDistDP}                                                                                                                   (1)
+
+ – Coordinate Transformations: We denote X i,j as the pointmap X i expressed
+   in the coordinate frame of camera j. Given camera poses Pi , Pj ∈ SE(3),
+   the transformation between frames is X i,j (u) = Pj P−1 i,i
+                                                        i X (u).
+
+
+
+3.1   CAM3R
+
+We design CAM3R to address camera-agnostic 3D reconstruction via direct re-
+gression by drawing inspiration from UniK3D [23] and DUSt3R [36]. A detailed
+rationale for this specific network topology is provided in the supplementary ma-
+terial (Sec. A). As illustrated in Fig. 2, the network F consumes an image pair
+(I1 , I2 ) and jointly regresses per-pixel ray fields di , radial distances ri with asso-
+ciated confidence σi , and the relative rigid pose P2→1 . By decoupling local ray
+directions from radial distance, CAM3R provides greater flexibility in handling
+heterogeneous camera geometries.
+
+
+Ray Module (RM) serves as a backbone for estimating the internal cam-
+era geometry across pinhole, fisheye and panoramic lens models. For each input
+image Ii , a shared geometric encoder extracts class tokens Ti , which are then
+processed by a pair of Transformer Ray Encoder (T-Enc) layers. These layers
+output a compact set of SH expansion coefficients cil,m and utilize a finite SH ba-
+sis Ylm up to a maximum degree L. This bandwidth parameter L determines the
+high-frequency detail capturing capacity of the reconstructed camera manifold.
+A continuous per-pixel ray directional field di (u) is reconstructed via an inverse
+SH transformation. For any pixel coordinate u, the directional unit vector di (u)
+is:
+
+                       \mathbf {d}_i(\mathbf {u}) = \frac { \sum _{l=1}^{L} \sum _{m=-l}^{l} \mathbf {c}_{l,m}^{\,i} \, Y_l^m\!\left (\psi (\mathbf {u})\right ) }{ \left \| \sum _{l=1}^{L} \sum _{m=-l}^{l} \mathbf {c}_{l,m}^{\,i} \, Y_l^m\!\left (\psi (\mathbf {u})\right ) \right \|_2 } \label {eq:RGM_SH}    (2)
+6                  N. Guruprasad et al.
+
+
+
+
+Fig. 2: CAM3R Overview. Given an input image pair (I1 , I2 ), the framework op-
+erates through two parallel streams. The Shared Ray Module recovers the internal
+camera geometry by regressing Spherical Harmonic coefficients to reconstruct contin-
+uous ray directional fields di . Simultaneously, the Cross-view Module extracts fea-
+tures and utilizes a dual-block transformer decoder to facilitate information exchange
+between the two views. Specialized DPT heads then regress radial distances ri with
+confidence maps σi , while a Relative Pose Network estimates the rigid transformation
+P2→1 . The local pointmaps Xi,i are generated by fusing rays di with radial distances
+ri . Finally, the second view is transformed into the reference coordinate frame of the
+first view via P2→1 to produce the globally aligned 3D reconstruction.
+
+
+
+Cross-view Module (CVM) processes the input images I1 , I2 through a
+Siamese Cross-view encoder to extract feature representations F1 = Encoder(I1 )
+and F2 = Encoder(I2 ). These features are then passed to a dual transformer
+Cross-view decoder. Each decoder block i ∈ {1, . . . , B} facilitates information
+exchange via self-attention and cross-attention mechanisms. Formally, the rep-
+resentations G for each branch v ∈ {1, 2} is updated as:
+
+      G_{1}^{i} = \mathrm {DecoderBlock}_{1}^{\,i}\!\left (G_{1}^{i-1},\, G_{2}^{i-1}\right ), \quad G_{2}^{i} = \mathrm {DecoderBlock}_{2}^{\,i}\!\left (G_{2}^{i-1},\, G_{1}^{i-1}\right ) \label {eq:decoder_update}    (3)
+
+A Dense Prediction Transformer (DPT) head [24] is integrated with the decoder
+blocks to regress the radial distance ri and an associated confidence map σi .
+We enforce strictly positive values ri (u) ∈ R+ via an activation layer. Using
+this radial distance with the per-pixel ray directions di (u) from the Ray Mod-
+ule, the 3D point coordinates are regressed X i,i (u) as in Eq. (1) in the local
+camera frame. To align the geometry of the second view (X 2,2 ) with the refer-
+ence frame of the first view (X 2,1 ), we employ a relative pose network attached
+to the decoder blocks. The relative pose network regresses a rigid transforma-
+tion P2→1 = {R2→1 , t̂2→1 }, where R2→1 ∈ SO(3) is the rotation matrix and
+t̂2→1 ∈ S2 denotes a unit translation direction. The full translation vector is
+recovered by introducing a relative scale factor s ∈ R+ such that t2→1 = s t̂2→1 .
+The transformation of the second pointmap X 2,2 into the coordinate system of
+the first view is then defined as
+
+                                                                   X^{2,1}(\mathbf {u}) = R_{2\to 1}\,X^{2,2}(\mathbf {u}) + \mathbf {t}_{2\to 1}.                                                                         (4)
+                                                         CAM3R: Camera-Agnostic Model for 3D Reconstruction                                                                                                                                                                                                                               7
+
+3.2   Training Objectives
+Asymmetric Angular Loss. To supervise the per-pixel directional rays di pre-
+dicted by our model, we adopt an asymmetric angular loss inspired by UniK3D
+[23]. Standard symmetric loss functions (e.g. L2 , L1 ) often bias neural net-
+works toward the most frequent modes in the training data, which are typically
+narrow-FoV pinhole images. To prevent an inward collapse, we employ a quan-
+tile regression framework that enforces a significantly heavier penalty for angu-
+lar underestimation than for overestimation. We first decompose the predicted
+dense ray field di into its corresponding spherical coordinates (θ̂, ϕ̂). Given the
+ground-truth angles θ∗ and ϕ∗ , the loss for a specific target quantile α ∈ [0, 1] is
+formulated as:
+
+             \mathcal {L}_{\mathrm {AA}}^{\alpha }(\hat {\theta }, \theta ^*) = \sum _{j \,:\, \hat {\theta }_j < \theta _j^*} \alpha \, \left | \hat {\theta }_j - \theta _j^* \right | + \sum _{j \,:\, \hat {\theta }_j \ge \theta _j^*} (1 - \alpha ) \, \left | \hat {\theta }_j - \theta _j^* \right | \label {eq:asym_angular}    (5)
+
+
+The total angular objective LA is defined as a weighted combination of the losses
+for both spherical coordinates:
+
+                                                              \mathcal {L}_{A} = \beta \, \mathcal {L}_{\mathrm {AA}}^{0.7}(\hat {\theta }, \theta ^*) + (1-\beta ) \, \mathcal {L}_{\mathrm {AA}}^{0.5}(\hat {\phi }, \phi ^*) \label {eq:total_angular}                                                                                (6)
+
+Local Regression Loss. To supervise the predicted 3D pointmaps X v,v , we
+minimize their distance to the ground-truth geometry in their respective local
+coordinate systems. This objective ensures that the model recovers independent
+3D structures accurately, regardless of the relative camera poses between the two
+                                                v,v
+views. Given the ground-truth pointmaps X           for view v ∈ {1, 2}, we adopt
+a Mean Squared Error (MSE) formulation. We denote Dv as the set of valid
+pixels with available ground truth. To resolve the scale ambiguity, we compute
+normalization factors for each view:
+
+             \eta _v = \operatorname {mean}_{\mathbf {u} \in \mathcal {D}^v} \left \| X^{v,v}(\mathbf {u}) \right \|_2, \quad \overline {\eta }_v = \operatorname {mean}_{\mathbf {u} \in \mathcal {D}^v} \left \| \overline {X}^{v,v}(\mathbf {u}) \right \|_2 \label {eq:local_scale_norm}                                             (7)
+
+where the normalization factor represents the average distance to the origin of
+all valid points in the respective frame. The point-wise regression loss Lregr is
+then defined as:
+
+                                        \mathcal {L}_{\mathrm {regr}} = \sum _{v \in \{1,2\}} \sum _{\mathbf {u} \in \mathcal {D}^v} \left \| \frac {1}{\eta _v} X^{v,v}(\mathbf {u}) - \frac {1}{\overline {\eta }_v} \overline {X}^{v,v}(\mathbf {u}) \right \|_2^2 \label {eq:local_pointmap_loss}                                    (8)
+
+
+
+Relative Pose Loss. To enforce multi-view consistency, we supervise the rel-
+ative pose head by anchoring the translation magnitude to the scale of the
+reconstructed geometry. Let the ground-truth relative pose required to align
+the second view’s pointmaps to the first view’s coordinate frame be P 2→1 =
+{R2→1 , t2→1 }. Because our model regresses geometry up to an unknown scale, we
+resolve the translation ambiguity by computing scale factor s from the predicted
+pointmaps. The scale factor is derived from the ratio of the predicted pointmap
+8                     N. Guruprasad et al.
+
+magnitudes to the ground-truth magnitudes and is detached from the gradient
+flow to serve as a static target. We then define the scale-adjusted ground-truth
+translation as t∗2→1 = s t2→1 . The relative pose objective Lpose penalizes errors
+in both the rotation and the scale-anchored translation. For rotation, we utilize
+the geodesic distance on SO(3), which provides a physically meaningful angular
+error. For translation, we utilize MSE loss to simultaneously supervise both the
+direction and the magnitude relative to the 3D scene:
+
+                                                                 \mathcal {L}_{\mathrm {rot}} = \arccos \left ( \frac { \operatorname {Tr} \!\left ( R_{2 \to 1}^{\top } \overline {R}_{2 \to 1} \right ) - 1 }{2} \right ) \label {eq:rot_loss}     (9)
+
+
+                                                                                               \mathcal {L}_{\mathrm {trans}} = \left \| \mathbf {t}_{2 \to 1} - \mathbf {t}^{*}_{2 \to 1} \right \|_2^2 \label {eq:trans_loss}                     (10)
+The total pose objective is a weighted combination: Lpose = λ(Lrot + Ltrans ).
+
+Overall Optimization Objective. The final training objective for CAM3R is
+a joint optimization loss that unifies the geometric: Asymmetric Angular Loss
+(LA ), structural: Local Regression Loss (Lregr ), and positional: Relative Pose
+Loss (Lpose ). The total loss Ltotal is a weighted summation of the above compo-
+nents:
+                      \mathcal {L}_{\mathrm {total}} = \lambda _{A} \, \mathcal {L}_{A} + \lambda _{\mathrm {regr}} \, \mathcal {L}_{\mathrm {regr}} + \lambda _{\mathrm {pose}} \, \mathcal {L}_{\mathrm {pose}} \label {eq:total_loss}  (11)
+This unified formulation allows the network to be trained end-to-end to learn
+the complex interplay between lens geometry and multi-view consistency of the
+3D scene structure.
+
+3.3              Ray-Aware Global Alignment
+To reconstruct the entire scene from an unordered collection of images {I1 , . . . , IN },
+we propose a Ray-Aware Global Alignment framework. While conventional global
+alignment techniques like DUSt3R [36] implicitly or explicitly assume pinhole
+projection, our approach optimizes scene geometry within a purely ray-consistent
+3D space. We perform the alignment through a multi-stage process.
+     Scene-Graph Pruning. We construct an exhaustive graph G(V, E), where
+edges e = (i, j) ∈ E denote directed image pairs. Each edge undergoes a two-
+view inference pass with CAM3R, followed by a two-stage pruning protocol to
+filter inconsistent geometry: (a) Symmetric Pose Consistency: We evaluate
+bidirectional consistency between reciprocal edges (i, j) and (j, i). An edge is
+pruned if the angular deviation between the predicted rotation Rji and the
+               ⊤
+transposed Rij   exceeds a threshold τrot , or if the translation direction t̂ji fails to
+align. This ensures that only mathematically reversible camera trajectories are
+retained for global optimization. (b) Geometric Overlap Verification: We
+compute strict Mutual Nearest Neighbor (MNN) correspondences in 3D space
+between X i,i and the transformed X j,i . Edges with insufficient geometric overlap
+(e.g. < 20% of the pixel count) are discarded to prevent erroneous scene-graph
+linkages.
+                                              CAM3R: Camera-Agnostic Model for 3D Reconstruction                                                                                                                                                                               9
+
+    Global Consensus and Optimization. Following pruning, we aggregate
+pairwise predictions into per-image consensus fields. For each image Ii , we com-
+pute the global ray field Di by forming a confidence-weighted average of all
+normalized rays predicted across its valid incident edges. Given this canonical
+ray field, we initialize the global radial distance field Ri in three steps. First, we
+align pairwise radial distances along the consensus rays. Next, we resolve their
+relative scale using a robust median-based alignment. Finally, the aligned dis-
+tances are fused via confidence-weighted averaging to produce the global field.
+The frozen consensus ray Di and radial Ri fields define a per-pixel 3D point in
+the local coordinate system of camera i: xi (u) = Ri (u) Di (u), which serve as
+geometric priors. The Global Alignment is formulated as an optimization over
+the set of camera poses {Pi }N  i=1 ∈ SE(3) and per-image scalar scales
+
+                                                                                                           {si }N      +
+                                                                                                                i=1 ∈ R .
+
+Each scale si compensates for the unknown global scale of the predicted radial
+distances for image Ii . Keeping the fixed geometric priors, let σi,j (u) denote the
+predicted confidence for pixel u on edge (i, j) from the pairwise model, which
+down-weights unreliable correspondences. Formally, the objective minimizes the
+confidence-weighted 3D alignment error over all connected pairs (i, j) in the
+pruned scene graph E:
+
+              \min _{P_i, s_i} \sum _{(i,j) \in E_{\text {pruned}}} \sum _{\mathbf {u}} \sigma _{i,j}(\mathbf {u}) \left \| P_i \big ( s_i \mathbf {x}_i(\mathbf {u}) \big ) - P_j \big ( s_j \mathbf {x}_j(\mathbf {u}) \big ) \right \|_2^2 \label {eq:global_opt_main}    (12)
+
+
+We employ a multi-stage alternating optimization scheme [21] to obtain the
+global scene geometry. The process begins by fixing the scale factors to optimize
+the camera poses, followed by a scale correction step while the poses remain
+constant. This alternating cycle is repeated for a fixed number of iterations to
+stabilize the camera trajectory. Finally, we perform a joint optimization of both
+poses and scales to achieve global consistency across the entire scene graph. We
+provide additional details about Ray-Aware global alignment in the Supplemen-
+tary (Sec. C).
+
+
+4     Experiments
+4.1   Training and Evaluation Dataset
+We train and test our framework on a collection of datasets encompassing
+panoramic, fisheye, and perspective imagery across indoor and outdoor envi-
+ronments. To ensure robust cross-model generalization, we augment existing
+datasets to induce optical heterogeneity:
+ – 2D3DS [1] and 360Loc [12]: Originally panoramic collections, we synthesize
+   corresponding fisheye and perspective views.
+ – ADT [22]: We expand this fisheye dataset by generating synthetic perspective
+   counterparts.
+10     N. Guruprasad et al.
+
+ – MegaDepth [17]: Perspective dataset; no augmentation.
+ – CO3Dv2 [25]: This pinhole dataset is reserved for zero-shot evaluation and
+   is not used during training. We expand this dataset by generating synthetic
+   fisheye counterparts.
+
+    Throughout this paper, references to these datasets denote the above aug-
+mented, multi-modal versions. Data training and test splits mostly follow the
+official protocols established by the dataset authors unless otherwise specified.
+For datasets where image pairs are not explicitly defined, we curate them using
+ground-truth camera poses by ensuring significant spatial overlap and wide-
+baseline configurations. Specific details regarding the synthetic fisheye and pin-
+hole projections and dataset splits are provided in the Supplementary Material
+(Sec. D).
+
+
+4.2   Training Configuration
+
+We train our model using a two-phase curriculum [2]. First, we optimize our
+model exclusively on homogeneous pairs (e.g. panorama-panorama) to estab-
+lish a primary version CAM3R-homo for learning the intra-model multi-view
+geometry. In the second phase, we introduce heterogeneous pairs (e.g. pinhole-
+panorama) to the training set to produce the final CAM3R model. We use the
+AdamW optimizer [19] with an initial learning rate of 5 × 10−5 with a linear
+warmup and cosine decay. Images are resized to 512 pixels on the long edge.
+Training is conducted on four NVIDIA H200 GPUs using balanced dataset
+sampling to ensure stability across modalities. The ViT backbones [8] of the
+Ray Module and Cross-view Module are initialized with pre-trained weights of
+UniK3D [23] and DUSt3R [36], respectively. All other components in the net-
+work are initialized from scratch. Further specifications regarding the training
+curriculum are detailed in the Supplementary Material (Sec. B).
+
+
+4.3   Two-view Estimation
+
+Relative pose estimation for a pair of images I1 and I2 involves recovering the
+rotation R ∈ SO(3) and the translation direction t ∈ S2 that maps the coor-
+dinate system of the second view into the first. In our unconstrained setting,
+this task is particularly challenging as the images may originate from disparate
+camera models (e.g. a fisheye-panorama pair).
+    Datasets. We evaluate CAM3R on the held-out test splits of the augmented
+versions of 2D3DS, MegaDepth, ADT, and 360Loc, and further assess zero-shot
+generalization using the augmented CO3Dv2 dataset. Across all datasets, eval-
+uation is performed on image pairs characterized by substantial spatial overlap
+and wide-baseline configurations, resulting in a challenging benchmark compris-
+ing both homogeneous and heterogeneous camera models. Comprehensive details
+regarding the pairwise sampling are provided in the Supplementary Material
+(Sec. D.2).
+                    CAM3R: Camera-Agnostic Model for 3D Reconstruction             11
+
+
+
+
+Fig. 3: Qualitative Two-View Reconstructions. Visualization of 3D point clouds
+for image pairs across diverse optical manifolds (panorama, fisheye, pinhole). Despite
+extreme radial distortions and camera geometries, relative poses are accurately re-
+covered and structural consistency is maintained. Note this is the raw output of the
+network.
+
+
+
+    Baselines and metrics. We compare CAM3R against state-of-the-art foun-
+dation models: DUSt3R [36], MASt3R [16], Pow3R [13], VGGT [35], and π 3 [37].
+We report Relative Rotation Accuracy (RRA@15) and Relative Transla-
+tion Accuracy (RTA@15), defined as the percentage of pairs with angular
+errors τ below 15◦ .
+    Results. As shown in Table 1, CAM3R achieves superior performance over-
+all. While π 3 and VGGT benefit from explicit training on MegaDepth and
+VGGT additionally on ADT, CAM3R remains highly competitive on unseen
+ADT scenes. Notably, on CO3Dv2, our model demonstrates strong zero-shot
+generalization by significantly outperforming all baselines in translation accuracy
+(88.2% RTA@15). The most significant performance gap appears in cross-model
+scenarios, where DUSt3R and MASt3R collapse on panoramic datasets (360Loc,
+2D3DS), CAM3R maintains a robust accuracy (e.g. 97.7% RRA@15; 94.3%
+RTA@15 on 2D3DS). These quantitative gains are further evidenced by the qual-
+itative point cloud reconstructions in Fig. 3, which illustrate CAM3R’s ability
+to preserve structural integrity under extreme radial distortion. In MegaDepth,
+CAM3R accurately recovers complex building architectures such as domes and
+12       N. Guruprasad et al.
+
+tomb structures. Crucially, in fisheye sequences from ADT, CAM3R (marked
+green in Fig. 3) preserves wall planes and clocks, which appear significantly
+distorted (bent) in baseline (marked red in Fig. 3) reconstructions.
+
+
+Table 1: Two-view relative pose estimation results. We report Accuracy at 15◦ (higher
+is better). Bold indicates best performance.
+
+Model            2D3DS       MegaDepth     CO3Dv2 (Zero-shot)      360Loc         ADT
+              RRA@15 RTA@15 RRA@15 RTA@15 RRA@15    RTA@15      RRA@15 RTA@15 RRA@15 RTA@15
+DUSt3R [36]    10.6   6.0    95.6   80.8    94.7      43.1       0.0     0.0   91.0     63.6
+MASt3R [16]    18.3   9.3    69.7   56.4    98.4      33.4       39.8    5.3   96.6     63.5
+Pow3R [13]     7.5     6.0   96.2   74.2    95.8      38.3        0.0    0.0   96.6     79.2
+VGGT [35]      11.8   11.0   98.0   88.2    90.9      29.4       37.8   11.1   92.7     82.9
+π 3 [37]       16.8   11.4   99.8   93.3    90.7      22.7       38.5   13.0   97.5     93.8
+CAM3R-homo     65.4   56.8   97.2   92.6    96.1     66.5        58.3   54.7   98.2   93.4
+CAM3R          97.7   94.3   96.8   94.2    97.5     88.2        96.0   91.0   99.0   95.0
+
+
+
+
+4.4     Multi-view Reconstruction
+
+Multi-view relative pose estimation extends the two-view problem to a set of
+N > 2 images, where the goal is to recover a globally consistent set of camera
+poses {P1 , . . . , PN } in a unified coordinate frame. To recover the global scene,
+we first perform pairwise inference with CAM3R across the exhaustive scene
+graph. We then apply our two-stage pruning (Sec. 3.3) to filter inconsistent edges
+as illustrated in Fig. 4 and utilize Ray-Aware Global Alignment to resolve the
+final camera poses.
+
+
+
+
+Fig. 4: Qualitative Pruning Analysis. From left to right: (1) Successful rejection of
+a non-overlapping pair; (2) A valid pair with dense 3D correspondences; (3) Rejection
+of a doppelganger case where visually similar computer monitors yield inconsistent
+relative geometry.
+
+
+
+   Dataset. Similar to two-view evaluation, we assess the multi-view perfor-
+mance of CAM3R on 2D3DS, MegaDepth, 360Loc, ADT, and CO3Dv2 (for
+zero-shot evaluation). Unlike the two-view evaluation in Sec. 4.3, which relies
+on curated image pairs, the multi-view benchmark utilizes unstructured pools
+                    CAM3R: Camera-Agnostic Model for 3D Reconstruction             13
+
+of images sampled from within a scene or subscene. Further technical specifics
+regarding the group-wise sampling protocols are detailed in the Supplementary
+Material (Sec. D.2) .
+    Baselines and Metrics. Due to the performance degradation of DUSt3R,
+MASt3R, and Pow3R on heterogeneous optics in the two-view setting, we limit
+our multi-view comparative analysis to VGGT and π 3 . We report Accuracy
+(RRA@30/RTA@30), mean Average Accuracy (mAA@30), and Abso-
+lute Trajectory Error (ATE). ATE is computed via root-mean-square error
+(RMSE) after Umeyama alignment [14] to account for global scale and pose.
+
+
+
+
+Fig. 5: Qualitative Multi-View Reconstructions. Global camera trajectories and
+dense point clouds recovered from unstructured image pools across diverse datasets.
+Despite high radial distortion and lack of scenegraph information, globally consistent
+poses and structural geometry are maintained through the Ray-Aware Global Align-
+ment, effectively mitigating trajectory drift and scale ambiguity.
+
+
+     Results. As shown in Tab. 2, CAM3R achieves the highest average per-
+formance across the majority of datasets. VGGT and π 3 struggle with 2D3DS
+and 360Loc datasets, whereas CAM3R demonstrates robustness to these wide-
+angle geometries, achieving 73.5% and 82.6% mAA, respectively. While π 3 shows
+competitive accuracy on standard perspective dataset like MegaDepth, it bene-
+fits from explicit training on that domain. On the CO3Dv2 benchmark, CAM3R
+achieves a robust 64.9% mAA in a zero-shot setting, while baseline models strug-
+gle to handle the mixture of fisheye and pinhole images. In Tab. 3, CAM3R sig-
+nificantly reduces drift in wide-angle scenarios, reaching an ATE of 2.7 on 360Loc
+compared to the baselines. These quantitative gains are reflected in the qualita-
+tive multi-view reconstructions in Fig. 5, which illustrate our model’s ability to
+recover globally consistent camera trajectories and dense scene geometry from
+unstructured, distorted image pools. In CO3Dv2, CAM3R (marked green) recov-
+ers well-defined object geometries, (here, the apple structure), whereas baseline
+14       N. Guruprasad et al.
+
+models (marked red) produce diffused or scattered pointclouds. Furthermore,
+in MegaDepth, our model achieves superior structural completion of complex
+buildings; while some background noise is present due to sky regions, the pri-
+mary architectural integrity is preserved more effectively than in baselines.
+
+
+Table 2: Multi-view relative pose estimation results. We report Accuracy at 30◦ (RRA
+and RTA) and mAA@30 (higher is better). Bold indicates best performance.
+
+Model                       2D3DS           MegaDepth         CO3Dv2(Zero-Shot)            360Loc                ADT
+                     RRA RTA mAA RRA RTA mAA RRA RTA                        mAA     RRA RTA mAA RRA RTA mAA
+VGGT                 31.8    34.4   7.6   100.0 97.4 68.8     70.5 75.3      19.6   47.9    50.8    19.5 100.0 95.6 60.3
+π3                   40.0    35.8   9.6   100.0 98.4 73.4     89.5 91.6      22.7   48.6    47.4    17.8 100.0 100.0 75.8
+CAM3R + DUSt3R GA 72.3 55.1 38.8          86.5    72.3 68.5   69.7   56.3    46.1   66.7 59.2 55.5        78.3   71.1   70.8
+CAM3R + Our GA    94.0 91.5 73.5          96.6    96.3 87.4   85.0   85.2    64.9   98.7 91.2 82.6        92.2   91.5   77.3
+
+
+
+
+Table 3: Multi-view trajectory alignment error (ATE RMSE). Lower is better. Bold
+indicates best performance.
+
+             Model                        2D3DS MegaDepth CO3Dv2(Zero-shot) 360Loc ADT
+             VGGT                           3.8         0.7                 1.3             6.3     0.5
+             π3                             2.9         0.6                 0.7             5.8     0.4
+             CAM3R + DUSt3R BA              2.4         1.2                 1.6             4.5     0.6
+             CAM3R + Our BA                 1.8         0.8                 1.1             2.7     0.4
+
+
+
+
+4.5     Ablation Studies
+Impact of Heterogeneous Training. We evaluate the necessity of the second
+training phase by comparing the full CAM3R against the phase-one baseline,
+CAM3R-homo. As shown in Tab. 1, the inclusion of heterogeneous pairs (e.g.
+panorama-perspective) during the second stage of our training curriculum sig-
+nificantly improves generalization for two-view relative pose estimation.
+    Ray-Aware Global Alignment. We evaluate the efficacy of our proposed
+Ray-Aware Global Alignment against the global alignment utilized in DUSt3R.
+As shown in Tab. 2, our ray-based optimizer when applied to the pairwise pre-
+dictions of CAM3R, demonstrates superiority across all datasets, particularly
+on heterogeneous datasets where mAA falls by nearly 35%. Furthermore, the
+ATE RMSE results in Tab. 3 confirm that our approach effectively suppresses
+cumulative drift, reducing trajectory error by up to 40% (e.g. from 4.5 to 2.7 on
+360Loc).
+
+5     Conclusion
+In this paper, we address two challenges in 3D reconstruction: handling non-
+linear distortions in wide-angle imagery and extracting reliable cross-view cues
+                    CAM3R: Camera-Agnostic Model for 3D Reconstruction           15
+
+for robust pose estimation. To this end, we introduce CAM3R, a regression-based
+framework designed to tackle both problems. The Ray Module learns pixel-wise
+ray representations for wide-angle lenses. The Cross-view Module models rela-
+tionships between image pairs to predict 3D representations such as pointmaps
+and relative poses. Building on these components, we extend the framework to
+multi-view reconstruction of unordered, distorted images through a Ray-Aware
+Global Alignment method. Extensive evaluations demonstrate that CAM3R
+achieves state-of-the-art performance across pinhole, fisheye, and panoramic im-
+agery, and successfully recovers globally consistent camera trajectories in chal-
+lenging multi-view scenarios where traditional baselines fail to converge. In future
+work, we aim to unify the geometric and cross-view encoders into a more effi-
+cient backbone to enable real-time applications. We also plan to explore advanced
+ray-based positional encoding strategies to better capture high-frequency scene
+details, and to develop more sophisticated scene-graph pruning mechanism that
+can handle visual ambiguities like extreme viewpoint and appearance changes.
+
+
+Acknowledgements
+We thank Anand Bhattad for helpful discussions and valuable feedback. This
+research is based upon work supported by the Office of the Director of National
+Intelligence (ODNI), Intelligence Advanced Research Projects Activity (IARPA),
+via IARPA R&D Contract No. 140D0423C0076. The views and conclusions con-
+tained herein are those of the authors and should not be interpreted as necessarily
+representing the official policies or endorsements, either expressed or implied, of
+the ODNI, IARPA, or the U.S. Government. The U.S. Government is authorized
+to reproduce and distribute reprints for Governmental purposes notwithstanding
+any copyright annotation thereon.
+16      N. Guruprasad et al.
+
+
+
+
+                 Supplementary Material
+
+
+
+
+Fig. S1: Zero-shot generalization to unseen datasets. CAM3R successfully re-
+covers dense 3D point clouds on Matterport [5], FIORD [11], and CO3Dv2 [25] de-
+spite no multi-view training on these domains. While the Ray Module leverages prior
+exposure to Matterport’s optical manifold via UniK3D [23] initialization, the Cross-
+View Module demonstrates true zero-shot structural generalization. Notably, in the
+FIORD dataset, CAM3R unwraps extreme 2D fisheye aberrations, strictly preserving
+rectilinear structures (e.g. straight walls and sharp corners) in 3D space. To simu-
+late unconstrained real-world environments, these scenes contain a heterogeneous mix
+of panoramic, fisheye, and pinhole captures. Multiple viewing angles are provided to
+highlight the structural integrity of the reconstructions.
+                     CAM3R: Camera-Agnostic Model for 3D Reconstruction               17
+
+
+
+
+Fig. S2: In-domain multi-view 3D reconstructions. Extended qualitative results
+from the 360Loc [12], ADT [22], and MegaDepth [17] test splits demonstrate CAM3R’s
+robustness. In 360Loc, the model reconstructs expansive concourse regions despite the
+prevalence of smooth, highly reflective, and textureless surfaces that typically break
+traditional matching heuristics. For ADT, which features enclosed room scenes with
+dense, short-baseline egocentric fisheye captures, our rigorous scene-graph pruning yield
+a coherent pointcloud. Multiple viewing angles are provided to illustrate the dense
+coverage and structural consistency of the fused multi-modal outputs.
+18      N. Guruprasad et al.
+
+
+
+
+Fig. S3: Raw two-view reconstructions and cross-modal correspondences.
+We visualize constituent image pairs from the multi-view scenes evaluated in Fig. S2.
+CAM3R demonstrates robustness in recovering two-view relative geometry not only
+for homogeneous pairs (panorama-panorama, fisheye-fisheye, pinhole-pinhole) but cru-
+cially across highly heterogeneous projection models (e.g. panorama-pinhole and
+panorama-fisheye in 360Loc). We overlay 3D-3D Mutual Nearest Neighbor (MNN)
+matches utilized during our graph pruning phase, color-coded by the network’s pre-
+dicted distance (brighter yellow indicates stronger matches and closer points in 3D).
+Note: These visualizations represent the raw, feed-forward output of the two-view net-
+work prior to Ray-Aware Global Alignment.
+                    CAM3R: Camera-Agnostic Model for 3D Reconstruction             19
+
+A    Architecture Rationale: The Need for Decoupling
+The main paper introduces CAM3R as a camera-agnostic framework for dense
+two-view 3D reconstruction that explicitly separates camera geometry from scene
+geometry. Here we briefly summarize the architectural evolution that motivated
+the final design as shown in Fig. S4.
+
+
+
+
+Fig. S4: Architectural evolution toward CAM3R. Three stages explored during
+development: (1) direct fine-tuning of a DUSt3R-style model on distorted data, (2)
+decoupled radial prediction with ground-truth camera rays which is not always feasible
+during inference, and (3) the final CAM3R design with Ray Module and Cross-View
+Module.
+
+
+    Our final architecture emerged from a series of investigations into how exist-
+ing transformer-based 3D reconstruction models, such as DUSt3R [36], behave
+under severe camera distortions.
+    Stage 1: Direct fine-tuning of DUSt3R on distorted datasets. Our
+first approach naively fine-tuned a DUSt3R-style model on our diverse dataset
+20      N. Guruprasad et al.
+
+mixture Sec. D. Because this paradigm regresses the second view’s geometry
+directly into the first view’s coordinate frame, it forces the network to implicitly
+entangle two factors: (a) non-linear intrinsic projection; (b) scene geometry and
+relative pose. Empirically, the network struggled to disentangle these conflicting
+signals, yielding severely distorted pointmaps.
+    Stage 2: Decoupled radial prediction with ground-truth rays. To sta-
+bilize the optimization, we modified the attached Dense Prediction Transformer
+(DPT) [24] head to regress radial distances strictly in each view’s independent
+local coordinate frame. We anchored the geometry using ground-truth camera
+rays which significantly stabilized the pointmap regression quality but relied on
+ground-truth camera intrinsics during inference.
+    Stage 3: Learned ray estimation via a dedicated camera branch. To
+remove the dependency on ground-truth rays, we introduced a dedicated Ray
+Module, leveraging the weights of the angular module of UniK3D [23], to dynam-
+ically predict per-pixel ray directions. To align the independent local pointmaps
+into a shared 3D space, we appended a Relative Pose Network. This final formula-
+tion successfully separates camera calibration from scene reconstruction yielding
+the final CAM3R architecture.
+
+
+
+
+Fig. S5: Qualitative progression of architectural design choices. From left to
+right: (1) Input image pairs (panoramas) with overlaid ground-truth 3D point clouds;
+(2) Reconstruction from vanilla DUSt3R [36], which assumes pinhole projection; (3)
+Reconstruction from fine-tuned DUSt3R (Stage 1), directly trained on distorted
+dataset mixture; and (4) Our final decoupled formulation, CAM3R (Stage 3). While
+vanilla DUSt3R collapses under non-rectilinear distortions, naive fine-tuning fails to
+resolve the underlying geometric conflicts, forcing the network to generate distorted
+pointmaps. By explicitly decoupling internal ray geometry from relative depth, CAM3R
+recovers rigid, structurally accurate 3D geometry.
+
+
+
+   Quantitative and qualitative comparisons illustrating the progression from
+Stage 1 to the final model are provided in Fig. S5 and Tab. S1.
+
+
+B    Training Configuration
+
+CAM3R is optimized end-to-end using the AdamW [19] optimizer. We employ a
+linear warmup phase during the first few epochs to prevent early gradient insta-
+                              CAM3R: Camera-Agnostic Model for 3D Reconstruction                          21
+
+Table S1: Quantitative two-view validation of architectural design choices.
+We report two-view relative pose estimation metrics at 15◦ (↑). Comparing Vanilla
+DUSt3R, a naively fine-tuned DUSt3R (Stage 1), and our final decoupled CAM3R
+(Stage 3) reveals that simply exposing standard foundation models to distorted data is
+mathematically insufficient. Our model yields massive performance gains, particularly
+on extreme optical manifolds (e.g. 2D3DS [1] and 360Loc [12]).
+
+Model Iteration                  2D3DS       MegaDepth     CO3Dv2 (Zero-shot)      360Loc         ADT
+                              RRA@15 RTA@15 RRA@15 RTA@15 RRA@15    RTA@15      RRA@15 RTA@15 RRA@15 RTA@15
+Vanilla DUSt3R [36]            10.6    6.0   95.6   80.8    94.7      43.1        0.0    0.0   91.0     63.6
+Fine-tuned DUSt3R (Stage 1)    17.8   10.9   94.2   72.5    94.3      52.7       13.0    9.2   87.5     65.4
+CAM3R (Final - Stage 3)        97.7   94.3   96.8   94.2    97.5     88.2        96.0   91.0   99.0   95.0
+
+
+
+      Table S2: Optimization hyperparameters for end-to-end CAM3R training.
+
+          Hyperparameter                     Value / Description
+          Batch Size (per GPU)     4
+          Gradient Accumulation 2 steps
+          Effective Batch Size     32 (4 GPUs × 4 batch × 2 accumulation)
+          Optimizer                AdamW [19] (β1 = 0.9, β2 = 0.95)
+          Base Learning Rate (blr) 1.5 × 10−4
+          Learning Rate Scaling    lr = blr × effective256
+                                                        batch size
+
+          Minimum LR (min_lr)      1 × 10 (cosine floor)
+                                         −6
+
+          Learning Rate Schedule Linear warmup (10 epochs) + cosine decay
+          Weight Decay             0.05
+          Zero Weight Decay        Bias and LayerNorm parameters
+          Total Epochs             300–500
+
+
+
+bility, followed by a half-cycle cosine learning-rate decay. The complete training
+hyperparameters and scaling factors are summarized in Tab. S2.
+    We detail the progressive spatial and channel dimensions of tensors as they
+propagate through the CAM3R pipeline in Tab. S3.
+
+
+C      Ray-aware Global Alignment
+
+The main paper introduces the Ray-Aware Global Alignment framework for
+multi-view reconstruction. Here we provide additional implementation details
+regarding graph pruning, initialization, and optimization dynamics that improve
+global pose estimation.
+
+
+C.1      Multi-stage Scene-Graph Pruning
+
+Before global optimization, we apply a pruning cascade to remove unreliable
+edges from the pairwise scene graph. For each image pair (i, j) the graph contains
+22         N. Guruprasad et al.
+
+Table S3: Architecture overview of CAM3R. NP = HW/P 2 denotes the token se-
+quence length for patch size P .
+
+Stage                             Configuration                                                                                                                                       Input Shape                                                                           Output Shape
+                                                                                             Ray Module for Camera Geometry
+Pixel Encoder                     ViT-L/14 (24 layers), outputs {6, 12, 18, 24}       B×3×H ×W                    {B × N14 × 1024}×4
+Token Projection                  Linear projection (1024 → 512)                    {B × N14 × 1024}×4             {B × N14 × 512}×4
+Angular Regressor                 2 Transformer blocks, 8 heads, D = 512                B × 18 × 512         B × 10 (Intrinsics + SH coeffs.)
+Ray Generation                    FoV projection + SH basis (deg ≤ 3)           Intrinsics + SH + pixel grid        B×H ×W ×3
+                                                                                    Cross-View Module for Scene Geometry
+Patch Embedding      Linear projection, patch 16 × 16                                                                                                                         B×3×H ×W                                                                                  B × N16 × 1024
+Transformer Encoder 24 blocks, 16 heads, D = 1024                                                                                                                             B × N16 × 1024                                                                            B × N16 × 1024
+Decoder Projection   Linear (1024 → 768)                                                                                                                                      B × N16 × 1024                                                                             B × N16 × 768
+Asymmetric Decoder 12 blocks (self + cross attention)                                                                                                                          B × N16 × 768                                                                          {B × N16 × 768}×12
+DPT Head             Multi-scale fusion {0, 6, 9, 12}, Df eat = 256                                                                                                          {B × N16 × 768}×4                                                                          B×2×H ×W
+3D Point Computation P = r · d (ray × distance)                                                                                                                             Rays & distance map                                                                         B×H ×W ×3
+Relative Pose Head   Global pooling + MLP (D = 256) + SVD                                                                                                                     Decoder features                                                                         B × 4 × 4 ∈ SE(3)
+
+
+
+
+two directed edges eij and eji corresponding to the relative poses predicted by
+CAM3R.
+    1. Symmetric Pose Consistency. In a general unconstrained multi-view
+settings, neural pose regressors can occasionally hallucinate confident but er-
+roneous relative poses, for instance, when confronted with wide-baseline pairs
+with minimal visual overlap. To efficiently filter these outliers before performing
+expensive alignment, we enforce a strict forward-backward cycle consistency as
+a heuristic [39].
+    For a valid prediction, the relative poses Pij = {Rij , tij } and Pji = {Rji , tji }
+must satisfy the inverse relation Rji = R⊤                      ⊤
+                                             ij and tji = −Rij tij .
+    We measure the deviation using angular residuals
+
+                           \Delta \mathbf {R}=\mathbf {R}_{ji}\mathbf {R}_{ij}, \qquad \theta _{\text {rot}}=\arccos \!\left (\frac {\mathrm {tr}(\Delta \mathbf {R})-1}{2}\right )\frac {180^\circ }{\pi }                                                                                   (S1)
+
+
+                    \mathbf {t}_{\text {exp}}=-\mathbf {R}_{ij}^{\top }\mathbf {t}_{ij}, \qquad \theta _{\text {tra}}= \arccos \!\left ( \frac {\mathbf {t}_{ji}\cdot \mathbf {t}_{\text {exp}}} {\|\mathbf {t}_{ji}\|_2\|\mathbf {t}_{\text {exp}}\|_2} \right )\frac {180^\circ }{\pi }.    (S2)
+
+    Edges where θrot > τrot or θtra > τtra are discarded.
+    2. Geometric Overlap via Mutual Nearest Neighbors (MNN).
+    To verify dense geometric consistency, we transform the pointmap of view
+j into the coordinate frame of view i using Pij . KD-trees are built on both
+point sets and mutual nearest neighbors (MNN) are extracted. Let ne denote
+the number of mutual matches. Rather than using a fixed threshold, we apply
+an adaptive quantile gate: edges whose ne falls below the 20th percentile of
+the scene-wide match distribution are removed. We additionally enforce strict
+symmetry: if eij passes but eji fails, both edges are discarded. This prevents
+asymmetric outliers from corrupting the graph.
+    3. Largest Connected Component Extraction.
+    After pruning, the scene graph may fragment. We therefore retain only the
+largest component, ensuring that global optimization is performed on a single
+consistent camera graph.
+                                             CAM3R: Camera-Agnostic Model for 3D Reconstruction                                                                                                                                                                          23
+
+C.2    Anchor-Scale Initialization
+
+              \min _{P_i, s_i} \sum _{(i,j) \in E_{\text {pruned}}} \sum _{\mathbf {u}} \sigma _{i,j}(\mathbf {u}) \left \| P_i \big ( s_i \mathbf {x}_i(\mathbf {u}) \big ) - P_j \big ( s_j \mathbf {x}_j(\mathbf {u}) \big ) \right \|_2^2 \label {eq:global_opt}    (S3)
+
+
+    The global alignment objective Eq. (S3) (from the main paper) is sensitive to
+initialization. We compute a deterministic initialization before optimization. An
+anchor image a∗ is selected as the node with the highest degree in the pruned
+graph. Its pose is fixed as the global reference frame Ta∗ = I4×4 . Because pair-
+wise reconstructions may exist in arbitrary scales, this initialization normalizes
+the global coordinate frame before optimization begins.
+
+
+C.3    Ray-Conditioned Optimization Dynamics
+
+With the above initialization, global alignment is performed using the objective
+(Eq. (S3)) described in the main paper. The optimization variables include cam-
+era poses Ti , per-image scales log si , and log-depth values log di , while the unit
+ray fields ri predicted by the Ray Module remain fixed. The effective 3D point
+during optimization is therefore
+
+                                                           \mathbf {p}_i = d_{\text {eff},i}\mathbf {r}_i = \exp (\log d_i+\log s_i)\mathbf {r}_i.                                                                                                                      (S4)
+
+    Freezing the ray directions is critical. Standard point cloud alignment [36]
+optimizes raw (X, Y, Z) coordinates with a pinhole assumption, which can im-
+plicitly distort the camera projection geometry. By constraining points to move
+only along their optical rays ri , the optimizer preserves the camera-agnostic ray
+manifold while refining depth, pose, and scale.
+    Optimization is performed using AdamW [19] with a cosine learning rate
+schedule. Pixel-wise confidence predictions σi are used to down-weight unreliable
+geometric observations.
+
+
+D     Datasets
+
+To learn a camera-agnostic geometric representation, our data corpus covers the
+fundamental projection models and scene types. We assemble a heterogeneous
+dataset mixture comprising MegaDepth [17], 360Loc [12], 2D3DS [1], and
+Aria Digital Twin (ADT) [22]. MegaDepth contains large-scale Internet
+imagery captured primarily with pinhole cameras and includes both indoor and
+outdoor scenes with wide viewpoint variation. 360Loc provides panoramic im-
+agery collected in expansive indoor and outdoor environments. 2D3DS contains
+indoor panoramic captures of highly complex, cluttered building interiors. ADT
+provides egocentric fisheye imagery captured with wearable devices in indoor en-
+vironments. The exact training and testing splits are summarized in Tab. S4.
+24      N. Guruprasad et al.
+
+Table S4: Summary of dataset splits used for training and evaluation. We adhere to
+official protocols to ensure fair benchmarking across all projection domains.
+
+      Dataset        Training Split               Testing Split
+      2D3DS [1]      Areas 1, 2, 3, 4             Areas 5a, 5b, 6
+      ADT [22]       Apartment: ∼multi-user       Apartment: multi-user, Lite
+      MegaDepth [17] 0000–4541 (excl. 0015, 0022) 0015, 0022, 5000–5018
+      360Loc [12]    Hall, Piatrium               Atrium, Concourse
+
+
+D.1    Training Pair Curation Strategy
+
+For datasets lacking explicitly defined ground-truth image pairs, we curate train-
+ing pairs using ground-truth poses with sufficient spatial overlap and meaningful
+wide-baseline. To support the two-phase training curriculum, CAM3R-homo
+and CAM3R, we construct homogeneous (intra-projection) and heterogeneous
+(cross-projection) image pairs, respectively.
+    2D3DS [1]. Homogeneous (Panorama-Panorama) pairs are formed based on
+spatial separation. Let ci , cj ∈ R3 denote camera positions in world coordinates.
+We enforce a strict baseline interval of dmin ≤ ∥ci − cj ∥2 ≤ dmax where dmin =
+0.1 m and dmax = 2.2 m. These thresholds reflect the dense, cluttered nature of
+2D3DS indoor environments. We retain the top-K closest valid neighbors per
+anchor (default K = 5).
+    Heterogeneous (Panorama-Pinhole/Panorama-Fisheye) are created from valid
+homogeneous neighbors where pinhole frames at the neighboring panorama’s lo-
+cation are selected as targets. Frames with the highest overlap are selected, and
+synthetic fisheye versions are generated via equidistant projection.
+    360Loc [12]. Homogeneous and Heterogeneous pairs are created using the
+same logic as in 2D3DS. In contrast to the tight rooms of 2D3DS, 360Loc features
+expansive outdoor areas and massive indoor atria. Hence, we expand the baseline
+threshold to dmin = 1.5 m, dmax = 10.0 m.
+    ADT [22] . Homogeneous (Fisheye-Fisheye) pairs are created based on the
+baseline distance and relative viewing angle. Because ADT consists of egocen-
+tric head-mounted sequences, these thresholds are tailored to human motion
+dynamics. A pair is considered geometrically valid if 0.35m ≤ b ≤ 1.75m and
+25◦ ≤ θ ≤ 65◦ .
+    Heterogeneous (Fisheye-Pinhole) pairs are created by extracting simultane-
+ous fisheye and pinhole renders per frame using the Aria project toolkit, allowing
+us to form cross-modality pairs.
+    MegaDepth [17]. The pairs are provided directly from precomputed SfM
+and MVS metadata [36]. All pairs remain Pinhole-Pinhole, and no synthetic
+heterogeneity is injected during training.
+    CO3Dv2 [25]. To test zero-shot robustness, even-indexed frames remain
+pinhole while odd-indexed frames are synthetically warped to fisheye, rendering
+the sequences inherently heterogeneous.
+                    CAM3R: Camera-Agnostic Model for 3D Reconstruction           25
+
+D.2    Evaluation Protocols
+
+Two-View Evaluation. For pairwise evaluation, we assess the model’s ability
+to reconstruct geometry from image pairs. We apply the exact same homogeneous
+and heterogeneous pairing logic, baseline thresholds, and overlap constraints
+described in Sec. D, but restrict the sampling strictly to the Testing Splits
+in Tab. S4. To evaluate zero-shot generalization, we additionally utilize the
+CO3Dv2 [25] dataset.
+    Multi-View Evaluation. For multi-view evaluation, we assess the model’s
+ability to achieve global consistency across entire test scenes in Tab. S4. The
+evaluation graphs are constructed as follows to mirror realistic scenarios:
+
+ – MegaDepth. [17] In every test scene, evaluation groups are formed around
+   hub images identified as having the highest number of co-visible connections
+   in the SfM graph. The immediate first-order neighborhood (the first circle
+   of matches) around each hub defines the multi-view evaluation set.
+ – 2D3DS [1] & 360Loc [12]. Multi-view evaluation set comprises all het-
+   erogenous images in the subscene/scene belonging to the test split.
+ – ADT [22] & CO3Dv2 [25]. We load the video sequences in the test split
+   with alternate Pinhole-Fisheye frames.
+
+
+D.3    Ground-Truth Rays and Pointmap Construction
+
+Dense Pointmaps. For each view in dataset i, the ground-truth 3D pointmap
+  i,j
+X (u) in the camera coordinate frame is explicitly factorized as unit ray direc-
+tion di (u) and radial distance along the ray ri (u). Only valid pixels (ri > 0) are
+included in the mask V(u) for training.
+
+
+Projection-Specific Ray Computation.
+
+ – Equirectangular Panoramas. Rays are computed deterministically from
+   the pixel coordinates. Using the normalized pixel center convention (u, v) =
+   ((uidx + 0.5)/W, (vidx + 0.5)/H), we map to longitude λ = (u − 0.5) 2π and
+   latitude ϕ = (0.5 − v) π.
+ – Pinhole Cameras. Rays are derived from the intrinsics matrix K via
+   inverse projection. Perspective datasets typically provide Z-depth, Dz (u),
+   which measures the depth strictly along the optical axis. To maintain spa-
+   tial consistency with our spherical formulation, we convert this Z-depth to
+   radial distance.
+ – Fisheye Lenses. Rays are computed per pixel using the exact sensor cali-
+   bration unprojection routines, which account for radial distortions.
+                                 i,i
+    Once the local pointmaps X (u) are constructed, they can be expressed in
+the global world frame using the camera-to-world pose Pi = (Ri , ti ) ∈ SE(3).
+During training, we project view i’s pointmap into the coordinate frame of view
+j to establish relative geometric supervision.
+26                    N. Guruprasad et al.
+
+
+
+
+       \begin {aligned} \mathbf {\overline {X}}^{\text {world}}(\mathbf {u}) &= \mathbf {\overline {R}}_i \mathbf {\overline {X}}^{i,i}(\mathbf {u}) + \mathbf {\overline {t}}_i, \qquad \mathbf {\overline {X}}^{i,j}(\mathbf {u}) = \mathbf {\overline {R}}_{j \leftarrow i} \mathbf {\overline {X}}^{i,i}(\mathbf {u}) + \mathbf {\overline {t}}_{j \leftarrow i}. \end {aligned}    (S5)
+
+                                                                                            \mathbf {\overline {R}}_{j \leftarrow i} = \mathbf {\overline {R}}_j \mathbf {\overline {R}}_i^\top , \qquad \mathbf {\overline {t}}_{j \leftarrow i} = \mathbf {\overline {t}}_j - \mathbf {\overline {R}}_{j \leftarrow i} \mathbf {\overline {t}}_i . 
+
+
+E       Limitations and Future Directions
+
+CAM3R introduces an explicit decoupling between camera geometry and scene
+reconstruction, which improves robustness across heterogeneous projection mod-
+els but introduces certain limitations.
+     Architectural Overhead. The current design employs two separate Vision
+Transformer (ViT) [8] backbones for the Ray Module and Cross-View Module,
+resulting in higher memory usage. While the decoupled learning is important
+for strong distortions, future work could reduce redundancy through parameter
+sharing or knowledge distillation to learn a unified encoder [26].
+     Pairwise Scalability. CAM3R runs for O(N 2 ) pairwise inferences to con-
+struct the scene graph for multi-view reconstruction. Although our pruning strat-
+egy mitigates the cost before global alignment, scaling to very large image col-
+lections remains expensive. Extending the ray-based formulation to multi-view
+transformer architectures [35,37] is a promising direction for improving scalabil-
+ity.
+     Despite these limitations, our results suggest that explicitly modeling camera
+rays provides a foundation for camera-agnostic 3D reconstruction.
+
+
+References
+ 1. Armeni, I., Sax, S., Zamir, A.R., Savarese, S.: Joint 2d-3d-semantic data for indoor
+    scene understanding. arXiv preprint arXiv:1702.01105 (2017)
+ 2. Bengio, Y., Louradour, J., Collobert, R., Weston, J.: Curriculum learning. In: Pro-
+    ceedings of the 26th annual international conference on machine learning. pp. 41–48
+    (2009)
+ 3. Bogdan, O., Eckstein, V., Rameau, F., Bazin, J.C.: Deepcalib: A deep learning
+    approach for automatic intrinsic calibration of wide field-of-view cameras. In: Pro-
+    ceedings of the 15th ACM SIGGRAPH European Conference on Visual Media
+    Production. pp. 1–10 (2018)
+ 4. Brown, D.C.: Close-range camera calibration. Photogrammetric engineering 37(8),
+    855–866 (1971)
+ 5. Chang, A., Dai, A., Funkhouser, T., Halber, M., Niessner, M., Savva, M., Song,
+    S., Zeng, A., Zhang, Y.: Matterport3d: Learning from rgb-d data in indoor envi-
+    ronments. arXiv preprint arXiv:1709.06158 (2017)
+ 6. Conrady, A.: Lens-systems, decentered. Monthly Notices of the Royal Astronomical
+    Society, Vol. 79, p. 384-390 79, 384–390 (1919)
+ 7. DeTone, D., Malisiewicz, T., Rabinovich, A.: Superpoint: Self-supervised interest
+    point detection and description. In: Proceedings of the IEEE conference on com-
+    puter vision and pattern recognition workshops. pp. 224–236 (2018)
+                     CAM3R: Camera-Agnostic Model for 3D Reconstruction              27
+
+ 8. Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner,
+    T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., Uszkoreit, J., Houlsby, N.:
+    An image is worth 16x16 words: Transformers for image recognition at scale (2021),
+    https://arxiv.org/abs/2010.11929
+ 9. Edstedt, J., Sun, Q., Bökman, G., Wadenbäck, M., Felsberg, M.: Roma: Robust
+    dense feature matching. In: Proceedings of the IEEE/CVF conference on computer
+    vision and pattern recognition. pp. 19790–19800 (2024)
+10. Geyer, C., Daniilidis, K.: A unifying theory for central panoramic systems and
+    practical implications. In: European conference on computer vision. pp. 445–461.
+    Springer (2000)
+11. Gunes, U., Turkulainen, M., Ren, X., Solin, A., Kannala, J., Rahtu, E.: Fiord: A
+    fisheye indoor-outdoor dataset with lidar ground truth for 3d scene reconstruc-
+    tion and benchmarking. In: Scandinavian Conference on Image Analysis. pp. 3–17.
+    Springer (2025)
+12. Huang, H., Liu, C., Zhu, Y., Cheng, H., Braud, T., Yeung, S.K.: 360loc: A dataset
+    and benchmark for omnidirectional visual localization with cross-device queries. In:
+    Proceedings of the IEEE/CVF conference on computer vision and pattern recog-
+    nition. pp. 22314–22324 (2024)
+13. Jang, W., Weinzaepfel, P., Leroy, V., Agapito, L., Revaud, J.: Pow3r: Empowering
+    unconstrained 3d reconstruction with camera and scene priors. In: Proceedings of
+    the Computer Vision and Pattern Recognition Conference. pp. 1071–1081 (2025)
+14. Kabsch, W.: A solution for the best rotation to relate two sets of vectors. Founda-
+    tions of Crystallography 32(5), 922–923 (1976)
+15. Kannala, J., Brandt, S.S.: A generic camera model and calibration method for
+    conventional, wide-angle, and fish-eye lenses. IEEE transactions on pattern analysis
+    and machine intelligence 28(8), 1335–1340 (2006)
+16. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: European conference on computer vision. pp. 71–91. Springer (2024)
+17. Li, Z., Snavely, N.: Megadepth: Learning single-view depth prediction from internet
+    photos. In: Proceedings of the IEEE conference on computer vision and pattern
+    recognition. pp. 2041–2050 (2018)
+18. Liao, K., Nie, L., Huang, S., Lin, C., Zhang, J., Zhao, Y., Gabbouj, M., Tao,
+    D.: Deep learning for camera calibration and beyond: A survey (2025), https:
+    //arxiv.org/abs/2303.10559
+19. Loshchilov, I., Hutter, F.: Decoupled weight decay regularization (2019), https:
+    //arxiv.org/abs/1711.05101
+20. Lowe, D.G.: Distinctive image features from scale-invariant keypoints. Interna-
+    tional journal of computer vision 60(2), 91–110 (2004)
+21. Neal, P., Eric, C., Borja, P., Jonathan, E.: Distributed optimization and statisti-
+    cal learning via the alternating direction method of multipliers. Foundations and
+    Trends® in Machine learning 3(1), 1–122 (2011)
+22. Pan, X., Charron, N., Yang, Y., Peters, S., Whelan, T., Kong, C., Parkhi, O.,
+    Newcombe, R., Ren, Y.C.: Aria digital twin: A new benchmark dataset for ego-
+    centric 3d machine perception. In: Proceedings of the IEEE/CVF International
+    Conference on Computer Vision. pp. 20133–20143 (2023)
+23. Piccinelli, L., Sakaridis, C., Segu, M., Yang, Y.H., Li, S., Abbeloos, W., Van Gool,
+    L.: Unik3d: Universal camera monocular 3d estimation. In: Proceedings of the
+    Computer Vision and Pattern Recognition Conference. pp. 1028–1039 (2025)
+24. Ranftl, R., Bochkovskiy, A., Koltun, V.: Vision transformers for dense prediction.
+    In: Proceedings of the IEEE/CVF international conference on computer vision.
+    pp. 12179–12188 (2021)
+28      N. Guruprasad et al.
+
+25. Reizenstein, J., Shapovalov, R., Henzler, P., Sbordone, L., Labatut, P., Novotny,
+    D.: Common objects in 3d: Large-scale learning and evaluation of real-life 3d cat-
+    egory reconstruction. In: Proceedings of the IEEE/CVF international conference
+    on computer vision. pp. 10901–10911 (2021)
+26. Sarıyıldız, M.B., Weinzaepfel, P., Lucas, T., De Jorge, P., Larlus, D., Kalantidis,
+    Y.: Dune: Distilling a universal encoder from heterogeneous 2d and 3d teachers.
+    In: Proceedings of the Computer Vision and Pattern Recognition Conference. pp.
+    30084–30094 (2025)
+27. Sarlin, P.E., DeTone, D., Malisiewicz, T., Rabinovich, A.: Superglue: Learning
+    feature matching with graph neural networks. In: Proceedings of the IEEE/CVF
+    conference on computer vision and pattern recognition. pp. 4938–4947 (2020)
+28. Schönberger, J.L., Frahm, J.M.: Structure-from-Motion Revisited. In: Conference
+    on Computer Vision and Pattern Recognition (CVPR) (2016)
+29. Schönberger, J.L., Zheng, E., Pollefeys, M., Frahm, J.M.: Pixelwise View Selection
+    for Unstructured Multi-View Stereo. In: European Conference on Computer Vision
+    (ECCV) (2016)
+30. Sturm, P., Ramalingam, S., Tardif, J.P., Gasparini, S., Barreto, J.: Camera models
+    and fundamental concepts used in geometric computer vision. Foundations and
+    Trends in Computer Graphics and Vision 6(1-2), 1–183 (2011)
+31. Triggs, B., McLauchlan, P.F., Hartley, R.I., Fitzgibbon, A.W.: Bundle adjust-
+    ment—a modern synthesis. In: International workshop on vision algorithms. pp.
+    298–372. Springer (1999)
+32. Urban, S., Leitloff, J., Hinz, S.: Improved wide-angle, fisheye and omnidirectional
+    camera calibration. ISPRS Journal of Photogrammetry and Remote Sensing 108,
+    72–79 (2015)
+33. Vandenhende, S., Georgoulis, S., Van Gansbeke, W., Proesmans, M., Dai, D.,
+    Van Gool, L.: Multi-task learning for dense prediction tasks: A survey. IEEE trans-
+    actions on pattern analysis and machine intelligence 44(7), 3614–3633 (2021)
+34. Veicht, A., Sarlin, P.E., Lindenberger, P., Pollefeys, M.: Geocalib: Learning single-
+    image calibration with geometric optimization. In: European Conference on Com-
+    puter Vision. pp. 1–20. Springer (2024)
+35. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the Computer Vision
+    and Pattern Recognition Conference. pp. 5294–5306 (2025)
+36. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE/CVF conference on computer
+    vision and pattern recognition. pp. 20697–20709 (2024)
+37. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J.,
+    Shen, C., He, T.: π 3 : Permutation-Equivariant Visual Geometry Learning. arXiv
+    preprint arXiv:2507.13347 (2025)
+38. Yu, T., Kumar, S., Gupta, A., Levine, S., Hausman, K., Finn, C.: Gradient surgery
+    for multi-task learning. Advances in neural information processing systems 33,
+    5824–5836 (2020)
+39. Zach, C., Klopschitz, M., Pollefeys, M.: Disambiguating visual relations using loop
+    constraints. In: 2010 IEEE Computer Society Conference on Computer Vision and
+    Pattern Recognition. pp. 1426–1433. IEEE (2010)
+

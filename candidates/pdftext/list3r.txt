@@ -1,0 +1,1320 @@
+                                             LIST3R: Long-sequence Instance-aware 3D Reconstruction
+
+
+                                                                      Jing Gao,1 Wei Wang,1, † Feiran Wang,2 Yan Yan2
+                                                             1                                 2
+                                                                 Beijing Jiaotong University       University of Illinois Chicago
+arXiv:2607.00375v1 [cs.CV] 1 Jul 2026
+
+
+
+
+                                                        Missed                GT                                                      Recoverd
+                                                        Revisit               VGGT-Long                                                Revisit
+                                                                              Ours
+
+
+
+
+                                                            Rigid                                             Smooth
+                                                          Alignment                                          Alignment
+                                                     VGGT-Long                          Camera Pose                            Ours
+                                        Figure 1: LIST3R leverages instance guidance to recover more effective revisits and smoother cross-
+                                        subsequence alignment, producing more accurate and stable camera trajectories than the baseline.
+
+                                                                                          Abstract
+                                                   We present LIST3R, an instance-aware framework for long-sequence 3D recon-
+                                                   struction inspired by the way humans organize spatial memory around stable and
+                                                   recognizable objects. LIST3R organizes long-sequence reconstruction around
+                                                   instance anchors, using them to reconnect fragmented subsequences and consoli-
+                                                   date local observations into a coherent global 3D scene. Given a long video, our
+                                                   approach partitions it into overlapping subsequences and builds a structured local
+                                                   instance library for each partial reconstruction, maintaining persistent trackable
+                                                   anchors with semantic and geometric evidence. These anchors are matched across
+                                                   subsequences to recover revisited regions and provide object-aware constraints
+                                                   for fragment alignment, producing a consistent global reconstruction. During this
+                                                   process, the evolving geometric evidence updates the local instance libraries and
+                                                   progressively organizes them into a unified global 3D instance library. Experiments
+                                                   on long-sequence benchmarks show that our method produces more accurate tra-
+                                                   jectories and higher-quality 3D reconstructions, highlighting the effectiveness of
+                                                   persistent instance anchors for organizing long-horizon 3D reconstruction. Our
+                                                   code is available on the project page: https://yixn965.github.io/LIST3R/.
+
+
+                                        1     Introduction
+                                        Humans organize long visual experiences around a small number of stable and recognizable objects.
+                                        When navigating through an environment, these persistent cues help structure spatial memory, infer
+                                        location, and reconnect observations made at different times [13, 10, 3, 21]. Even under viewpoint
+                                            † Corresponding Author.
+changes, occlusion, or partial visibility, they remain effective for recognizing revisited places and
+maintaining a coherent understanding of the surrounding space [9, 7, 8]. Such an ability is particularly
+important for long-horizon visual understanding, where the challenge is not only to interpret the
+current observation, but also to consistently relate it to observations from the distant past.
+Building on these insights, long-sequence 3D reconstruction calls for a framework that unifies three
+key capabilities: 1) maintaining persistent anchors that remain usable across time, viewpoint changes,
+and fragmented observations; 2) re-identifying revisited places over long temporal horizons; and 3)
+integrating partial reconstructions into a globally consistent representation. These capabilities are
+essential for extending reconstruction beyond strong local geometry, enabling the system to preserve
+reliable long-range associations and consistent scene structure throughout the full sequence.
+Recent work on long-sequence 3D reconstruction mainly follows two directions. One line of work
+adopts streaming formulations [23, 5], where frames are processed sequentially while a compact
+latent memory is updated over time. While such methods enable long-horizon processing, earlier
+scene information may be gradually forgotten as the sequence grows, making it difficult to preserve
+reliable long-range associations over extended videos. The other line partitions a long video into
+overlapping subsequences, reconstructs each subsequence independently with a strong feed-forward
+foundation model, and then merges the partial results into a unified scene [6, 26]. By retaining the
+full reconstruction power of the base model [22, 25, 11] within each local window, this paradigm
+often yields high-fidelity local reconstructions for long videos. However, these approaches still fall
+short of the capabilities needed to organize long visual experiences for consistent 3D reconstruction.
+In this work, we propose LIST3R, an instance-aware framework for long-sequence 3D reconstruction.
+We use object instances as persistent scene anchors to organize reconstruction across long temporal
+spans. With these anchors, our method provides the reconstruction process with three key capabilities.
+First, it establishes clear, reliable, and trackable local scene cues from fragmented observations.
+Second, these cues allow the system to recall revisited regions across fragments and recover their
+spatial associations. Third, the system continuously updates and integrates semantic and geometric
+evidence into a coherent reconstruction and a structured scene-level representation. In this way, our
+approach complements existing long-sequence methods with stable organizing cues, enabling the
+system to organize long visual experiences for consistent 3D reconstruction.
+Specifically, given a long video, we first partition it into overlapping subsequences and reconstructs
+each subsequence with a feed-forward 3D foundation model. For each partial reconstruction, we
+initialize a local instance library by collecting trackable instance observations and associating them
+with reconstructed geometric evidence. Using these local libraries, we first identify reliable long-range
+revisits from instance-level cues and selects the corresponding revisited subsequences. It then jointly
+merges revisited and neighboring subsequences with instance-guided constraints, which are further
+refined by confidence-weighted optimization for global consistency. As reconstruction proceeds, our
+method enriches instance evidence with updated geometry and consolidates local instances into a
+global 3D instance library, yielding a consistent scene-level representation.
+Experiments on multiple long-sequence benchmarks show that our method improves camera pose
+accuracy and point-cloud reconstruction quality. Compared with existing streaming and subsequence-
+based methods, our method achieves better global reconstruction consistency, demonstrating the
+effectiveness of persistent instance anchors for organizing long-horizon 3D reconstruction.
+
+
+2     Related Work
+
+2.1   Foundation Models for 3D Reconstruction
+
+Recent 3D reconstruction has been substantially advanced by feed-forward geometric foundation
+models that directly infer scene geometry and camera parameters from RGB images. DUSt3R [24]
+pioneered this direction by predicting aligned pointmaps from image pairs without requiring known
+poses or explicit geometric optimization. MASt3R [12] further strengthens this formulation with
+improved local matching, leading to more reliable correspondences and stronger geometric recon-
+struction. Subsequent works extend this paradigm beyond pairwise reconstruction. For example,
+Fast3R [27] processes many views jointly in a single forward pass, reducing the need for costly
+pairwise matching and global alignment. Recent multi-view foundation models such as VGGT [22],
+π 3 [25], and MapAnything [11] further regress camera parameters and dense 3D geometry from flex-
+
+
+                                                   2
+                                                          Instance-guided
+ Local Instance Library Initialization                                                     Global Instance Library
+                                                   Cross-subsequence Association
+                   Subsequence i
+    ···
+                  Local Instance Library
+                                 Ins.1
+                                           ···
+             Mask Tracks Instance Records        ···                           ···
+
+
+
+            Local Geometry Camera Poses
+                                                                                                       Consolidate
+                                                                                                                     ···
+    ···       Confidence           Depth                                                        Sub 1 Sub 2 Sub 3      Sub k
+                           ···                                                       Local Libraries
+Figure 2: Method overview. LIST3R first builds a local instance library for each subsequence to
+capture recognizable object cues. These cues are then used to connect subsequences and assemble
+fragmented local reconstructions into a coherent global scene. As reconstruction progresses, instance
+evidence is continuously updated and finally consolidated into a global instance library.
+
+ible multi-view inputs, substantially improving local multi-view reconstruction quality. These models
+provide strong geometric priors for scene reconstruction, but their direct multi-view interaction
+remains difficult to scale to long video sequences due to memory and context-length limitations.
+
+2.2       Long-Sequence Reconstruction
+
+Extending feed-forward reconstruction to long sequences has emerged as an active research direction.
+Existing approaches can be categorized into two paradigms. One direction adopts stateful or streaming
+formulations, where frames are processed sequentially while an evolving latent state is maintained
+over time. CUT3R [23] represents this line with persistent state-based continuous 3D perception,
+while TTT3R [5] improves length generalization through test-time adaptation. Although such methods
+avoid full-sequence global reasoning, earlier scene information may still be gradually weakened as
+the sequence grows, making robust long-range association difficult.
+The other direction partitions a long sequence into local submaps, reconstructs them with a strong feed-
+forward model, and then aligns them globally. VGGT-Long [6] scales VGGT [22] to kilometer-scale
+monocular RGB sequences through chunk-based processing, overlapping alignment, and lightweight
+loop-closure optimization. Scal3R [26] improves large-scale reconstruction with scalable test-time
+training and a neural global context representation for better long-range reasoning. However, they still
+lack stable anchors that persist across subsequences, making long-range retrieval and cross-submap
+association unreliable under large viewpoint changes.
+
+3     Methods
+Our core idea is to use recognizable object instances as persistent anchors throughout the reconstruc-
+tion process. As shown in Fig. 2, our method follows a three-stage pipeline. First, we build a local
+instance library for each subsequence, organizing partial reconstructions around trackable object-
+centric cues (Sec. 3.1). Second, these local instance libraries are used to establish cross-subsequence
+associations, including long-range revisit discovery and instance-aware subsequence merging, which
+are further refined by confidence-weighted optimization for global consistency (Sec. 3.2). Finally,
+local instance observations are consolidated into a unified 3D instance library (Sec. 3.3).
+
+3.1       Local Instance Library Initialization
+
+Given a long image sequence I = {It }N  t=1 , we first partition it into a set of overlapping local subse-
+quences. The k-th subsequence S (k) contains L frames, with O frames overlapping adjacent subse-
+quences. To enable each local subsequence to provide object-level cues for later cross-subsequence
+association, we construct a local instance library within each subsequence.
+To cover objects observed under different viewpoints, we uniformly select a set of anchor frames
+from each subsequence S (k) . On these anchor frames, we perform lightweight query-based instance
+
+
+                                                                3
+      Subsequence j   Long-Range Revisit Discovery                                                            Subsequence Merging                                                                Graph Optimization
+                        1      Frame Similarity                                                               Subsequence Relations
+                                                                                                       ··· i-1      i ··· j       j+1 ···                                                                          ��,� ↓
+          ···             0                                                                                                                                                                      ��,� ↑
+                      +
+      Subsequence i                        Instance Similarity
+                          1                                                                                             Overlapping Frames                                                                ��,� ↓
+
+                          0
+          ···
+      Subsequence k       1               (i, j)                         Revisit
+                                          (i, �)                          Pairs                           Removed          Preserved
+                          0                ···
+                                                                                                       Dynamic Regions Structured Regions
+Figure 3: Instance-guided Cross-subsequence Association. Given local instance libraries and
+per-subsequence reconstruction outputs, LIST3R establishes reliable cross-subsequence connections
+through long-range revisit discovery and instance-aware subsequence merging. The resulting adjacent
+and loop edges are optimized in a global association graph to obtain globally aligned subsequences.
+
+discovery, following the design philosophy of [28]. This process initializes each discovered object
+                                                   (k)                       (k)
+instance q ∈ {1, . . . , Qk } with a mask prompt m̃q and an object feature z̃q .
+                                                                               (k)
+Using the initialized mask prompts {m̃q }Q     k
+                                              q=1 , we employ SAM3 [4] to propagate the discovered
+objects over the subsequence. This produces a temporally consistent mask track for each instance.
+Meanwhile, the corresponding object features and frame-level locations are aggregated to form a
+stable instance record. The resulting local instance library of the k-th subsequence is defined as
+
+                                \mathcal {L}_{\mathrm {loc}}^{(k)} = \left \{ \ell _i^{(k)} \right \}_{i=1}^{N_k}, \qquad \ell _i^{(k)} = \left ( a_i, M_i, V_i, P_i, \mathbf {z}_i \right ),                               (1)
+
+where all attributes are defined within the k-th subsequence. Specifically, ai is the local instance
+identifier, Mi denotes the multi-frame mask track, Vi is the set of visible frames, Pi stores the
+corresponding frame-level 2D locations, and zi denotes the aggregated local instance feature. Through
+this process, each subsequence is organized into a local instance library, which stores trackable object-
+level anchors together with their associated attributes.
+
+3.2     Instance-guided Cross-subsequence Association
+
+We use the local instance libraries to establish spatial associations across different subsequences. For
+the k-th subsequence S (k) , a 3D reconstruction foundation model [25] predicts local point maps P(k) ,
+geometric confidence maps C(k) , and camera poses T(k) . Based on these local geometric predictions
+and the instance anchors stored in each local instance library, we complete this process in three stages,
+as illustrated in Fig. 3. We first retrieve subsequences that observe revisited regions, then merge the
+associated subsequences through instance-aware correspondences, and finally refine the assembled
+scene with confidence-weighted optimization. We describe these three components in detail below.
+
+Instance-enhanced long-range revisit discovery. For long-range revisits, we use a frame-level loop
+detector to produce coarse revisit candidates with an appearance-based score sdet (u, v) followed [6].
+Since frame-level similarity alone is often insufficient for reliable long-range loop closure under
+viewpoint changes and occlusions, we use it only as a candidate proposal stage. We then strengthen
+each candidate revisit using the local instance library from two complementary aspects: object-level
+semantic consistency and spatial relation consistency.
+For a candidate pair (u, v), we first match local instances across the two subsequences using their
+                                                                         (u)    (u)     (v)     (v)
+aggregated instance representations. Given two local instance anchors ℓi ∈ Lloc and ℓj ∈ Lloc ,
+                                                                                            (u)                         (v)
+we compute the cosine similarity between zi and zj . We then apply mutual nearest matching in
+this feature space to obtain candidate instance correspondences Puv . The semantic consistency score
+ssem (u, v) is computed as the average similarity of the matched pairs, measuring whether the two
+subsequences contain similar object instances.
+However, semantic similarity alone may be ambiguous in scenes with repeated objects, such as
+multiple chairs, cabinets, or tables. To reduce this ambiguity, we further compare the relative spatial
+layout of the matched instances. For each matched instance, we estimate its 3D center from the
+
+
+                                                                                                            4
+masked local geometry. Given the matched instance correspondences Puv , we compare the relative
+spatial relations among the matched instances in the two subsequences. This yields an instance spatial
+relation score srel (u, v), measuring whether matched objects preserve a consistent relative layout.
+The final long-range revisit score combines frame-level appearance similarity, instance-level semantic
+consistency, and spatial layout consistency:
+                     s_{\mathrm {loop}}(u,v) = \lambda s_{\mathrm {det}}(u,v) + (1-\lambda ) \left ( s_{\mathrm {sem}}(u,v) + s_{\mathrm {rel}}(u,v) \right ). \label {revisit_score}                                                            (2)
+We select reliable revisited frame pairs according to sloop (u, v), and use their corresponding subse-
+quences as loop candidates for subsequent merging.
+
+Instance-aware subsequence merging. During subsequence merging, reliable correspondences
+need to be selected from two local reconstructions to estimate their relative transformation. A
+straightforward strategy is to select high-confidence points according to geometric confidence [6].
+Although this can reduce the influence of dynamic objects to some extent, it may also discard static
+objects with strong structural value [22]. For example, tables, chairs, and cabinets may receive low
+confidence under large viewpoint changes, occlusions, or incomplete local reconstruction. If only
+high-confidence points are retained, the registration support often concentrates on large planar regions
+such as walls and floors, while object regions that provide useful structural constraints are removed.
+This can make subsequence connection rigid or inaccurate.
+For two overlapping subsequences S (u) and S (v) , we first select confidence-supported candidate
+regions from the local point maps and confidence maps. We then evaluate the motion consistency of
+each instance region in the overlap. For an instance region o, we define its motion inconsistency as
+
+                                       \delta (o) = \frac {1}{|\Omega _o|} \sum _{p\in \Omega _o} \left \| \pi \!\left ( \widehat {\mathbf {T}}_{uv}\mathbf {P}^{(u)}(p) \right ) - \phi _{uv}(p) \right \|_2 ,                                  (3)
+
+
+where Ωo denotes the mask region of instance o, P(u) (p) is the local 3D point at pixel p, T
+                                                                                           b uv is the
+current relative transformation from subsequence u to subsequence v, π(·) is the projection function,
+and ϕuv (p) denotes the observed correspondence of p in subsequence v.
+A large δ(o) indicates that the projected geometry of this instance is inconsistent with the observed
+correspondence, suggesting that the region is dynamic, incorrectly tracked, or locally unstable. We
+remove such regions from the candidate support. From the remaining regions, we sample the final
+alignment support by considering both geometric confidence and spatial coverage. This allows the
+alignment support to retain structurally informative static objects, rather than being dominated by
+large planar regions, leading to more stable and accurate subsequence merging.
+
+Cross-subsequence graph optimization. After the above steps, we obtain a set of pairwise
+subsequence relations, including adjacent relations induced by temporal overlap and loop relations
+discovered from revisited regions. We formulate these relations as a global association graph [1, 19],
+where each subsequence is a node and each pairwise relation is an edge. For every connected pair
+(u, v), we apply the same instance-aware merging to select reliable correspondences between the two
+local point clouds, and estimate a relative Sim(3) transformation T
+                                                                  b uv from these correspondences [17,
+20]. Each edge is assigned a confidence weight wuv , computed from the average confidence of
+the selected alignment points. Let E denote the resulting edge set, including both adjacent edges
+and instance-enhanced loop edges. We optimize the global transformation Gk ∈ Sim(3) of each
+subsequence by minimizing
+
+                              \{\mathbf {G}_k^\star \} = \arg \min _{\{\mathbf {G}_k\}} \sum _{(u,v)\in \mathcal {E}} w_{uv} \left \| \log \left ( \widehat {\mathbf {T}}_{uv}^{-1} \mathbf {G}_v^{-1} \mathbf {G}_u \right ) \right \|_2^2 .    (4)
+
+
+After optimization, the aligned subsequences are assembled into a complete scene reconstruction.
+
+3.3   Global Instance Library
+
+To build a structured object-level representation of the reconstructed scene, we consolidate local
+instances into a global 3D instance library, as illustrated in Fig. 4. After cross-subsequence alignment
+in Sec. 3.2, each local instance has a spatial location in the global reference frame, while its identity
+
+
+                                                                                                                                  5
+    ···                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ···
+
+
+                                                                                                                                                                                                                                                                                                  Global Instance Library
+          Local Instance Libraries
+                           ···                                                                                                                                                                                                                                                                                                                                                                                            Instance Attributes
+                                                                                                                                                                                                                                                                                                                                                                                                                  Instance Geometry 3D Location
+          Sub 1 Sub 2 Sub 3 Sub k
+          Geometry Information
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          Spatial Relations
+
+
+
+
+Figure 4: Global Instance Library. Based on local instance libraries and reconstructed geometry,
+LIST3R updates instance evidence and organizes local instance records into a global 3D instance
+library. Each global instance record maintains object-level geometry, global location, and spatial
+relations, providing a persistent scene-level representation.
+is still defined locally within its subsequence. We therefore merge local instances that correspond to
+the same physical object, producing persistent global instance records across the whole sequence.
+For each local instance, we extract its 3D support from the globally aligned point maps according to
+its temporally consistent 2D masks. This converts local mask tracks into local 3D instance nodes,
+where each node contains both its 2D observations and its global geometric support. We then compare
+local nodes from different subsequences globally. Nodes with overlapping global 3D support and
+compatible instance features are connected by merge edges. Connected local nodes are further merged
+into a unified global instance record. The global 3D instance library is defined as
+
+                                   \begin {aligned} \mathcal {L}_{\mathrm {glob}} &= \left \{ g_m \right \}_{m=1}^{M}, \qquad g_m = \left ( \mathrm {id}_m, \mathcal {O}_m, \mathcal {G}_m, \mathcal {D}_m \right ), \\ \mathcal {O}_m &= \left \{ (k,i,\ell _i^{(k)}) \mid \ell _i^{(k)} \mapsto g_m \right \}, \\ \mathcal {G}_m &= \left ( \mathbf {X}_m, \mathbf {C}_m \right ), \qquad \mathcal {D}_m = \left ( \mathbf {c}_m, \mathbf {b}_m, \bar {\mathbf {z}}_m, \mathcal {R}_m \right ). \end {aligned} 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      (5)
+
+
+where idm denotes the unified global instance ID. Om denotes the set of local instance observations
+                                                      (k)
+assigned to the m-th global instance, where each ℓi preserves its local mask track, visible frames,
+2D locations, and local feature. Gm denotes the aggregated global geometric evidence, including
+the global 3D point support Xm and its associated confidence Cm . Dm denotes the derived global
+instance attributes, including the global 3D location cm , spatial position bm , aggregated instance
+feature z̄m , and object-level spatial relations Rm .
+Through this consolidation, local fragments of the same physical object observed in different subse-
+quences are grouped into a single global instance. This library provides a structured object-level scene
+representation for long-sequence reconstruction, and can serve as a 3D memory basis for downstream
+VLMs to perform object querying, spatial relation understanding, and scene-level reasoning.
+
+4          Experiments
+4.1         Experimental Setup
+
+We evaluate LIST3R on two complementary long-sequence 3D reconstruction tasks: camera trajectory
+estimation and point cloud reconstruction. The former measures whether a method can maintain
+globally consistent camera motion over long videos, while the latter evaluates whether the fused
+geometry remains accurate and complete after cross-subsequence integration. All experiments are
+conducted on a single NVIDIA RTX 4090 GPU. For fair comparison, all methods are evaluated on
+the same input sequences and under the same metric protocols.
+
+Datasets and metrics. For camera trajectory evaluation, we use TUM [18], ETH3D [15], and
+BONN [14], which cover indoor sequences, challenging camera motion, and long-range revisits. We
+report ATE, RTE, and RRE to evaluate both global trajectory accuracy and accumulated drift [18, 23,
+
+
+                                                                                                                                                                                                                                                                   6
+Table 1: Camera pose estimation on long sequences. We report ATE, RTE, and RRE. All metrics
+are lower better. OOM indicates out-of-memory when directly processing the full sequence.
+                           TUM [18]                         ETH3D [15]                     BONN [14]
+ Method          ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓ ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓ ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓
+ VGGT [22]         OOM       OOM        OOM        OOM        OOM        OOM       OOM       OOM       OOM
+ π 3 [25]          OOM       OOM        OOM        OOM        OOM        OOM       OOM       OOM       OOM
+ CUT3R [23]        0.866     0.963     40.189      2.895      2.537      43.040    0.319     0.561     58.127
+ TTT3R [5]         0.317     0.385      9.923      1.317      0.939      10.326    0.149     0.759     47.509
+ VGGT-Long [6]     0.325     0.489     25.209      1.292      1.701      32.922    0.123     0.787     47.426
+ π-Long            0.208     0.279     7.805       0.562      0.455      13.654    0.094     0.770     48.008
+ Scal3R [26]       0.267     0.329      5.724      0.807      0.590       7.002    0.117     0.779     49.093
+ Ours              0.150     0.211      6.974      0.516      0.444       9.322    0.085     0.779     45.890
+
+
+       CUT3R                  TTT3R                Scal3R                 �-Long                Ours
+
+
+
+
+             Figure 5: Visualization of Estimated Long-Sequence Camera Trajectories.
+
+
+6]. For point cloud reconstruction, we evaluate on ETH3D [15] and NRGBD [2]. ETH3D contains
+larger-scale scenes with challenging viewpoint changes and diverse trajectories, while NRGBD
+provides sequences with dense ground-truth geometry for fine-grained reconstruction evaluation. We
+report Chamfer distance, Accuracy, Completion, Normal Consistency (NC), and F-score at 5cm,
+following prior works [16, 23, 6]. Together, these benchmarks evaluate whether LIST3R improves
+long-sequence reconstruction consistency while preserving local geometric accuracy.
+
+Baselines. We compare LIST3R with several methods. VGGT [22] and π 3 [25] are included
+as direct feed-forward baselines. For scalable long-sequence reconstruction, we compare with
+CUT3R [23], TTT3R [5], VGGT-Long [6], and Scal3R [26]. In addition, we introduce a strong
+subsequence-based baseline, denoted as π-Long, which follows the standard split-and-fuse configura-
+tion for long-sequence reconstruction and uses π 3 as the base reconstruction model.
+
+4.2   Trajectory Evaluation
+
+We evaluate camera pose accuracy on TUM, ETH3D, and BONN, with results reported in Table 1.
+Directly applying VGGT and π 3 to full long sequences leads to out-of-memory errors, highlighting
+the need for scalable long-sequence reconstruction. This setting is particularly challenging because
+the input video must be decomposed into local subsequences, while the final trajectory still needs to
+remain globally consistent across long temporal gaps, viewpoint changes, and possible revisits.
+Under this setting, LIST3R achieves the best ATE on all three datasets, demonstrating stronger
+global trajectory consistency. Since ATE measures the error of the entire aligned camera path, it
+directly reflects whether local subsequences are correctly connected into a coherent global trajectory.
+
+
+                                                       7
+Table 2: Point cloud reconstruction quality. We report reconstruction quality on ETH3D and
+NRGBD using Chamfer distance, accuracy, completeness, normal consistency, and F-score at 5cm.
+                                 ETH3D [15]                                     NRGBD [2]
+ Method          Chamfer ↓ Acc. ↓ Comp. ↓ NC ↑ F@5cm ↑ Chamfer ↓ Acc. ↓ Comp. ↓ NC ↑ F@5cm ↑
+ VGGT [22]         OOM       OOM      OOM       OOM         OOM   OOM       OOM     OOM     OOM       OOM
+ π 3 [25]          OOM       OOM      OOM       OOM         OOM   OOM       OOM     OOM     OOM       OOM
+ CUT3R [23]        140.049   62.803   217.294   0.536   3.995     73.239   50.051 96.427    0.575      9.009
+ TTT3R [5]         102.590   36.604   168.575   0.610   7.274     41.287   26.162 56.413    0.647     22.236
+ VGGT-Long [6]      50.551   56.748    44.354   0.618   19.834     6.097    5.334 6.860     0.857     68.878
+ π-Long             41.536   37.775    45.296   0.686   32.655     4.973    4.412 5.535     0.876     68.917
+ Scal3R [26]       33.790    36.451   31.129    0.658   26.203     7.669    4.231 11.106    0.829     71.203
+ Ours              27.362    31.094   23.629    0.709   36.450     4.680    4.104 5.256     0.875     73.363
+
+           CUT3R              TTT3R                VGGT-Long               Scal3R              Ours
+
+
+  ··
+   ·
+  ··
+   ·
+
+
+  ··
+  ·
+  ··
+  ·
+
+
+  ··
+  ·
+  ··
+  ·
+
+
+
+  ··
+  ·
+  ··
+  ·
+
+
+
+ ···
+
+ ···
+
+
+
+               Figure 6: Qualitative results for long-sequence 3D reconstruction.
+
+On TUM and ETH3D, LIST3R also achieves the best RTE, showing that the recovered long-range
+constraints further improve relative translation consistency after subsequence fusion.
+For RTE and RRE, some baselines can still be favored by local trajectory characteristics. These
+metrics evaluate relative motion over local trajectory segments, and thus can benefit methods that
+preserve short-term smoothness or local rotational consistency. For example, Scal3R obtains lower
+RRE on TUM and ETH3D, while CUT3R and TTT3R achieve lower RTE on BONN. In LIST3R,
+the optimization prioritizes globally reliable subsequence relations: weak or low-confidence cross-
+subsequence connections are assigned lower weights, since local reconstructions and overlap regions
+can be noisy or poorly constrained. As a result, some local relative errors may increase around
+weak overlaps between subsequences, but the optimized trajectory better satisfies high-confidence
+long-range constraints and achieves stronger global consistency. This trade-off is reflected by the
+best ATE across all datasets, while the relative pose metrics remain competitive with strong baselines.
+The qualitative trajectories in Fig. 5 further support this conclusion. Compared with baselines,
+LIST3R follows the reference trajectory more closely, especially in regions where accumulated drift
+becomes visible. Overall, these results demonstrate the effectiveness of persistent instance anchors
+for converting fragmented local reconstructions into a globally consistent trajectory.
+
+                                                        8
+          Table 3: Camera pose ablation.               Table 4: Reconstruction quality ablation.
+Variant         ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓       Variant         Comp. ↓   Chamfer ↓   F@5cm ↑
+Baseline           0.964    1.231      17.908         Baseline        168.246    149.726      2.29
++ ILRD             0.708    0.724      13.351         + ILRD           86.192    125.382      4.80
++ IASM             0.706    0.720      13.340         + IASM           82.961    121.684      4.91
++ CWGO (Full)      0.277    0.402       6.920         + CWGO (Full)   32.719      35.325      9.91
+
+4.3   Geometry Evaluation
+
+We further evaluate point cloud reconstruction quality on ETH3D and NRGBD, as summarized
+in Table 2. On ETH3D, LIST3R achieves the best performance across all five metrics, reducing
+Chamfer distance, accuracy error, and completeness error while obtaining higher normal consis-
+tency and F@5cm. This indicates that the proposed instance-guided associations not only improve
+cross-subsequence consistency, but also lead to more complete and geometrically coherent point
+clouds after long-sequence fusion. On NRGBD, LIST3R also obtains the best Chamfer, accuracy,
+completeness, and F@5cm, while achieving normal consistency comparable to the strongest baseline.
+Compared with π-Long, LIST3R improves Chamfer from 4.973 to 4.680 and F@5cm from 68.917 to
+73.363, suggesting that the recovered long-range constraints help reduce accumulated misalignment
+and improve the final fused geometry. Compared with Scal3R, LIST3R is substantially better in
+completeness and Chamfer, showing that object-level anchors provide more reliable evidence for
+aligning revisited regions than purely geometric matching.
+Overall, these results demonstrate that LIST3R improves global reconstruction consistency without
+sacrificing local geometric quality. The gains are especially clear in completeness and F-score, which
+are directly affected by whether different subsequences are correctly merged into a coherent scene.
+Qualitative comparisons are provided in Fig. 6.
+
+4.4   Ablation Study
+
+We conduct an ablation study on LIST3R to analyze its core module, Instance-guided Cross-
+subsequence Association. Starting from the π-Long baseline, which follows the standard split-
+and-fuse long-sequence reconstruction pipeline using π 3 [25] as the base model, we progressively
+enable three components: (1) Instance-enhanced Long-range Revisit Discovery (ILRD), which
+retrieves cross-subsequence loop candidates with instance cues; (2) Instance-aware Subsequence
+Merging (IASM), which uses instance correspondences to improve subsequence alignment; and (3)
+Confidence-weighted Cross-subsequence Graph Optimization (CWGO), which optimizes the global
+subsequence graph with confidence-aware constraints.
+As shown in Table 3 and Table 4, the Baseline suffers from both large trajectory drift and incom-
+plete reconstruction. Adding ILRD brings clear improvements in pose estimation and point cloud
+quality, showing that instance-enhanced revisit discovery recovers useful long-range constraints
+across fragmented subsequences. IASM further improves the results by filtering unreliable cross-
+subsequence associations with instance-level correspondences and dynamic-instance cues. Finally,
+CWGO achieves the best results on all metrics, confirming that it effectively turns instance-guided
+constraints into globally consistent poses and point clouds. Overall, the ablation confirms that the
+three components are complementary: ILRD expands long-range associations, IASM improves their
+reliability, and CWGO consolidates them into a coherent global reconstruction.
+
+5     Conclusion
+We presented LIST3R, an instance-aware framework for long-sequence 3D reconstruction that orga-
+nizes fragmented subsequences around persistent instance anchors. LIST3R builds local instance
+libraries within partial reconstructions and uses the stored instance evidence to recover revisited
+regions and guide object-aware fragment alignment. As reconstruction proceeds, the updated geomet-
+ric evidence further refines the local libraries and progressively forms a unified global 3D instance
+library, enabling a coherent scene-level representation across the full sequence. Experiments on
+long-sequence benchmarks show that LIST3R produces more accurate trajectories and higher-quality
+3D reconstructions than existing baselines. These results demonstrate that persistent instance anchors
+provide an effective and scalable cue for organizing long-horizon 3D reconstruction.
+
+
+                                                  9
+References
+ [1] Pratik Agarwal, Gian Diego Tipaldi, Luciano Spinello, Cyrill Stachniss, and Wolfram Burgard. Robust
+     map optimization using dynamic covariance scaling. In 2013 IEEE international conference on robotics
+     and automation, pages 62–69. Ieee, 2013.
+
+ [2] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman, Matthias Nießner, and Justus Thies. Neural
+     rgb-d surface reconstruction. In Proceedings of the IEEE/CVF conference on computer vision and pattern
+     recognition, pages 6290–6301, 2022.
+
+ [3] Iva K Brunec, Jessica Robin, Eva Zita Patai, Jason D Ozubko, Amir-Homayoun Javadi, Morgan D Barense,
+     Hugo J Spiers, and Morris Moscovitch. Cognitive mapping style relates to posterior–anterior hippocampal
+     volume ratio. Hippocampus, 29(8):748–754, 2019.
+
+ [4] Nicolas Carion, Laura Gustafson, Yuan-Ting Hu, Shoubhik Debnath, Ronghang Hu, Didac Suris, Chaitanya
+     Ryali, Kalyan Vasudev Alwala, Haitham Khedr, Andrew Huang, et al. Sam 3: Segment anything with
+     concepts. arXiv preprint arXiv:2511.16719, 2025.
+
+ [5] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and Anpei Chen. Ttt3r: 3d reconstruction as
+     test-time training. arXiv preprint arXiv:2509.26645, 2025.
+
+ [6] Kai Deng, Zexin Ti, Jiawei Xu, Jian Yang, and Jin Xie. Vggt-long: Chunk it, loop it, align it–pushing
+     vggt’s limits on kilometer-scale long rgb sequences. arXiv preprint arXiv:2507.16443, 2025.
+
+ [7] James J. DiCarlo and David D. Cox. Untangling invariant object recognition. Trends in Cognitive Sciences,
+     11(8):333–341, aug 2007.
+
+ [8] James J. DiCarlo, Davide Zoccolan, and Nicole C. Rust. How does the brain solve visual object recognition?
+     Neuron, 73(3):415–434, feb 2012.
+
+ [9] Russell Epstein and Nancy Kanwisher. A cortical representation of the local visual environment. Nature,
+     392(6676):598–601, apr 1998.
+
+[10] Gabriele Janzen and Miranda van Turennout. Selective neural representation of objects relevant for
+     navigation. Nature Neuroscience, 7(6):673–677, jun 2004.
+
+[11] Nikhil Keetha, Norman Müller, Johannes Schönberger, Lorenzo Porzi, Yuchen Zhang, Tobias Fischer,
+     Arno Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes, et al. Mapanything: Universal feed-forward
+     metric 3d reconstruction. arXiv preprint arXiv:2509.13414, 2025.
+
+[12] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3d with mast3r. In
+     European conference on computer vision, pages 71–91. Springer, 2024.
+
+[13] John O’Keefe and Lynn Nadel. Précis of O’Keefe & Nadel’s The Hippocampus as a Cognitive Map.
+     Behavioral and Brain Sciences, 2(4):487–494, 1979.
+
+[14] Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe Giguere, and Cyrill Stachniss. Refusion:
+     3d reconstruction in dynamic environments for rgb-d cameras exploiting residuals. In 2019 IEEE/RSJ
+     International Conference on Intelligent Robots and Systems (IROS), pages 7855–7862. IEEE, 2019.
+
+[15] Thomas Schops, Torsten Sattler, and Marc Pollefeys. Bad slam: Bundle adjusted direct rgb-d slam. In
+     Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 134–144,
+     2019.
+
+[16] Thomas Schops, Johannes L Schonberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc
+     Pollefeys, and Andreas Geiger. A multi-view stereo benchmark with high-resolution images and multi-
+     camera videos. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages
+     3260–3269, 2017.
+
+[17] Hauke Strasdat, J Montiel, Andrew J Davison, et al. Scale drift-aware large scale monocular slam. Robotics:
+     science and Systems VI, 2(3):7, 2010.
+
+[18] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram Burgard, and Daniel Cremers. A benchmark for
+     the evaluation of rgb-d slam systems. In 2012 IEEE/RSJ international conference on intelligent robots and
+     systems, pages 573–580. IEEE, 2012.
+
+[19] Niko Sünderhauf and Peter Protzel. Switchable constraints for robust pose graph slam. In 2012 IEEE/RSJ
+     International Conference on Intelligent Robots and Systems, pages 1879–1884. IEEE, 2012.
+
+
+                                                      10
+[20] Shinji Umeyama. Least-squares estimation of transformation parameters between two point patterns. IEEE
+     Transactions on pattern analysis and machine intelligence, 13(4):376–380, 2002.
+
+[21] Feiran Wang, Junyi Wu, Dawen Cai, Yuan Hong, and Yan Yan. Cognimap3d: Cognitive 3d mapping and
+     rapid retrieval. arXiv preprint arXiv:2601.08175, 2026.
+[22] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 5294–5306, 2025.
+[23] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous
+     3d perception model with persistent state. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 10510–10522, 2025.
+[24] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d
+     vision made easy. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition,
+     pages 20697–20709, 2024.
+
+[25] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao
+     Pang, Chunhua Shen, and Tong He. π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+     arXiv:2507.13347, 2025.
+
+[26] Tao Xie, Peishan Yang, Yudong Jin, Yingfeng Cai, Wei Yin, Weiqiang Ren, Qian Zhang, Wei Hua, Sida
+     Peng, Xiaoyang Guo, et al. Scal3r: Scalable test-time training for large-scale 3d reconstruction. arXiv
+     preprint arXiv:2604.08542, 2026.
+
+[27] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska
+     Meier, and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass. In
+     Proceedings of the Computer Vision and Pattern Recognition Conference, pages 21924–21935, 2025.
+
+[28] Mingqiao Ye, Seoung Wug Oh, Lei Ke, and Joon-Young Lee. Entitysam: Segment everything in video. In
+     Proceedings of the Computer Vision and Pattern Recognition Conference, pages 24234–24243, 2025.
+
+
+
+
+                                                     11
+Appendix
+
+                                                             Table of Contents
+
+A     Additional Implementation Details . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+      A.1 Local Instance Anchor Initialization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+      A.2 Long-range Revisit Discovery . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+      A.3 Instance-aware Subsequence Merging . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+      A.4 Cross-subsequence Graph Optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+
+
+B     Additional Experimental Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+      B.1 Additional Quantitative Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+      B.2 Additional Camera Trajectory Visualizations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+      B.3 Additional Point Cloud Reconstruction Visualizations . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+
+
+C     Limitations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+
+
+D     Broader Impacts . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+
+
+
+
+A      Additional Implementation Details
+
+A.1     Local Instance Anchor Initialization
+
+We provide additional implementation details for constructing the local instance libraries described
+in Sec. 3.1. To keep the local instance initialization lightweight while maintaining coverage of
+different viewpoints, we sample one anchor frame every 50 frames. Accordingly, each subsequence
+is set to 100 frames, so that two anchor frames are selected within each subsequence. Following
+VGGT-Long [6], adjacent subsequences are constructed with a 30-frame overlap to preserve boundary
+observations and support cross-subsequence association. The overlap between adjacent subsequences
+further helps preserve boundary observations and facilitates later cross-subsequence association.
+The sampled anchor frames are used for query-based instance discovery. For each anchor frame,
+the instance discovery module predicts candidate masks together with their object-level features.
+These candidates serve as the initial source of local instance anchors, but directly using all predicted
+masks can introduce noisy, fragmented, or redundant object observations. We therefore perform a
+simple prompt selection step before temporal propagation. Specifically, candidate masks are filtered
+according to mask confidence, mask area, and mask redundancy. Low-confidence masks and very
+small masks are removed, while highly overlapping duplicate masks are suppressed. This filtering
+step keeps the initialization compact and reduces the chance that unstable masks are propagated to
+the full subsequence.
+The remaining masks are then used as initialization prompts for SAM3 [4] propagation over the whole
+subsequence. After propagation, we further retain only instance tracks that are temporally stable
+and sufficiently observed within the subsequence. For each retained local instance, its propagated
+                                                        (k)                                       (k)
+multi-frame masks are collected as the mask track Mi . The corresponding instance feature zi
+is obtained from the object features of its associated initialized candidates. In our implementation,
+we first normalize these candidate features and then average them to obtain a compact object-level
+descriptor. This produces a local instance record that jointly contains temporally consistent masks
+and an aggregated object feature, which are later used for cross-subsequence association.
+Fig. 7 provides a qualitative comparison of different local instance anchor initialization strategies.
+Directly using instance discovery results can produce fragmented or inconsistent masks across nearby
+
+
+                                                                             12
+                                                 Baseline
+
+
+
+
+                                              Baseline+SAM3
+
+
+
+
+                                                  Ours
+Figure 7: Comparison of local instance anchor initialization strategies. We compare three
+strategies for constructing local instance anchors across nearby frames: directly using EntitySAM
+predictions, directly propagating all discovered masks with SAM3, and our final anchor-enhanced
+initialization with prompt selection. From top to bottom, the three rows show the results of these
+strategies, respectively.
+
+
+
+frames. Directly injecting all discovered masks into SAM3 improves temporal coverage, but noisy
+initial prompts may still lead to unstable propagation. In contrast, our final strategy selects reliable
+prompts before propagation, leading to cleaner mask tracks and more continuous local instance
+anchors. These stable local anchors provide more reliable evidence for subsequent revisit discovery
+and subsequence merging.
+
+
+
+
+A.2   Long-range Revisit Discovery
+
+
+We provide additional analysis of the long-range revisit discovery stage. Existing subsequence-based
+methods commonly rely on frame-level similarity for loop detection [6]. While such a criterion
+is effective for visually similar revisits, it can miss important long-range connections when the
+revisited region is observed under large viewpoint changes, partial occlusion, or different object
+visibility. In addition, nearby or overlapping subsequences often produce high frame-level similarity
+scores and occupy the top-ranked candidates, although these local connections contribute less to
+discovering long-range revisits. Simply lowering the loop threshold can improve recall, but it also
+risks introducing unreliable low-confidence loop edges into the global optimization.
+To address this issue, LIST3R decouples loop proposal generation from loop verification. We first use
+frame-level similarity as a recall-oriented preselection cue. Since adjacent subsequences are already
+connected through the overlap setting, we exclude neighboring subsequences from the long-range
+loop candidate set and use a relaxed frame-level threshold of 0.5 to retain potential revisits. This
+loose preselection is designed to avoid discarding true long-range loops at an early stage. The
+retained candidates are then verified using instance-level evidence from the local instance libraries
+constructed in Sec. 3.1. Specifically, we compute an instance semantic consistency score from the
+                                                    (k)
+cosine similarity between local instance features zi , and further combine it with an instance spatial
+relation consistency score. The final loop confidence is computed according to Eq. 2.
+Fig. 8 shows representative long-range revisit discovery results. The baseline based on frame-level
+similarity fails to detect several true revisits, as these pairs are not ranked sufficiently high or have
+relatively weak visual similarity under viewpoint changes and occlusion. In contrast, LIST3R recovers
+these valid loop connections by incorporating instance semantic consistency and spatial relation
+consistency. These examples show that instance-level anchors help discover useful long-range revisits
+that are difficult to identify using frame-level similarity alone, providing more reliable constraints for
+global subsequence association.
+
+
+                                                    13
+       Frame Pair     Pair ID                    Similarity                                 GT                            Baseline                                     Ours
+
+                                                   0.81
+                    （1385,263）                 supp@17/30
+                                                                                   Same Scene                        Not Detected                                Detected
+
+                                                   0.82
+                     (1244,141)                supp@14/30
+                                                                                   Same Scene                        Not Detected                                Detected
+
+
+                                                   0.80
+                      (1117,914)                supp@7/30
+                                                                                   Same Scene                        Not Detected                                Detected
+
+
+                                                   0.93
+                      (1091,941)                supp@7/30
+                                                                                   Same Scene                        Not Detected                                Detected
+
+
+                                                   0.88
+                     (1022,790)                supp@19/30                          Same Scene                        Not Detected                                Detected
+
+
+                                                   0.77
+                      (904,127)                 supp@9/38                          Same Scene                        Not Detected                                Detected
+
+
+                                                   0.69
+                      (836,629)                supp@20/21                          Same Scene                        Not Detected                                Detected
+
+
+                                                   0.93
+                      (890,749)                 supp@5/21
+                                                                                   Same Scene                        Not Detected                                Detected
+Figure 8: Representative long-range revisit discovery results. We compare LIST3R with the
+baseline frame-level loop detection strategy on several challenging revisit pairs. For each pair, we
+report the frame-pair ID, frame-level similarity, ground-truth relation, and whether the revisit is
+detected by the baseline and LIST3R. Although these pairs correspond to the same scene, the baseline
+can miss them due to viewpoint changes, occlusion, or competition from nearby high-similarity
+frames. The rightmost visualizations show the local instance library results of LIST3R, which provide
+instance-level evidence for recovering these valid long-range revisits.
+
+A.3   Instance-aware Subsequence Merging
+
+We further visualize the alignment supports used during subsequence merging. Specifically, we
+compare the original confidence-based alignment strategy with our instance-aware merging strategy
+on representative examples.
+Fig. 9 Left shows cases with dynamic objects. The original strategy often places many alignment sup-
+ports on moving people or other unstable regions, which can interfere with subsequence registration.
+In contrast, LIST3R identifies such dynamic instance regions and removes them from the alignment
+process, leading to cleaner and more reliable supports.
+Fig. 9 Right shows additional cases without obvious dynamic objects. In these scenes, LIST3R does
+not enforce unnecessary filtering. Instead, it plays a more important role in redistributing alignment
+supports: rather than being dominated by large planar regions such as floors and walls, the selected
+supports are shifted toward more structurally informative object instances. This produces more
+spatially distributed and more reliable alignment evidence for subsequence registration.
+
+A.4   Cross-subsequence Graph Optimization
+
+We provide additional details for the construction and optimization of the cross-subsequence asso-
+ciation graph. The graph contains two types of edges: adjacent edges and long-range loop edges.
+Adjacent edges connect temporally neighboring subsequences, while loop edges are selected accord-
+ing to the instance-enhanced revisit score. Formally, the edge set is defined as
+                              \mathcal {E} = \mathcal {E}_{\mathrm {adj}} \cup \mathcal {E}_{\mathrm {loop}}, \qquad \mathcal {E}_{\mathrm {adj}} = \{(k,k+1)\}_{k=1}^{K-1}.    (6)
+Here, K is the number of subsequences. Eloop contains the long-range loop edges selected according
+to the instance-enhanced revisit score sloop (u, v). In practice, we keep at most top-Kloop loop
+
+
+                                                                                                14
+   Frame       Baseline                                                        Ours                                                                                                                               Frame                                                                    Baseline                    Ours
+
+
+
+
+Figure 9: Explanation of instance-aware subsequence merging. The left block shows scenes with
+dynamic objects, while the right block shows mostly static scenes. In each block, the columns show
+the overlapping frame, the alignment supports selected by the baseline, and the results of LIST3R.
+Yellow points show the supports originally selected by the baseline, red regions mark dynamic points
+that are associated with the corresponding instances and removed, and cyan points indicate the final
+supports used by LIST3R for alignment. LIST3R removes unstable dynamic regions when they
+appear, and otherwise shifts the alignment supports from large planar areas toward more structurally
+informative instances.
+
+candidates for each subsequence to avoid adding redundant or weak loop constraints, following
+VGGT-Long [6].
+For each connected pair (u, v) ∈ E, we estimate a relative Sim(3) transformation from the selected
+alignment support. Let Cuv denote the point-level correspondence set extracted from the two local
+point maps, where each correspondence (x, y) contains a point x in subsequence u and its corre-
+sponding point y in subsequence v. The relative transformation is estimated by weighted alignment:
+
+                                     \widehat {\mathbf {T}}_{uv} = \arg \min _{\mathbf {T}\in \mathrm {Sim}(3)} \sum _{(\mathbf {x},\mathbf {y})\in \mathcal {C}_{uv}} \omega _{\mathbf {x},\mathbf {y}} \left \| \mathbf {T}\mathbf {x}-\mathbf {y} \right \|_2^2 ,                                                           (7)
+
+where ωx,y is determined by the geometric confidence of the two corresponding points. This
+transformation maps points from the local coordinate system of subsequence u to that of subsequence
+v. We compute an alignment confidence muv from the selected correspondences and their residuals
+after alignment. Specifically, we define
+
+                                                                                                            r_{\mathbf {x},\mathbf {y}} = \left \| \widehat {\mathbf {T}}_{uv}\mathbf {x} - \mathbf {y} \right \|_2 ,                                                                                                          (8)
+
+and compute
+
+                                                m_{uv} = \frac { \sum _{(\mathbf {x},\mathbf {y})\in \mathcal {C}_{uv}} \omega _{\mathbf {x},\mathbf {y}} \exp \left (-r_{\mathbf {x},\mathbf {y}}/\sigma _r\right ) }{ \sum _{(\mathbf {x},\mathbf {y})\in \mathcal {C}_{uv}} \omega _{\mathbf {x},\mathbf {y}} }.            (9)
+
+This confidence is high when the selected correspondences are reliable and well explained by the
+estimated relative transformation.
+We then map the alignment confidence to the graph edge weight. To reduce the effect of extreme
+confidence values, we first apply log compression and then sharpen the separation between weak and
+strong edges:
+                     u_{uv} = \frac { \log (1+\alpha m_{uv}) }{ 1+\log (1+\alpha m_{uv}) }, \qquad w_{uv} = \frac { u_{uv}^{\gamma } }{ u_{uv}^{\gamma }+(1-u_{uv})^{\gamma } }.                                                                                                                                              (10)
+
+Here, α controls the strength of log compression and is set to 0.30, while γ controls the contrast of
+the final edge weight and is set to 6.0. Edges with very low confidence are discarded before graph
+optimization.
+
+
+                                                                                                                                                                         15
+Let Gk ∈ Sim(3) denote the transformation from the local coordinate system of subsequence S (k)
+to the global coordinate system. We fix the first subsequence as the reference frame:
+                                                 \mathbf {G}_1=\mathbf {I}.                  (11)
+The remaining transformations are initialized by chaining adjacent relative transformations:
+                             \mathbf {G}_{k+1}^{(0)} = \mathbf {G}_{k}^{(0)} \widehat {\mathbf {T}}_{k,k+1}^{-1}, \qquad k=1,\ldots ,K-1.    (12)
+After initialization, we optimize all subsequence transformations by minimizing the weighted Sim(3)
+pose graph objective G⋆k in Sec. 3.1.The logarithm maps the Sim(3) residual to its Lie algebra,
+allowing the pose graph to be optimized in a vector space. After optimization, all subsequences are
+aligned into a unified global coordinate system.
+
+B     Additional Experimental Results
+In this section, we provide supplementary experimental results to further evaluate LIST3R on long-
+sequence 3D reconstruction. We first report representative quantitative results for camera trajectory
+estimation and point cloud reconstruction, complementing the aggregate comparisons in the main
+paper. We then present additional qualitative comparisons, including camera trajectory visualizations
+and point cloud reconstruction results. These results provide a more detailed view of how LIST3R
+improves global trajectory consistency and reconstruction quality across challenging long sequences.
+
+B.1   Additional Quantitative Results
+
+We provide additional representative per-scene quantitative results for camera trajectory estimation
+and point cloud reconstruction. These results complement the aggregate comparisons reported in the
+main paper and provide a more detailed view of LIST3R on individual long sequences.
+Tables 5 and 6 report representative camera pose estimation results. We compare LIST3R with strong
+subsequence-based baselines, including VGGT-Long, π-Long, and Scal3R. The selected sequences
+cover different datasets and motion patterns, including indoor trajectories, large camera rotations,
+and challenging revisit cases. Across these examples, LIST3R achieves competitive or superior
+performance on ATE, RTE, and RRE, showing its ability to maintain reliable camera trajectory
+consistency after subsequence association.
+Table 7 reports representative point cloud reconstruction results on selected long sequences. These
+examples cover both ETH3D and NRGBD scenes, including indoor environments with large planar
+structures, object-rich regions, and challenging camera motion. Compared with the subsequence-
+based baselines, LIST3R produces more reliable fused geometry on these representative scenes.
+The improvements are reflected across complementary reconstruction metrics, including accuracy,
+completion, Chamfer distance, normal consistency, and F@5cm. This suggests that the instance-
+aware association and merging strategy not only improves camera alignment, but also helps preserve
+more accurate and complete scene geometry after cross-subsequence integration.
+
+B.2   Additional Camera Trajectory Visualizations
+
+We provide additional camera trajectory visualizations to complement the quantitative pose results.
+Fig. 10 compares the estimated trajectories of different methods with the ground-truth trajectories
+on representative long sequences. The zoomed regions highlight local trajectory differences around
+challenging segments, such as revisits, turns, and accumulated drift. Compared with the baselines,
+LIST3R more consistently follows the global trajectory structure, indicating that instance-aware
+long-range associations provide useful constraints for reducing drift.
+
+B.3   Additional Point Cloud Reconstruction Visualizations
+
+We further provide additional point cloud reconstruction visualizations in Figs. 11, 12, and 13. These
+examples cover representative long sequences with different scene layouts, object distributions, and
+camera motions. The visual comparisons show that LIST3R produces more coherent fused geometry
+after cross-subsequence integration. In particular, the reconstructed point clouds tend to preserve
+clearer object boundaries and more complete scene structures, while reducing visible misalignment
+artifacts caused by unreliable subsequence associations.
+
+
+                                                                               16
+Table 5: Representative camera pose estimation results, Part I. We report representative per-scene
+results for camera pose estimation, comparing LIST3R with strong subsequence-based methods,
+including VGGT-Long, π-Long, and Scal3R. These sequences highlight cases where LIST3R achieves
+competitive or superior results across all three metrics. Best and second-best results are highlighted.
+
+             TUM: freiburg1_floor                                TUM: freiburg1_room
+Method          ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓ Method              ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓
+VGGT-Long [6]     0.4976     0.5782      28.1315    VGGT-Long [6]     0.5312     0.5864     31.8505
+π-Long            0.1119     0.1434      4.0399     π-Long            0.0962     0.1062      2.7764
+Scal3R [26]       0.1230     0.1640      4.9328     Scal3R [26]       0.1713     0.1814      3.7894
+Ours              0.0984     0.1153      3.8552     Ours              0.0838     0.0969      2.7598
+             TUM: freiburg1_teddy                         TUM: freiburg2_360_hemisphere
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.0704     0.1473      20.7882    VGGT-Long [6]     1.1221     1.2198     34.9700
+π-Long            0.0718     0.0847       2.5766    π-Long            0.5287     0.7131      5.5125
+Scal3R [26]       0.1465     0.1428       4.0172    Scal3R [26]       0.6521     0.8170      5.4277
+Ours              0.0591     0.0779       2.2940    Ours              0.3852     0.5808      3.8230
+          TUM: freiburg2_360_kidnap                              TUM: freiburg2_desk
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.5252     0.9469      29.1949    VGGT-Long [6]     0.0946     0.3076     23.7105
+π-Long            0.9643     1.2310      17.9083    π-Long            0.0920     0.1263      2.1990
+Scal3R [26]       0.9654     1.1700      25.1519    Scal3R [26]       0.1381     0.1389      3.3197
+Ours              0.2774     0.4017      6.9202     Ours              0.0542     0.0850      1.9054
+      TUM: freiburg2_desk_with_person                   TUM: freiburg3_sitting_halfsphere
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.1696     0.4420      21.5829    VGGT-Long [6]     0.3068     0.3825     20.3508
+π-Long            0.1158     0.1427      1.9198     π-Long            0.1318     0.1840     13.1813
+Scal3R [26]       0.2148     0.2575      3.5409     Scal3R [26]       0.2636     0.2879      3.7372
+Ours              0.1141     0.1382      1.9061     Ours              0.1301     0.1790     12.9796
+         TUM: freiburg3_sitting_xyz                          7Scenes: 7scenes_chess_seq-03
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.1798     0.2670      35.8125    VGGT-Long [6]     0.0622     0.3158     22.5072
+π-Long            0.1507     0.2150      2.4604     π-Long            0.0440     0.1356     17.2613
+Scal3R [26]       0.1640     0.2078      2.2990     Scal3R [26]       0.0717     0.2324     20.4186
+Ours              0.1346     0.1936      2.4585     Ours              0.0418     0.1295     16.9348
+         7Scenes: 7scenes_fire_seq-03                        7Scenes: 7scenes_fire_seq-04
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.0480     0.1401      26.0183    VGGT-Long [6]     0.0502     0.1412     21.7594
+π-Long            0.0773     0.1574      25.9278    π-Long            0.0577     0.1097     16.3985
+Scal3R [26]       0.0735     0.1831      27.5250    Scal3R [26]       0.0567     0.1300     17.3516
+Ours              0.0510     0.1350      24.0130    Ours              0.0563     0.1071     16.2720
+
+
+
+C    Limitations
+
+LIST3R has several limitations. First, its performance depends on the quality of instance discovery
+and mask tracking. Since the instance library provides anchors for revisit discovery and subsequence
+association, unreliable instance observations may affect the robustness of the subsequent reconstruc-
+tion process. Second, our method assumes that the scene contains stable and repeatedly observable
+object instances. This assumption is suitable for many indoor and object-rich environments, but
+may be less effective in object-sparse scenes, repetitive corridors, or regions dominated by large
+weakly structured surfaces, where persistent and discriminative anchors are limited. In principle, the
+proposed instance-anchor formulation can be extended to broader reconstruction scenarios. However,
+large-scale outdoor scenes involve more diverse viewpoints, illumination changes, object scales, and
+
+
+                                                   17
+Table 6: Representative camera pose estimation results, Part II. We report representative per-scene
+results for camera pose estimation, comparing LIST3R with strong subsequence-based methods,
+including VGGT-Long, π-Long, and Scal3R. These sequences highlight cases where LIST3R achieves
+competitive or superior results across all three metrics. Best and second-best results are highlighted.
+
+         7Scenes: 7scenes_heads_seq-01                     7Scenes: 7scenes_office_seq-02
+Method          ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓ Method              ATE (m) ↓ RTE (m) ↓ RRE (deg) ↓
+VGGT-Long [6]     0.0444     0.1236      17.2139    VGGT-Long [6]     0.0931     0.3257     23.8709
+π-Long            0.0380     0.1348      8.5529     π-Long            0.0750     0.1355     13.8847
+Scal3R [26]       0.0593     0.1416      12.5768    Scal3R [26]       0.1166     0.2095     20.3694
+Ours              0.0317     0.1140      12.4969    Ours              0.0669     0.1205     15.2410
+         7Scenes: 7scenes_office_seq-06                    7Scenes: 7scenes_office_seq-09
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.3759     0.4011      23.4726    VGGT-Long [6]     0.4368     0.5848     31.4176
+π-Long            0.0870     0.1633      7.0507     π-Long            0.1013     0.2111      9.7635
+Scal3R [26]       0.1146     0.2214      10.4250    Scal3R [26]       0.1382     0.4333     14.6079
+Ours              0.0926     0.1616      7.0422     Ours              0.0978     0.2077      9.6322
+       7Scenes: 7scenes_pumpkin_seq-01                  7Scenes: 7scenes_redkitchen_seq-06
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.1649     0.2772      22.2682    VGGT-Long [6]     0.0922     0.2025     19.8909
+π-Long            0.1527     0.2300      20.6697    π-Long            0.0891     0.1430     14.3598
+Scal3R [26]       0.2281     0.2978      24.4133    Scal3R [26]       0.1039     0.2123     20.8689
+Ours              0.1582     0.2295      20.3426    Ours              0.0671     0.1233     13.8664
+      7Scenes: 7scenes_redkitchen_seq-12                   7Scenes: 7scenes_stairs_seq-04
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.0924     0.2219      11.0076    VGGT-Long [6]     0.0643     0.1238     29.8025
+π-Long            0.1524     0.1860       6.1936    π-Long            0.0609     0.0745     24.4008
+Scal3R [26]       0.1118     0.2368       8.4014    Scal3R [26]       0.0962     0.1275     22.0758
+Ours              0.0867     0.1691       5.7333    Ours              0.0552     0.0742     24.3354
+                ETH3D: ceiling_1                               ETH3D: desk_changing_1
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     1.6208     2.1122      43.9541    VGGT-Long [6]     0.8053     0.8983     30.3645
+π-Long            0.7010     0.5572      10.3401    π-Long            0.1569     0.1489      5.0824
+Scal3R [26]       1.3272     1.3069      14.9191    Scal3R [26]       0.2897     0.2456     10.8936
+Ours              0.3701     0.4812      12.7321    Ours              0.0712     0.1109      4.0349
+                ETH3D: kidnap_1                                     ETH3D: motion_1
+Method            ATE ↓      RTE ↓       RRE ↓      Method            ATE ↓      RTE ↓       RRE ↓
+VGGT-Long [6]     0.5270     1.0618      41.4875    VGGT-Long [6]     0.1463     0.2875     11.8862
+π-Long            0.6260     0.8707      37.5038    π-Long            0.1286     0.1259      2.0350
+Scal3R [26]       0.5993     0.8663      33.8688    Scal3R [26]       0.2119     0.2067      2.5391
+Ours              0.0535     0.2291      26.9660    Ours              0.0953     0.1065      1.8449
+
+
+
+dynamic factors. Addressing these challenges may require additional strategies for robust instance
+discovery, geometric verification, and adaptive anchor selection, which we leave as future work.
+Finally, long-sequence 3D reconstruction may raise privacy concerns when applied to private or
+sensitive environments. Practical use should respect data ownership, consent, and dataset licenses.
+
+D    Broader Impacts
+This work aims to improve long-sequence 3D reconstruction by using persistent object instances as
+anchors for organizing visual observations across time. The potential positive impacts include more
+scalable and consistent 3D reconstruction for robotics, augmented and virtual reality, digital mapping,
+cultural heritage preservation, and embodied scene understanding. By improving reconstruction con-
+
+
+                                                   18
+Table 7: Selected per-scene point cloud reconstruction results. We report scenes where LIST3R
+achieves the best rank on all five metrics, or obtains at least three best ranks while all five metrics
+remain within the top two. CUT3R and TTT3R are excluded from this per-scene comparison. Best
+and second-best results are highlighted.
+                                        ETH3D: ceiling_1
+Method             Acc. (cm) ↓ Comp. (cm) ↓ Chamfer (cm) ↓ Normal Consistency ↑ F@5cm ↑
+VGGT-Long [6]        33.063         30.862             31.962               0.588            12.164
+π-Long               18.675          6.430             12.552               0.668            27.980
+Scal3R [26]          44.170         26.477             35.323               0.577            10.400
+Ours                 14.474          5.530             10.002               0.665            27.747
+                                    ETH3D: desk_changing_1
+Method             Acc. (cm) ↓ Comp. (cm) ↓ Chamfer (cm) ↓ Normal Consistency ↑ F@5cm ↑
+VGGT-Long [6]        21.018          6.601             13.810               0.624            24.384
+π-Long               4.852           2.768              3.810               0.773            74.274
+Scal3R [26]          10.603         20.191             15.397               0.652            37.284
+Ours                 3.421           2.801              3.111               0.798            83.756
+                                         ETH3D: kidnap_1
+Method             Acc. (cm) ↓ Comp. (cm) ↓ Chamfer (cm) ↓ Normal Consistency ↑ F@5cm ↑
+VGGT-Long [6]        41.756         10.545             26.151               0.542            13.594
+π-Long               51.807         13.590             32.698               0.662            17.518
+Scal3R [26]          53.220         21.790             37.505               0.587            11.163
+Ours                 13.846          4.706              9.276               0.763            47.580
+                                     ETH3D: plant_scene_3
+Method             Acc. (cm) ↓ Comp. (cm) ↓ Chamfer (cm) ↓ Normal Consistency ↑ F@5cm ↑
+VGGT-Long [6]        13.198         8.167              10.682               0.692            38.917
+π-Long                8.620         3.827               6.224               0.722            73.460
+Scal3R [26]          7.748          11.606             9.677                0.685            44.982
+Ours                 8.218          3.209               5.713               0.726            76.330
+                                    NRGBD: grey_white_room
+Method             Acc. (cm) ↓ Comp. (cm) ↓ Chamfer (cm) ↓ Normal Consistency ↑ F@5cm ↑
+VGGT-Long [6]         7.963          4.155             6.059                0.736            52.381
+π-Long                4.891          3.124             4.007                0.836            70.050
+Scal3R [26]           6.325          3.163             4.744                0.784            66.517
+Ours                  4.023          2.694             3.358                0.870            84.136
+                                         NRGBD: kitchen
+Method             Acc. (cm) ↓ Comp. (cm) ↓ Chamfer (cm) ↓ Normal Consistency ↑ F@5cm ↑
+VGGT-Long [6]        16.605          8.309             12.457               0.792            34.788
+π-Long               5.947           4.709              5.328               0.895            55.989
+Scal3R [26]          7.789           5.818             6.803                0.843            52.666
+Ours                 4.825           3.711              4.268               0.887            69.084
+
+
+
+sistency over long videos, the method may help systems better understand large-scale environments
+and support downstream applications that require reliable geometry and scene structure.
+At the same time, improved 3D reconstruction may raise privacy and security concerns when applied
+to private, sensitive, or restricted environments. For example, reconstructing indoor spaces from
+long videos could reveal personal belongings, spatial layouts, or other sensitive information. Such
+technology could also be misused for unintended surveillance or unauthorized mapping. To mitigate
+these risks, the method should be used with appropriate consent, respect for dataset licenses and
+
+
+                                                  19
+        CUT3R            TTT3R             Scal3R             �-Long              Ours
+
+
+
+
+Figure 10: Additional visual comparisons of camera trajectory estimation results. We present
+per-scene trajectory comparisons between the estimated camera trajectories and the ground truth.
+Gray curves denote the ground-truth trajectories, while colored curves denote the predictions of
+different methods. The zoomed regions highlight challenging trajectory segments where LIST3R
+better preserves global consistency and reduces drift.
+
+terms of use, and care when releasing reconstructed scenes. In this work, experiments are conducted
+on existing public benchmarks, and we do not release sensitive private-scene data.
+
+
+
+
+                                                20
+           CUT3R          TTT3R          VGGT-Long           Scal3R              Ours
+
+
+  ······
+
+  ······
+
+
+
+
+  ······
+
+  ······
+
+
+
+
+  ······
+
+  ······
+
+
+
+
+  ······
+
+  ······
+
+
+
+
+  ······
+  ······
+  ······
+
+
+
+
+  ······
+  ······
+  ······
+  ······
+
+
+
+
+  ······
+  ······
+
+  ······
+  ······
+
+
+
+
+  ······
+
+  ······
+
+
+
+Figure 11: Additional visual comparisons of point cloud reconstruction results, Part I. We
+present more per-scene visual comparisons of point cloud reconstruction. These examples highlight
+cases where LIST3R recovers more complete geometry and preserves clearer scene structures.
+
+
+
+
+                                               21
+             CUT3R         TTT3R          VGGT-Long            Scal3R           Ours
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+    ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+Figure 12: Additional visual comparisons of point cloud reconstruction results, Part II. We
+present more per-scene visual comparisons of point cloud reconstruction. These examples highlight
+cases where LIST3R recovers more complete geometry and preserves clearer scene structures.
+
+
+
+
+                                               22
+            CUT3R          TTT3R           VGGT-Long           Scal3R            Ours
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+   ······
+   ······
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+
+   ······
+
+   ······
+
+
+
+Figure 13: Additional visual comparisons of point cloud reconstruction results, Part III. We
+present more per-scene visual comparisons of point cloud reconstruction. These examples highlight
+cases where LIST3R recovers more complete geometry and preserves clearer scene structures.
+
+
+
+
+                                               23
+

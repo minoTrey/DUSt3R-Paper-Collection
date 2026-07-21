@@ -1,0 +1,962 @@
+                                            DarkVGGT: Seeing Through Darkness Using
+                                            Thermal Geometry without Daylight Tax
+                                            Minseong Kweon1,† , Wenyuan Zhao2 , Nuo Chen2 , Lulin Liu1 , Huiwen Han3 , Zihao Zhu2 , Srinivas
+                                            Shakkottai2 , Chao Tian2 , Zhiwen Fan2
+                                            1
+                                                University of Minnesota, 2 Texas A&M University, 3 Stanford University
+                                            †
+                                                Project Lead
+
+                                            Recent feed-forward 3D reconstruction methods have demonstrated strong performance and flexibility
+                                            in efficient end-to-end scene geometry estimation from image streams. However, their reliance on
+                                            visible-light appearance makes them vulnerable in dark and low-visibility environments, where RGB
+                                            cues are severely degraded and geometric evidence becomes ambiguous. To address this challenge, we
+arXiv:2606.11326v2 [cs.CV] 2 Jul 2026
+
+
+
+
+                                            propose DarkVGGT, an RGB-T feed-forward geometry framework that uses physics-aware thermal
+                                            modeling for robust 3D estimation in low-light scenes. DarkVGGT introduces two complementary
+                                            modules. First, physics-inspired thermal factorization extracts emissive-dominant, geometry-consistent
+                                            thermal cues while isolating sparse reflective residuals that may introduce geometric ambiguity. Second,
+                                            geometry-shared thermal routing isolates modality-invariant geometric structures from thermal-specific
+                                            patterns, selectively injecting reliability-aware structural guidance into the RGB stream. Together,
+                                            these components enable accurate thermal-informed geometry estimation under degraded RGB
+                                            conditions while largely preserving performance in well-lit environments. Experiments on low-visibility
+                                            RGB-T benchmarks demonstrate consistent improvements in both depth and camera pose estimation
+                                            over existing feed-forward geometry baselines.
+
+                                            Date: July 3, 2026
+                                            Correspondence: Minseong Kweon: kweon021@umn.edu
+                                            Code: https://github.com/phai-lab/DarkVGGT
+                                            Project Page: https://darkvggt.github.io
+
+
+
+
+                                        1   Introduction
+                                        Feed-forward visual geometry models have emerged as a promising alternative to conventional SfM (Schonberger
+                                        and Frahm, 2016) and MVS (Schönberger et al., 2016) pipelines, directly predicting camera parameters and
+                                        dense 3D structure from image streams with efficient inference. DUSt3R (Wang et al., 2024) demonstrates
+                                        this paradigm through dense point-map regression, and subsequent work has extended it to matching (Leroy
+                                        et al., 2024; Duisterhof et al., 2025), dynamic scenes (Zhang et al., 2024; Han et al., 2025; Fang et al.,
+                                        2026), and scalable multi-view aggregation (Wang and Agapito, 2025; Cabon et al., 2025; Yang et al., 2025).
+                                        VGGT (Wang et al., 2025) further unifies this direction by jointly predicting cameras, depth, point maps,
+                                        and point tracks within a single feed-forward framework. These advances have broadened the applicability
+                                        of feed-forward geometry models to robot navigation and manipulation (Yang et al., 2026), autonomous
+                                        driving (Lu et al., 2024a; Cho et al., 2025), and real-time SLAM (Selvaratnam and Bazazian, 2025; Murai
+                                        et al., 2025; Maggio et al., 2025). However, most existing models remain centered on well-lit RGB inputs,
+                                        while reliable autonomous systems must also operate under challenging illumination, including nighttime
+                                        roads and dark indoor scenes (Arnold et al., 2019; Ghari et al., 2024). Under low visibility, degraded RGB
+                                        appearance and correspondence cues limit the reliability of feed-forward geometry models pretrained on well-lit
+                                        images (He et al., 2023).
+                                        Recent methods have improved feed-forward geometry prediction in low-visibility scenes through clean-to-noisy
+                                        distillation of image matching capabilities (Guo et al., 2026), event-camera-based feed-forward geometry
+                                        modeling (Ren et al., 2026; Wu et al., 2025), and thermal sensing with infrared cameras (Skorokhodov et al.,
+                                        2026). These methods show that low-light adaptation or additional sensing can recover geometric cues when
+
+
+                                                                                               1
+                                                               Depth                3D Geometry
+             Well-lit (RGB)           DarkVGGT
+
+
+
+
+                                    Lock Light
+                                    Perception
+
+             Dark (RGB-T)
+
+                                            Enhance Dark
+                                            Perception
+
+
+
+
+                                    VGGT (Baseline)
+
+
+
+Figure 1 DarkVGGT achieves robust low-light 3D geometry estimation through effective thermal-to-RGB fusion. It
+performs reliably in dark environments where existing feed-forward foundation models often fail, without degrading
+well-lit performance.
+
+
+RGB images become unreliable. Among these directions, thermal imaging is especially appealing for dark-scene
+geometry estimation because long-wave infrared radiation is largely insensitive to visible illumination and
+complements RGB cues when texture and color evidence degrade.
+However, robust low-light performance alone is not sufficient for a reliable autonomous perception system.
+Such a system must improve 3D estimation under degraded illumination while preserving the geometric
+capability learned from standard well-lit RGB data. This requirement remains difficult because existing low-
+visibility adaptations may disturb the pretrained RGB geometry prior and reduce well-lit 3D perception, while
+multisensor inputs can introduce sparse or noisy modality-specific cues (Zhang et al., 2026). RGB-T fusion
+therefore needs to use thermal information as selective corrective evidence rather than as an unconstrained
+additional appearance stream. This is challenging for two reasons. First, foundation models such as VGGT
+acquire strong geometric priors from large-scale RGB pretraining, while paired RGB-T data with 3D supervision
+remains limited (Maheshwari et al., 2026; Brenner et al., 2023). Naive RGB-T mixing can therefore erode
+the pretrained visible-light representation and create a “daylight tax”, where low-light gains come at the cost
+of degraded well-lit performance. Second, thermal images are not clean geometric measurements, as their
+radiance depends on surface emission, emissivity, temperature, and reflected infrared radiation (Usamentiaga
+et al., 2014). Thus, RGB-T fusion should be conservative, physics-driven, and disentangled, treating thermal
+information as corrective evidence and routing only geometry-consistent cues into the RGB geometry stream.
+We therefore propose DarkVGGT, a feed-forward RGB-T geometry framework for robust 3D perception in dark
+and low-visibility scenes while reducing daylight performance degradation. DarkVGGT treats the thermal
+stream as a selective source of corrective evidence, rather than an unconstrained appearance channel. Within
+the proposed Alternating Attention blocks, it combines physics-inspired thermal factorization with geometry-
+shared thermal routing: thermal tokens are decomposed into emissive-dominant and reflection-sensitive
+components, and only geometry-shared thermal content is routed to the RGB stream. This conservative
+fusion design uses thermal observations when RGB cues are unreliable, while preserving the pretrained RGB
+geometry prior and maintaining strong performance in well-lit scenes. Our contributions are summarized
+below:
+   • We formulate dark-scene RGB-T geometry estimation as a conservative feed-forward multisensor fusion
+     problem and propose DarkVGGT, a multimodal geometric foundation model that preserves the RGB
+     geometry pathway as the primary estimator while using thermal observations to provide reliability-gated
+     corrections under low-light conditions.
+
+
+                                                           2
+    • We introduce a physics-inspired RGB-T fusion strategy that combines thermal factorization with geometry-
+      shared thermal routing, separating geometry-consistent emissive cues from reflection-sensitive residuals
+      and selectively injecting reliable shared thermal content to improve dark-scene geometry perception while
+      reducing daylight degradation.
+    • DarkVGGT achieves strong depth and camera pose estimation performance across diverse low-light
+      datasets, including ViViD++, STheReO, and Dark3R, while preserving geometric estimation performance
+      on standard well-lit benchmarks such as ETH3D and ScanNet++, demonstrating the effectiveness of the
+      proposed thermal-to-RGB fusion strategy.
+
+
+2     Related Work
+Feed-forward 3D Reconstruction. DUSt3R (Wang et al., 2024) marked a significant advance in 3D reconstruction
+by directly regressing dense point maps from unconstrained pairwise images in an end-to-end framework.
+Subsequent works have evolved in several directions, including improving pairwise matching (Leroy et al., 2024;
+Duisterhof et al., 2025), handling dynamic scenes (Zhang et al., 2024), and accelerating inference by avoiding
+explicit global correction (Wang and Agapito, 2025; Cabon et al., 2025). VGGT (Wang et al., 2025) pushes
+this line further by jointly predicting cameras, depth, point maps, and 3D tracks in a unified Alternating
+Attention (AA) transformer, making it a natural foundation model for geometric reasoning. Beyond RGB-only
+reconstruction, recent works have begun to explore multimodal or degraded-visibility feed-forward geometry,
+including low-light structure-from-motion (Guo et al., 2026) and RGB-thermal adaptation of visual geometry
+transformers (Skorokhodov et al., 2026). Most closely related to our setting, concurrent SEAR (Skorokhodov
+et al., 2026) shows that a pretrained VGGT can be adapted to RGB-T inputs using LoRA-based (Hu
+et al., 2022) fine-tuning, thermal camera tokens, and tailored batching strategies. DarkVGGT extends this
+baseline with reliability-aware thermal factorization and geometry-shared thermal routing, selectively injecting
+geometry-relevant thermal cues while suppressing unreliable thermal patterns.
+Low-light 3D Vision with Thermal Images. Thermal imaging has long been recognized as complementary to
+RGB under low illumination, smoke, fog, and nighttime conditions. Prior work has explored thermal cues
+for low-light perception in tasks such as depth estimation, RGB-T sensor fusion, SLAM, and neural scene
+representation learning (Shin et al., 2023, 2021; Chen et al., 2024; Kweon et al., 2025; Lu et al., 2024b). A
+parallel line studies RGB-T or multispectral depth fusion, including cross-spectrum depth estimation from
+dual-modality cameras Guo et al. (2022), depth estimation from misaligned RGB-T image pairs Kwon and Kim
+(2024), confidence-aware RGB-to-thermal distillation Zuo et al. (2025), and the recent align-and-fuse strategy
+that couples geometry-guided representation correction with an attachable fusion module Shin et al. (2025).
+Recent work on 3D scene modeling and novel-view synthesis jointly models RGB and thermal observations
+or introduces temperature-consistency and physics-aware priors Hassan et al. (2024); Lin et al. (2024); Lu
+et al. (2024b). For dense 3D point reconstruction, SEAR (Skorokhodov et al., 2026) proposes predicting 3D
+geometry by fine-tuning VGGT with LoRA on unpaired RGB-T streams. However, paired RGB-T images
+remain underexplored for dark-scene geometry estimation. DarkVGGT bridges this gap through an effective
+thermal-to-RGB fusion method.
+
+
+3     Method
+
+3.1    Overview of DarkVGGT
+Feed-forward visual geometry models directly predict camera parameters, depth, point maps, and tracks
+from image observations, reducing reliance on conventional SfM/MVS pipelines. In this work, we leverage
+VGGT (Wang et al., 2025) as the base geometry predictor. Given a sequence {Is }Ss=1 of RGB image frames,
+where Is ∈ R3×H×W , VGGT first patchifies each image and embeds it into a set of P tokens xs ∈ RP ×C
+using DINOv2 (Oquab et al., 2023). Each frame is augmented with a camera token cs ∈ R1×C and four
+register tokens rs ∈ R4×C . The resulting token sequence ts := [cs ; rs ; xs ] is processed by frame-wise and global
+Alternating Attention (AA) blocks, which model both per-view structure and cross-view correspondence. We
+denote the RGB patch tokens at the ℓ-th AA block as xrgb,(ℓ) ∈ RBS×P ×C , where B is the batch size and C
+
+
+
+                                                         3
+                         enhanced RGB token       [ ] shared Thermal token           reflective Thermal token
+                        Thermal token             [ ] private Thermal token          emissive Thermal token
+
+
+
+
+                                                                                                        Depth
+                         Patch Embedding
+
+
+
+
+                                                                                                        Camera
+  RGB-T Paired Images
+
+
+
+
+Figure 2 Overview of the DarkVGGT framework. DarkVGGT factorizes thermal embeddings into emissive and reflective
+components using a high-pass (HP) filter and projection branches (Projemit /Projrefl ). Building on this factorization,
+geometry-shared thermal routing (GSTR) separates shared/private thermal tokens and injects geometry-relevant
+thermal content into the RGB.
+
+
+is the token dimension. Task-specific prediction heads, including DPT-style dense prediction heads (Ranftl
+et al., 2021), then recover camera parameters and dense geometry from the shared representation.
+Building on this, DarkVGGT introduces RGB-T thermal guidance for robust low-visibility geometry estimation.
+Given paired RGB and thermal frames, denoted by {(Isrgb , Isthr )}Ss=1 , DarkVGGT predicts camera parameters
+(e.g., the predicted pose P̂ ) and depth maps D̂ on the RGB stream while leveraging thermal observations
+as an auxiliary modality in dark scenes. The framework builds on a pretrained VGGT backbone (Wang
+et al., 2025) with a frozen DINOv2 encoder (Oquab et al., 2023). At the ℓ-th AA block, the patched RGB
+and thermal tokens are denoted by xrgb,(ℓ) , xthr,(ℓ) ∈ RBS×P ×C , respectively. For RGB-T adaptation, we use
+shared LoRA adapters (Hu et al., 2022) on the AA blocks with modality-specific camera tokens. Details are
+provided in Appendix A.
+Figure 2 provides an overview of DarkVGGT. On top of the VGGT-based backbone, DarkVGGT introduces two
+additional modules: 1) Physics-Inspired Thermal Factorization and 2) Geometry-Shared Thermal Routing.
+
+3.2   Physics-Inspired Thermal Factorization
+Figure 3 illustrates our proposed Physics-Inspired Thermal Factorization process, where thermal cues are
+factorized into a geometry-consistent emissive component and a complementary sparsely activated reflective
+component. A thermal image contains both self-emitted and reflected infrared radiation, which may provide
+different geometric cues (Carlomagno and Cardone, 2010; Alexa et al., 2018; Usamentiaga et al., 2017; ElSheikh
+et al., 2023). For opaque surfaces, emissivity and reflectivity are complementary under standard radiative-
+transfer assumptions Modest and Mazumder (2021); Nicodemus (1965). Emissive cues are more directly
+tied to surface temperature and geometry, whereas reflective components may either provide complementary
+scene information or introduce localized artifacts Liu and Vondrick (2023); Planinsic (2011). This motivates
+Physics-Inspired Thermal Factorization, a token-level decomposition that separates thermal embeddings into
+emissive and reflective components before RGB fusion.
+Emissive and reflective factorization. At each AA block, we derive a joint RGB-T cross-modal feature h(ℓ) from
+the RGB and thermal patch tokens and use it to predict patch-wise pseudo-emissivity and pseudo-reflectivity:
+                                                                   
+                h(ℓ) = FFN [xrgb,(ℓ) ; xthr,(ℓ) ] ,  ε̂(ℓ) = σ Wε h(ℓ) , ρ̂(ℓ) = 1 − ε̂(ℓ) ,            (1)
+
+where FFN(·) denotes the lightweight feed-forward network used to extract joint RGB-T features. The
+complementary constraint ρ̂(ℓ) = 1 − ε̂(ℓ) is motivated by Kirchhoff’s law for opaque surfaces Kirch-
+hoff (1860); Incropera et al. (1996). We then construct emissive and reflective thermal embeddings as
+
+                                                          4
+                  (ℓ)
+             zemit = ε̂(ℓ) ⊙ Wemit xthr,(ℓ) ,
+                   (ℓ)
+                                                                    (2)
+              zrefl = ρ̂(ℓ) ⊙ Wrefl HP(xthr,(ℓ) ),
+where Wemit and Wrefl are learnable projection matrices
+for emissive and reflective feature mapping, respectively.
+HP(·) denotes a high-pass filter on the patch grid, imple-
+mented as x − AvgPool3×3 (x). The emissive branch pre-
+serves the original thermal content, while the reflective
+branch applies a high-pass residual operator that empha-
+sizes local variations, providing a lightweight inductive                  RGB                                Thermal
+bias for reflection-sensitive cues (Liu and Vondrick, 2023;
+Alexa et al., 2018). The RGB token is updated by
+                                 (ℓ)      (ℓ)       (ℓ)     (ℓ)
+   x̃rgb,(ℓ) = xrgb,(ℓ) + gemit ⊙ zemit + grefl ⊙ zrefl ,           (3)   Figure 3 Physics-Inspired Thermal Factorization: Per-
+                         (ℓ)
+                                                                          patch ε̂ captures emissive geometry cues, while ρ̂ =
+where each gate is gk = σ(Wg,k h(ℓ) ) for k ∈ {emit, refl},     1 − ε̂ isolates sparse reflective residuals.
+with the emissive head additionally biased by a per-patch
+log-variance gap ∆u(ℓ) = log σrgb2
+                                   −log σthr2
+                                               predicted from h(ℓ) . To further guide the factorization, we introduce
+three auxiliary regularizers. The sparsity bias Lsparse encourages an emissive-dominant decomposition by
+penalizing the mean reflectivity ρ̂(ℓ) , the edge-disagreement prior Ledge supervises ρ̂(ℓ) with a soft pseudo-target
+derived from thermal–depth edge mismatch, and the orthogonality penalty Lortho discourages redundancy
+between the emissive and reflective embeddings:
+                                                                           h                        i
+                                                         (ℓ)
+             Lsparse = E[ρ̂(ℓ) ], Ledge = BCE ρ̂(ℓ) , ρtar , Lortho = E Sim2 zemit,(ℓ) , zrefl,(ℓ) ,              (4)
+
+where E[·] denotes expectation over batch, frame, and patch locations, BCE(·, ·) denotes binary cross-entropy,
+                                                          (ℓ)         (ℓ)     (ℓ)
+and Sim(·, ·) denotes cosine similarity. The soft target ρtar = σ(β(Ēthr − ĒD − τ )) is derived from thermal–
+                                  (ℓ)       (ℓ)
+depth edge disagreement, with Ēthr and ĒD denoting patch-pooled thermal and depth edge magnitudes, β
+controlling target sharpness, and τ setting the disagreement margin.
+
+3.3   Geometry-Shared Thermal Routing
+While thermal cues can complement degraded RGB in dark scenes, they contain both geometry-relevant and
+modality-specific components (Usamentiaga et al., 2014). To separate them, we introduce a Geometry-Shared
+Thermal Routing module that aligns a geometry-shared thermal subspace with the RGB geometry pathway
+via stop-gradient distillation while retaining thermal-private information.
+Geometry-shared thermal decomposition. Given RGB and thermal patch tokens xrgb,(ℓ) and xthr,(ℓ) at an ℓ-th
+AA block, we decompose the thermal tokens into geometry-shared and thermal-private components (Wu et al.,
+2021) and project RGB into the geometry-shared space:
+                               [ushr,(ℓ) ; uprv,(ℓ) ] = Wsp xthr,(ℓ) ,    vshr,(ℓ) = Wrgb→shr xrgb,(ℓ) .                   (5)
+Here, u shr,(ℓ)
+                and u       denote the geometry-shared thermal features and thermal-private features, respec-
+                         prv,(ℓ)
+
+tively, and vshr,(ℓ) denotes the RGB feature projected into the geometry-shared space. We use ūshr,(ℓ) , ūprv,(ℓ) ,
+and v̄shr,(ℓ) to denote their layer-normalized realizations.
+Thermal routing supervision. With the geometry-shared thermal branch as a stop-gradient teacher, modality-
+specific projection heads followed by L2 normalization map v̄shr,(ℓ) , ūshr,(ℓ) into a common embedding space,
+yielding v̌shr,(ℓ) , ǔshr,(ℓ) :               h   D              h          iEi
+                                   Ldistill = E 1 − v̌shr,(ℓ) , sg ǔshr,(ℓ)     .                          (6)
+where sg[·] blocks gradients on the teacher branch (see Appendix A for projection-head dimensions). We then
+preserve thermal-specific information by reconstructing the thermal tokens from the thermal-private branch
+with a variance-normalized regression loss:
+                                                                              
+                                             MSE Wrec uprv,(ℓ) , sg[xthr,(ℓ) ]
+                                   Lrecon =                                    .                        (7)
+                                                  Var sg[xthr,(ℓ) ] + ϵ
+
+                                                                     5
+      Dark3R                  VGGT                           SEAR                               DarkVGGT (Ours)
+
+
+
+
+Figure 4 Qualitative comparison of nighttime 3D geometry estimation across Dark3R, VGGT, SEAR, and DarkVGGT.
+Red cameras indicate predicted poses. For RGB-T methods, we show RGB-textured and thermal-intensity-colored
+point-cloud reconstructions.
+
+
+where Wrec maps the thermal-private features back to the thermal token space, and ϵ is a small constant for
+numerical stability. Finally, to discourage leakage between the geometry-shared and thermal-private subspaces,
+we add a small cross-branch decorrelation loss Ldecorr = ∥(ushr,(ℓ) )⊤ uprv,(ℓ) ∥2F .
+Reliability-gated corrective injection. After correction, the RGB stream is updated through a geometry-shared
+thermal residual, while the thermal-private branch is used only for thermal reconstruction and reliability
+                                                          (ℓ)
+estimation. We compute a per-token reliability gate gshr by comparing the RGB geometry-shared and
+thermal-private representations,
+                                                                                                    
+                                                         (ℓ)
+             ∆u(ℓ)      rgb shr,(ℓ)
+                 sp = Wσ v̄         − Wσthr ūprv,(ℓ) , gshr = σ Wg [v̄shr,(ℓ) ; ūshr,(ℓ) ] + ∆u(ℓ)
+                                                                                                 sp ,  (8)
+          (ℓ)
+where ∆usp is an uncertainty-offset term that modulates the gate using geometry-shared and thermal-private
+features. We then route the gated geometry-shared thermal residual to the RGB tokens:
+                                                                                     
+                                                  (ℓ)
+                          x̃rgb,(ℓ) = xrgb,(ℓ) + gshr ⊙ Wup sg[ūshr,(ℓ) ] − v̄shr,(ℓ) ,               (9)
+
+where Wup projects the geometry-shared subspace back to the token dimension, and x̃rgb,(ℓ) denotes the
+enhanced RGB tokens. In practice, this module is instantiated only in the final k AA blocks.
+
+3.4    Training
+Thermal dropout and RGB-prior preservation. To reduce over-reliance on thermal cues and preserve the
+pretrained RGB prior, we apply thermal-branch dropout during training on batches whose clips all come
+from RGB-dominant scenes. For such batches, the thermal inputs {Isthr }Ss=1 are dropped with a fixed
+probability, so the model performs an RGB-only forward pass. On these dropout steps, we additionally
+regularize the adapted model toward a frozen base-VGGT reference evaluated on the same RGB frames:
+                   0
+Ldrop = ∥D̂rgb − D̂rgb ∥22 +∥P̂rgb − P̂rgb
+                                       0
+                                           ∥22 , where (D̂rgb , P̂rgb ) and (D̂rgb
+                                                                               0       0
+                                                                                   , P̂rgb ) denote RGB-only depth and pose
+predictions from the adapted student and the frozen base-VGGT reference, respectively. This term directly
+counteracts the daylight tax by anchoring the RGB-only forward of the adapted model to its pretrained
+behavior.
+Training losses. DarkVGGT optimizes
+
+                                  L = LVGGT + Lphys + Lgstr + 1drop λdrop Ldrop ,                                     (10)
+where 1drop indicates thermal-dropout steps, LVGGT follows VGGT (Wang et al., 2025), and Lphys and Lgstr
+are weighted sums of the auxiliary losses from the physics-inspired thermal factorization module (Section 3.2)
+and the geometry-shared thermal routing module (Section 3.3), respectively.
+
+
+                                                            6
+Table 1 Depth estimation across low-visibility scenes. DarkVGGT is compared with off-the-shelf feed-forward 3D
+reconstruction methods with paired RGB and thermal images, reporting quantitative depth metrics to evaluate
+robustness under severe illumination degradation.
+
+                                              ViViD++                                STheReO                             Dark3R
+ Method                             AbsRel↓   δ < 1.25 ↑   RMSElog ↓       AbsRel↓   δ < 1.25 ↑   RMSElog ↓   AbsRel↓   δ < 1.25 ↑   RMSElog ↓
+ (A) RGB-only
+ DUSt3R Wang et al. (2024)          0.3765     0.4883       0.4008         0.4759     0.3146       0.6437     0.2118     0.6391       0.2562
+ MASt3R Leroy et al. (2024)         0.2685     0.6121       0.3132         0.5093     0.3418       0.6619     0.2004     0.6933       0.2496
+ Dark3R Guo et al. (2026)           0.3036     0.5739       0.3392         0.4843     0.3404       0.6437     0.1510     0.7914       0.1960
+ DepthAnything3 Lin et al. (2025)   0.2552     0.6239       0.2990         0.3145     0.4746       0.5246     0.2054     0.6528       0.2489
+ VGGT Wang et al. (2025)            0.2746     0.5874       0.3234         0.2950     0.5156       0.4567     0.2433     0.6095       0.2861
+ (B) RGB-T
+ SEAR Skorokhodov et al. (2026)     0.1956     0.7502       0.2421         0.2370     0.6143       0.4147     0.1703     0.7058       0.2151
+ DarkVGGT (ours)                    0.1274     0.8692       0.1970         0.1600     0.7651       0.3077     0.1246     0.8387       0.1651
+
+
+
+
+4     Experiments
+Implementation details. We initialize from the publicly released VGGT-1B weights (Wang et al., 2025) and
+keep the backbone frozen. Trainable parameters comprise LoRA adapters (r = 64, α = 128) on the AA
+blocks, a thermal camera token and RoPE offset, the physics-inspired emissive/reflective gates, and the
+shared–private decomposition with ranks (ds , dp , dmi ) = (96, 192, 128) active in the last k = 8 AA blocks. We
+train DarkVGGT on four NVIDIA A100 GPUs at a resolution of 518 × 518 using bfloat16 AMP for 10 epochs
+with 200 optimization steps per epoch and thermal dropout probability p = 0.5. We optimize the model
+with AdamW using a learning rate of 5 × 10−5 , a weight decay of 10−2 , and cosine decay, with the remaining
+hyperparameters provided in Appendix E.
+Datasets. We evaluate DarkVGGT on two real multi-sensor RGB-T datasets, ViViD++(Lee et al., 2022)
+and STheReO(Yun et al., 2022), and report Dark3R (Guo et al., 2026) as a complementary pseudo-thermal
+low-light evaluation. Since Dark3R does not provide measured thermal images, we synthesize pseudo-thermal
+inputs with ThermalGen (Xiao et al., 2025) and treat it separately from real RGB-T benchmarks. For
+ViViD++ and STheReO, we supervise dense depth prediction using LiDAR-derived dense depth maps refined
+with Lingbot-Depth (Tan et al., 2026), while for Dark3R, we use the released canonical dense depth maps.
+For evaluation, we use indoor_aggresive_dark, indoor_unstable_dark, and outdoor_robust_night2 from
+ViViD++, kaist_evening and valley_evening from STheReO, and dark_chapel and dark_kitchen from
+Dark3R as test sequences. To assess RGB-prior preservation under standard light conditions, we evaluate
+RGB-only performance on ETH3D (Schops et al., 2017) and ScanNet++ (Yeshwanth et al., 2023). Each test
+sequence is split into non-overlapping 50 frame chunks with 10 frames uniformly sampled per chunk following
+VGGT (Wang et al., 2025), except for Dark3R dataset, where we use a fixed stride of 20 across the full scene.
+Detailed data preprocessing and train-test sequence splits are provided in Appendix D.
+Metrics. We evaluate depth and pose estimation performance following the protocol used in prior work (Wang
+et al., 2025; Zhang et al., 2025). For depth estimation, we report AbsRel, δ < 1.25, and RMSElog , which
+measure relative depth error, threshold-based accuracy, and logarithmic depth deviation, respectively. We use
+raw LiDAR measurements as ground-truth depth for ViViD++ (Lee et al., 2022) and STheReO (Yun et al.,
+2022), and the released canonical depth maps for Dark3R (Guo et al., 2026). For pose estimation, we report
+RRA, RTA, and AUC, corresponding to relative rotation accuracy, relative translation accuracy, and the area
+under the cumulative pose-accuracy curve, respectively.
+Depth Estimation Performance Comparison. Table 1 compares the depth estimation performance of DarkVGGT
+with RGB-only and RGB-T feed-forward 3D reconstruction models across three low-visibility datasets.
+DarkVGGT consistently outperforms all previous methods, achieving the lowest AbsRel and RMSElog , as
+well as the highest δ < 1.25 across all three datasets. Compared with the RGB-T model SEAR (Skorokhodov
+et al., 2026), DarkVGGT achieves better performance averaged over the three benchmarks, reducing AbsRel
+from 0.2010 to 0.1373, increasing δ < 1.25 from 0.6901 to 0.8243, and lowering RMSElog from 0.2906 to
+0.2232. Against the RGB-only model Dark3R (Guo et al., 2026), DarkVGGT yields lower AbsRel on all three
+benchmarks, with the largest gains on ViViD++ and STheReO, while also reducing RMSElog across the
+
+
+                                                                       7
+Table 2 Camera pose estimation on low-visibility RGB-T scenes. We compare DarkVGGT with feed-forward 3D
+reconstruction baselines and report pose metrics under weak geometric correspondences.
+
+                                                ViViD++                                STheReO                                 Dark3R
+Method                              RRA@30 ↑ RTA@30 ↑ AUC@30 ↑ RRA@30 ↑ RTA@30 ↑ AUC@30 ↑ RRA@30 ↑ RTA@30 ↑ AUC@30 ↑
+(A) RGB-only
+DUSt3R Wang et al. (2024)              0.72        0.22        6.4           0.88        0.43        27.0            0.98        0.20      10.0
+MASt3R Leroy et al. (2024)             0.76        0.46       27.1           0.98        0.80        71.3            1.00        0.89      62.5
+Dark3R Guo et al. (2026)               0.74        0.41       22.7           0.99        0.79        69.8            1.00        0.94      68.0
+DepthAnything3 Lin et al. (2025)       0.73        0.28       12.0           0.99        0.85        76.6            0.55        0.18       5.1
+VGGT Wang et al. (2025)                0.81        0.48       25.9           1.00        0.99        96.3            0.64        0.47      15.3
+(B) RGB-T
+SEAR Skorokhodov et al. (2026)         0.91        0.59       36.1           1.00        0.97        88.5            0.66        0.52      18.6
+DarkVGGT (ours)                        0.98        0.74       46.0           1.00        0.98        95.4            1.00        0.95      57.4
+
+
+Table 3 Depth and pose estimation on well-lit ETH3D and ScanNet++ scenes. We evaluate RGB-only performance to
+examine whether DarkVGGT preserves the pretrained VGGT geometry prior when thermal guidance is unavailable.
+
+                                                          ETH3D                                                  ScanNet++
+ Method                            δ < 1.25 ↑   RMSElog ↓   RRA@30 ↑         RTA@30 ↑      δ < 1.25 ↑   RMSElog ↓           RRA@30 ↑    RTA@30 ↑
+ MASt3R Leroy et al. (2024)         0.9413       0.1496           0.67          0.68        0.8762          0.1890            0.89        0.90
+ Dark3R Guo et al. (2026)           0.8992       0.1739           0.63          0.65        0.8889          0.1802            0.88        0.89
+ VGGT Wang et al. (2025)            0.9729       0.0595           1.00          0.91        0.9479          0.1106            0.98        0.93
+ DarkVGGT (ours)                    0.9584       0.0803           1.00          0.88        0.9608          0.1016            0.98        0.92
+
+
+
+board. On the ViViD++ and STheReO datasets, DepthAnything3 (Lin et al., 2025) and VGGT (Wang et al.,
+2025) obtain the best numerical scores among RGB-only models, respectively, yet both remain substantially
+behind RGB-T methods. This suggests that thermal cues provide an effective inductive bias when adapting
+feed-forward 3D reconstruction models to dark scenes. In particular, compared with our baseline model,
+VGGT, DarkVGGT reduces the average AbsRel and RMSElog over the three datasets by 0.1337 and 0.1322,
+respectively, while improving the average δ < 1.25 by 0.2535.
+These results indicate that our physics-inspired thermal factorization and reliability-gated RGB injection
+reliably extract geometry-consistent thermal cues and fuse them with latent features, enabling effective
+multimodal fine-tuning and more accurate geometric prediction in low-visibility scenes. As shown in Figure 4,
+DarkVGGT improves depth estimation in nighttime scenes and reconstructs more accurate dense 3D point
+clouds than existing RGB-only models, including Dark3R and VGGT, as well as the RGB-T model SEAR.
+Pose Estimation Performance Comparison. Table 2 shows pose estimation performance comparing DarkVGGT
+with existing methods using RRA@30, RTA@30, and AUC@30, where @30 denotes evaluation up to a 30◦
+angular threshold for relative rotation, translation-direction, and joint pose errors. DarkVGGT achieves the
+strongest average pose performance across the three low-visibility datasets. Compared with the average of
+RGB-only baselines, DarkVGGT improves RRA@30, RTA@30, and AUC@30 by 16.7%, 59.1%, and 66.8%,
+respectively. Compared with SEAR (Skorokhodov et al., 2026), DarkVGGT further raises the average
+RRA@30, RTA@30, and AUC@30 from 0.857 to 0.993, from 0.693 to 0.890, and from 47.7 to 66.3, respectively.
+Relative to Dark3R (Guo et al., 2026), DarkVGGT also shows consistent average gains, with the largest
+improvement in RTA@30. The overall pose scores on the STheReO dataset are higher than on the other two
+datasets, likely because its forward-driving scenes induce smaller relative pose errors.
+Figure 4 provides a qualitative view of these pose differences. Dark3R produces trajectories that collapse
+toward one side, leading to distorted dense point-cloud reconstructions. SEAR, as an RGB-T baseline,
+improves over VGGT (Wang et al., 2025) in 3D reconstruction quality but still exhibits locally warped camera
+trajectories. In contrast, DarkVGGT estimates more stable camera poses, supporting higher-quality 3D
+geometry prediction under nighttime conditions.
+RGB-only Performance in Well-Lit Scenes. To assess whether DarkVGGT preserves the pretrained VGGT prior
+when thermal guidance is unavailable, we evaluate RGB-only performance on the well-lit ETH3D (Schops
+et al., 2017) and ScanNet++ (Yeshwanth et al., 2023) datasets. As shown in Table 3, DarkVGGT remains
+
+
+                                                                         8
+Table 4 Effectiveness of each proposed module and computational cost for RGB-T multimodal nighttime 3D geometry
+estimation.
+
+                                         Depth                                 Camera Pose                       Cost
+Method                      AbsRel ↓ δ < 1.25 ↑ RMSElog ↓ RRA@30 ↑ RTA@30 ↑ AUC@30 ↑ #Param. (M) FPS
+AA                           0.1672     0.7512       0.2569            0.95        0.77        61.5        604.73       9.0
+LoRA                         0.1658     0.7590       0.2542            0.96        0.79        62.2         50.33       8.9
+LoRA + Phys                  0.1422     0.8088       0.2298            1.00        0.86        68.9        107.21       7.5
+LoRA + GSTR                  0.1538     0.7879       0.2386            0.97        0.79        62.4         70.81       7.5
+LoRA + Phys + GSTR (Full)    0.1373     0.8243       0.2232            0.99        0.89        66.3        124.34       7.4
+
+Table 5 Ablation study on the effectiveness of each loss function for both depth and pose estimation.
+
+                                             Depth                                        Camera Pose
+          Configuration      AbsRel ↓      δ < 1.25 ↑    RMSElog ↓            RRA@5 ↑      RTA@5 ↑      AUC@30 ↑
+          Full                 0.1373       0.8243            0.2232            0.68         0.45         66.3
+          w/o Lsparse          0.1381       0.8188            0.2249            0.68         0.45         69.2
+          w/o Lrecon           0.1404       0.8151            0.2274            0.68         0.44         65.9
+          w/o Ledge            0.1418       0.8145            0.2287            0.67         0.43         65.3
+
+
+
+close to VGGT (Wang et al., 2025) overall and even improves some metrics. On ETH3D dataset, it achieves
+0.9584 δ < 1.25 and 0.0803 RMSElog , compared with 0.9729 and 0.0595 for VGGT. On ScanNet++ dataset, it
+improves both metrics, reaching 0.9608 and 0.1016 versus 0.9479 and 0.1106 for VGGT.
+Averaged over the two datasets, DarkVGGT differs from VGGT by only 0.0008 in δ < 1.25 and 0.0059 in
+RMSElog , exactly matches the average RRA@30, and shows only a 0.02 decrease in RTA@30 from 0.92 to 0.90.
+This deviation is notably smaller than the teacher gap observed for Dark3R (Guo et al., 2026), which shows a
+0.0147 decrease in average δ < 1.25 and a 0.0078 increase in RMSElog relative to MASt3R (Leroy et al., 2024).
+The degradation is more pronounced on ETH3D dataset, where δ < 1.25 decreases from 0.9413 to 0.8992 and
+RMSElog increases from 0.1496 to 0.1739. For pose estimation, Dark3R likewise underperforms MASt3R
+by 0.025 in RRA@30 and 0.02 in RTA@30, suggesting that our thermal-guided adaptation better preserves
+daylight geometry capability than distillation-based low-light adaptation. Please refer to Appendix B for the
+results obtained when using RGB-T inputs on daylight sequences.
+Ablation Study. Table 4 demonstrates the effectiveness of each proposed module for RGB-T nighttime 3D
+geometry estimation. AA denotes full fine-tuning of the alternating attention blocks without LoRA, while
+Phys and GSTR denote the physics-inspired thermal factorization module and geometry-shared thermal
+routing, respectively. Adding LoRA to the AA baseline yields only modest gains, improving AbsRel from
+0.1672 to 0.1658, δ < 1.25 from 0.7512 to 0.7590, and AUC@30 from 61.5 to 62.2. In contrast, Phys provides
+the largest standalone improvement, reducing AbsRel to 0.1422 and RMSElog to 0.2298, while also increasing
+RRA@30, RTA@30, and AUC@30 to 1.00, 0.86, and 68.9, respectively. GSTR provides a smaller standalone
+gain, but complements Phys in the full model, which achieves the best overall trade-off, reaching 0.1373
+AbsRel, 0.8243 δ < 1.25, and 0.89 RTA@30 (Table 4). Compared with AA, the full model improves all metrics,
+including a 17.9% reduction in AbsRel and a 7.8% increase in AUC@30. Regarding computational efficiency,
+our full model achieves superior performance with the proposed modules while requiring 79.4% fewer learnable
+parameters than full AA fine-tuning, reducing the parameter count from 604.73M to 124.34M, with only
+marginal differences in inference FPS across all adapted variants.
+Table 5 ablates the three regularizers by removing each term individually. Since pose differences are relatively
+small, we report RRA@5 and RTA@5 for a more fine-grained comparison. Dropping Ledge causes the largest
+AbsRel increase, from 0.1373 to 0.1418, as it explicitly ties predicted reflectivity to depth structure. Without
+Lrecon , AbsRel degrades to 0.1404, as the identifiability of the thermal-private subspace weakens. Lsparse
+has the smallest AbsRel impact, but its removal lowers δ < 1.25, suggesting that sparsity helps maintain an
+emissive-dominant decomposition. Although this variant improves AUC@30 from 66.3 to 69.2, it does so at
+the cost of degraded depth estimation.
+
+
+
+                                                               9
+5    Conclusion
+We presented DarkVGGT, a multimodal feed-forward reconstruction model that leverages thermal observations
+for robust 3D geometry estimation in low-visibility scenes. DarkVGGT selectively fuses geometry-consistent
+emissive cues into RGB latent representations through physics-inspired thermal factorization. Additionally,
+it injects modality-invariant thermal structure into the RGB stream via geometry-shared thermal routing
+with reliability-gated corrections. Across low-visibility RGB-T benchmarks, DarkVGGT outperforms existing
+RGB-only and RGB-T feed-forward models in depth and camera pose estimation. Experiments on well-lit
+datasets including ETH3D and ScanNet++ show that DarkVGGT largely preserves the original capability
+of VGGT, thereby reducing the daylight tax of low-light adaptation. Ablation studies further indicate that
+physics-inspired thermal factorization drives the main gains, while geometry-shared thermal routing provides
+complementary refinement with little runtime overhead. Overall, DarkVGGT demonstrates that thermal
+guidance can improve dark-scene 3D perception without sacrificing RGB robustness in well-lit settings.
+Limitation. Our experiments assume moderately aligned paired RGB-T inputs, which may limit applicability to
+weakly aligned or unpaired settings. Addressing such cases would require additional cross-modal correspondence
+or correction mechanisms. Our modules also introduce a few hyperparameters for residual scaling, sparsity, and
+fusion budgeting, which may require validation-based tuning or sensor-specific calibration. These limitations
+are orthogonal to the VGGT backbone.
+Future work. Future work includes adaptive RGB-T fusion, weaker supervision settings such as partially aligned
+or unpaired RGB-T data, and extensions to other multimodal geometry cues such as event cameras or LiDAR.
+While this direction may support safer robotic and autonomous perception in low-visibility environments,
+RGB-T systems can also raise privacy concerns in public or sensitive spaces due to thermal sensing. Future
+deployment should therefore follow appropriate privacy, safety, and data-governance safeguards.
+
+
+References
+Petr Alexa, Jaroslav Solař, Filip Čmiel, Pavel Valíček, and Miroslava Kadulová. Infrared thermographic measurement
+  of the surface temperature and emissivity of glossy materials. Journal of Building Physics, 41(6):533–546, 2018.
+Eduardo Arnold, Omar Y Al-Jarrah, Mehrdad Dianati, Saber Fallah, David Oxtoby, and Alex Mouzakitis. A survey on
+  3d object detection methods for autonomous driving applications. IEEE Transactions on Intelligent Transportation
+  Systems, 20(10):3782–3795, 2019.
+Martin Brenner, Napoleon H Reyes, Teo Susnjak, and Andre LC Barczak. RGB-D and thermal sensor fusion: A
+ systematic literature review. IEEE Access, 11:82410–82442, 2023.
+Yohann Cabon, Lucas Stoffl, Leonid Antsfeld, Gabriela Csurka, Boris Chidlovskii, Jerome Revaud, and Vincent
+  Leroy. MUSt3R: Multi-view network for stereo 3D reconstruction. In Proceedings of the IEEE/CVF Conference on
+  Computer Vision and Pattern Recognition, pages 1050–1060, 2025.
+Giovanni Maria Carlomagno and Gennaro Cardone. Infrared thermography for convective heat transfer measurements.
+  Experiments in fluids, 49(6):1187–1218, 2010.
+Qian Chen, Shihao Shu, and Xiangzhi Bai. Thermal3D-GS: Physics-induced 3D gaussians for thermal infrared
+  novel-view synthesis. In European Conference on Computer Vision, 2024.
+Hoonhee Cho, Jae-Young Kang, Giwon Lee, Hyemin Yang, Heejun Park, Seokwoo Jung, and Kuk-Jin Yoon. Vr-drive:
+  Viewpoint-robust end-to-end driving with feed-forward 3d gaussian splatting. arXiv preprint arXiv:2510.23205,
+  2025.
+Bardienus Pieter Duisterhof, Lojze Zust, Philippe Weinzaepfel, Vincent Leroy, Yohann Cabon, and Jerome Revaud.
+  MASt3R-SfM: A fully-integrated solution for unconstrained structure-from-motion. In 2025 International Conference
+  on 3D Vision (3DV), pages 1–10. IEEE, 2025.
+Ahmed ElSheikh, Bassam A Abu-Nabah, Mohammad O Hamdan, and Gui-Yun Tian. Infrared camera geometric
+  calibration: A review and a precise thermal radiation checkerboard target. Sensors, 23(7):3479, 2023.
+Juntong Fang, Zequn Chen, Weiqi Zhang, Donglin Di, Xuancheng Zhang, Chengmin Yang, and Yu-Shen Liu. More:
+  Motion-aware feed-forward 4d reconstruction transformer. arXiv preprint arXiv:2603.05078, 2026.
+
+
+
+
+                                                        10
+Bahareh Ghari, Ali Tourani, Asadollah Shahbahrami, and Georgi Gaydadjiev. Pedestrian detection in low-light
+  conditions: A comprehensive survey. Image and Vision Computing, 148:105106, 2024.
+Andrew Y Guo, Anagh Malik, SaiKiran Tedla, Yutong Dai, Yiqian Qin, Zach Salehe, Benjamin Attal, Sotiris Nousias,
+  Kyros Kutulakos, and David B Lindell. Dark3R: Learning structure from motion in the dark. arXiv preprint
+ arXiv:2603.05330, 2026.
+Yubin Guo, Haobo Jiang, Xinlei Qi, Jin Xie, Cheng-Zhong Xu, and Hui Kong. Unsupervised visible-light images
+  guided cross-spectrum depth estimation from dual-modality cameras. arXiv preprint arXiv:2205.00257, 2022.
+Jisang Han, Honggyu An, Jaewoo Jung, Takuya Narihira, Junyoung Seo, Kazumi Fukuda, Chaehyun Kim, Sunghwan
+   Hong, Yuki Mitsufuji, and Seungryong Kim. Dˆ 2ust3r: Enhancing 3d reconstruction with 4d pointmaps for dynamic
+   scenes. arXiv e-prints, pages arXiv–2504, 2025.
+Mariam Hassan, Florent Forest, Olga Fink, and Malcolm Mielle. ThermoNeRF: Joint RGB and thermal novel view
+ synthesis for building facades using multimodal neural radiance fields. arXiv preprint arXiv:2403.12154, 2024.
+Yuze He, Yubin Hu, Wang Zhao, Jisheng Li, Yong-Jin Liu, Yuxing Han, and Jiangtao Wen. DarkFeat: Noise-robust
+  feature detector and descriptor for extremely low-light RAW images. In Proceedings of the AAAI conference on
+  artificial intelligence, volume 37, pages 826–834, 2023.
+Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Liang Wang, Weizhu Chen,
+  et al. LoRA: Low-rank adaptation of large language models. Iclr, 1(2):3, 2022.
+Frank P Incropera, David P DeWitt, Theodore L Bergman, Adrienne S Lavine, et al. Fundamentals of heat and mass
+  transfer, volume 6. Wiley New York, 1996.
+Gustav Kirchhoff. I. on the relation between the radiating and absorbing powers of different bodies for light and heat.
+ The London, Edinburgh, and Dublin Philosophical Magazine and Journal of Science, 20(130):1–21, 1860.
+Minseong Kweon, Janghyun Kim, Ukcheol Shin, and Jinsun Park. MrGS: Multi-modal radiance fields with 3D gaussian
+  splatting for RGB-Thermal novel view synthesis. arXiv preprint arXiv:2511.22997, 2025.
+Byeongjun Kwon and Munchurl Kim. Multi-modal depth estimation from misaligned thermal and RGB images. In
+  Proceedings of the Korean Institute of Broadcast and Media Engineers Summer Conference, pages 912–915, 2024.
+Alex Junho Lee, Younggun Cho, Young-sik Shin, Ayoung Kim, and Hyun Myung. ViViD++: Vision for visibility
+  dataset. IEEE Robotics and Automation Letters, 7(3):6282–6289, 2022.
+Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3D with MASt3R. In European
+  conference on computer vision, pages 71–91. Springer, 2024.
+Haotong Lin, Sili Chen, Jun Hao Liew, Donny Y. Chen, Zhenyu Li, Guang Shi, Jiashi Feng, and Bingyi Kang. Depth
+  Anything 3: Recovering the visual space from any views. arXiv preprint arXiv:2511.10647, 2025.
+Yvette Y Lin, Xin-Yi Pan, Sara Fridovich-Keil, and Gordon Wetzstein. Thermalnerf: Thermal radiance fields. In 2024
+  IEEE International Conference on Computational Photography (ICCP), pages 1–12. IEEE, 2024.
+Ruoshi Liu and Carl Vondrick. Humans as light bulbs: 3D human reconstruction from thermal reflection. In Proceedings
+  of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 12531–12542, 2023.
+Hao Lu, Tianshuo Xu, Wenzhao Zheng, Yunpeng Zhang, Wei Zhan, Dalong Du, Masayoshi Tomizuka, Kurt Keutzer,
+  and Yingcong Chen. Drivingrecon: Large 4d gaussian reconstruction model for autonomous driving. arXiv preprint
+  arXiv:2412.09043, 2024a.
+Rongfeng Lu, Hangyu Chen, Zunjie Zhu, Yuhang Qin, Ming Lu, Le Zhang, Chenggang Yan, and Anke Xue. Thermal-
+  Gaussian: Thermal 3D gaussian splatting. arXiv preprint arXiv:2409.07200, 2024b.
+Dominic Maggio, Hyungtae Lim, and Luca Carlone. Vggt-slam: Dense rgb slam optimized on the sl (4) manifold.
+ arXiv preprint arXiv:2505.12549, 2025.
+Parv Maheshwari, Jay Karhade, Yogesh Chawla, Isaiah Adu, Florian Heisen, Andrew Porco, Andrew Jong, Yifei
+  Liu, Santosh Pitla, Sebastian Scherer, et al. AnyThermal: Towards learning universal representations for thermal
+  perception. arXiv preprint arXiv:2602.06203, 2026.
+Michael F Modest and Sandip Mazumder. Radiative heat transfer. Academic press, 2021.
+Riku Murai, Eric Dexheimer, and Andrew J Davison. Mast3r-slam: Real-time dense slam with 3d reconstruction
+  priors. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 16695–16705, 2025.
+
+
+
+                                                          11
+Fred E Nicodemus. Directional reflectance and emissivity of an opaque surface. Applied optics, 4(7):767–775, 1965.
+Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+ Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. DINOv2: Learning robust visual features without
+ supervision. arXiv preprint arXiv:2304.07193, 2023.
+Gorazd Planinsic. Infrared thermal imaging: Fundamentals, research and applications. European Journal of Physics,
+  32(5):1431, 2011.
+René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vision transformers for dense prediction. In Proceedings of the
+  IEEE/CVF international conference on computer vision, pages 12179–12188, 2021.
+Yinrui Ren, Jinjing Zhu, Kanghao Chen, Zhuoxiao Li, Jing Ou, Zidong Cao, Tongyan Hua, Peilun Shi, Yingchun Fu,
+  Wufan Zhao, et al. EventVGGT: Exploring cross-modal distillation for consistent event-based depth estimation.
+  arXiv preprint arXiv:2603.09385, 2026.
+Ali M Reza. Realization of the contrast limited adaptive histogram equalization (clahe) for real-time image enhancement.
+  Journal of VLSI signal processing systems for signal, image and video technology, 38(1):35–44, 2004.
+Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings of the IEEE
+  conference on computer vision and pattern recognition, pages 4104–4113, 2016.
+Johannes L Schönberger, Enliang Zheng, Jan-Michael Frahm, and Marc Pollefeys. Pixelwise view selection for
+  unstructured multi-view stereo. In European conference on computer vision, pages 501–518. Springer, 2016.
+Thomas Schops, Johannes L Schonberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc Pollefeys, and
+  Andreas Geiger. A multi-view stereo benchmark with high-resolution images and multi-camera videos. In Proceedings
+ of the IEEE conference on computer vision and pattern recognition, pages 3260–3269, 2017.
+Dharmendra Selvaratnam and Dena Bazazian. 3D reconstruction in robotics: A comprehensive review. Computers &
+ Graphics, 130:104256, 2025.
+Ukcheol Shin, Kyunghyun Lee, Seokju Lee, and In So Kweon. Self-supervised depth and ego-motion estimation
+  for monocular thermal video using multi-spectral consistency loss. IEEE Robotics and Automation Letters, 7(2):
+  1103–1110, 2021.
+Ukcheol Shin, Jinsun Park, and In So Kweon. Deep depth estimation from thermal image. In Proceedings of the
+  IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2023.
+Ukcheol Shin, Kyunghyun Lee, and Jean Oh. Bridging spectral-wise and multi-spectral depth estimation via geometry-
+  guided contrastive learning. In 2025 IEEE International Conference on Robotics and Automation (ICRA), pages
+  6299–6305. IEEE, 2025.
+Vsevolod Skorokhodov, Chenghao Xu, Shuo Sun, Olga Fink, and Malcolm Mielle. SEAR: Simple and efficient adaptation
+  of visual geometric transformers for RGB+Thermal 3D reconstruction. arXiv preprint arXiv:2603.18774, 2026.
+Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan, Wen Bo, and Yunfeng Liu. RoFormer: Enhanced transformer
+  with rotary position embedding. Neurocomputing, 568:127063, 2024.
+Bin Tan, Changjiang Sun, Xiage Qin, Hanat Adai, Zelin Fu, Tianxiang Zhou, Han Zhang, Yinghao Xu, Xing Zhu,
+  Yujun Shen, et al. Masked depth modeling for spatial perception. arXiv preprint arXiv:2601.17895, 2026.
+R Usamentiaga, DF Garcia, C Ibarra-Castanedo, and X Maldague. Highly accurate geometric calibration for infrared
+  cameras using inexpensive calibration targets. Measurement, 112:105–116, 2017.
+Rubén Usamentiaga, Pablo Venegas, Jon Guerediaga, Laura Vega, Julio Molleda, and Francisco G Bulnes. Infrared
+  thermography for temperature measurement and non-destructive testing. Sensors, 14(7):12305–12348, 2014.
+Hengyi Wang and Lourdes Agapito. 3D reconstruction with spatial memory. In 2025 International Conference on 3D
+ Vision (3DV), pages 78–89. IEEE, 2025.
+Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny. VGGT:
+  Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern Recognition Conference,
+   pages 5294–5306, 2025.
+Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. DUSt3R: Geometric 3D
+  vision made easy. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+  20697–20709, 2024.
+
+
+
+                                                          12
+Xiaoshan Wu, Yifei Yu, Xiaoyang Lyu, Yihua Huang, Bo Wang, Baoheng Zhang, Zhongrui Wang, and Xiaojuan
+  Qi. EAG3R: Event-augmented 3D geometry estimation for dynamic and extreme-lighting scenes. arXiv preprint
+  arXiv:2512.00771, 2025.
+Yang Wu, Zijie Lin, Yanyan Zhao, Bing Qin, and Li-Nan Zhu. A text-centered shared-private framework via cross-
+  modal prediction for multimodal sentiment analysis. In Findings of the association for computational linguistics:
+  ACL-IJCNLP 2021, pages 4730–4738, 2021.
+Jiuhong Xiao, Roshan Nayak, Ning Zhang, Daniel Tortei, and Giuseppe Loianno. ThermalGen: Style-disentangled
+  flow-based generative models for RGB-to-Thermal image translation. arXiv preprint arXiv:2509.24878, 2025.
+Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and
+   Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass. In Proceedings of the Computer
+  Vision and Pattern Recognition Conference, pages 21924–21935, 2025.
+Sizhe Yang, Linning Xu, Hao Li, Juncheng Mu, Jia Zeng, Dahua Lin, and Jiangmiao Pang. Robo3r: Enhancing robotic
+   manipulation with accurate feed-forward 3d reconstruction. arXiv preprint arXiv:2602.10101, 2026.
+Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner, and Angela Dai. ScanNet++: A high-fidelity dataset of 3D
+  indoor scenes. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 12–22, 2023.
+Seungsang Yun, Minwoo Jung, Jeongyun Kim, Sangwoo Jung, Younghun Cho, Myung-Hwan Jeon, Giseop Kim,
+  and Ayoung Kim. STheReO: Stereo thermal dataset for research in odometry and mapping. In 2022 IEEE/RSJ
+  International Conference on Intelligent Robots and Systems (IROS), pages 3857–3864. IEEE, 2022.
+Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Trevor Darrell, Forrester Cole, Deqing Sun, and
+  Ming-Hsuan Yang. MonST3R: A simple approach for estimating geometry in the presence of motion. arXiv preprint
+  arXiv:2410.03825, 2024.
+Qingyang Zhang, Yake Wei, Zongbo Han, Huazhu Fu, Xi Peng, Qinghua Hu, Cheng Deng, Cai Xu, Jie Wen, Di Hu,
+  et al. Multimodal fusion on low-quality data: A comprehensive survey. Information Fusion, page 104437, 2026.
+Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue, Christian Rupprecht, Xiaowei Zhou, Yujun Shen, and
+  Gordon Wetzstein. FLARE: Feed-forward geometry, appearance and camera estimation from uncalibrated sparse
+  views. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 21936–21947, 2025.
+Xingxing Zuo, Nikhil Ranganathan, Connor Lee, Georgia Gkioxari, and Soon-Jo Chung. MonoTher-Depth: Enhancing
+  thermal depth estimation via confidence-aware distillation. IEEE Robotics and Automation Letters, 10(3):2830–2837,
+  2025.
+
+
+
+
+                                                         13
+Appendix
+A    DarkVGGT: detailed methodology
+LoRA and camera tokens. After loading the pretrained VGGT (Wang et al., 2025) checkpoint, we initialize the
+thermal camera token by duplicating the pretrained camera token, following the same token-initialization
+strategy as SEAR (Skorokhodov et al., 2026). This allows both modalities to start from the same geometric
+token prior. We then insert shared LoRA (Hu et al., 2022) adapters into the linear layers of both the
+frame-attention and global-attention blocks, while keeping the original backbone weights frozen. This yields a
+lightweight multimodal adaptation in which RGB and thermal tokens interact through the same aggregation
+backbone, but the geometry prior is modified only through low-rank residual updates and modality-specific
+camera tokens.
+Thermal positional adaptation. To account for residual spatial offsets between RGB and thermal views, we
+introduce a learnable 2D thermal RoPE (Su et al., 2024) offset. Thermal tokens share the rotary positional
+grid of RGB tokens, with an additive offset (∆y, ∆x) applied before rotary encoding. The offset is initialized
+to zero, allowing the multimodal model to start from the aligned RGB prior and learn cross-sensor positional
+corrections only when supported by the training signal. This lightweight mechanism preserves the RGB
+branch while adapting only the thermal positional coordinates.
+Late geometry-shared thermal routing. The geometry-shared decomposition uses ranks (ds , dp , dmi ) =
+(96, 192, 128), with the distillation projection heads in Eq. 6 implemented as single linear maps Rds → Rdmi . The
+pathway is instantiated in the last k = 8 AA blocks, with the residual scale initialized to αgstr = σ(−2.2) ≈ 0.1
+and the corrective injection and reliability-routing heads zero-initialized, so the branch is effectively inactive at
+initialization and is activated only as training learns a consistent corrective signal. The two identifiability losses
+Lrecon and Ldistill follow a cosine warmup from 0.01 to 0.10 over the first 1500 of 4000 gradient-accumulation
+steps. Without this warmup, applying the target weight from step zero pulls the private subspace prematurely
+toward thermal reconstruction and degrades early depth/pose accuracy.
+Geometry-shared thermal routing visualization. Figure 5 visualizes the per-token ℓ2 norm of the gated geometry-
+                         (ℓ)
+shared token injection gshr ⊙Wup sg[ūshr,(ℓ) ] − v̄shr,(ℓ) from Eq. 9, evaluated on paired RGB-T inputs sampled
+                                                           
+
+from day and night training scenes. In the dark night scene shown in the top row, the RGB image is severely
+underexposed and dominated by saturated headlights, while the corresponding thermal frame depicts the
+road geometry, surrounding buildings, and structural edges clearly. The geometry-shared routing magnitude
+in this case concentrates on the unlit road surface and the building facades on either side, which are precisely
+the regions where the RGB pathway carries little usable information and the thermal stream is informative.
+In the well-lit daytime scene shown in the bottom row, where the RGB image is properly exposed and rich
+in texture, the injection magnitude remains uniformly low across the entire field of view, with no regions of
+                                                                                           (ℓ)
+pronounced activation. This contrast suggests that the per-token reliability gate gshr ∈ [0, 1]P , applied to
+the shared-thermal residual before RGB-token injection at the deepest active AA block, suppresses thermal
+corrections when RGB cues are sufficient and selectively routes thermal-recovered structure where RGB fails.
+
+
+B    Daylight scene performance on RGB-T datasets
+To verify that DarkVGGT’s RGB-T fusion strategy remains effective under daylight conditions, we further
+evaluate depth estimation performance on three held-out well-lit sequences in Table 6. We use the city_day1,
+city_day2, and campus_day2 sequences from ViViD++ (Lee et al., 2022) dataset. Since the extrinsics of
+these sequences are released as identity matrices, we additionally evaluate only depth estimation in this ablation
+study. Across these sequences, DarkVGGT remains competitive with VGGT and consistently outperforms
+MASt3R and Dark3R by a wide margin. Although VGGT attains slightly better AbsRel and δ < 1.25 on some
+sequences, DarkVGGT achieves the best RMSElog on all three held-out scenes, with values of 0.2550, 0.3235,
+and 0.2328 on city_day1, city_day2, and campus_day, respectively. Averaged over the three sequences,
+DarkVGGT reaches 0.1743 AbsRel, 0.7596 δ < 1.25, and 0.2704 RMSElog , compared with VGGT’s 0.1662,
+0.7772, and 0.2835. These results suggest that our physics-inspired thermal factorization and geometry-shared
+
+
+                                                         14
+                       RGB                                     Thermal                               Injection
+
+
+
+
+Figure 5 Reliability-gated injection samples during training in dark and light scenes.
+
+Table 6 Quantitative comparison of depth estimation on well-lit RGB-T ViViD++ sequences. This shows that our
+thermal-to-RGB fusion method remains effective even in well-lit scenes.
+
+                                        city_day1                          city_day2                          campus_day
+ Method                       AbsRel↓   δ < 1.25 ↑   RMSElog ↓   AbsRel↓   δ < 1.25 ↑   RMSElog ↓   AbsRel↓   δ < 1.25 ↑   RMSElog ↓
+ MASt3R Leroy et al. (2024)   0.3133     0.5769       0.4079     0.2785     0.4284       0.3720     0.1613     0.8154       0.2548
+ Dark3R Guo et al. (2026)     0.3479     0.4617       0.4703     0.4187     0.3587       0.5548     0.2268     0.6811       0.3157
+ VGGT Wang et al. (2025)      0.1739     0.7395       0.2661     0.1882     0.7281       0.3371     0.1365     0.8639       0.2474
+ DarkVGGT (ours)              0.1786     0.7496       0.2550     0.1942     0.7139       0.3235     0.1502     0.8153       0.2328
+
+
+
+thermal routing remain effective even in well-lit scenes, where thermal cues are less dominant, by improving
+depth consistency and suppressing large depth outliers without disrupting the frozen VGGT RGB prior.
+
+
+C    DarkVGGT vs. SEAR
+Figure 6 compares additional dense 3D point-cloud reconstruction results between SEAR (Skorokhodov et al.,
+2026), an RGB-T feed-forward foundation model, and our proposed DarkVGGT on outdoor and indoor scenes.
+In the nighttime outdoor sequences shown in the top two rows, both methods produce comparable point-map
+quality, likely because weak illumination cues such as streetlights remain available, allowing LoRA-based
+RGB-T adaptation to exploit residual RGB structure. However, the camera-pose results show that DarkVGGT
+estimates trajectories closer to the ground truth than SEAR.
+The gap becomes more pronounced in dark indoor scenes, where light and texture cues are nearly absent
+and effective fusion of thermal information into degraded RGB embeddings becomes crucial. Under these
+conditions, SEAR struggles to recover reliable geometry. In contrast, with the proposed thermal-to-RGB
+fusion modules, DarkVGGT robustly captures object-level depth variations and reconstructs plausible 3D
+geometry even in extremely dark indoor environments.
+
+
+D    RGB-T Dataset Processing
+Table 7 summarizes the number of samples used for our overall training and evaluation.
+
+
+
+
+                                                                 15
+                              SEAR                                            DarkVGGT (Ours)
+              RGB                         Thermal                      RGB                      Thermal
+
+
+
+
+Figure 6 Qualitative comparison between SEAR and our method. Blue and red cameras represent ground-truth and
+predicted camera poses, respectively.
+
+Table 7 Dataset split statistics used in the main experiments.
+
+
+ Dataset                       Train Sequences   Train Frames    Eval Sequences   Eval Chunks   Eval Sampled Frames
+ ViViD++ (Lee et al., 2022)          11             6,691              3              31               310
+ STheReO (Yun et al., 2022)          4              9,837              2              60               600
+ Dark3R (Guo et al., 2026)            6             2,260              2              2                 50
+ Total                               21             18,788             7              93               960
+
+
+
+D.1      ViViD++.
+We train on 11 ViViD++ scenes and evaluate on three disjoint dark scenes. The training split includes indoor_-
+robust_dark, outdoor_robust_night1, indoor_aggresive_global, indoor_robust_global, indoor_unsta-
+ble_global, outdoor_robust_day1, outdoor_robust_day2, indoor_robust_varying, indoor_aggresive_-
+local, indoor_robust_local, and indoor_unstable_local, while the held-out set contains indoor_aggre-
+sive_dark, indoor_unstable_dark, and outdoor_robust_night2. Sequence-mode training uses all frames
+from the selected scenes. We use refined depth maps Depth_RGB_refined and Depth_T_refined for
+training. Thermal images are percentile-clipped, min-max normalized, enhanced with CLAHE (Reza, 2004),
+and colorized with the Inferno colormap before being passed to the frozen DINOv2 encoder, the grayscale
+thermal is retained for the reflection-aware prior. Both modalities are resized to a common resolution under
+the same crop/resize transform.
+
+D.2      STheReO.
+We train on four STheReO scenes, snu_evening, kaist_afternoon, snu_afternoon, and valley_afternoon,
+comprising 44,612 raw frames in total, and evaluate on kaist_evening and valley_evening (14,586 raw frames).
+After trimming 5% from each sequence end and applying a 2,000-frame per-sequence cap with adaptive
+striding, we obtain 9,837 training and 13,128 trimmed evaluation frames. Sequence-mode evaluation uses strict
+
+
+                                                            16
+          Clean RGB                   Dark RGB                   Depth                    Thermal
+
+
+
+
+Figure 7 Preprocessed Dark3R dataset training samples.
+
+
+
+non-overlapping K=50 windows capped at 30 per scene, yielding 60 windows and 600 sampled frames. Raw
+STheReO sequences are converted into the canonical ViViD++ layout: for each RGB timestamp we match the
+nearest thermal frame and LiDAR scan, interpolate the LiDAR-body pose to obtain camera-to-world poses,
+and undistort both modalities. Sparse depth maps are obtained by projecting the matched LiDAR scan into
+each camera, with optional dense refinements stored under Depth_RGB_refined and Depth_T_refined.
+During training, we disable static load-time subsampling and instead randomize the temporal spacing between
+nearby sampled frames with a stride drawn from [2, 4].
+
+D.3    Dark3R.
+We train on the six Dark3R scenes clean_university_college, clean_quad, clean_fireplace, dark_univer-
+sity_college, dark_quad, and dark_fireplace and evaluate on dark_chapel and dark_kitchen. Evaluation
+follows the public Dark3R protocol: a single deterministic chunk per scene with stride 20, yielding approxi-
+mately 25 frames per scene. We convert Dark3R into our canonical RGB-T layout, as illustrated in Figure 7.
+Since Dark3R is not captured from a calibrated dual-sensor rig, we reinterpret each exposure bracket of a
+single physical capture as a clean–dark pair: the cleanest sRGB image (the same ISO folder used for the
+released canonical-depth annotations) is assigned as the Clean RGB, while the noisiest exposure on disk
+(longest shutter, ∼40× darker) is assigned as the Dark RGB. The two variants share identical poses and depth,
+with the released dense metric depth maps reused directly as GT. Paired thermal frames are synthesized with
+ThermalGen (Xiao et al., 2025) and treated as pseudo-thermal supervision. Camera poses are converted from
+the NeRF camera convention to OpenCV convention.
+
+
+E     Hyperparameters
+Table 8 summarizes the key training hyperparameters used in DarkVGGT. We initialize the model from
+the public VGGT-1B checkpoint (Wang et al., 2025) and keep the backbone frozen throughout training.
+Multimodal adaptation is handled by the lightweight modules listed in Table 8, while the GSTR residual is
+initialized conservatively to avoid perturbing the pretrained RGB prior.
+The auxiliary losses are kept small relative to the main VGGT supervision. The physics regularizers remain
+weak, the GSTR reconstruction and distillation terms use cosine warmup, and the decorrelation term is
+delayed and ramped gradually. In the final configuration, we omit the explicit patch-level correction loss
+and apply RGB-prior preservation only on thermal-dropout steps. Thermal dropout itself is restricted to
+RGB-dominant batches, yielding an effective dropout rate of about 25%.
+
+
+F     Evaluation Protocol
+All main benchmark results are reported in sequence mode on held-out scenes only. For each held-out scene,
+we form strict non-overlapping K=50-frame windows and uniformly sample N =10 frames per window, capped
+at 30 windows per scene. ViViD++ scenes are short and never reach this cap (10–20 windows per scene),
+whereas STheReO sequences are long driving recordings for which the cap is active, yielding 30 windows per
+scene. For the Dark3R dataset, we use the single-chunk setting and sample frames from the full scene with a
+
+
+
+                                                         17
+Table 8 Key training hyperparameters for DarkVGGT.
+
+
+                Architecture / data
+                Backbone initialization            VGGT-1B, pretrained checkpoint
+                Image size / patch size            518 / 14
+                Clip lengths                       {2, 3, 4, 6, 12}
+                Max images per GPU                 24
+                Optimization
+                Optimizer                          AdamW
+                Learning rate                      5 × 10−5
+                Weight decay                       10−2
+                Schedule                           10% linear warmup, 90% cosine decay
+                Mixed precision                    bfloat16
+                Gradient accumulation              2
+                Epochs / steps                     10 / 2000
+                Effective steps (accum. × steps)   4000 = 2 × 2000
+                Adaptation modules
+                LoRA rank / alpha                  64 / 128
+                Geometry-shared ranks              (ds , dp , dmi ) = (96, 192, 128)
+                GSTR active blocks                 k=8
+                GSTR residual init αgstr           σ(−2.2) ≈ 0.10
+                Loss weights
+                Camera Lcam                        5.0
+                Depth Ldepth (log-norm)            1.0
+                Reflectivity sparse Lsparse        0.03
+                Reflectivity edge Ledge            0.01
+                Orthogonality Lortho               0.003
+                RGB-prior preservation Ldrop       0.5
+                GSTR recon Lrecon                  0.01 → 0.10 (cosine, step 0–1500 of 4000)
+                GSTR distill Ldistill              0.01 → 0.10 (cosine, step 0–1500 of 4000)
+                GSTR decorrelation Ldecorr         0 → 2×10−5 (cosine, step 1000–3000 of 4000)
+                Multimodal training
+                Thermal dropout                    p = 0.5, RGB-dominant batches only
+
+
+stride of 20. Depth metrics are averaged over the sampled evaluation frames, while pose metrics are pooled
+over all frame pairs within each sampled window.
+
+
+
+
+                                                       18
+

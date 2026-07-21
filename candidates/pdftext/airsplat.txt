@@ -1,0 +1,1066 @@
+                                               AirSplat: Alignment and Rating for Robust
+                                                  Feed-Forward 3D Gaussian Splatting
+
+                                                      Minh-Quan Viet Bui⋆ , Jaeho Moon⋆ , and Munchurl Kim
+
+                                                                              KAIST
+                                                             {bvmquan, jaeho.moon, mkimee}@kaist.ac.kr
+                                                           https://kaist-viclab.github.io/airsplat-site
+arXiv:2603.25129v1 [cs.CV] 26 Mar 2026
+
+
+
+
+                                         Fig. 1: Our proposed AirSplat adapts 3D-VS-VFMs using Self-Consistent Pose Align-
+                                         ment (SCPA) and Rating-based Opacity Matching (ROM) to resolve inherent pose-
+                                         geometry discrepancies and multi-view inconsistencies. Our AirSplat effectively elimi-
+                                         nates ‘floaters’ (red boxes) and blurry artifacts (dashed yellow boxes) produced by the
+                                         baseline DA3 [20], rendering sharp, structurally consistent novel views.
+
+
+
+
+                                                 Abstract. While 3D Vision Foundation Models (3DVFMs) have demon-
+                                                 strated remarkable zero-shot capabilities in visual geometry estimation,
+                                                 their direct application to generalizable novel view synthesis (NVS) re-
+                                                 mains challenging. In this paper, we propose AirSplat, a novel train-
+                                                 ing framework that effectively adapts the robust geometric priors of
+                                                 3DVFMs into high-fidelity, pose-free NVS. Our approach introduces two
+                                                 key technical contributions: (1) Self-Consistent Pose Alignment (SCPA),
+                                                 a training-time feedback loop that ensures pixel-aligned supervision to
+                                                 resolve pose-geometry discrepancy; and (2) Rating-based Opacity Match-
+                                                 ing (ROM), which leverages the local 3D geometry consistency knowl-
+                                                 edge from a sparse-view NVS teacher model to filter out degraded prim-
+                                                 itives. Experimental results on large-scale benchmarks demonstrate that
+                                                 our method significantly outperforms state-of-the-art pose-free NVS ap-
+                                                 proaches in reconstruction quality. Our AirSplat highlights the potential
+                                                 of adapting 3DVFMs to enable simultaneous visual geometry estimation
+                                                 and high-quality view synthesis.
+
+                                                 Keywords: 3D Reconstruction · 3D Vision · Gaussian Splatting
+                                         ⋆
+                                             Co-first authors (equal contribution).
+2       Bui et al.
+
+1   Introduction
+The field of Novel View Synthesis (NVS) has undergone a paradigm shift with
+the advent of 3D Gaussian Splatting (3DGS) [17] and its subsequent advance-
+ments [4,10,19,30,45,51]. To overcome the bottleneck of time-intensive per-scene
+optimization, recent feed-forward architectures [5, 8, 46, 55] directly predict 3D
+scene parameters from sparse context views. However, dependence on calibrated
+poses limits ‘in-the-wild’ applicability, while several pose-free feed-forward meth-
+ods [11, 16, 34, 53] remain fundamentally constrained to sparse-view inputs. To
+address this, recent works [13, 15, 31, 47, 48] leverage the robust, zero-shot depth
+and pose estimation capabilities of 3D Vision Foundation Models (3DVFMs)
+such as Mast3r [18], VGGT [39], and π 3 [43]. These approaches fine-tune or
+distill 3DVFMs to jointly infer scene 3D Gaussian primitives and camera pa-
+rameters directly from raw input images. Nevertheless, this biases the networks
+toward the view synthesis objective, resulting in performance degradation on
+foundational geometry estimation tasks. More recent unified frameworks, which
+we refer to as 3DVFMs with view synthesis (3D-VS-VFMs), such as WorldMir-
+ror [24] and DepthAnything3 [20], incorporate 3DGS heads to perform both
+geometry estimation and NVS. Despite this integration, generating high-fidelity
+novel views from completely uncalibrated context images remains challenging.
+    We identify two fundamental obstacles that inherently hinder 3D-VS-VFMs
+from achieving high-fidelity NVS. First, there exists a critical pose-geometry dis-
+crepancy during the training process. As illustrated in Fig. 3-(a) and (b), current
+NVS fine-tuning strategies either fail to generalize due to a lack of direct super-
+vision for novel viewpoints (context-only [15]) or suffer from coordinate mis-
+alignment (context-target [13]). Specifically, in the context-target setting, target
+camera poses are inferred using features from both the context and target im-
+ages, whereas the scene geometry is conditioned strictly on the context views to
+maintain feed-forward generalizability [13]. However, this asymmetric informa-
+tion flow induces a latent coordinate misalignment between the predicted target
+poses and the context 3D Gaussian primitives, leading to degraded optimiza-
+tion (Fig. 4). Second, as shown in Fig.1, the renderings of current 3D-VS-VFMs
+often contain local multi-view inconsistencies. Specifically, corresponding primi-
+tives generated from different context views lack precise spatial consensus. This
+deficiency leads to local geometric inconsistencies and the generation of ‘floaters’
+that severely degrade spatial stability.
+    To bridge these fundamental gaps, we introduce AirSplat, a pose-free feed-
+forward 3DGS training framework driven by self-consistent pose Alignment and
+Rating-based feedback that adapts state-of-the-art (SOTA) 3D-VS-VFMs. First,
+we present Self-Consistent Pose Alignment (SCPA) to dynamically an-
+chor the predicted target poses to the scene geometry derived from the context
+views, thereby providing geometrically-consistent reconstruction supervision. By
+re-estimating the camera pose from a rendered proxy image, we isolate the sys-
+tematic geometric bias between the initial pose prediction and the network’s
+3D Gaussian primitives prediction. We then apply an inverse correction to the
+initial target pose, aligning it with the estimated 3D primitives, as in Fig. 3-
+                                                                  AirSplat       3
+
+(c). This entirely decouples the scene reconstruction from the coordinate frame
+drift during training. Next, we introduce Rating-based Opacity Matching
+(ROM), a novel optimization strategy designed to enforce multi-view consis-
+tency among predicted primitives and eliminate geometrically insconsistent ar-
+tifacts. This approach is inspired by the paradigm of learning from rating-based
+feedback [1,26,27,44], where an agent’s behavior is refined using positive and neg-
+ative evaluations from an external teacher. In standard rating-based frameworks,
+an agent is optimized to ensure that its predicted ratings accurately align with
+the collected feedback from a human or AI evaluator. Adapting this paradigm
+to 3D reconstruction learning, we utilize a lightweight, sparse-view feed-forward
+3DGS model as an algorithmic ‘teacher oracle’ to provide geometric ratings for
+the primitives estimated by our network. This feedback effectively partitions the
+predicted 3D space into preferred (geometrically consistent) and rejected (incon-
+sistent) states. Crucially, we directly formulate a primitive’s predicted rating as
+its opacity. By strictly matching the predicted opacity to the teacher’s geomet-
+ric rating, AirSplat implicitly prunes spatial artifacts. In summary, our core
+contributions are as follows:
+ – We introduce AirSplat, a novel framework that fine-tunes 3D-VS-VFMs
+   to generate high-fidelity novel views, while preserving the robust geometry
+   estimation performance.
+ – We propose Self-Consistent Pose Alignment (SCPA) to resolve pose-
+   geometry discrepancies, thereby preventing model degradation caused by
+   misaligned photometric supervision.
+ – We design Rating-based Opacity Matching (ROM), an optimization
+   strategy that learns from geometric rating-based feedback from a lightweight
+   teacher model to seamlessly filter inconsistent and floating primitives.
+ – Our AirSplat achieves the state-of-the-art NVS performance with large mar-
+   gins on dense-view benchmarks, including RealEstate10K [54], DL3DV [21],
+   and ACID [22], demonstrating robustness in pose-free settings.
+
+
+2     Related Work
+2.1   Optimization-based NVS
+The paradigm of novel view synthesis (NVS) has seen a dramatic shift from
+Neural Radiance Fields (NeRF) [28]. While several NeRF variants [2, 6, 9, 29, 49]
+successfully compressed training and inference times, 3D Gaussian Splatting
+(3DGS) [17] broke new ground by modeling scenes with anisotropic primitives
+and a differentiable rasterizer. Subsequent research [10, 12, 51] has refined this
+representation to improve reconstruction quality and pose robustness. However,
+a fundamental bottleneck of these methods is the requirement for per-scene op-
+timization for every new environment, preventing the immediate translation of
+raw pixels into 3D structures. This persistent reliance on scene-specific opti-
+mization creates a significant barrier for applications requiring low-latency and
+scalability, underscoring the need for generalizable, feed-forward architectures.
+4      Bui et al.
+
+2.2   3D Vision Foundation Models (3DVFMs)
+
+The rapid scaling of 2D vision models has recently extended into the 3D do-
+main, giving rise to 3DVFMs capable of broad, zero-shot geometric reasoning.
+Unlike conventional Structure-from-Motion (SfM) pipelines [32, 36] which infer
+3D structure through iterative and computationally expensive bundle adjust-
+ment, 3DVFMs approach geometry estimation as a feed-forward prediction task.
+DUSt3R [41] introduced to estimate dense corresponding point maps from un-
+posed image pairs. MASt3R [18] further advanced by incorporating dense feature
+matching heads to enhance correspondence learning. VGGT [39] adopted an al-
+ternative attention mechanism to generalize across a variable number of input
+views. π 3 [43] explored permutation-equivariant prediction to eliminate refer-
+ence coordinate bias. While the majority of 3DVFMs focus strictly on explicit
+geometric outputs (e.g., depth, point map, correspondence), recent variants such
+as WorldMirror [24] and DepthAnything3 (DA3) [20] have been equipped with
+dedicated 3DGS predictions for NVS tasks. We formally classify this specialized
+subset of architectures as 3DVFMs with a view synthesis head (3D-VS-VFMs).
+
+
+2.3   Feed-forward NVS
+
+Early generalizable architectures [7, 37, 40, 50] utilized Transformer-based en-
+coders to aggregate image features into NeRF [28] or image-based rendering
+models. The advent of feed-forward 3DGS [5, 8, 38, 42, 46, 55] has redefined this
+frontier by directly mapping pixels to 3D Gaussian primitives. Despite their effi-
+ciency, these methods typically rely on calibrated camera parameters extracted
+from off-the-shelf SfM pipelines [32, 36], which fundamentally restricts their ap-
+plicability in spontaneous, unconstrained environments.
+    To bypass SfM dependency, several pose-free feed-forward NVS methods
+[11, 16, 34, 53] primarily focused on sparse-view reconstruction. More recently,
+a new paradigm has emerged that initializes directly from pre-trained 3DVFMs.
+Building upon MASt3R [18], NoPoSplat [48] estimates 3D Gaussian primitives
+in canonical space to avoid explicit pose estimation noise, while SPFSplat [13]
+proposes to jointly learn pose estimation and NVS, utilizing reprojection losses.
+AnySplat [15], building upon VGGT [39], jointly optimizes camera poses and
+3DGS predictions through photometric supervision and geometric distillation
+from a 3DVFM teacher model. YoNoSplat [47] explores the mix-forcing training
+strategy for robust joint camera pose and NVS learning initialized from [43].
+While Rayzer [14], an orthogonal approach, predicts camera and scene represen-
+tations from scratch via ray-based transformers, it lacks view-count generaliza-
+tion, requiring retraining for varying input numbers.
+    Recently, 3D-VS-VFMs [20, 24] have proposed learning visual geometry esti-
+mation and NVS within a single, unified model. However, despite their zero-shot
+generalization, a discernible NVS performance gap remains between these unified
+3D-VS-VFMs and specialized NVS pipelines [13, 47]. In this work, we identify
+the critical bottlenecks in the NVS quality of 3D-VS-VFMs: pose-geometry mis-
+alignment and multi-view inconsistency. To resolve these, we propose AirSplat,
+                                                                      AirSplat        5
+
+
+
+
+Fig. 2: Overview of our AirSplat training pipeline. During training of a Gaussian
+head of a 3DVFM, the encoder and its pose head are frozen. Our SCPA module corrects
+the predicted target pose to align the rendered target views to the GT target views.
+Our ROM module gathers the geometric feedback from the teacher model, and based
+on the feedback, it enhances the multi-view consistency of the predicted 3D primitives.
+
+
+a 3D-VS-VFM training framework that significantly boosts high-fidelity NVS
+performance, while preserving the integrity of the visual geometry estimation.
+
+
+3     Proposed Method
+
+3.1   Overview of AirSplat
+
+Given a set of V uncalibrated input context views Ictx = {Ictx,v }Vv=1 , our model
+fϕ predicts a set of N pixel-aligned 3D Gaussian primitives G = {gi }N    i=1 along-
+                                                                    V
+side the estimated context camera intrinsics K̂ctx = {K̂ctx,v }v=1 and extrin-
+sics P̂ctx = {P̂ctx,v }Vv=1 . Each individual Gaussian primitive gi is explicitly pa-
+rameterized by its 3D mean position µi ∈ R3 , covariance matrix Σi , opacity
+αi ∈ [0, 1], and color ci . To adapt fϕ for high-fidelity NVS while preserving its
+foundational priors, we freeze the main 3DVFM encoder and geometry heads,
+optimizing only the Gaussian prediction head. Our overall training framework is
+then driven by two core modules: Self-Consistent Pose Alignment (SCPA), which
+dynamically resolves pose-geometry discrepancies during target view rendering,
+and Rating-based Opacity Matching (ROM), which systematically prunes hal-
+lucinated artifacts using geometric feedback from a teacher model.
+
+
+3.2   Self-Consistent Pose Alignment (SCPA)
+
+Pose-Geometry Discrepancy. During pose-free NVS training, G is optimized
+by rasterizing it onto the image-space using a set of predicted target camera
+parameters (P̂tgt = {P̂tgt,t }Tt=1 , K̂tgt = {K̂tgt,t }Tt=1 ) corresponding to T ground-
+truth target views Itgt = {Itgt,t }Tt=1 . This rasterization process yields the synthe-
+sized target images Îtgt = {Iˆtgt,t }Tt=1 . Fig. 3 illustrates two prevailing paradigms
+6       Bui et al.
+
+
+
+
+Fig. 3: Comparison of training paradigms in pose-free NVS. (a) Training with
+the context-only strategy, adopted in [15], leads to a lack of direct supervision for novel
+viewpoints. (b) The context-target strategy, following [13], results in spatial misalign-
+ment. (c) Our SCPA corrects the inherent spatial drift, enabling the network to learn
+both structurally consistent 3D geometry and robust novel view synthesis.
+
+for sampling these views during training. The context-only approach, follow-
+ing [15], trivially restricts Itgt to be identical to Ictx , leading to lack of direct
+supervision for novel viewpoints. Conversely, SPFSplat [13] introduces a context-
+target strategy, sampling target views Itgt that are spatially distinct from Ictx .
+This necessitates an additional forward pass to estimate (P̂tgt , K̂tgt ) by feeding
+the concatenation of Ictx and Itgt into the 3DVFM. While this disentanglement
+improves robustness to interpolated views since the 3D primitives G are derived
+solely from Ictx and supervised by distinct target observations, it introduces
+a critical structural flaw. Specifically, the asymmetric information flow, where
+geometry extraction relies exclusively on context views while pose estimation
+relies on both context and target views, induces a fundamental pose-geometry
+discrepancy during training. As illustrated in Fig. 4, the error between the ren-
+dered view Iˆtgt,t (‘Rendered View w/ P̂tgt,t ’) and Itgt,t (GT target View) is
+dominated by spatial misalignment rather than photometric degradation, which
+is the consequence of the pose-geometry discrepancy. When supervised directly
+via a pixel-wise reconstruction loss, this extrinsic spatial shift yields corrupted
+gradients, resulting in unstable optimization.
+Self-Consistent Pose Alignment. To mitigate this pose-geometry discrep-
+ancy, we propose Self-Consistent Pose Alignment (SCPA), a self-correcting strat-
+egy that mathematically quantifies and reverses the spatial drift induced by the
+context-target training strategy, rather than directly applying photometric su-
+pervision on misaligned renderings. Based on the predicted G from Ictx and the
+                                  (1)
+initial target pose estimates P̂tgt from the concatenation of (Ictx , Itgt ), we first
+                                                                                                                                                                                  (1)
+render an initial set of synthesized target images Îtgt . We then feed the concate-
+                       (1)
+nation of Ictx and Îtgt back into fϕ to yield a second set of pose predictions:
+
+                                    \hat {\mathcal {P}}^{(2)}_\text {tgt} = f_{\phi }(\mathcal {I}_\text {ctx}, \hat {\mathcal {I}}^{(1)}_\text {tgt}). \label {eq:recursive_pose}            (1)
+                                                                                                                                                                              (2)       (2)
+Empirically, rendering a second set of images Îtgt from P̂tgt reveals that fϕ
+exhibits a systematic, repeated drift when mapping synthesized geometry back to
+                                                                                                                                                                                                                                                                                AirSplat                7
+
+
+  Error Map                                                                                      Error Map
+
+
+
+
+                 (1)                  (1)                                                                                align                align
+                                   �tgt,𝑡𝑡
+              𝑰𝑰�tgt,t rendered w/ 𝐏𝐏                                                                                 𝑰𝑰�tgt,t rendered w/ 𝐏𝐏
+                                                                                                                                           �tgt,𝑡𝑡                                                                                                  GT Target View 𝐼𝐼tgt,𝑡𝑡
+
+
+Fig. 4: Effect of Self-Consistent Pose Alignment (SCPA). We compare rendered
+                                                     (1)
+target views using the initial predicted pose P̂tgt,t , our aligned pose P̂tgt,t
+                                                                               align
+                                                                                     against
+the ground truth, during training. As highlighted by the red arrows, the initial pose
+prediction results in a noticeable spatial shift, evident in the misaligned structural lines
+on the ground. Our proposed SCPA corrects the inherent spatial drift and ensures that
+the model learn structurally consistent 3D geometry and robust NVS. In the error
+maps, blue indicates small errors, and red indicates large errors.
+
+the pose manifold (see Suppl. for detailed visualizations). From this observation,
+                                                    align       align T
+we propose to compute the corrected poses P̂tgt           = {P̂tgt,t }t=1 that better
+align with the predicted scene geometry space by reversing the observed pose
+                       (1)         (2)
+discrepancy between P̂tgt,t and P̂tgt,t .
+                                          align
+    To approximate the aligned pose P̂tgt,t     , we compute the relative transfor-
+                                                                                                                                                            (1)                                                                                                                                  (2)
+mation between the initial prediction P̂tgt,t and the re-predicted pose P̂tgt,t . We
+denote this transformation as ξt which is a 6-vector of coordinates in the Lie
+algebra se(3):
+                                                                                         \bm {\xi }_t = \log \left (\hat {\bm {P}}^{(2)}_{\text {tgt}, t} (\hat {\bm {P}}^{(1)}_{\text {tgt}, t})^{-1}\right )^{\vee },                                                                                (2)
+                        ∨
+where log(·) : SE(3) → se(3) denotes the logarithm map [3]. To perform the
+self-consistent pose alignment, we back-extrapolate along the manifold by negat-
+ing ξt . This negated vector is mapped back to the SE(3) manifold via the expo-
+                                                       (1)
+nential map exp(·∧ ) : se(3) → SE(3) and applied to P̂tgt,t :
+                                                                                             \hat {\bm {P}}_{\text {tgt},t}^{\text {align}} = \exp \left ((-\bm {\xi }_t)^{\wedge }\right ) \hat {\bm {P}}^{(1)}_{\text {tgt}, t}.                                                                     (3)
+Finally, to ensure training stability and prevent degradation in cases where the
+re-prediction fails, we employ a minimum-error supervision strategy. We render
+                       align        align
+the aligned images Îtgt     from P̂tgt   , and define the Lscpa as the minimum
+                                                               (1)
+reconstruction error between the aligned Iˆalign and initial Iˆ    renderings:                                                                                             tgt,t                                                                          tgt,t
+
+
+                           \mathcal {L}_{\text {scpa}} = \sum _{t=1}^{T} \min \left (\mathcal {L}_{\text {rec}}(\hat {\bm {I}}^{\text {align}}_{\text {tgt},t}, \bm {I}_{\text {tgt},t}), \mathcal {L}_{\text {rec}}(\hat {\bm {I}}^{(1)}_{\text {tgt},t}, \bm {I}_{\text {tgt},t}) \right ).          (4)
+
+Following standard practices [8, 46], Lrec is defined as a weighted sum of the
+Mean Squared Error (MSE) and the LPIPS perceptual metric [52]:
+                              \mathcal {L}_{\text {rec}}(\hat {\bm {I}}_{\text {tgt}}, \bm {I}_{\text {tgt}}) = \| \hat {\bm {I}}_{\text {tgt}} - \bm {I}_{\text {tgt}} \|_2^2 + \lambda _{s} \text {LPIPS}(\hat {\bm {I}}_{\text {tgt}}, \bm {I}_{\text {tgt}}).                                      (5)
+By dynamically supervising the model with the aligned viewpoint, SCPA effec-
+tively suppresses the emergence of artifacts caused by the pose-geometry dis-
+crepancy of the context-target training strategy.
+8       Bui et al.
+
+3.3   Rating-based Opacity Matching (ROM)
+
+While our SCPA successfully ensures global coordinate alignment, the predicted
+3D Gaussian primitives G may still exhibit local geometric inconsistencies. These
+artifacts, known as ‘floaters,’ often arise from spatial discrepancies among primi-
+tives that represent the same 3D regions but are predicted from disparate views.
+To suppress these artifacts, we introduce Rating-based Opacity Matching
+(ROM). We ground this module in the paradigm of Learning from Rating-Based
+Feedback [1,27,44], where an agent is refined by an external oracle that provides
+absolute ratings of the agent’s proposed states. As in Fig. 2, ROM consists
+of two stages: Teacher’s Geometric Rating and One-sided Geometric Feedback
+Matching. In the Teacher’s Geometric Rating stage, we utilize a pre-trained,
+lightweight sparse-view NVS model [46] as an algorithmic teacher fϕ̃ . For any
+predicted Gaussian primitive gi , the teacher evaluates its multi-view structural
+consensus to provide a geometric rating ỹi ∈ [0, 1]. The primitives exhibiting
+high geometric error across views are assigned an ‘bad’ rating (ỹi → 0), while
+spatially consistent primitives are rated as ‘good’ (ỹi → 1). Then, in the One-
+sided Geometric Feedback Matching stage, we train our model fϕ to match its
+predicted ratings yi with the target ratings ỹi . Since the ‘bad’ primitives must be
+physically removed from the rendered scene, we directly formulate the predicted
+rating y as the primitive’s opacity value α. Under this formulation, the feedback
+matching process naturally enables our model to prune artifacts by learning to
+drive their opacities to zero.
+Teacher’s Geometric Rating. To compute the geometric rating, we first quan-
+tify the local multi-view consistency of a Gaussian primitive gi predicted from
+the context view Ictx,v . Specifically, we project its 3D mean µi onto an adja-
+cent context view Ictx,v′ and measure the Euclidean distance between µi and
+the 3D mean of the primitive sampled at that corresponding projected pixel.
+Let Πv→v′ (µi ) denote the operation of projecting µi onto the image plane of
+Ictx,v′ , and then spatially sampling the 3D Gaussian mean at that projected 2D
+location. The scale-normalized geometric error ϵi for gi is formulated as:
+
+                               \epsilon _i = \frac {\big \| \bm {\mu }_i - \Pi _{v \to v'}(\bm {\mu }_i) \big \|_2}{\text {median}(\bm {D}_i) + \eta }, \label {eq:teacher_error}    (6)
+
+where Di represents the projected depth value, ensuring scale-invariance of ϵi ,
+and η = 10−8 is a small constant to maintain numerical stability. Next, we ex-
+tract the corresponding prediction from the teacher model fϕ̃ . By feeding the
+view pair (Ictx,v , Ictx,v′ ) into fϕ̃ , we generate the teacher’s sparse-view 3D prim-
+itives G̃ = {g̃j }Ñ
+                  j=1 . Let g̃j (with 3D mean µ̃j ) represent the teacher’s predicted
+primitive originating from the exact same pixel in Ictx,v as gi . Following the
+identical protocol in Eq. 6, we compute the teacher’s normalized geometric error
+ϵ̃j which corresponds to our model’s geometric error ϵi .
+     To formulate the teacher’s rating feedback, we compute the continuous excess
+geometric error as Eigeo = max(0, ϵi − ϵ̃j ). Then, we generate a continuous rating
+ỹi ∈ (0, 1] for each Gaussian mean µi that exponentially decays as our model’s
+                                                                                                                                                               AirSplat    9
+
+structural consensus degrades relative to the teacher:
+
+                                         \tilde {y}_i = \exp \Big (-\lambda \cdot \text {sg}[E^\text {geo}_i])\Big ) \label {eq:continuous_feedback}                      (7)
+
+where λ governs the decay rate (set to 5.0), and sg[·] is the stop-gradient operator.
+In Eq. 7, if the geometric error of our model’s prediction is equal to or lower than
+the teacher’s one (ϵi ≤ ϵ̃j ), the target rating is set to 1. As the excess geometric
+error increases, the rating smoothly approaches to 0.
+One-Sided Geometric Feedback Matching. The next step is to match our
+model’s predicted rating y which we define as the predicted opacity α with the
+teacher’s continuous rating ỹ. Unlike previous rating-based models [26, 44] that
+enforce symmetric matching for both positive and negative feedback, we propose
+a one-sided matching. Because a geometrically ‘bad’ primitive should physically
+disappear from the scene, its opacity must be driven toward zero. Conversely,
+a ‘good’ primitive’s opacity is inherently ambiguous: it may represent a semi-
+transparent surface (low α) or a solid object (high α). Forcing valid primitives
+to match a strict rating of ỹ = 1 would cause severe ‘solidification’ artifacts,
+destroying volumetric blending. Therefore, we treat the teacher’s rating ỹ as a
+strict upper bound rather than an absolute target. To conform to the teacher’s
+geometric feedback of ‘bad’ primitive, our model’s predicted rating (opacity)
+must be smaller than ỹ. This is achieved via a pointwise margin loss Lopa :
+
+
+                          \mathcal {L}_{\text {opa}} = \frac {1}{N} \sum _{i=1}^{N} \Big ( \max (0, \alpha _i - \tilde {y}_i) \Big )^2 \label {eq:opa_loss}               (8)
+
+
+Under this formulation, primitives with ‘good’ feedback (ỹi = 1) incur zero
+penalty for α, yielding optimization control entirely to the photometric rendering
+loss Lscpa . Artifacts with ‘bad’ feedback (ỹi → 0), however, are aggressively
+penalized, naturally driving the network to prune floaters.
+Spatial Regularization for Geometric Consolidation. For completeness,
+relying solely on opacity compression to remove artifacts can lead to overly sparse
+representations if mildly misaligned primitives are aggressively pruned. To pre-
+vent this, we complement the rating matching with a direct spatial regularization
+term, Lgeo . This loss explicitly minimizes the geometric error ϵi of the predicted
+primitives. Crucially, we clamp the maximum error input at τ = 2.0. This en-
+sures that massive errors do not produce exploding gradients that destabilize
+the entire 3D scene. Furthermore, the loss is weighted by the gradient-detached
+primitive’s predicted opacity, sg[αi ], ensuring that the network prioritizes the
+spatial regularization of highly visible structures over transparent background
+noise. The loss is formulated as:
+
+                              \mathcal {L}_{\text {geo}} = \frac {1}{N} \sum _{i=1}^{N} \text {sg}[\alpha _i] \cdot \min (\epsilon _i, \tau ).                            (9)
+
+Combining Lgeo and Lopa establishes a complementary optimization framework
+that explicitly isolates repairable geometry from unrecoverable noise. Lgeo acts as
+10      Bui et al.
+
+a spatial regularizer, pulling mildly deviant 3D coordinates into local multi-view
+consensus. However, when severe inconsistencies arise that cannot be resolved
+by Lgeo , our Lopa smoothly assumes control. It prunes these artifacts by driving
+their existence likelihood (α → 0) based on the teacher’s ratings.
+
+3.4   Loss Functions
+The total loss Ltotal is defined as:
+                        \mathcal {L}_{\text {total}} = \mathcal {L}_{\text {scpa}} + \lambda _\text {geo} \mathcal {L}_{\text {geo}} + \lambda _\text {opa} \mathcal {L}_{\text {opa}},    (10)
+where λgeo and λopa are weighting hyperparameters that balance the reconstruc-
+tion fidelity against the geometric priors.
+
+4     Experiments
+4.1   Implementation Details
+We adopt DA3-GIANT [20] as our baseline. We follow DA3 to freeze the main
+encoder and the pre-trained depth/pose heads, optimizing only the Gaussian pre-
+diction head to maintain the powerful geometric priors of the foundation model.
+The Gaussian head predictions include 3D refinement for Gaussian means and
+other Gaussian attributes such as scales, rotations, and opacities. We train our
+model on 252 × 252 images for RealEstate10K (RE10K) [54], and 252 × 448 im-
+ages for the DL3DV dataset [21]. During each training iteration, we randomly
+sample 24 context views to construct the scene geometry and 8 spatially dis-
+tinct target views for rendering supervision. Training is conducted on 4 NVIDIA
+A100 40GB GPUs with a batch size of 1 per GPU, totaling 100, 000 iterations,
+while testing is performed on a single A100 40GB. Further details regarding our
+hyperparameters and model’s weights update are provided in the Suppl.
+
+4.2   Evaluation Protocol
+We evaluate the NVS quality via PSNR, SSIM, and LPIPS [52]. We adopt the
+evaluation protocol established by recent pose-free NVS literature [13, 31, 48] on
+the RE10K dataset. This setting stratifies testing sequences based on the visual
+overlap ratios between the initial and terminal frames. We utilize sequences with
+overlap ratios of less than 10%. Furthermore, we evaluate the existing methods
+under wide-baseline conditions on the complex DL3DV dataset by constructing
+challenging context-target splits. Specifically, we constrain the frame intervals
+between the starts and ends of the testing sequences to 90, 150, and 150 frames
+for the 12-, 24-, and 36-view settings, respectively. Target views are uniformly
+sampled across these sequences, while context views are randomly drawn from
+the mutually exclusive remaining frames. To analyze models’ robustness, we
+perform the cross-dataset generalization evaluation on the ACID dataset [22]
+as in [8, 13], by utilizing the testing splits from [31]. Similar to prior pose-free
+approaches [10, 13, 47, 48], we adopt the test-time pose optimization for ground
+truth alignment for all pose-free NVS baselines.
+                                                                                                           AirSplat                    11
+
+Table 1: Quantitative comparison of NVS performance on the RE10K dataset [54]
+under various input-view settings. Bold indicates the best performance. OOM indicates
+out-of-memory inference error.
+
+                                                           12 Views                   24 Views                      36 Views
+                          Methods
+                                                  PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓
+
+                  MonoSplat [23] (CVPR25)          18.16    0.663     0.336   16.66    0.593     0.391   15.79       0.551     0.424
+            w/
+                  MVSplat [8] (ECCV24)             17.98    0.638     0.357   17.27    0.609     0.379   OOM         OOM       OOM
+           Pose
+                  DepthSplat [46] (CVPR25)         22.56    0.793     0.200   21.00    0.734     0.248   19.60       0.676     0.296
+
+                 NoPoSplat [48] (ICLR25)          17.15     0.571     0.437   17.10    0.570     0.443   17.09       0.570     0.446
+                 AnySplat [15] (SIGGRAPHAsia25)   18.69     0.591     0.273   19.15    0.610     0.257   19.31       0.615     0.251
+                 WorldMirror [24] (arXiv25)       21.23     0.707     0.267   21.08    0.701     0.274   20.98       0.699     0.275
+           Pose-
+            free SPFSplat [13] (ICCV25)           21.57     0.701     0.254   21.32    0.694     0.266   21.17       0.689     0.273
+                 YoNoSplat [47] (ICLR26)          21.62     0.679     0.229   21.63    0.679     0.227   21.60       0.681     0.226
+                 DA3 [20] (ICLR26)                20.78     0.715     0.250   21.06    0.710     0.254   21.11       0.684     0.274
+                 AirSplat(Ours)                   23.08     0.799     0.190   23.77    0.814     0.178   23.94       0.815     0.179
+12 Views
+24 Views
+36 Views
+
+
+
+
+             DepthSplat        AnySplat      WorldMirror        SPFSplat        YoNoSplat         AirSplat (Ours)            GT
+
+              Fig. 5: Qualitative comparison of NVS performance on RE10K dataset [54].
+
+
+4.3               NVS Performance Evaluation
+
+Comparison on RE10K. We evaluate our model on the RE10K dataset to
+verify its scalability and robustness in large-scale indoor and outdoor environ-
+ments. As shown in Table 1, our proposed AirSplat achieves SOTA performance
+among pose-free methods, demonstrating superior NVS quality. Most notably,
+our method not only outperforms existing pose-free benchmarks such as YoNoS-
+plat [47] and WorldMirror [24] by significant margins, but also remarkably ex-
+ceeds the performance of several pose-required methods [23, 46]. These results
+indicate that our approach effectively compensates for the absence of ground-
+truth camera poses by leveraging powerful geometric reasoning based on our
+SCPA and ROM, ultimately leading to more accurate and sharper novel view
+renderings compared to prior pipelines. In Fig. 5, our proposed AirSplat success-
+fully preserves challenging high-frequency details, such as thin structures, while
+aggressively suppressing the floater artifacts and blurry regions that frequently
+degrade the outputs of prior methods.
+12            Bui et al.
+
+Table 2: Quantitative comparison of NVS performance on the DL3DV dataset [21]
+under various input-view settings.
+
+                                                      12 Views                   24 Views                   36 Views
+                     Methods
+                                              PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓
+
+       w/    MVSplat [8] (ECCV24)             21.55    0.729     0.239   OOM      OOM       OOM     OOM      OOM       OOM
+      Pose   DepthSplat [46] (CVPR25)         22.14    0.725     0.221   19.87    0.695     0.274   18.69    0.643     0.330
+
+            NoPoSplat [48] (ICLR25)           16.13    0.447     0.497   14.73    0.392     0.603   13.82    0.365     0.640
+            AnySplat [15] (SIGGRAPHAsia25)    18.72    0.551     0.310   18.40    0.533     0.333   18.36    0.529     0.337
+      Pose- WorldMirror [24] (arXiv25)        20.44    0.625     0.278   19.78    0.594     0.312   19.67    0.589     0.316
+       free YoNoSplat [47] (ICLR26)           17.73    0.481     0.430   16.77    0.451     0.490   16.56    0.446     0.502
+            DA3 [20] (ICLR26)                 20.74    0.691     0.242   20.51    0.644     0.274   20.38    0.642     0.285
+            AirSplat(Ours)                    22.50    0.747     0.207   22.22    0.735     0.217   22.07    0.730     0.225
+12 Views
+24 Views
+36 Views
+
+
+
+
+             DepthSplat            AnySplat              WorldMirror             AirSplat (Ours)                GT
+
+           Fig. 6: Qualitative comparison of NVS performance on DL3DV dataset [21].
+
+
+Comparison on DL3DV. Table 2 reports the quantitative NVS performance
+on the DL3DV dataset compared to recent SOTA methods [8,15,24,46–48]. Our
+AirSplat consistently achieves superior performance across all evaluation settings
+(12, 24, 36 views) in PSNR, SSIM, and LPIPS metrics. Notably, in the 12-view
+setting, despite being a pose-free approach, our method surpasses the established
+SOTA pose-required method, DepthSplat [46]. Moreover, AirSplat outperforms
+the baseline DA3 by a significant margin of +1.76 dB in PSNR and reduces
+LPIPS by 14.4%. While base 3D-VS-VFMs (e.g., WorldMirror [24], DA3 [20])
+are robust with increased input views, applying our proposed training strategy
+significantly amplifies DA3’s rendering quality, yielding substantial margins in
+all metrics. Furthermore, as shown in Fig. 6, our AirSplat synthesizes clean,
+floater-free novel views across varying input densities. Specifically, in the third
+row, while other methods fail to capture thin structures, our AirSplat accurately
+reconstructs the sharp geometry of the pole, further validating the robust multi-
+view consistency and structural integrity enforced by our pipeline.
+Cross Dataset Generalization. Following [13,31], we conduct a cross-dataset
+evaluation at a resolution of 252 × 252 on the ACID dataset. All models were
+evaluated using 16, 20, and 24 input views without further fine-tuning. As shown
+in Table 3, our method achieves the highest performance across all metrics, sig-
+nificantly outperforming both pose-free and pose-required baselines. Notably, in
+                                                                                                        AirSplat                   13
+
+Table 3: Cross-dataset generalization performance under various input-view settings.
+We evaluate the zero-shot performance on the ACID dataset [22].
+
+                                                 16 Views                       20 Views                        24 Views
+                 Methods
+                                         PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓
+
+         MonoSplat [23] (CVPR25)         17.81    0.642      0.345      17.48    0.625     0.361       17.23     0.611     0.372
+   w/
+         MVSplat [8] (ECCV24)            18.19    0.502      0.376      18.12    0.500     0.379       18.09     0.500     0.379
+  Pose
+         DepthSplat [46] (CVPR25)        20.41    0.713      0.268      19.92    0.694     0.286       19.78     0.688     0.289
+
+        NoPoSplat [48] (ICLR25)          22.30    0.668      0.286     22.24     0.666     0.288       22.25     0.666     0.288
+        AnySplat [15] (SIGGRAPHAsia25)   21.89    0.615      0.275     22.05     0.622     0.256       21.96     0.619     0.258
+        WorldMirror [24] (arXiv25)       22.15    0.646      0.275     22.20     0.650     0.275       22.34     0.658     0.273
+  Pose-
+   free SPFSplat [13] (ICCV25)           24.58    0.725      0.218     24.49     0.722     0.221       24.40     0.720     0.222
+        YoNoSplat [47] (ICLR26)          22.49    0.641      0.270     22.48     0.641     0.271       22.47     0.642     0.272
+        DA3 [20] (ICLR26)                22.13    0.687      0.272     23.21     0.690     0.262       23.31     0.694     0.262
+        AirSplat(Ours)                   25.96    0.796      0.188     26.21     0.803     0.178       26.42     0.813     0.176
+
+
+
+
+                                                    Table 4: Ablation study on our SCPA and
+                                                    ROM. NVS performance comparison on the
+                                                    RE10K dataset under 12 input views.
+
+                                                          Methods                                       PSNR↑     SSIM↑    LPIPS↓
+
+                                                          Baseline (DA3 [20])                           20.78     0.715    0.250
+                                                          Baseline + Context-only Training              21.27     0.745    0.253
+                                                          Baseline + Context-Target Training            21.63     0.761    0.241
+                                                          Baseline + Context-Target w/ SPCA Training    22.60     0.776    0.215
+Fig. 7: Visualization of the ‘floaters’                   Baseline + ROM                                22.41     0.769    0.211
+compression in the predicted 3DGS                         Ours (Full)                                   23.08     0.799    0.190
+
+per context views.
+
+
+this zero-shot setting, our model maintains a substantial lead over other pose-free
+NVS methods such as SPFSplat [13], YoNoSplat [47], and 3D-VS-VFMs [20,24].
+This superior performance in unseen environments demonstrates that our Air-
+Splat does not merely overfit to the training distribution but instead learns highly
+generalizable geometric representations and robust view-consistency, effectively
+bridging the gap between pose-free and pose-dependent NVS.
+
+4.4      Ablation Study
+In Table 4, we conduct an ablation study to evaluate the individual contribu-
+tions of our proposed components: Self-Consistent Pose Alignment (SCPA) and
+Rating-based Opacity Matching (ROM) on the RE10K dataset [54].
+Effectiveness of SCPA. The baseline model, DA3 [20], shows limited per-
+formance (PSNR: 20.78, SSIM: 0.715), which underperforms the pose-free NVS
+methods [24,47,48]. As discussed in Sec. 3.2, implementing a context-only train-
+ing strategy yields only a marginal improvement over the baseline (reaching 21.27
+dB PSNR), inherently limited by the absence of novel target views supervision.
+While adopting a naive context-target sampling strategy elevates this perfor-
+mance to 21.63 dB, the model remains fundamentally bottlenecked by the pose-
+geometry discrepancy. This uncorrected spatial misalignment ultimately results
+in structurally degraded 3D Gaussian primitives and blurry target renderings.
+14     Bui et al.
+
+Integrating our SCPA results in a significant performance leap, reaching 22.60
+dB (+0.97 dB over context-target). The reduction in LPIPS from 0.250 (Base-
+line) to 0.215 indicates that SCPA effectively restores high-frequency details by
+ensuring a geometrically consistent rendering path during training.
+Effectiveness of ROM. The integration of Rating-based Opacity Matching
+(ROM) independently improves the baseline to 22.41 dB PSNR. This validates
+the necessity of local structural consensus for high-fidelity synthesis. As illus-
+trated in Fig. 2, ROM acts as a "geometric filter" by matching the student’s
+predicted opacity α with the teacher’s geometric rating ỹ. The improvement in
+perceptual metrics confirms that ROM effectively prunes floaters via opacity
+compression. By explicitly penalizing spatial inconsistencies, ROM ensures that
+only geometrically valid structures contribute to the final rendering. As shown in
+Fig. 7, AirSplat learns from ROM to suppress inconsistent geometry of complex
+regions (e.g., the window structures highlighted in red boxes). The ‘Baseline +
+Context-only’ variant produces noisy ‘floaters’ at each context view’s 3DGS esti-
+mation, resulting in severe blurring artifacts. On the other hand, our full model
+assigns near-zero opacity for these inconsistent primitives, resulting in sharp and
+high-quality reconstructions for target views.
+Full Model. Our full model, AirSplat, which combines both SCPA and ROM,
+achieves the best performance across all metrics, yielding a 25% improvement
+in perceptual scores compared to naive fine-tuning. The synergy between global
+pose alignment and local structural refinement allows our framework to syn-
+thesize sharp, consistent novel views from uncalibrated context images. These
+results validate our core hypothesis that decoupling the pose errors from ge-
+ometry optimization, complemented by teacher-driven consistency feedback, is
+essential for robust feed-forward NVS.
+
+
+5    Conclusion
+In this paper, we presented AirSplat, a novel training framework designed for
+high-fidelity, pose-free novel view synthesis by effectively leveraging the geomet-
+ric priors of 3D Vision Foundation Models (3DVFMs). Our approach identifies
+and addresses two fundamental challenges in existing pose-free NVS paradigms:
+(i) global pose-geometry discrepancy and (ii) local multi-view inconsistency.
+Through the Self-Consistent Pose Alignment (SCPA), we introduce a training-
+time feedback loop that dynamically anchors predicted target poses to the context-
+derived scene geometry, effectively decoupling coordinate drift from photometric
+optimization. Furthermore, we propose Rating-based Opacity Matching (ROM),
+which utilizes geometric feedback from a sparse-view NVS teacher model to
+systematically prune artifacts and floaters. Experimental results on large-scale
+benchmarks, including RE10K, DL3DV and ACID, demonstrate that our Air-
+Splat achieves state-of-the-art performance with large margins, while preserving
+the foundational geometry estimation performance.
+                                                                  AirSplat       1
+
+
+Supplementary Material
+A    Supplementary Overview
+This supplementary document provides comprehensive implementation details,
+extended evaluations, and interactive visual proofs to further validate the con-
+tributions of AirSplat. Specifically, Sec. B outlines our exact hyperparameter
+settings and training protocols. In Sec. C, we provide a detailed analysis of the
+pose-geometry discrepancy arising from the context-target training strategy. Fur-
+thermore, Sec. D validates the generalizability of our framework with additional
+ablation studies on the DL3DV dataset [21], while Sec. E benchmarks AirSplat’s
+visual geometry estimation against prior NVS methods. We also analyze the
+computational trade-offs of SCPA’s training overhead in Sec. F and discuss our
+framework’s inherent limitations in Sec. G. Finally, Sec. H presents extended
+qualitative comparisons.
+
+
+B    Implementation Details
+We employ the AdamW optimizer [25] with a learning rate of 2 × 10−6 and
+a weight decay of 0.01. We use a OneCycleLR [35] scheduler with a warm-up
+period of 2, 000 steps. In Rating-based Opacity Matching (ROM), we set the
+error decay rate γ = 5.0 and the stability constant η = 10−7 . The loss weights
+are empirically determined as λgeo = 0.1 and λopa = 1.0, while λs is set to 0.1 for
+the LPIPS term. The complete training process requires approximately 4.5 days
+utilizing four NVIDIA A100 (40GB) GPUs. During evaluation, we assess NVS
+performance using image resolutions of 252 × 448 for the DL3DV dataset [21]
+and 252 × 252 for the RE10K dataset [54].
+Rating-based Opacity Matching. Fig. 8 further clarifies our strategy for
+partitioning the input sequence to compute the teacher’s geometric ratings. Since
+we utilize a two-view feed-forward 3DGS model [46] as the teacher model, the
+input sequence is divided into pairs of adjacent views. The geometric errors
+of the pixel-aligned primitives are then computed separately for each pair using
+Eq. 6. Once computed, these pairwise ratings are aggregated across the sequence
+to map each primitive to its corresponding opacity penalty, rigorously enforcing
+local multi-view consistency before dynamically compressing the student’s global
+opacity map.
+
+
+C    Pose-Geometry Discrepancy
+As discussed in Sec. 3.2, the asymmetric information flow within the context-
+target training strategy causes the predicted target poses to be misaligned with
+the predicted 3D Gaussian primitives. As shown in Fig. 9, this pose-geometry
+discrepancy is a fundamental challenge, rather than an isolated issue confined to
+a specific baseline 3DVFM or dataset. To explicitly demonstrate this, we visual-
+ize the structural misalignment observed in DA3 [20] evaluated on the DL3DV
+2       Bui et al.
+
+
+
+
+Fig. 8: Our strategy for partitioning input context sequences to compute the teacher’s
+geometric errors.
+
+                                     19.92dB              15.69dB              14.10dB              12.96dB
+
+
+
+(a)
+
+
+                                     29.03dB              19.71dB              16.89dB              15.91dB
+
+
+
+
+(b)
+
+
+
+
+                             align                (1)                  (2)                  (3)
+         GT               𝑰𝑰�tgt,t             𝑰𝑰�tgt,t             𝑰𝑰�tgt,t             𝑰𝑰�tgt,t
+
+
+Fig. 9: Pose-Geometry Discrepancy. To validate that this structural misalignment
+is not confined to a specific baseline, we visualize the consistent spatial drift across
+distinct models and diverse scenes: (a) DepthAnything3 [20] evaluated on the DL3DV
+dataset [21], and (b) SPFSplat [13] on the RE10K dataset [54].
+
+
+
+dataset [21], alongside the discrepancy found in SPFSplat [13] on the RE10K
+dataset [54]. In the figure, the first column shows the ground truth (GT) target
+                                                                   align
+images Itgt,t . The second column shows the aligned render Iˆtgt,t       utilizing our
+SCPA, achieving high spatial alignment with Itgt,t . From the third column to the
+last, we display the systematic and repeated drift that occurs when recursively
+mapping the synthesized geometry back to the pose manifold to compute the
+                (i)                                  (i)
+target pose P̂tgt,t and its corresponding render Iˆtgt,t (as in Eq. 1). Although the
+                                     (i)
+misalignment of each image in {Iˆtgt,t } amplifies compared to Itgt,t , leading to a
+severe PSNR drop, it follows a consistent and predictable pattern. By leveraging
+                                           (1)         (2)
+this trajectory, SCPA effectively uses P̂tgt,t and P̂tgt,t to mathematically recover
+                     align
+the aligned pose P̂tgt,t   . Ultimately, these consistent observations across differ-
+ent architectures and environments strongly validate the critical necessity of our
+                                                                         AirSplat   3
+
+     Table 5: Ablation analysis on DL3DV dataset [21] under 12 input views.
+
+           Methods                                      PSNR↑   SSIM↑   LPIPS↓
+
+           Baseline                                     20.74   0.691   0.242
+           Baseline + Context-only Training             21.39   0.717   0.233
+           Baseline + Context-Target Training           21.52   0.727   0.221
+           Baseline + Context-Target w/ SPCA Training   22.29   0.740   0.214
+           Baseline + ROM                               22.11   0.731   0.218
+           Ours (Full)                                  22.50   0.747   0.207
+
+
+
+
+SCPA module. Our SCPA successfully harnesses the robust supervisory signals of
+novel target views reconstruction from the context-target training strategy while
+strictly eliminating the detrimental gradients caused by misaligned photometric
+supervision.
+
+
+D    Ablation Study on DL3DV Dataset
+To further validate the generalizability and robustness of our proposed modules
+across diverse and complex environments, we conduct an additional ablation
+study on the DL3DV dataset [21]. Table 5 demonstrates that the performance
+trends strictly align with the findings presented in the main paper. The context-
+only training gains marginal improvements (reaching 21.39 dB PSNR) compared
+to the baseline. While the context-target training strategy yields a slight en-
+hancement over the context-only one (21.52 dB PSNR), it remains bottlenecked
+by spatial misalignment. Integrating our Self-Consistent Pose Alignment (SCPA)
+successfully mitigates this pose-geometry discrepancy, driving a substantial per-
+formance leap to 22.29 dB PSNR (+0.77 dB over the context-target baseline).
+Similarly, the independent integration of Rating-based Opacity Matching (ROM)
+effectively filters out structural inconsistencies, elevating the baseline to 22.11
+dB. Finally, our full AirSplat framework synergizes both global pose alignment
+and local structural refinement to achieve the highest performance across all met-
+rics (22.50 dB PSNR, 0.747 SSIM, and 0.207 LPIPS). These consistent results
+confirm that our framework effectively unlocks high-fidelity NVS while preserv-
+ing foundational geometric priors, regardless of the dataset scale or complexity.
+
+
+E    Geometry Estimation Performance Comparison
+Our decision to fine-tune only the Gaussian prediction head of the 3D-VS-VFM
+(following the paradigm of DA3 [20]) is a deliberate design choice aimed at
+achieving a unified model for both robust visual geometry and high-fidelity
+NVS. To analyze the effect of fine-tuning entire 3DVFMs for NVS on visual
+geometry performance, we evaluate multi-view reconstruction metrics on the
+7-Scenes [33] dataset, following π 3 [43]. We compare baselines including AnyS-
+plat [15], VGGT [39], π 3 [43], DA3 [20], and our AirSplat. As quantitatively
+4       Bui et al.
+
+         Table 6: Pose-free point map estimation on 7-Scenes [33] dataset.
+
+                                         Acc. ↓              Comp. ↓                 NC. ↑
+    Method                 View
+                                     Mean     Med.        Mean      Med.         Mean    Med.
+    VGGT [39]                       0.044     0.025      0.056      0.033        0.733   0.845
+    AnySplat [15]                   0.080     0.053      0.120      0.072        0.684   0.785
+                           sparse
+    π 3 [43]                        0.047     0.029      0.075      0.049        0.742   0.841
+    DA3 [20]/AirSplat               0.049     0.034      0.065      0.046        0.757   0.866
+    VGGT [39]                       0.022     0.008      0.026      0.012        0.666   0.760
+    AnySplat [15]                   0.040     0.015      0.030      0.011        0.648   0.732
+                           dense
+    π 3 [43]                        0.016     0.007      0.022      0.011        0.689   0.792
+    DA3 [20]/AirSplat               0.018     0.007      0.023      0.009        0.688   0.795
+
+
+
+Table 7: Training time analysis. We report the average time per training iteration.
+While our proposed modules (SCPA and ROM) introduce additional forward passes
+and teacher model evaluations, the overall training remains tractable.
+
+                     Methods                             Avg. Time (s) / Iter.
+                     Baseline + Context-Target                   2.35
+                     Baseline + Context-Target w/ SCPA           3.67
+                     Ours (Full Model)                           3.89
+
+
+
+
+demonstrated in Table 6, even with training distillation, AnySplat leads to degra-
+dations of the backbone VGGT’s zero-shot geometric priors. With our training
+strategy, AirSplat obtains improved NVS quality while maintaining the visual
+geometry estimation performance of DA3 [20].
+
+
+F    Training Overhead
+We analyze the computational training complexity introduced by our proposed
+modules. As detailed in Table 7, the integration of SCPA and ROM increases the
+average time per training iteration by approximately 65%. This expected over-
+head primarily stems from the supplementary forward passes required for pose
+correction and the teacher model evaluations for geometric rating. Crucially, this
+computational requirement is strictly confined to the training phase, imposing
+absolutely zero additional burden during feed-forward inference. The significant
+leap in state-of-the-art NVS quality and structural consistency fully justifies this
+trade-off of training efficiency.
+
+
+G     Limitations
+A primary limitation of our current framework, common among deterministic
+feed-forward NVS models, is its strict reliance on observed input context views.
+Because AirSplat does not explicitly hallucinate unseen structures, severe oc-
+clusions or entirely uncaptured areas may manifest as structural voids in the
+                                                                            AirSplat   5
+
+
+
+12 Views
+24 Views
+36 Views
+
+
+
+
+             DepthSplat      AnySplat       WorldMirror   AirSplat (Ours)         GT
+
+           Fig. 10: Qualitative comparison of NVS performance on DL3DV dataset [21].
+
+
+rendered novel views. To resolve these deterministic blind spots, future direc-
+tions of this framework could integrate generative video diffusion priors as a
+post-processing module, allowing for the temporally consistent inpainting of ge-
+ometrically plausible content within these occlusions.
+
+
+H           Additional Qualitative Comparison
+Fig. 10 provides a qualitative comparison of novel view synthesis (NVS) perfor-
+mance under various input-view settings on the DL3DV dataset [21]. Compared
+to recent baseline methods, including DepthSplat [46], AnySplat [15], and World-
+Mirror [24], AirSplat consistently synthesizes significantly sharper and higher-
+quality renderings. For instance, as highlighted in the third row, AirSplat accu-
+rately reconstructs challenging high-frequency details, such as the thin structure
+of the pole, which are distorted or entirely missed by prior approaches. Fur-
+thermore, the first and last rows demonstrate our model’s superior capability
+in preserving sharp structural boundaries. Notably, while baseline methods like
+DepthSplat, AnySplat, and WorldMirror tend to accumulate severe floater arti-
+facts and blurring as the number of input views increases, AirSplat maintains a
+clean, geometrically consistent reconstruction, validating the robustness of our
+framework across varying input densities.
+6       Bui et al.
+
+References
+ 1. Arumugam, D., Lee, J.K., Saskin, S., Littman, M.L.: Deep reinforcement learning
+    from policy-dependent human feedback. arXiv preprint arXiv:1902.04257 (2019)
+ 2. Bello, J.L.G., Bui, M.Q.V., Kim, M.: Pronerf: Learning efficient projection-aware
+    ray sampling for fine-grained implicit neural radiance fields. IEEE Access (2024).
+    https://doi.org/10.1109/ACCESS.2024.3390753
+ 3. Blanco-Claraco, J.L.: A tutorial on $\mathbf{SE}(3)$ transformation parameter-
+    izations and on-manifold optimization. CoRR (2021)
+ 4. Bui, M.Q.V., Park, J., Bello, J.L.G., Moon, J., Oh, J., Kim, M.: Mobgs: Motion
+    deblurring dynamic 3d gaussian splatting for blurry monocular video. In: AAAI
+    (2026)
+ 5. Charatan, D., Li, S.L., Tagliasacchi, A., Sitzmann, V.: pixelsplat: 3d gaussian splats
+    from image pairs for scalable generalizable 3d reconstruction. In: CVPR (2024)
+ 6. Chen, A., Xu, Z., Geiger, A., Yu, J., Su, H.: Tensorf: Tensorial radiance fields. In:
+    ECCV (2022)
+ 7. Chen, A., Xu, Z., Zhao, F., Zhang, X., Xiang, F., Yu, J., Su, H.: Mvsnerf: Fast
+    generalizable radiance field reconstruction from multi-view stereo. In: ICCV (2021)
+ 8. Chen, Y., Xu, H., Zheng, C., Zhuang, B., Pollefeys, M., Geiger, A., Cham, T.J.,
+    Cai, J.: Mvsplat: Efficient 3d gaussian splatting from sparse multi-view images. In:
+    ECCV (2024)
+ 9. Fridovich-Keil, S., Yu, A., Tancik, M., Chen, Q., Recht, B., Kanazawa, A.: Plenox-
+    els: Radiance fields without neural networks. In: CVPR (2022)
+10. Fu, Y., Liu, S., Kulkarni, A., Kautz, J., Efros, A.A., Wang, X.: Colmap-free 3d
+    gaussian splatting. In: Proceedings of the IEEE/CVF conference on computer vi-
+    sion and pattern recognition. pp. 20796–20805 (2024)
+11. Hong, S., Jung, J., Shin, H., Yang, J., Kim, S., Luo, C.: Coponerf: Unifying corre-
+    spondence, pose and nerf for pose-free novel view synthesis from stereo pairs. In:
+    CVPR (2024)
+12. Huang, B., Yu, Z., Chen, A., Geiger, A., Gao, S.: 2d gaussian splatting for geo-
+    metrically accurate radiance fields. In: ACM SIGGRAPH 2024 conference papers.
+    pp. 1–11 (2024)
+13. Huang, R., Mikolajczyk, K.: No pose at all: Self-supervised pose-free 3d gaussian
+    splatting from sparse views. In: ICCV (2025)
+14. Jiang, H., Tan, H., Wang, P., Jin, H., Zhao, Y., Bi, S., Zhang, K., Luan, F.,
+    Sunkavalli, K., Huang, Q., Pavlakos, G.: Rayzer: A self-supervised large view syn-
+    thesis model. In: ICCV (2025)
+15. Jiang, L., Mao, Y., Xu, L., Lu, T., Ren, K., Jin, Y., Xu, X., Yu, M., Pang, J.,
+    Zhao, F., et al.: Anysplat: Feed-forward 3d gaussian splatting from unconstrained
+    views. arXiv preprint arXiv:2505.23716 (2025)
+16. Kang, G., Yoo, J., Park, J., Nam, S., Im, H., Shin, S., Kim, S., Park, E.: Selfsplat:
+    Pose-free and 3d prior-free generalizable 3d gaussian splatting. In: CVPR (2025)
+17. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G.: 3d gaussian splatting for
+    real-time radiance field rendering. ACM Trans. Graph. (2023)
+18. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: ECCV (2024)
+19. Lin, C.Y., Sun, C., Yang, F.E., Chen, M.H., Lin, Y.Y., Liu, Y.L.: Longsplat: Robust
+    unposed 3d gaussian splatting for casual long videos. In: ICCV (2025)
+20. Lin, H., Chen, S., Liew, J., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth anything 3: Recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+                                                                         AirSplat        7
+
+21. Ling, L., Sheng, Y., Tu, Z., Zhao, W., Xin, C., Wan, K., Yu, L., Guo, Q., Yu,
+    Z., Lu, Y., et al.: Dl3dv-10k: A large-scale scene dataset for deep learning-based
+    3d vision. In: Proceedings of the IEEE/CVF Conference on Computer Vision and
+    Pattern Recognition. pp. 22160–22169 (2024)
+22. Liu, A., Tucker, R., Jampani, V., Makadia, A., Snavely, N., Kanazawa, A.: Infinite
+    nature: Perpetual view generation of natural scenes from a single image. In: ICCV
+    (2021)
+23. Liu, Y., Fan, K., Yu, W., Li, C., Lu, H., Yuan, Y.: Monosplat: Generalizable 3d
+    gaussian splatting from monocular depth foundation models. In: CVPR (2025)
+24. Liu, Y., Min, Z., Wang, Z., Wu, J., Wang, T., Yuan, Y., Luo, Y., Guo, C.: World-
+    mirror: Universal 3d world reconstruction with any-prior prompting. arXiv preprint
+    arXiv:2510.10726 (2025)
+25. Loshchilov, I., Hutter, F.: Decoupled weight decay regularization. arXiv preprint
+    arXiv:1711.05101 (2017)
+26. Luu, T.M., Lee, Y., Lee, D., Kim, S., Kim, M.J., Yoo, C.D.: Enhancing rating-based
+    reinforcement learning to effectively leverage feedback from large vision-language
+    models. In: ICML (2025)
+27. MacGlashan, J., Ho, M.K., Loftin, R., Peng, B., Wang, G., Roberts, D.L., Taylor,
+    M.E., Littman, M.L.: Interactive learning from policy-dependent human feedback.
+    In: ICML (2017)
+28. Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng,
+    R.: Nerf: Representing scenes as neural radiance fields for view synthesis. In: ECCV
+    (2020)
+29. Müller, T., Evans, A., Schied, C., Keller, A.: Instant neural graphics primitives with
+    a multiresolution hash encoding. ACM transactions on graphics (TOG) 41(4), 1–15
+    (2022)
+30. Park, J., Bui, M.Q.V., Bello, J.L.G., Moon, J., Oh, J., Kim, M.: Splinegs: Robust
+    motion-adaptive spline for real-time dynamic 3d gaussians from monocular video.
+    In: CVPR (2025)
+31. Park, J., Bui, M.Q.V., Bello, J.L.G., Moon, J., Oh, J., Kim, M.: Ecosplat:
+    Efficiency-controllable feed-forward 3d gaussian splatting from multi-view images.
+    In: CVPR (2026)
+32. Schonberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: CVPR (2016)
+33. Shotton, J., Glocker, B., Zach, C., Izadi, S., Criminisi, A., Fitzgibbon, A.: Scene
+    coordinate regression forests for camera relocalization in rgb-d images. In: CVPR
+    (2013)
+34. Smart, B., Zheng, C., Laina, I., Prisacariu, V.A.: Splatt3r: Zero-shot gaussian
+    splatting from uncalibrated image pairs. arXiv preprint arXiv:2408.13912 (2024)
+35. Smith, L.N., Topin, N.: Super-convergence: Very fast training of neural networks
+    using large learning rates. In: Artificial intelligence and machine learning for multi-
+    domain operations applications. vol. 11006, pp. 369–386. SPIE (2019)
+36. Snavely, N., Seitz, S.M., Szeliski, R.: Photo tourism: exploring photo collections in
+    3d. ACM Trans. Graph. (2006)
+37. Suhail, M., Esteves, C., Sigal, L., Makadia, A.: Generalizable patch-based neural
+    rendering. In: ECCV (2022)
+38. Szymanowicz, S., Rupprecht, C., Vedaldi, A.: Splatter image: Ultra-fast single-view
+    3d reconstruction. In: CVPR (2024)
+39. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: CVPR (2025)
+8       Bui et al.
+
+40. Wang, Q., Wang, Z., Genova, K., Srinivasan, P., Zhou, H., Barron, J.T., Martin-
+    Brualla, R., Snavely, N., Funkhouser, T.: Ibrnet: Learning multi-view image-based
+    rendering. In: CVPR (2021)
+41. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric 3d
+    vision made easy. In: CVPR (2024)
+42. Wang, W., Chen, D.Y., Zhang, Z., Shi, D., Liu, A., Zhuang, B.: Zpressor:
+    Bottleneck-aware compression for scalable feed-forward 3dgs. arXiv preprint
+    arXiv:2505.23734 (2025)
+43. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+    arXiv:2507.13347 (2025)
+44. White, D., Wu, M., Novoseller, E., Lawhern, V.J., Waytowich, N., Cao, Y.: Rating-
+    based reinforcement learning. In: AAAI (2024)
+45. Wu, G., Yi, T., Fang, J., Xie, L., Zhang, X., Wei, W., Liu, W., Tian, Q., Wang,
+    X.: 4d gaussian splatting for real-time dynamic scene rendering. In: CVPR (2024)
+46. Xu, H., Peng, S., Wang, F., Blum, H., Barath, D., Geiger, A., Pollefeys, M.: Depth-
+    splat: Connecting gaussian splatting and depth. In: CVPR (2025)
+47. Ye, B., Chen, B., Xu, H., Barath, D., Pollefeys, M.: Yonosplat: You only need one
+    model for feedforward 3d gaussian splatting. In: ICLR (2026)
+48. Ye, B., Liu, S., Xu, H., Li, X., Pollefeys, M., Yang, M.H., Peng, S.: No pose, no
+    problem: Surprisingly simple 3d gaussian splats from sparse unposed images. arXiv
+    preprint arXiv:2410.24207 (2024)
+49. Yu, A., Li, R., Tancik, M., Li, H., Ng, R., Kanazawa, A.: Plenoctrees for real-time
+    rendering of neural radiance fields. In: ICCV (2021)
+50. Yu, A., Ye, V., Tancik, M., Kanazawa, A.: pixelnerf: Neural radiance fields from
+    one or few images. In: CVPR (2021)
+51. Yu, Z., Chen, A., Huang, B., Sattler, T., Geiger, A.: Mip-splatting: Alias-free 3d
+    gaussian splatting. In: Proceedings of the IEEE/CVF conference on computer vi-
+    sion and pattern recognition. pp. 19447–19456 (2024)
+52. Zhang, R., Isola, P., Efros, A.A., Shechtman, E., Wang, O.: The unreasonable
+    effectiveness of deep features as a perceptual metric. In: CVPR (2018)
+53. Zhang, S., Wang, J., Xu, Y., Xue, N., Rupprecht, C., Zhou, X., Shen, Y., Wet-
+    zstein, G.: Flare: Feed-forward geometry, appearance and camera estimation from
+    uncalibrated sparse views. In: CVPR (2025)
+54. Zhou, T., Tucker, R., Flynn, J., Fyffe, G., Snavely, N.: Stereo magnification: Learn-
+    ing view synthesis using multiplane images. In: SIGGRAPH (2018)
+55. Ziwen, C., Tan, H., Zhang, K., Bi, S., Luan, F., Hong, Y., Fuxin, L., Xu, Z.: Long-
+    lrm: Long-sequence large reconstruction model for wide-coverage gaussian splats.
+    In: ICCV (2025)
+

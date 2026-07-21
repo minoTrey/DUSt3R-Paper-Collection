@@ -1,0 +1,1066 @@
+                                           ReCoSplat: Autoregressive Feed-Forward
+                                         Gaussian Splatting Using Render-and-Compare
+
+                                         Freeman Cheng1 , Botao Ye2 , Xueting Li3 , Junqi You4 , Fangneng Zhan5 , and
+                                                                     Ming-Hsuan Yang1
+                                                                 1
+                                                                  University of California Merced
+arXiv:2603.09968v1 [cs.CV] 10 Mar 2026
+
+
+
+
+                                                                         2
+                                                                            ETH Zurich
+                                                                           3
+                                                                             NVIDIA
+                                                                4
+                                                                  Shanghai Jiao Tong University
+                                                        5
+                                                          Hong Kong University of Science and Technology
+
+
+
+                                              Abstract. Online novel view synthesis remains challenging, requiring
+                                              robust scene reconstruction from sequential, often unposed, observations.
+                                              We present ReCoSplat, an autoregressive feed-forward Gaussian Splat-
+                                              ting model supporting posed or unposed inputs, with or without camera
+                                              intrinsics. While assembling local Gaussians using camera poses scales
+                                              better than canonical-space prediction, it creates a dilemma during train-
+                                              ing: using ground-truth poses ensures stability but causes a distribution
+                                              mismatch when predicted poses are used at inference. To address this, we
+                                              introduce a Render-and-Compare (ReCo) module. ReCo renders the cur-
+                                              rent reconstruction from the predicted viewpoint and compares it with
+                                              the incoming observation, providing a stable conditioning signal that
+                                              compensates for pose errors. To support long sequences, we propose a
+                                              hybrid KV cache compression strategy combining early-layer truncation
+                                              with chunk-level selective retention, reducing the KV cache size by over
+                                              90% for 100+ frames. ReCoSplat achieves state-of-the-art performance
+                                              across different input settings on both in- and out-of-distribution bench-
+                                              marks. Code and pretrained models will be released. Our project page is
+                                              at https://freemancheng.com/ReCoSplat.
+
+                                              Keywords: Novel view synthesis · Gaussian Splatting · feed-forward
+                                              networks
+
+
+                                 1          Introduction
+                                 Novel view synthesis aims to render photorealistic images of a scene from un-
+                                 seen viewpoints. Among scene representations, 3D Gaussians have been widely
+                                 adopted due to their high-quality real-time rendering. However, optimization-
+                                 based Gaussian Splatting [12] requires lengthy per-scene training, limiting real-
+                                 time applications. Feed-forward Gaussian Splatting [1, 10, 23, 32, 35, 36, 40] pre-
+                                 dicts 3D Gaussians directly from input images, bypassing per-scene optimization.
+                                 Yet these approaches target offline reconstruction, where all images are available
+                                 upfront. The autoregressive setting, where observations arrive sequentially, re-
+                                 mains largely unexplored despite its importance for embodied AI, AR/VR, and
+2              F. Cheng et al.
+
+Online Input
+
+
+                                         ⋯
+                         Chunk 1                             Chunk T
+
+
+
+
+                                       Update
+                                       Scene
+Novel Views
+
+
+
+
+Fig. 1: Autoregressive Reconstruction. We present ReCoSplat, a method that
+reconstructs 3D scenes from sequential image streams.
+
+
+
+video generation [2,30]. This motivates feed-forward methods capable of synthe-
+sizing novel views in real time as observations arrive.
+    We present ReCoSplat, an autoregressive feed-forward Gaussian Splatting
+method for scene reconstruction from hundreds of images in posed or unposed
+settings, with or without camera intrinsics. In practice, camera parameters vary
+widely: extrinsics may come from sensors or be missing, while intrinsics may
+exist in metadata or be removed. A robust method must handle these diverse
+combinations of sensor inputs.
+    Recent work demonstrates that predicting Gaussians in local camera space
+and mapping them to world coordinates via camera poses, which we term as-
+sembly poses, yields better scalability than predicting directly in a canonical
+space [35, 36]. However, a critical design choice is whether to use ground-truth
+or predicted assembly poses during training, a decision that divides existing
+autoregressive methods. StreamGS [13] and SaLon3R [8] use predicted poses,
+but this couples Gaussian prediction with pose estimation and leads to instabil-
+ity [35]. Using ground-truth poses decouples the tasks, as in LongSplat [9], but
+assumes camera poses are provided. A natural alternative is to train with ground-
+truth poses and switch to predicted poses at inference. However, this introduces
+a pose distribution mismatch, causing misaligned Gaussians. While offline
+models such as YoNoSplat [35] mitigate this with training curricula, we find such
+strategies ineffective in the autoregressive setting where pose estimation is more
+challenging.
+    To address pose distribution mismatch from training with ground-truth as-
+sembly poses, ReCoSplat introduces a Render-and-Compare module inspired
+by the Analysis-by-Synthesis framework [38]. This paradigm treats vision as an
+inverse problem, where predictions are refined by comparing synthesized views
+with observations. Accordingly, when predicting Gaussians for a new observa-
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare             3
+
+tion, our module renders the current reconstruction from the assembly pose
+and compares it with the incoming image. The rendered–observed pair captures
+pose discrepancies and provides a stable geometric and visual prior that guides
+Gaussian prediction via cross-attention. To enrich this signal, we augment each
+Gaussian with additional feature dimensions beyond RGB.
+    To scale ReCoSplat to hundreds of frames, we address the KV-cache memory
+bottleneck in transformer backbones such as π 3 [27]. Since early global attention
+layers contribute little to multi-view correspondence [21], we discard KV caches
+for the first 10 of π 3 ’s 18 layers. In the remaining 8 layers, we retain tokens only
+from every n-th view. To avoid information loss, we process frames in chunks of
+size n, where all views attend within the chunk before non-retained tokens are
+dropped. To establish a comprehensive initial context, the first chunk is processed
+without any pruning, and a trainable register token is introduced to explicitly
+mark the retained views. We employ curriculum learning with variable chunk
+sizes (4–8) during training, ensuring that n remains dynamically configurable at
+test time. Ultimately, with a chunk size of 8, our strategy successfully prunes
+over 90% of KV-cache tokens for sequences containing 100 or more images.
+    The contributions of this work are:
+
+ – Render-and-Compare module. We render the accumulated scene onto
+   each incoming view and use the rendered–observed comparison as a con-
+   ditioning signal, bridging the pose distribution mismatch between ground-
+   truth and predicted assembly poses.
+ – KV cache compression. We combine early-layer truncation with selective
+   single-view retention guided by a learned prompt register token, reducing
+   KV cache memory by 10× for 100-image sequences and enabling real-time
+   reconstruction on consumer hardware.
+ – State-of-the-art results. We evaluate across diverse input settings (posed
+   or unposed, with or without intrinsics), on both in- and out-of-distribution
+   datasets and diverse camera trajectories, achieving consistent state-of-the-
+   art performance.
+
+
+2    Related Work
+
+Feed-Forward Multi-View Stereo. Feed-forward Multi-View Stereo (MVS)
+methods predict dense geometry directly from RGB images. Early methods such
+as MVSNet [33, 34] construct cost volumes but require known camera param-
+eters. DUSt3R [26] removes this constraint by predicting 3D pointmaps from
+image pairs in the first-view camera space. Later methods extend to multi-view
+settings using alternating attention [11, 24], while π 3 [27] shows that canonical
+first-view coordinates introduce harmful inductive bias. Depth Anything 3 [15]
+demonstrates that standard transformers without specialized alternating atten-
+tion can better exploit pretrained weights. Several methods further extend MVS
+to streaming settings. WinT3R [14] maintains a sliding window and accumu-
+lates camera tokens. Point3R [31] anchors history tokens to 3D positions via
+4       F. Cheng et al.
+
+spatial pointer memory. StreamVGGT [43] accumulates KV-cache with knowl-
+edge distillation. CUT3R [25] employs recurrent state memory updated with
+new observations. TTT3R [3] formulates the problem as test-time training [22]
+with confidence-guided learning rates for better length generalization. While
+these pointmap methods excel at geometry reconstruction, they lack rendering
+capabilities for real-time novel view synthesis, motivating our feed-forward au-
+toregressive Gaussian Splatting.
+Feed-Forward Gaussian Splatting. Feed-forward Gaussian Splatting pre-
+dicts 3D Gaussian primitives directly from images, eliminating per-scene opti-
+mization [39]. Early methods [1, 23, 40] demonstrated novel view synthesis by
+predicting per-pixel Gaussians. Subsequent methods [10, 35, 36] leverage pre-
+trained models to improve geometry and reconstruction quality. Recent work
+extends this paradigm to autoregressive settings. StreamGS [13] processes un-
+posed streams via cross-frame feature matching and adaptive density control.
+SaLon3R [8] compresses Gaussians into saliency-aware anchors refined by a point
+transformer. LongSplat [9] processes the current frame with temporal neighbors
+using DepthSplat [32] and encodes historical context through a Gaussian-Image
+Representation (GIR).
+    Our approach differs in several aspects. First, LongSplat requires ground-
+truth poses for Gaussian assembly. Second, it uses the GIR to encode historical
+context, whereas our Render-and-Compare module improves generalization from
+ground-truth to predicted assembly poses. Third, using the GIR within our ReCo
+module degrades performance. Although not designed for streaming, FreeSplat
+[28] can be adapted to causal processing by restricting fusion to past frames.
+FreeSplat aligns local and global Gaussians based on depth proximity and merges
+them via a GRU. As existing streaming methods lack public code, we adopt
+FreeSplat as a baseline.
+
+
+3     Method
+
+An overview of ReCoSplat is shown in Figure 2.
+
+
+3.1   Problem Formulation
+
+ReCoSplat reconstructs a 3D scene from a continuous image stream processed
+in non-overlapping chunks of n ∈ [4, 8] images. At timestep t, the autoregressive
+network fθ receives a new image chunk It = (It1 , ..., Itn ), optional camera param-
+eters Kt = (Kt1 , ..., Ktn ) (intrinsics) and Pt = (Pt1 , ..., Ptn ) (extrinsics), the KV
+cache Mt−1 from previous chunks, and the accumulated scene St−1 containing
+all previously predicted 3D Gaussians. The model estimates:
+
+                     (\mathbf {G}_t, \hat {\mathbf {K}}_t, \hat {\mathbf {P}}_t, M_t) = f_\theta ( \mathbf {I}_t, \mathbf {K}_t, \mathbf {P}_t, M_{t - 1}, S_{t - 1} ),    (1)
+
+where Gt = (G1t , ..., Gnt ) are the predicted local Gaussians, K̂t and P̂t are the
+predicted intrinsic and extrinsic camera parameters, and Mt is the updated
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare                                                                                                           5
+
+                         KV
+
+                                                                                                                                               "!
+                        Cache                                                                                 Pose
+                                                                                                              Head                             𝐏
+                                                                                                  Compress                                               er
+                                                                                                                                                      nd r 𝐏 !
+Current Chunk      "!
+                   𝐊
+                                                                                                     &
+                                                                                                   Update
+                                                                                                                                                    Re "𝐏 ! o
+                                                                                                                                                     w/
+                                                                                                                                                                   Previous
+
+
+
+
+                           Alternating Attention
+
+
+
+
+                                                                  Alternating Attention
+                                                                                                                                                                 Reconstruction
+            DINO
+
+
+
+
+                   ⊕$
+
+                                                                                                             Render-and-Compare                                     Current
+                                                                                                                                          tn                     Reconstruction
+                                                                                                                                 -   At
+                                                       𝑁                                      𝑁                           o   ss
+                                                   ×                                      ×                          Cr
+                                                       2                                      2                                                                             m
+                                                                                                             Gaussian                                                    or
+                                                                                                                                                                      sf r 𝐏 !
+                                                                                                              Head                                                  an o
+                                                                                                                                                                  Tr / "𝐏 !
+                                                                                                                                                                    w
+                                                                                                                                          Local Gaussians
+
+
+
+Fig. 2: ReCoSplat overview. Given a chunk of input images, a DINO-based en-
+coder extracts features, which are then processed by an alternating-attention trans-
+former with an autoregressive KV cache. The pose head predicts camera poses, while
+the Gaussian head predicts local Gaussian primitives. To bridge the pose distribution
+mismatch between training and inference, the Render-and-Compare module renders
+the current reconstruction at the assembly pose and compares it with the incoming
+observation to provide conditioning via cross-attention. The predicted local Gaussians
+are then transformed to world coordinates and merged into the accumulated scene.
+
+
+KV cache. Each set of local Gaussians Gkt is defined in the camera space of
+image Itk . To merge Gkt into the accumulated scene St−1 , we transform it into
+world coordinates using either ground-truth or predicted camera poses depending
+on the input setting. We define this pose as the assembly pose Akt . Using
+At = (A1t , ..., Ant ), we update the scene by merging the local Gaussians:
+
+                                               S_t = S_{t-1} \cup \text {Transform}(\mathbf {G}_t, \mathbf {A}_t).                                                               (2)
+
+3.2     Autoregressive Backbone
+ReCoSplat processes images with an autoregressive backbone based on YoNoS-
+plat [35], augmented with a KV cache.
+Encoder and Decoder. Given an image chunk It , a ViT encoder [6] initialized
+with DINOv2 [18] maps each image Itk to a global camera token ckt and patch
+tokens Etk :
+                           [c_t^k, E_t^k] = \text {Encoder}(I_t^k)       (3)
+Camera intrinsics are predicted from the camera token via a two-layer MLP:
+K̂tk = Headintrinsics (ckt ). The patch tokens Et = (Et1 , ..., Etn ) are processed by a
+36-layer alternating-attention transformer decoder [27], interleaving frame and
+global attention, to produce multi-view features Ft = (Ft1 , . . . , Ftn ).
+Prediction Heads. The prediction heads include a pose head and three Gaus-
+sian heads that decode each Gaussian’s position, attributes, and features. The
+pose head predicts camera extrinsics from decoder features: P̂tk = Headextrinsics (Ftk ).
+6                  F. Cheng et al.
+
+The Gaussian heads predict primitives from 2× upsampled features (Ftk )2× , each
+conditioned on tokens Ztk from the Render-and-Compare module (Section 3.3)
+via cross-attention:
+      G_t^k = \Bigl [\text {Head}_\text {xyz}((F_t^k)^{2\times }, Z_t^k),\\text {Head}_\text {gs}((F_t^k)^{2\times }, Z_t^k),\\text {Head}_\text {feat}((F_t^k)^{2\times }, Z_t^k)\Bigr ].  (4)
+
+The pose head uses a five-layer frame-wise transformer followed by a two-layer
+MLP. The position and attribute heads each use a five-layer transformer with
+a linear projection. The feature head is a DPT [19] that takes (Ftk )2× and in-
+termediate activations from the position head as input, which performs better
+than an identical branch.
+KV Cache. To enable autoregressive processing, we maintain a KV cache for
+the last 8 global attention layers of the transformer decoder. At timestep t,
+the decoder processes current patch tokens Et together with cached keys and
+values Mt−1 from previous chunks. In global attention layers, each patch token
+attends to tokens in the current chunk and those stored in Mt−1 . The KV cache
+is updated after each timestep:
+                                                               \mathbf {F}_t, M_t = \text {Decoder}(\mathbf {E}_t, M_{t - 1}).                                                           (5)
+
+3.3            Render-and-Compare Module
+Existing methods use either predicted [8] or ground-truth [9] poses for local
+Gaussian assembly. The former couples Gaussian prediction with pose estima-
+tion, limiting reconstruction quality while yhe latter biases predictions toward
+ground-truth poses, creating a pose distribution mismatch when predicted poses
+are used at inference (Sections 4.2, 4.3). An intuitive alternative is a curriculum
+mixing both pose sources [35]. However, this strategy is ineffective because pose
+estimation is more difficult in the autoregressive setting, so predicted assembly
+poses are noisy and provide weak supervision (Section 4.3).
+    To address pose distribution mismatch, we introduce a Render-and-Compare
+module that enables generalization from training with ground-truth to inference
+with predicted assembly poses. For each image Itk in the current chunk, we render
+the accumulated scene St−1 at its assembly pose Akt :
+                                                                       \hat {R}_t^k = \text {Render}(S_{t - 1}, A_t^k)                                                                   (6)
+where R̂tk ∈ RH×W ×12 contains RGB and 9 learned feature channels decoded
+by a feature head (Section 3.2). When ground-truth intrinsics are unavailable,
+we use our predicted intrinsics for rendering to prevent information leakage.
+Afterwards, we concatenate the rendering with the input image and obtain con-
+ditioning tokens:
+                             Z_k = \text {Patchify}([I_k, \hat {R}_k]).   (7)
+Patchify maps the concatenation to token space using three convolutional layers
+with strided downsampling. These tokens guide Gaussian prediction via cross-
+attention (Section 3.2). Since changes in Akt directly affect the rendered image
+R̂tk , this module improves generalization to predicted poses at inference (Table 1).
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare           7
+
+32 Views
+64 Views
+128 Views
+256 Views                           Unposed and Uncalibrated
+
+
+
+
+                                    Unposed and Calibrated
+128 Views
+256 Views
+
+
+
+
+             GT       YoNoSplat   S3PO-GS           KV Cache   GIR        Ours
+
+
+Fig. 3: Novel view synthesis with increasing input views under unposed settings. Re-
+CoSplat improves geometry and reduces artifacts over autoregressive baselines.
+
+
+
+3.4         Efficient Long-Sequence Reconstruction
+
+Scaling ReCoSplat to process hundreds of images is fundamentally constrained
+by the memory demands of its transformer architecture. Continuously accumu-
+lating the KV cache for every image across all global attention layers causes
+VRAM usage to grow rapidly with sequence length, rendering long-sequence
+inference impractical on consumer hardware. To overcome this bottleneck, we
+introduce two complementary KV cache compression strategies.
+Early Layer Truncation. We introduce a KV cache truncation mechanism
+based on the finding that early global attention layers extract local features
+rather than establishing multi-view correspondences [21]. By omitting the KV
+8       F. Cheng et al.
+
+cache for the first 10 of the 18 global attention layers, we restrict attention
+in these layers to the current chunk, significantly reducing memory overhead
+without sacrificing global context.
+Selective Context Retention. For the remaining 8 global attention layers,
+entirely discarding historical tokens would severely degrade reconstruction qual-
+ity. Instead, we compress the context using a chunk-wise retention strategy. To
+establish a robust initial context, the first chunk (size 8) retains KV tokens for
+all its images. For subsequent chunks of size n ∈ [4, 8], we retain tokens from
+only a single representative view—the final frame of the chunk. To ensure the
+network effectively utilizes this compressed cache, we assign a distinct, trainable
+register token to these retained views.
+Memory Complexity Analysis. This two-stage strategy changes the memory
+scaling of the network. A standard multi-view transformer stores per-image KV
+tokens across all L = 18 layers for N images, yielding space complexity Θ(L · N ).
+Our method stores no historical tokens for the first 10 layers. For the remaining
+8 layers, we keep tokens for the initial 8-image  chunk and one set for each of the
+N −8                                        N −8
+  n   subsequent  chunks, totaling   8 8 +   n     token sets. The asymptotic space
+complexity thus becomes Θ( N  n  ), significantly  reducing the constant factor. For
+N = 256 and n = 8, a standard cache stores 4608 token sets, while our method
+stores only 312, reducing memory by 93% and enabling efficient autoregressive
+rendering on consumer hardware. The effect of our KV cache compression strate-
+gies on the overall VRAM usage of our model is depicted in Figure 5.
+
+3.5 Training and Inference
+Stages. Training proceeds in three stages, each building on the previous to
+progressively introduce the capabilities of ReCoSplat. In Stage 1, we initialize
+from YoNoSplat’s [35] DL3DV-10K [16] checkpoint and train for 150k steps with
+learning rate 5×10−6 , keeping the encoder frozen. We sample 2–64 context views
+per iteration, linearly increasing the maximum from 8 to 64 between steps 1.5k
+and 75k. The chunk size is fixed at 8 and no KV cache compression is applied.
+In Stage 2, we train for 50k additional steps at 5 × 10−7 and introduce variable
+chunk sizes after the first chunk, sampling uniformly from [4, 8] while annealing
+the minimum from 8 to 4 over the first 25k steps. The first chunk remains fixed at
+8 to anchor the scene representation. In Stage 3, we train for a final 50k steps
+at the same learning rate and enable the full KV cache compression strategy
+(Section 3.4). All stages use 8 GPUs with batch size 1.
+Losses. ReCoSplat is supervised with a multi-task loss that balances photo-
+metric quality, camera estimation accuracy, and Gaussian sparsity:
+
+               \mathcal {L} = \mathcal {L}_{\text {MSE}} + \mathcal {L}_{\text {LPIPS}} + \mathcal {L}_{\text {intrinsic}} + \mathcal {L}_{\text {extrinsic}} + \mathcal {L}_{\text {opacity}}.    (8)
+
+The photometric term combines pixel-wise MSE (LMSE ) and perceptual simi-
+larity (LLPIPS ) [41], computed between eight novel target views rendered from
+the predicted Gaussians and held-out ground-truth images. Camera supervision
+is decomposed into intrinsic and extrinsic terms: Lintrinsic penalizes the ℓ2 error
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare                                                                                                                                               9
+
+between predicted and ground-truth focal lengths, while Lextrinsic applies a pair-
+wise relative pose loss over all inputs. To encourage sparsity, Lopacity imposes
+an ℓ1 penalty on Gaussian opacities, and Gaussians with opacity below 0.005
+are pruned. We set loss weights to λMSE = 1.0, λLPIPS = 0.05, λintrinsic = 0.5,
+λextrinsic = 0.1, and λopacity = 0.01. Complete formulations are provided in the
+appendix.
+Scale Alignment. During inference, ReCoSplat accepts either ground-truth or
+predicted camera poses as the assembly poses. When ground-truth extrinsics are
+available, they are not required to be metric. Instead, we align their scale to be
+consistent with the model’s predicted poses before assembling local Gaussians.
+Specifically, we compute a fixed global scaling factor by matching the scale of the
+first chunk’s ground-truth poses P1 to that of the first chunk’s predicted poses
+P̂1 , where Scale(·) denotes the maximum pairwise camera translation within a
+set of poses. Formally, the assembly pose
+
+
+                A_t^k = \begin {cases} \frac {\text {Scale}(\mathbf {P}_1)}{\text {Scale}(\hat {\mathbf {P}}_1)}P_t^k & \text {if GT extrinsics are available,} \\ \hat {P}_t^k & \text {otherwise.} \end {cases}    (9)
+
+
+It is necessary to use the first chunk for scale alignment. Unlike offline methods
+that can normalize over the full trajectory [35], an autoregressive model has no
+access to future poses and must commit to a scale at the very first chunk.
+
+
+4   Experiments
+4.1 Experimental Setup
+Datasets. We train and evaluate ReCoSplat on DL3DV [16] (9,894 train / 140
+test) and ScanNet++ (968 train / 50 test) [37], sampled at a 10:1 ratio during
+training. DL3DV contains diverse indoor and outdoor scenes, while ScanNet++
+focuses on room-scale indoor scenes with more irregular camera trajectories. To
+assess generalization, we also evaluate on RealEstate10K (indoor/outdoor real
+estate videos) [42], ACID (aerial coastline videos) [17], and ScanNet (room-scale
+indoor captures) [5]. Due to large scene-size variance, we restrict RealEstate10K
+and ACID to scenes with at least 200 images (1648 for RealEstate10K, 755 for
+ACID). For ScanNet, we evaluate on 8 scenes following [29] for fair comparison.
+Context views are selected via farthest point sampling on ground-truth camera
+positions. For each scene, 8 target novel views are held out by dividing remaining
+frames into 8 bins and sampling one image from each bin.
+Evaluated Methods. We compare ReCoSplat with YoNoSplat [35], FreeSplat
+[29], and S3PO-GS [4] for novel view synthesis. Recent autoregressive feed-
+forward methods (StreamGS [13], SaLon3R [8], LongSplat [9]) are excluded due
+to unavailable code. YoNoSplat serves as an offline feed-forward baseline and is
+fine-tuned on our dataset split and training setup for fair comparison. FreeSplat
+is an offline method that can be adapted to autoregressive inference by restrict-
+ing cost volumes to past frames; we instead evaluate the original model as an
+10          F. Cheng et al.
+
+128 Views
+256 Views
+
+
+
+
+              GT              YoNoSplat   KV Cache       GIR             Ours
+
+
+Fig. 4: Novel view synthesis in the fully posed and calibrated setting with 128 and
+256 input views. With pose errors removed, reconstruction quality depends on local
+Gaussian prediction accuracy. Our method module can correct for local Gaussian mis-
+predictions, outperforming autoregressive baselines and beating YoNoSplat in PSNR.
+
+
+
+upper bound. Since FreeSplat is trained on only 100 ScanNet scenes, we evalu-
+ate it only on ScanNet. S3PO-GS represents optimization-based autoregressive
+methods but is excluded from RealEstate10K due to costly per-scene optimiza-
+tion.
+    To approximate a comparison with LongSplat without access to its codebase,
+we train a version of ReCoSplat using LongSplat’s Gaussian Image Represen-
+tation (GIR) as the cross-attention conditioning signal, denoted GIR. We also
+include an ablation removing the Render-and-Compare module, denoted KV
+Cache. For camera pose estimation, we compare with YoNoSplat and represen-
+tative online methods with different memory designs: CUT3R and TTT3R (re-
+current state) [3,25], StreamVGGT (uncompressed KV cache) [43], and WinT3R
+(growing camera token pool) [14].
+
+Metrics. We evaluate novel view synthesis using PSNR, SSIM, and LPIPS. In
+the posed setting, targets are rendered at ground-truth poses. In the unposed
+setting, we follow prior pose-free works [7, 20] and predict target poses for ren-
+dering. Specifically, target poses are predicted through 100 iterations of pose
+optimization using the rendering loss. For camera pose estimation, we report
+the area under the cumulative angular pose error curve (AUC) at 5◦ , 10◦ , and
+15◦ thresholds.
+
+Implementation Details. We train ReCoSplat at 224 × 224 resolution using
+A6000 48GB GPUs. Ablations and baseline fine-tuning use A6000 48GB, A100
+40GB, or H100 80GB GPUs depending on availability. All experiments use 8
+GPUs with batch size 1. Some baselines operate at higher resolutions; in such
+cases, we ensure our inputs cover a smaller receptive field for fair comparison.
+For evaluation, rendered outputs are center-cropped and rescaled to 224 × 224.
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare                                                 11
+
+Table 1: Novel view synthesis on DL3DV with 32, 64, 128, and 256 input views sampled
+from the first 180, 240, 300, and (up to) 360 frames of each scene, respectively. Best
+and second best metrics are marked, excluding offline methods.
+
+                                 32v                      64v                      128v                     256v
+Method      Online p k
+                         PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓
+YoNoSplat     ✗          22.368   0.736   0.180   22.253   0.732   0.183   21.827   0.720   0.194   20.749   0.677   0.226
+KV Cache                 21.705   0.703   0.202   21.302   0.680   0.223   20.784   0.655   0.247   19.819   0.606   0.292
+GIR                      21.752   0.703   0.203   21.382   0.682   0.222   20.933   0.660   0.245   19.900   0.608   0.291
+Ours                     22.097   0.716   0.194   21.774   0.696   0.213   21.284   0.672   0.235   20.220   0.617   0.281
+YoNoSplat     ✗     ✓    22.575   0.748   0.177   22.514   0.747   0.179   22.053   0.735   0.189   20.953   0.692   0.221
+S3PO-GS             ✓    13.062   0.197   0.635   13.952   0.217   0.645   17.227   0.375   0.548   13.102   0.196   0.697
+KV Cache            ✓    21.932   0.717   0.198   21.544   0.697   0.218   20.993   0.670   0.242   20.007   0.622   0.286
+GIR                 ✓    21.947   0.716   0.199   21.600   0.697   0.218   21.107   0.672   0.241   20.085   0.622   0.286
+Ours                ✓    22.417   0.734   0.188   22.068   0.713   0.206   21.576   0.690   0.227   20.430   0.633   0.275
+YoNoSplat     ✗   ✓ ✓    22.998   0.781   0.162   22.978   0.784   0.161   22.597   0.779   0.167   21.549   0.749   0.190
+KV Cache          ✓ ✓    22.392   0.758   0.177   22.210   0.754   0.184   21.731   0.739   0.199   20.694   0.699   0.235
+GIR               ✓ ✓    22.478   0.760   0.177   22.264   0.755   0.185   21.779   0.739   0.200   20.743   0.699   0.235
+Ours              ✓ ✓    23.084   0.780   0.164   23.086   0.782   0.167   22.852   0.777   0.176   22.003   0.751   0.202
+
+
+
+
+4.2      Experiment Results
+Novel View Synthesis. We evaluate ReCoSplat on novel view synthesis across
+three input settings: uncalibrated and unposed, unposed, and fully posed and
+calibrated. To comprehensively assess our method, we consider multiple datasets
+with varying sequence lengths, scene scales, and camera trajectories. On DL3DV,
+we evaluate using 32 to 256 input views where the scene scale increases with the
+number of views (Table 1), and separately with 90 to 270 views sampled from
+the entire sequence (Table 2). To test robustness under challenging unsmooth
+camera motion that is unfriendly to the online reconstruction task, we further
+evaluate on ScanNet++ with up to 512 input views (Table 3). Across all set-
+tings, ReCoSplat consistently outperforms autoregressive baselines. In partic-
+ular, the substantial improvements in unposed settings demonstrate
+that our method effectively adapts to predicted assembly poses at
+inference time. Qualitatively, these improvements are reflected in Figure 3,
+where ReCoSplat produces sharper geometry and fewer artifacts than compet-
+ing online methods. Note that although S3PO-GS needs calibrated inputs, we
+also compare against it in the uncalibrated setting here. While our metrics trail
+the offline baseline, YoNoSplat, which has access to the entire image sequence
+upfront, ReCoSplat delivers highly competitive performance under the strictly
+harder constraints of autoregressive reconstruction. In the unposed setting, on-
+line methods encounter three coupled error sources: pose distribution mismatch,
+local Gaussian prediction error, and pose estimation error. A major advan-
+tage of our proposed Render-and-Compare module is that it directly
+tackles the first two error sources. The effectiveness of the ReCo mod-
+ule is further evident in the fully posed and calibrated setting. When there is no
+pose prediction error, ReCoSplat approaches YoNoSplat’s performance and even
+surpasses it in PSNR (Table 1, Figure 4). This result provides strong evidence
+that as camera pose estimation improves, ReCoSplat’s performance in unposed
+settings should improve correspondingly. Interestingly, using ground-truth poses
+12         F. Cheng et al.
+
+Table 2: Novel view synthesis on ScanNet (out-of-distribution) and DL3DV. Following
+FreeSplat’s average frame interval of 20, ScanNet inputs are from the first 640 frames,
+while DL3DV uses the entire sequence. Best and second best metrics are marked.
+
+                          ScanNet                                              DL3DV
+Method     p k
+                         32v                         90v                      180v                      270v
+                 PSNR ↑ SSIM ↑ LPIPS ↓       PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓     PSNR ↑ SSIM ↑ LPIPS ↓
+S3PO-GS     ✓    12.820    0.511    0.640    12.482   0.169   0.728   14.976    0.255   0.658   12.471   0.177   0.708
+KV Cache    ✓    25.384    0.828    0.207    20.703   0.654   0.248   20.318    0.635   0.269   19.922   0.614   0.293
+GIR         ✓    25.426    0.826    0.211    20.886   0.662   0.244   20.461    0.640   0.268   19.949   0.613   0.294
+Ours        ✓    25.830    0.830    0.205    21.206   0.670   0.237   20.823   0.651    0.259   20.325   0.625   0.282
+FreeSplat ✓ ✓    22.691    0.730    0.255     N/A     N/A     N/A      N/A      N/A     N/A      N/A     N/A     N/A
+KV Cache ✓ ✓     23.252    0.761    0.245    21.478   0.729   0.206   21.104    0.716   0.219   20.558   0.694   0.240
+GIR        ✓ ✓   23.315    0.763    0.246    21.556   0.730   0.206   21.166    0.717   0.219   20.598   0.694   0.241
+Ours       ✓ ✓   24.073    0.789    0.223    22.408   0.758   0.188   22.280   0.759    0.193   21.866   0.748   0.206
+
+
+
+Table 3: Novel view synthesis on RealEstate10K (out-of-distribution) and ScanNet++.
+Input views are sampled from the entire test sequence. For ScanNet++, we evaluate
+on 46/50 scenes for 256 views and 30/50 scenes for 512 views due to limited sequence
+length. The best and second best metrics are marked.
+
+                                     RealEstate10K                                        ScanNet++
+Method     p k
+                         64v                         128v                     256v                      512v
+                 PSNR ↑ SSIM ↑ LPIPS ↓       PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓     PSNR ↑ SSIM ↑ LPIPS ↓
+S3PO-GS     ✓     N/A      N/A      N/A       N/A     N/A     N/A     8.668     0.156   0.759   11.547   0.337   0.752
+KV Cache    ✓    24.860    0.858    0.138    23.640   0.820   0.175   18.917    0.652   0.355   18.155   0.625   0.405
+GIR         ✓    24.787    0.856    0.140    23.629   0.820   0.173   19.072    0.657   0.353   18.247   0.632   0.403
+Ours        ✓    25.705    0.873    0.128    24.713   0.844   0.155   19.660   0.663    0.342   18.289   0.611   0.411
+KV Cache ✓ ✓     24.490    0.856    0.138    23.179   0.819   0.175   19.287    0.700   0.305   18.466   0.680   0.346
+GIR        ✓ ✓   24.423    0.854    0.140    23.255   0.822   0.171   19.331    0.699   0.308   18.514   0.682   0.343
+Ours       ✓ ✓   25.830    0.884    0.120    24.957   0.864   0.143   20.797   0.746    0.263   20.308   0.734   0.287
+
+
+
+
+unexpectedly degrades performance in our ScanNet evaluations (Table 2). We
+attribute this to inaccuracies in ScanNet’s ground-truth camera poses, which
+introduce assembly errors when used directly.
+Camera Pose Estimation. Table 4 reports camera pose estimation per-
+formance measured by AUC of the angular pose error curve at 5◦ , 10◦ , and
+20◦ thresholds on ACID, RealEstate10K, and DL3DV. We compare ReCoS-
+plat with several representative online reconstruction methods employing dif-
+ferent memory designs, including recurrent state models (CUT3R, TTT3R),
+persistent token memories (WinT3R), and uncompressed KV-cache architec-
+tures (StreamVGGT). The compared methods are trained on different datasets.
+Both ReCoSplat and YoNoSplat are trained only on DL3DV, whereas CUT3R
+and TTT3R are trained on DL3DV and RealEstate10K but not ACID. In con-
+trast, StreamVGGT and WinT3R are not trained on any of the three evaluation
+datasets. ReCoSplat consistently outperforms all autoregressive baselines across
+the three benchmarks. In particular, on RealEstate10K, we achieve substan-
+tially higher accuracy than CUT3R and TTT3R despite these methods being
+trained on that dataset. On ACID, which is unseen during training for all models,
+our method also achieves the strongest performance among autoregressive ap-
+       Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare                                                                                                         13
+
+    Table 4: Camera pose estimation results on ACID, RealEstate10K, and DL3DV. We
+    report the AUC of the angular pose error curve at 5◦ , 10◦ , and 20◦ thresholds for
+    different numbers of input views. The best and second best metrics are marked,
+    excluding offline methods.
+
+                                                               ACID                                          RealEstate10K                                      DL3DV
+       Method                 Online
+                                                  32v                         64v                     64v                    128v                    128v                    256v
+                                         5◦ ↑    10◦ ↑   20◦ ↑        5◦ ↑   10◦ ↑   20◦ ↑   5◦ ↑    10◦ ↑   20◦ ↑    5◦ ↑   10◦ ↑   20◦ ↑   5◦ ↑    10◦ ↑   20◦ ↑   5◦ ↑    10◦ ↑   20◦ ↑
+       YoNoSplat                ✗       0.493   0.670    0.787    0.475      0.661   0.783   0.701   0.846   0.921   0.685   0.834   0.911   0.741   0.870   0.935   0.738   0.869   0.935
+       CUT3R                            0.163   0.379    0.587    0.105      0.312   0.528   0.282   0.547   0.754   0.140   0.411   0.666   0.106   0.398   0.670   0.005   0.024   0.244
+       TTT3R                            0.193   0.409    0.614    0.159      0.376   0.588   0.338   0.591   0.776   0.270   0.539   0.748   0.524   0.754   0.877   0.263   0.579   0.785
+       StreamVGGT                       0.028   0.153    0.382    0.018      0.124   0.348   0.021   0.164   0.428   0.014   0.133   0.393   0.012   0.146   0.427   OOM     OOM     OOM
+       WinT3R                           0.042   0.177    0.381    0.016      0.094   0.252   0.186   0.465   0.700   0.077   0.294   0.562   0.100   0.372   0.648   0.011   0.117   0.389
+       Ours                             0.444   0.635    0.764    0.406      0.607   0.749   0.689   0.839   0.917   0.666   0.823   0.905   0.715   0.857   0.928   0.709   0.854   0.927
+
+
+
+
+                            YoNoSplat
+                            Ours w/o comp.                                      A100 (40 GB) OOM
+                       40   Ours
+Peak GPU Memory (GB)
+
+
+
+
+                       30
+                                                                                     RTX 4090 OOM
+                       20
+
+
+                       10
+
+
+                       0     128       256               512                                 1024
+                                                Number of Input Views
+
+    Fig. 5: Peak GPU memory usage on an
+    A6000 GPU. KV-cache compression sig-                                                                               GT                    FreeSplat                      Ours
+
+    nificantly suppresses memory usage com-
+    pared to YoNoSplat and an uncompressed                                                                   Fig. 6: Novel view synthesis on ScanNet
+    baselime. OOM thresholds for common                                                                      (out-of-distribution) with 32 input views
+    GPU models are marked.                                                                                   in the posed and calibrated setting.
+
+
+
+    proaches, demonstrating strong generalization to new scene distributions. While
+    the offline baseline YoNoSplat achieves higher pose accuracy, it benefits from
+    access to the entire image set during inference. In contrast, ReCoSplat estimates
+    camera poses autoregressively from streaming observations while maintaining
+    competitive accuracy across all datasets.
+
+
+    4.3                      Ablation Study
+
+    We perform ablations to analyze key design choices in ReCoSplat. Table 5 studies
+    pose supervision and conditioning strategies using models trained with up to 32
+    input views to reduce training time. Table 6 evaluates chunk-size curriculum
+    learning and KV cache compression using 128 input views. These experiments
+    use Stage 2 or Stage 3 checkpoints, which allow for evaluation on larger view
+    counts. All experiments are conducted on DL3DV.
+
+    Predicted Assembly Pose. In Section 3.3, we noted that training with pre-
+    dicted assembly poses couples local Gaussian prediction with camera pose esti-
+    mation, which can destabilize training. To evaluate this effect, we train a model
+14          F. Cheng et al.
+
+Table 5: We compare training with pre-                                   Table 6: We evaluate the effect of chunk-
+dicted, ground-truth, and mixed assem-                                   size curriculum learning (CL) and KV
+bly poses, as well as Plücker raymap con-                                cache compression on DL3DV with 128
+ditioning, using a KV-cache backbone on                                  input views.
+DL3DV with 32 input views.
+                                                                         Method                                    Stage p k PSNR ↑ SSIM ↑ LPIPS ↓
+                                                                         Ours                                       2     ✓   21.527   0.689   0.227
+Method                               Stage p k PSNR ↑ SSIM ↑ LPIPS ↓
+                                                                         Ours w/o CL                                2     ✓   21.510   0.688   0.227
+KV Cache                              1     ✓   21.346   0.680   0.224   Ours @ Chunk Size (8, 4, 4, ...)           2     ✓   21.397   0.680   0.237
+KV Cache + Predicted Assembly Pose    1     ✓   20.781   0.641   0.238   Ours w/o CL @ Chunk size (8, 4, 4, ...)    2     ✓   20.777   0.652   0.265
+KV Cache + Mixed Assembly Pose        1     ✓   21.316   0.681   0.223
+                                                                         Ours                                       3     ✓ 21.576     0.690   0.227
+KV Cache + Plücker Raymap             1     ✓   21.166   0.676   0.228
+                                                                         Ours                                       2   ✓✓    22.908   0.780   0.174
+KV Cache                              1   ✓✓    21.866   0.729   0.196   Ours w/o CL                                2   ✓✓    22.884   0.779   0.175
+KV Cache + Predicted Assembly Pose    1   ✓✓    20.836   0.656   0.229   Ours @ Chunk Size (8, 4, 4, ...)           2   ✓✓    22.816   0.775   0.181
+KV Cache + Mixed Assembly Pose        1   ✓✓    21.915   0.736   0.192   Ours w/o CL @ Chunk Size (8, 4, 4, ...)    2   ✓✓    21.853   0.740   0.215
+KV Cache + Plücker Raymap             1   ✓✓    22.067   0.744   0.189
+                                                                         Ours                                       3   ✓ ✓ 22.852     0.777   0.176
+
+
+
+
+using predicted assembly poses. As shown in Table 5, this significantly degrades
+reconstruction quality compared to the KV cache baseline.
+Mixed Assembly Pose. We also evaluate training with mixed ground-truth
+and predicted assembly poses. Table 5 shows negligible differences compared to
+using ground-truth poses alone, indicating that predicted poses provide limited
+supervision in the autoregressive setting.
+Plücker Raymap. We test Plücker raymap conditioning to isolate the value of
+appearance-based conditioning. Plücker raymaps encode camera rays but do not
+incorporate information about the current reconstruction. Table 5 shows that
+this approach performs worse than the baseline when predicted poses are used
+at inference, indicating that geometric ray information alone is insufficient to
+correct pose-induced reconstruction errors.
+KV Cache Compression. Table 6 shows that KV cache compression has min-
+imal impact on reconstruction quality, while Figure 5 demonstrates substantial
+VRAM reductions at high view counts.
+Chunk-Size Curriculum Learning (CL). The chunk-size training curricu-
+lum enables inference with variable chunk sizes with minimal performance vari-
+ance (Table 6). We also observe no degradation in performance compared to
+training with a fixed chunk size (n = 8).
+
+5        Conclusion
+In this work, we present ReCoSplat, an autoregressive feed-forward Gaussian
+Splatting framework for online novel view synthesis from sequential observa-
+tions. We introduce a Render-and-Compare module to bridge the pose distri-
+bution mismatch between ground-truth and predicted assembly poses, enabling
+robust reconstruction in posed and unposed settings. To support long sequences,
+we further propose a KV cache compression strategy that greatly reduces mem-
+ory usage while maintaining reconstruction quality. Experiments across multiple
+datasets and input configurations show that ReCoSplat achieves state-of-the-art
+performance among autoregressive approaches while remaining competitive with
+offline methods.
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare              15
+
+Limitations. While ReCoSplat improves robustness to pose errors by bridging
+the distribution mismatch between ground-truth and predicted assembly poses,
+reconstruction quality in unposed settings cannot be fully independent of pose
+estimation accuracy. Large pose errors can still propagate to Gaussian assembly
+and affect rendering fidelity. Advances in online pose estimation are therefore
+likely to further strengthen autoregressive reconstruction performance.
+Acknowledgements. We thank Sifei Liu for extensive discussions and insight-
+ful suggestions that helped improve this work. We also thank Shuo Chen and
+Kuan-Chih Huang for helpful discussions.
+
+References
+ 1. Charatan, D., Li, S., Tagliasacchi, A., Sitzmann, V.: pixelsplat: 3d gaussian splats
+    from image pairs for scalable generalizable 3d reconstruction. In: CVPR (2024)
+ 2. Chen, S., Wei, C., Sun, S., Nie, P., Zhou, K., Zhang, G., Yang, M.H., Chen,
+    W.: Context forcing: Consistent autoregressive video generation with long context.
+    arXiv preprint arXiv:2602.06028 (2026)
+ 3. Chen, X., Chen, Y., Xiu, Y., Geiger, A., Chen, A.: Ttt3r: 3d reconstruction as
+    test-time training. arXiv preprint arXiv:2509.26645 (2025)
+ 4. Cheng, C., Yu, S., Wang, Z., Zhou, Y., Wang, H.: Outdoor monocular slam with
+    global scale-consistent 3d gaussian pointmaps. In: Proceedings of the IEEE/CVF
+    International Conference on Computer Vision (ICCV) (2025)
+ 5. Dai, A., Chang, A.X., Savva, M., Halber, M., Funkhouser, T., Nießner, M.: Scannet:
+    Richly-annotated 3d reconstructions of indoor scenes. In: Proc. Computer Vision
+    and Pattern Recognition (CVPR), IEEE (2017)
+ 6. Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner,
+    T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., Uszkoreit, J., Houlsby, N.:
+    An image is worth 16x16 words: Transformers for image recognition at scale. In:
+    International Conference on Learning Representations (2021)
+ 7. Edstedt, J., Sun, Q., Bökman, G., Wadenbäck, M., Felsberg, M.: RoMa: Robust
+    Dense Feature Matching. In: IEEE Conference on Computer Vision and Pattern
+    Recognition (2024)
+ 8. Guo, J., Guan, T., Dong, W., Zheng, W., Wang, W., Wang, Y., Yam, Y., Liu, Y.H.:
+    Salon3r: Structure-aware long-term generalizable 3d reconstruction from unposed
+    images. arXiv preprint arXiv:2510.15072 (2025)
+ 9. Huang, G., Wang, R., Gao, X., Sun, C., Wu, Y., Gao, S., Jia, Y.: Longsplat: On-
+    line generalizable 3d gaussian splatting from long sequence images. arXiv preprint
+    arXiv:2507.16144 (2025)
+10. Jiang, L., Mao, Y., Xu, L., Lu, T., Ren, K., Jin, Y., Xu, X., Yu, M., Pang, J.,
+    Zhao, F., et al.: Anysplat: Feed-forward 3d gaussian splatting from unconstrained
+    views. ACM Transactions on Graphics (TOG) 44(6), 1–16 (2025)
+11. Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang, Y., Fischer, T.,
+    Knapitsch, A., Zauss, D., Weber, E., Antunes, N., Luiten, J., Lopez-Antequera,
+    M., Bulò, S.R., Richardt, C., Ramanan, D., Scherer, S., Kontschieder, P.: MapA-
+    nything: Universal feed-forward metric 3D reconstruction. In: International Con-
+    ference on 3D Vision (3DV). IEEE (2026)
+12. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G.: 3d gaussian splatting for
+    real-time radiance field rendering. ACM Transactions on Graphics 42(4) (July
+    2023)
+16      F. Cheng et al.
+
+13. Li, Y., Wang, J., Chu, L., Li, X., Kao, S.H., Chen, Y.C., Lu, Y.: Streamgs: Online
+    generalizable gaussian splatting reconstruction for unposed image streams. In: Pro-
+    ceedings of the IEEE/CVF International Conference on Computer Vision (ICCV).
+    pp. 25841–25850 (October 2025)
+14. Li, Z., Zhou, J., Wang, Y., Guo, H., Chang, W., Zhou, Y., Zhu, H., Chen, J., Shen,
+    C., He, T.: Wint3r: Window-based streaming reconstruction with camera token
+    pool. arXiv preprint arXiv:2509.05296 (2025)
+15. Lin, H., Chen, S., Liew, J.H., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth anything 3: recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+16. Ling, L., Sheng, Y., Tu, Z., Zhao, W., Xin, C., Wan, K., Yu, L., Guo, Q., Yu,
+    Z., Lu, Y., et al.: Dl3dv-10k: A large-scale scene dataset for deep learning-based
+    3d vision. In: Proceedings of the IEEE/CVF Conference on Computer Vision and
+    Pattern Recognition. pp. 22160–22169 (2024)
+17. Liu, A., Tucker, R., Jampani, V., Makadia, A., Snavely, N., Kanazawa, A.: Infinite
+    nature: Perpetual view generation of natural scenes from a single image. In: Pro-
+    ceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)
+    (October 2021)
+18. Oquab, M., Darcet, T., Moutakanni, T., Vo, H.V., Szafraniec, M., Khalidov, V.,
+    Fernandez, P., HAZIZA, D., Massa, F., El-Nouby, A., Assran, M., Ballas, N.,
+    Galuba, W., Howes, R., Huang, P.Y., Li, S.W., Misra, I., Rabbat, M., Sharma, V.,
+    Synnaeve, G., Xu, H., Jegou, H., Mairal, J., Labatut, P., Joulin, A., Bojanowski,
+    P.: DINOv2: Learning robust visual features without supervision. Transactions on
+    Machine Learning Research (2024), featured Certification
+19. Ranftl, R., Bochkovskiy, A., Koltun, V.: Vision transformers for dense prediction.
+    In: Proceedings of the IEEE/CVF International Conference on Computer Vision
+    (ICCV). pp. 12179–12188 (October 2021)
+20. Sarlin, P.E., DeTone, D., Malisiewicz, T., Rabinovich, A.: SuperGlue: Learning
+    feature matching with graph neural networks. In: CVPR (2020)
+21. Sun, X., Zhu, Z., Lou, Z., Yang, B., Tang, J., Zhang, L., Wang, H., Zhang, J.: Avggt:
+    Rethinking global attention for accelerating vggt. arXiv preprint arXiv:2512.02541
+    (2025)
+22. Sun, Y., Li, X., Dalal, K., Xu, J., Vikram, A., Zhang, G., Dubois, Y., Chen, X.,
+    Wang, X., Koyejo, S., Hashimoto, T., Guestrin, C.: Learning to (learn at test time):
+    Rnns with expressive hidden states (2025)
+23. Szymanowicz, S., Rupprecht, C., Vedaldi, A.: Splatter image: Ultra-fast single-
+    view 3d reconstruction. In: The IEEE/CVF Conference on Computer Vision and
+    Pattern Recognition (CVPR) (2024)
+24. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the IEEE/CVF Confer-
+    ence on Computer Vision and Pattern Recognition (2025)
+25. Wang*, Q., Zhang*, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d
+    perception model with persistent state. In: CVPR (2025)
+26. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition (CVPR). pp. 20697–20709 (June 2024)
+27. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+    arXiv:2507.13347 (2025)
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare               17
+
+28. Wang, Y., Huang, T., Chen, H., Lee, G.H.: Freesplat: Generalizable 3d gaussian
+    splatting towards free view synthesis of indoor scenes. In: The Thirty-eighth Annual
+    Conference on Neural Information Processing Systems (2024)
+29. Wang, Y., Huang, T., Chen, H., Lee, G.H.: Freesplat: Generalizable 3d gaussian
+    splatting towards free view synthesis of indoor scenes. In: Globerson, A., Mackey,
+    L., Belgrave, D., Fan, A., Paquet, U., Tomczak, J., Zhang, C. (eds.) Advances
+    in Neural Information Processing Systems. vol. 37, pp. 107326–107349. Curran
+    Associates, Inc. (2024)
+30. Wu, T., Yang, S., Po, R., Xu, Y., Liu, Z., Lin, D., Wetzstein, G.: Video world
+    models with long-term spatial memory. In: The Thirty-ninth Annual Conference
+    on Neural Information Processing Systems (2025)
+31. Wu, Y., Zheng, W., Zhou, J., Lu, J.: Point3r: Streaming 3d reconstruction with
+    explicit spatial pointer memory. In: The Thirty-ninth Annual Conference on Neural
+    Information Processing Systems (2025)
+32. Xu, H., Peng, S., Wang, F., Blum, H., Barath, D., Geiger, A., Pollefeys, M.: Depth-
+    splat: Connecting gaussian splatting and depth. In: CVPR (2025)
+33. Yao, Y., Luo, Z., Li, S., Fang, T., Quan, L.: Mvsnet: Depth inference for unstruc-
+    tured multi-view stereo. European Conference on Computer Vision (ECCV) (2018)
+34. Yao, Y., Luo, Z., Li, S., Shen, T., Fang, T., Quan, L.: Recurrent mvsnet for high-
+    resolution multi-view stereo depth inference. Computer Vision and Pattern Recog-
+    nition (CVPR) (2019)
+35. Ye, B., Chen, B., Xu, H., Barath, D., Pollefeys, M.: Yonosplat: You only need
+    one model for feedforward 3d gaussian splatting. In: International Conference on
+    Learning Representations (ICLR) (2026)
+36. Ye, B., Liu, S., Xu, H., Li, X., Pollefeys, M., Yang, M.H., Peng, S.: No pose, no
+    problem: Surprisingly simple 3d gaussian splats from sparse unposed images. In:
+    The Thirteenth International Conference on Learning Representations (2025)
+37. Yeshwanth, C., Liu, Y.C., Nießner, M., Dai, A.: Scannet++: A high-fidelity dataset
+    of 3d indoor scenes. In: Proceedings of the International Conference on Computer
+    Vision (ICCV) (2023)
+38. Yuille, A., Kersten, D.: Vision as bayesian inference: analysis by synthesis? Trends
+    in Cognitive Sciences 10(7), 301–308 (2006), special issue: Probabilistic models of
+    cognition
+39. Zhang, J., Li, Y., Chen, A., Xu, M., Liu, K., Wang, J., Long, X.X., Liang, H.,
+    Xu, Z., Su, H., Theobalt, C., Rupprecht, C., Vedaldi, A., Zhou, K., Pfister, H.,
+    Liang, P.P., Lu, S., Zhan, F.: Advances in feed-forward 3d reconstruction and view
+    synthesis: A survey (2025)
+40. Zhang, K., Bi, S., Tan, H., Xiangli, Y., Zhao, N., Sunkavalli, K., Xu, Z.: Gs-lrm:
+    Large reconstruction model for 3d gaussian splatting. European Conference on
+    Computer Vision (2024)
+41. Zhang, R., Isola, P., Efros, A.A., Shechtman, E., Wang, O.: The unreasonable
+    effectiveness of deep features as a perceptual metric. In: CVPR (2018)
+42. Zhou, T., Tucker, R., Flynn, J., Fyffe, G., Snavely, N.: Stereo magnification: Learn-
+    ing view synthesis using multiplane images. In: SIGGRAPH (2018)
+43. Zhuo, D., Zheng, W., Guo, J., Wu, Y., Zhou, J., Lu, J.: Streaming 4d visual
+    geometry transformer. arXiv preprint arXiv:2507.11539 (2025)
+18      F. Cheng et al.
+
+A     Appendix
+
+A.1    Video Results
+
+Video results can be found at our project page: https://freemancheng.com/
+ReCoSplat.
+
+
+A.2    Additional Ablation Studies
+
+Gaussian Features. To enrich the conditioning signal within the Render-and-
+Compare module, we augment each Gaussian with nine learned feature dimen-
+sions alongside standard RGB. These features are rendered with the RGB chan-
+nels, providing auxiliary cues regarding the current scene reconstruction to bet-
+ter align the rendered and observed images. Table 7 evaluates the impact of
+removing these features on the DL3DV [16] dataset. Without them, ReCoSplat
+exhibits a noticeable drop in performance during inference when utilizing pre-
+dicted assembly poses. This drop indicates that these auxiliary feature channels
+supply critical contextual information for mitigating pose-induced reconstruc-
+tion errors. To minimize training overhead, all models evaluated in Table 7 were
+trained using a maximum of 32 context views. For completeness, we also include
+the corresponding results from Table 5 of the main text. Finally, Figure 7 pro-
+vides a PCA-projected visualization of these rendered Gaussian feature maps.
+
+
+Table 7: Ablation study on DL3DV (32 input views) evaluating the impact of aug-
+menting Gaussians with additional feature dimensions for the Render-and-Compare
+module. Removing these features degrades reconstruction quality when predicted as-
+sembly poses are used at inference, indicating that the learned feature channels provide
+essential context for correcting pose-induced errors. Best and second-best results
+are highlighted.
+
+           Method                               Stage p k PSNR ↑ SSIM ↑ LPIPS ↓
+           KV Cache                              1     ✓   21.346   0.680   0.224
+           KV Cache + Predicted Assembly Pose    1     ✓   20.781   0.641   0.238
+           KV Cache + Mixed Assembly Pose        1     ✓   21.316   0.681   0.223
+           KV Cache + Plücker Raymap             1     ✓   21.166   0.676   0.228
+           Ours w/o Gaussian Features            1     ✓   21.455   0.685   0.223
+           Ours                                  1     ✓ 21.769 0.699       0.212
+           KV Cache                              1   ✓✓    21.866   0.729   0.196
+           KV Cache + Predicted Assembly Pose    1   ✓✓    20.836   0.656   0.229
+           KV Cache + Mixed Assembly Pose        1   ✓✓    21.915   0.736   0.192
+           KV Cache + Plücker Raymap             1   ✓✓    22.067   0.744   0.189
+           Ours w/o Gaussian Features            1   ✓✓    22.548   0.759   0.181
+           Ours                                  1   ✓ ✓ 22.610 0.759       0.178
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare                                 19
+
+Rendered RGB
+Rendered Feature
+
+
+
+
+Fig. 7: Visualization of the additional Gaussian feature channels rendered by our
+model, reduced to three dimensions via PCA projection.
+
+
+
+Prompt Register Token. As shown in Table 8, introducing the prompt reg-
+ister token yields negligible performance differences on the DL3DV dataset. In
+contrast, it provides consistent performance gains on ScanNet++ [37] (Table 9),
+a dataset characterized by irregular camera trajectories for the streaming setting.
+This contrast highlights that explicitly marking retained views in the KV cache
+is particularly beneficial for when camera motion irregular for the streaming
+setting.
+
+
+Table 8: Ablation study evaluating the prompt register token on the DL3DV dataset
+across varying numbers of input views. Explicitly marking retained views yields mini-
+mal performance changes on these smoother sequences. Best results are highlighted.
+
+                                         90v                      180v                     270v
+Method                     p k
+                                 PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓
+Ours w/o Prompt Token       ✓    21.175   0.669   0.238   20.820   0.649   0.261   20.365   0.626   0.284
+Ours                        ✓    21.206   0.670   0.237   20.823   0.651   0.259   20.325   0.625   0.282
+
+
+
+Table 9: Ablation study evaluating the prompt register token on the ScanNet++
+dataset. The inclusion of the prompt token yields consistent improvements due to
+ScanNet++’s highly irregular camera trajectories, which benefit significantly from ex-
+plicitly marking retained views in the KV cache. Best results are highlighted.
+
+                                         128v                     256v                     512v
+Method                     p k
+                                 PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓    PSNR ↑ SSIM ↑ LPIPS ↓
+Ours w/o Prompt Token       ✓    19.635   0.675   0.337   19.492   0.654   0.351   17.791   0.594   0.438
+Ours                        ✓    19.840   0.683   0.331   19.660   0.663   0.342   18.289   0.611   0.411
+
+
+
+
+A.3                Additional Visual Comparisons
+
+We provide extended visual comparisons in Figures 8 and 9. Figure 8 illustrates
+novel view synthesis results on ScanNet [5] in the fully posed setting using 32
+input views. ReCoSplat visibly outperforms both autoregressive baselines and
+FreeSplat [29], demonstrating robust generalization even on out-of-distribution
+20         F. Cheng et al.
+
+data. These visual improvements align closely with the quantitative results pre-
+sented in Tables 2. Furthermore, as noted in Section 4.2, our method surpasses
+the offline baseline YoNoSplat [35] in PSNR under fully posed conditions. Spe-
+cific examples of this can be seen in the third and fourth rows of Figure 8. Finally,
+Figure 9 demonstrates comparative novel view synthesis on DL3DV across vari-
+ous unposed input settings, providing further qualitative evidence of ReCoSplat’s
+advantage over the autoregressive baselines.
+
+
+
+
+      GT            YoNoSplat    FreeSplat      KV Cache         GIR           Ours
+
+
+Fig. 8: Novel view synthesis on ScanNet (out-of-distribution) with 32 input views in
+the posed and calibrated setting.
+
+
+
+
+A.4    Loss Formulation
+
+Relative Pose Loss. Lextrinsic is a pairwise relative pose loss [35]. For any
+pair of views i and j indexed on the entire input sequence of length N ,
+let Pi = [Ri , ti ] and Pj = [Rj , tj ] represent their respective ground-truth poses,
+while P̂i = [R̂i , t̂i ] and P̂j = [R̂j , t̂j ] denote the model’s predictions. Following
+[35]’s notation, we denote the relative transformation from the j-th predicted
+pose to the i-th predicted pose as P̂i←j = P̂i−1 P̂j , and similarly for the ground
+truth, Pi←j = Pi−1 Pj . Then, our loss is decomposed into rotation and translation
+Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare           21
+
+
+
+                                   Unposed and Uncalibrated
+32 Views
+64 Views
+128 Views
+256 Views
+
+
+
+
+                                   Unposed and Calibrated
+32 Views
+64 Views
+128 Views
+256 Views
+
+
+
+
+            GT     YoNoSplat     S3PO-GS           KV Cache   GIR          Ours
+
+
+Fig. 9: Novel view synthesis on DL3DV with an increasing number of input views
+under unposed settings. Note that while S3PO-GS typically requires calibrated inputs,
+we include it here for comparison in the uncalibrated setting.
+22      F. Cheng et al.
+
+terms
+                  \mathcal {L}_{\text {extrinsic}} = \frac {1}{N(N-1)} \sum _{i \neq j} \left ( \mathcal {L}_R(i, j) + \lambda _t \mathcal {L}_t(i, j) \right )    (10)
+
+where
+
+                      \mathcal {L}_R(i, j) = \arccos \left (\frac {\text {tr}\left ((R_{i \leftarrow j})^\top \hat {R}_{i \leftarrow j}\right ) - 1}{2}\right )    (11)
+
+and
+                                                \mathcal {L}_t(i, j) = \mathcal {H}_\delta \left (\hat {t}_{i \leftarrow j} - t_{i \leftarrow j}\right ).          (12)
+Here, Hδ is the Huber loss.
+

@@ -1,0 +1,1547 @@
+                                          StereoVGGT: A Training-Free Visual Geometry
+                                                  Transformer for Stereo Vision
+
+                                         Ziyang Chen, Yansong Qu, You Shen, Xuan Cheng, Liujuan Cao*
+                                            *
+                                            Key Laboratory of Multimedia Trusted Perception and Efficient
+                                            Computing, Ministry of Education of China, Xiamen University,
+arXiv:2603.29368v1 [cs.CV] 31 Mar 2026
+
+
+
+
+                                                          Xiamen, 361005, Fujian, China.
+
+
+                                                *Corresponding author(s). E-mail(s): caoliujuan@xmu.edu.cn;
+                                                     Contributing authors: ziyangchen@stu.xmu.edu.cn;
+                                                      quyans@stu.xmu.edu.cn; 16mystorm@gmail.com;
+                                                                  chengxuan@xmu.edu.cn;
+
+
+                                                                              Abstract
+                                           Driven by the advancement of 3D devices, stereo vision tasks including stereo
+                                           matching and stereo conversion have emerged as a critical research frontier.
+                                           Contemporary stereo vision backbones typically rely on either monocular depth
+                                           estimation (MDE) models or visual foundation models (VFMs). Crucially, these
+                                           models are predominantly pretrained without explicit supervision of camera
+                                           poses. Given that such geometric knowledge is indispensable for stereo vision,
+                                           the absence of explicit spatial constraints constitutes a significant performance
+                                           bottleneck for existing architectures. Recognizing that the Visual Geometry
+                                           Grounded Transformer (VGGT) operates as a foundation model pretrained on
+                                           extensive 3D priors, including camera poses, we investigate its potential as a
+                                           robust backbone for stereo vision tasks. Nevertheless, empirical results indicate
+                                           that its direct application to stereo vision yields suboptimal performance. We
+                                           observe that VGGT suffers from a more significant degradation of geometric
+                                           details during feature extraction. Such characteristics conflict with the require-
+                                           ments of binocular stereo vision, thereby constraining its efficacy for relative
+                                           tasks. To bridge this gap, we propose StereoVGGT, a feature backbone specifi-
+                                           cally tailored for stereo vision. By leveraging the frozen VGGT and introducing a
+                                           training-free feature adjustment pipeline, we mitigate geometric degradation and
+                                           harness the latent camera calibration knowledge embedded within the model.
+                                           StereoVGGT-based stereo matching network achieved the 1st rank among all
+                                           published methods on the KITTI benchmark, validating that StereoVGGT serves
+                                           as a highly effective backbone for stereo vision. Homepage URL.
+
+
+
+                                                                                   1
+      Keywords: Feature Backbone, Stereo Vision, Visual Geometry Grounded Transformer
+
+
+
+
+                     Feature Backbone for Stereo Vision                               Downstream Tasks
+    SOTA Backbones                 VGGT              StereoVGGT (Ours)
+
+
+
+
+                                                                         Conversion
+                                                                           Stereo
+                                                                                       Spatial
+                                                                                      Computer    Anaglyph 3D
+        Training Without          Camera Pose             Camera Pose
+          Camera Pose             Knowledge               Knowledge
+
+
+
+
+                                                                         Matching
+                                                                          Stereo
+                                                                                      Binocular
+          Preserve                 Structural               Preserve                   Camera     Disparity Map
+          Feature                 Degradation               Feature
+
+
+
+Fig. 1 Camera focal length serves as a determinative factor in disparity estimation. While existing
+stereo vision backbones lack targeted learning of camera geometry, causing them to largely neglect
+this critical prior. Given that VGGT is explicitly trained on 3D geometric priors such as camera poses,
+we seek to its inherent capacity for encoding camera pose representations. However, we observe that
+VGGT tends to excessively degrade the structural contours within the feature maps. This smoothing
+property is architecturally incompatible with the pixel-accurate alignment demands of stereo vision,
+creating a bottleneck for downstream stereo applications. StereoVGGT integrates the camera geom-
+etry knowledge encoded in VGGT while preserving robust feature representation capabilities. It can
+serves as a highly effective backbone for stereo vision.
+
+
+
+
+1 Introduction
+Stereo vision constitutes a computational emulation of biological binocularity, serving
+as a fundamental pillar within the broader architecture of 3D vision perception. Stereo
+matching and stereo conversion serve as two core tasks within this domain. Stereo
+matching, also known as disparity estimation [1, 2], aims to establish dense pixel-wise
+correspondences between rectified image pairs. Complementarily, stereo conversion
+[3, 4] involves the synthesis of stereoscopic content from monocular images. Modern
+SOTA stereo conversion frameworks typically generate the corresponding right-eye
+view by leveraging estimated disparity priors as geometric guidance.
+    Disparity is inversely proportional to the metric depth, this geometric relationship
+is formulated as d = f z·B , where d denotes disparity, f represents the focal length, B is
+the baseline length, and z signifies the metric depth. Inspired by this geometric princi-
+ple, current stereo matching [5, 6] and stereo conversion frameworks [3, 4] increasingly
+adopt Monocular Depth Estimation (MDE) models and Visual Foundation Models
+(VFMs) as their backbones for depth-aware feature extraction.
+    However, as shown in Fig. 1, VFMs and MDE models are typically trained without
+explicit exposure to 3D-spatial data, such as camera poses. Theoretically, incorporat-
+ing camera pose knowledge is crucial for stereo vision. This is because camera poses
+inherently encapsulate the camera focal length f . According to the above formulation
+
+
+                                                     2
+                                              Camera Pose Error (deg)
+             FOV x (med.)                FOV x (mean)               FOV y (med.)                FOV y (mean)
+      80                          80                                                     60
+                                                              60
+      60                          60
+                                                              40                         40
+deg
+
+
+
+
+                            deg
+
+
+
+
+                                                        deg
+
+
+
+
+                                                                                   deg
+      40                          40
+      20                                                      20                         20
+                                  20
+      0                           0                           0                          0
+               v2 v2 GT                    v2 v2 GT                    v2 v2 GT                   v2 v2 GT
+           DINO DA VG                  DINO DA VG                  DINO DA VG                 DINO DA VG
+Fig. 2 Blue histograms visualize the median and mean camera FOV errors obtained when applying
+different frameworks. This analysis evaluates camera FOV on the ETH3D dataset.
+
+
+d = f z·B , the focal length f acts as a decisive determinant of the disparity d. Based
+on these deductions, we argue that the absence of camera pose knowledge prevents
+existing stereo vision backbones from providing sufficient geometric priors, thereby
+creating a performance bottleneck for downstream tasks.
+    To demonstrate that current VFMs and MDE models lack sufficient camera pose
+knowledge, we conduct a comparative analysis by first extracting feature represen-
+tations from a SOTA VFM (DINOv2 [7]), a SOTA MDE model (Depth Anything
+V2, DAv2 [8]), and the Visual Geometry Grounded Transformer (VGGT) [9].
+Subsequently, following the methodologies in [9, 10], we implement a Levenberg-
+Marquardt-based solver to estimate the camera Field-of-View (FOV) directly from
+these features. Detailed specifications of this solver are provided in Appendix A.1.
+Finally, as illustrated by the histograms in Fig. 2, the evaluation reveals that both
+DINOv2 and DAv2 exhibit substantial errors in pose estimation. Conversely, the
+3D foundation model VGGT, which is trained with explicit camera pose supervi-
+sion, delivers substantially better pose estimation performance. This phenomenon
+indicates that VFMs, represented by DINOv2, and MDE models, such as DAv2,
+exhibit a deficiency in inherent camera knowledge awareness. Notably, features derived
+from VGGT demonstrate a significantly more precise encoding of camera knowledge.
+This observation motivates us to leverage the frozen VGGT to enhance stereo vision
+performance.
+    VGGT has been widely adopted as a feature backbone for various 3D tasks. How-
+ever, empirical observations in Sec. 4 demonstrate that its direct application fails to
+yield significant improvements in stereo vision performance. To elucidate why VGGT
+fails to achieve the immediate performance gains, we further investigate its intermedi-
+ate feature representations. Fig. 3(a) presents the average Structural Similarity (SSIM)
+index of feature maps extracted by different architectures. To ensure a fair comparison,
+features are exclusively extracted from the DINO-based architectural components of
+each respective model here. Specifically, the high-dimensional (1024-D) feature maps
+are projected into a 3-dimensional space via Principal Component Analysis prior to
+SSIM computation. The reported SSIM values represent the mean performance aver-
+aged across all images within each dataset; within this context, a lower SSIM value
+
+
+
+
+                                                        3
+                                             Input View                     VGGT DINO
+
+
+
+
+                                              DINOv2                     StereoVGGT (Ours)
+               (a)                                              (b)
+
+
+Fig. 3 VGGT suffers from spatial-structural degradation during its feature processing. (a) His-
+tograms illustrate the SSIM values calculated between the extracted feature maps and the original
+input images across the ETH3D, KITTI, and Middlebury datasets. (b) Feature maps visualization.
+The red bounding boxes highlight the vehicle contours extracted by each respective method.
+
+
+signifies more pronounced degradation. The results clearly show that features pro-
+duced by VGGT suffer from more severe structural degradation at the feature level
+compared to those from SOTA VFMs and MDE models. Qualitative visualization
+further demonstrates that VGGT tends to undergo excessive structural degradation
+[11] during the encoding process. For a more intuitive comparison, we visualize the
+feature representations by projecting them into a single-dimension feature map. As
+shown in Fig. 3(b), features from original DINOv2 maintain clear geometric con-
+tours of the vehicle. In contrast, features from the DINO component of VGGT suffer
+from structural blurring, where the vehicle become nearly indistinguishable from the
+ground. This phenomenon stems from the original design of VGGT, which targets 3D
+reconstruction from multi-view inputs. In this context, the model tends to suppress
+feature details to mitigate the accumulation of errors during the reconstruction pro-
+cess. Unlike semantic-centric tasks that prioritize high-level abstraction [12], stereo
+vision relies heavily on the preservation of local structural integrity. Numerous studies
+in stereo vision [13–15] have established that retaining or restoring spatial details is
+crucial for accurate stereo perception. Overall, we argue that the reduction in SSIM
+observed with VGGT reflects a severe structural degradation within the feature space.
+This phenomenon ultimately hampers the utility of VGGT as an effective backbone
+for stereo vision tasks.
+    To harness the latent camera-specific knowledge embedded within VGGT while
+bypassing its inherent degradation, we propose StereoVGGT. Specifically, Stere-
+oVGGT leverages the framework and pre-trained weights of VGGT to imbue the model
+with an latent comprehension of camera parameters. To mitigate spatial structural
+degradation within the feature manifold of the original VGGT, we propose an entropy-
+based optimization strategy for fine-tuning the activation parameters of VGGT. Our
+primary contributions are summarized as follows:
+• The absence of camera pose knowledge in existing stereo vision backbones consti-
+  tutes a significant bottleneck for improving accuracy in stereo vision tasks. Given
+  that the 3D foundation model is explicitly trained on such geometric data, we
+  incorporate a frozen VGGT to supplement this knowledge.
+
+
+
+                                               4
+• Building upon the entropy-minimization relationship observed among the weights
+  of a 3D foundation model, a MDE model, and DINOv2, we derive the optimal
+  parameters for our stereo vision backbone.
+• We design a specialized neck architecture that leverages VGGT’s Frame Attention
+  to modulate the feature representations extracted from the MDE neck. This mech-
+  anism achieves a synergistic integration of the high-fidelity spatial details inherent
+  in MDE models and the robust camera-specific geometric priors provided by the 3D
+  foundation model.
+• StereoVGGT-based stereo matching network ranks 1st among all published meth-
+  ods on the KITTI benchmark for non-occluded pixels. StereoVGGT-based stereo
+  conversion network achieves SOTA performance on the Mono2Stereo and Inria 3D
+  Movie datasets.
+
+2 Related Work
+2.1 Feature Backbone for Stereo Vision
+Stereo Conversion. Mainstream methods typically follow a two-stage pipeline to
+generate stereoscopic views. In the first stage, a disparity map is estimated and used to
+geometrically warp the left view image. The second stage employs an inpainting model
+to generate the right view. The accuracy of stereo conversion heavily depends on pre-
+cise disparity estimation. StereoDiffusion [16] employs MiDaS [17] to estimate depth
+and constructs a “Stereo Pixel Shift” module to compute the corresponding disparity.
+Recent approaches, such as StereoCrafter [4] and Mono2Stereo [3], leverage advanced
+MDE models [8, 18] as backbones to train novel inpainting modules, achieving SOTA
+performance. However, these MDE models are typically trained without explicit aware-
+ness of camera parameters. Consequently, during the transformation from estimated
+depth to disparity, the absence of prior knowledge regarding focal length and baseline
+distance introduces geometric ambiguity. This lack of calibration awareness can lead
+to spatial information distortion.
+Stereo Matching. Traditional stereo matching methods relied on handcrafted simi-
+larity measures to compute disparity [19]. The advent of deep learning led to the use
+of trainable Convolutional Neural Networks (CNNs) [2, 20] and Transformers [21, 22]
+as feature backbones for stereo matching. Driven by large-scale datasets like ImageNet
+[23], VFMs [7, 24, 25] have demonstrated a strong capability for extracting stereo fea-
+tures. Employing these pre-trained models directly as feature backbones has shown
+superior performance compared to training feature extractors from scratch [13–15].
+Recent research has shifted focus towards using MDE models as backbones for stereo
+matching. This trend is motivated by two factors: the improved accuracy of MDE mod-
+els in estimating relative depth, and the inherent correlation between disparity and
+relative depth. For example, LoS [26] adopted MiDaS [17] as its feature backbone, out-
+performing many approaches that relied on visual foundation models. Subsequently,
+many methods [27–30] nearly concurrently demonstrated that DAv2 [8] as a feature
+backbone could achieve SOTA performance.
+    Despite their success, current SOTA VFMs and MDE models are typically trained
+without exposure to explicit camera intrinsic and extrinsic parameters, which are
+
+
+                                           5
+fundamental to the depth-to-disparity conversion process. We contend that this omis-
+sion of geometric calibration awareness constitutes a significant bottleneck, preventing
+these backbones from achieving more robust and scale-accurate performance in diverse
+stereo vision scenarios. Without the ability to incorporate such priors, models often
+struggle with scale ambiguity, limiting their utility in precision-critical binocular tasks.
+
+2.2 Visual Geometry Grounded Transformer
+VGGT represents a SOTA feed-forward framework specifically engineered for visual
+geometry [31–33] in 3D vision tasks. The emergence of VGGT [9] marks a pivotal
+paradigm shift in 3D computer vision, transitioning from conventional geometry-
+dependent optimization pipelines toward a unified, feed-forward neural architecture.
+Leveraging large-scale pre-training on diverse datasets, VGGT is capable of con-
+currently regressing point clouds [20, 34], camera poses [35, 36], and depth maps
+[37, 38].
+    Recent works have demonstrated that VGGT can extract robust 3D features, mak-
+ing VGGT suitable for a variety of downstream tasks [39, 40]. VGGT-X [41] leverages
+VGGT to extract dense view features, which are used to construct a large-scale ini-
+tial point cloud for 3D Gaussian Splatting. VGGT-DP [42] employs VGGT to encode
+visual features for robot control applications. Furthermore, VGGT features have been
+successfully used to guide dense-view semantic matching, demonstrating significant
+effectiveness [40].
+    While VGGT has demonstrated exceptional versatility as a feature backbone across
+various 3D vision tasks, its efficacy specifically within the domain of stereo vision
+remains largely under-explored. Our preliminary investigations reveal that the direct
+integration of VGGT into existing stereo vision frameworks does not yield the expected
+performance gains; in fact, such a straightforward substitution can be counterproduc-
+tive, leading to performance degradation. This suggests that the priors learned by
+VGGT may conflict with the geometric correspondence requirements of stereo vision
+tasks without specialized adaptation.
+
+2.3 Image Degradation
+In the fields of computer vision and signal processing, the concept of image degra-
+dation is well-established [43, 44]. Traditionally, image degradation is characterized
+within the spatial domain, manifesting as blur, or lossy compression artifacts. To eval-
+uate the impact of image degradation, the Structural Similarity Index (SSIM) has
+been extensively employed, as it accounts for the spatially correlated nature of visual
+information and the non-linear characteristics of the Human Visual System [45].
+    Recent studies have revealed that as deep neural networks process representations
+within the latent manifold, the geometric structure of feature maps [46] often under-
+goes a degree of erosion to facilitate the extraction of semantic information [11, 47].
+This phenomenon suggests that feature maps processed by deep networks [48–50]
+exhibit a form of spatial-structural degradation in terms of their geometric integrity
+when compared to the original input images. Based on this premise, we utilize SSIM as
+
+
+
+                                             6
+a proxy to evaluate the extent of feature-level spatial-structural degradation induced
+by the neural networks, as illustrated in Fig. 2.
+
+3 Methodology
+3.1 Overall Framework
+Fig. 4 shows the overall framework of our StereoVGGT and how it works for the
+downstream applications of stereo vision. First, we perform Entropy-Minimized Weight
+Merging (EMWM) to re-weight the DINOv2 architecture within VGGT, a procedure
+detailed in Sec. 3.2. The resulting re-weighted DINO module serves as the initial
+component of StereoVGGT. The monocular RGB input I ∈ R3×H×W is processed
+by this re-weighted DINO module. Second, the original feature neck of VGGT is
+incorporated and integrated with an MDE neck to refine the features, yielding a latent
+feature Xstereovggt . This feature extraction process is elaborated upon Sec. 3.3. Third,
+a Dense Prediction Transformer (DPT) head is utilized to compute the disparity
+prior dstereovggt from the latent feature Xstereovggt , as detailed in Sec. 3.4. Finally,
+StereoVGGT can be coupled with various decoders to accommodate different stereo
+vision downstream tasks. In terms of stereo matching, StereoVGGT is connected to a
+disparity decoder to estimate the final disparity map, a process elaborated in Sec. 3.5.
+For the stereo conversion task, StereoVGGT is integrated with an inpainting model
+to generate the right-side view, as described in Sec. 3.6.
+
+                                  Add
+         StereoVGGT            Camera Token                     α                                                          Frozen
+                                                                                        DPT Head
+
+
+                                                                                                                          Training
+                                              VGGT FA
+                 DINOv2
+                                                                                                                          Hyper
+                                                                      Latent Feature               Disparity Prior
+                                                                                                                      α Parameter
+  Input View                                  MDE Neck                                                                      Task
+                      Re-weight
+                                                                                                                           Vector
+
+                                                                                                     Inpainting
+     VGGT        StereoVGGT             MDE                                StereoVGGT
+                                                                                                       Model
+  DINO Weight    DINO Weight         DINO Weight
+                                                         Left View             Task 1. Stereo Conversion             Generated View
+                                                                                                     Disparity
+                   DINOv2                                Right View        StereoVGGT
+                                                                                                     Decoder
+                 DINO Weight                                                     Task 2. Stereo Matching
+                                                         Right View                                                  Disparity Map
+  Entropy-Minimized Weight Merging (EMWM)                                        Downstream Tasks
+
+
+
+Fig. 4 StereoVGGT architecture. StereoVGGT comprises three main stages. First, EMWM synthe-
+sizes a new set of optimized DINO weights by merging the weights of VGGT, DINOv2, and an MDE
+model, guided by an entropy-based criterion. Second, the patch tokens generated by the re-weighted
+DINO are concurrently fed into both frozen VGGT Frame Attention (FA) Blocks and an MDE neck.
+The VGGT FA features subsequently modulate modulate the MDE neck features, thereby achieving a
+balance between camera-geometry knowledge and fine-grained image-feature representation. Finally,
+the resulting latent features Xstereovggt are passed through a DPT head to generate the disparity
+prior dstereovggt . Both the latent features and the disparity prior can then be leveraged in down-
+stream stereo-vision tasks, including stereo conversion and stereo matching.
+
+
+
+
+                                                            7
+3.2 Entropy-Minimized Weight Merging
+Moge-2 [10], DINOv2 [7], and VGGT [9] share a common DINO architecture but are
+trained with different objectives, leading to substantially different weight configura-
+tions. Our analyses presented in Fig. 2 and Fig. 3 reveal that MDE models, VFMs, and
+VGGT exhibit complementary characteristics: while VGGT encodes robust camera-
+geometry priors, it suffers from excessive structural degradation at the feature map
+level; conversely, MDE models and VFMs preserve feature integrity but lack the
+necessary camera-calibration awareness. To balance these properties, we propose the
+Entropy-Minimized Weight Merging (EMWM) strategy that integrates the weights of
+VGGT, Moge-2, and DINOv2 within their shared DINO architecture.
+    Following the definition of task arithmetic [51], we hypothesize that the model
+parameters can be adapted to a new task by adding a specialized vector τ , which we
+term a task vector. We denote the original DINOv2 weights as θ. This pre-trained
+checkpoint serves as the reference initialization, from which task vectors are derived to
+adapt the model to specialized domains. For the desired resultant weights θstereovggt ,
+the updated parameter state is governed by,
+
+                                    θstereovggt = θ + τstereovggt                                       (1)
+
+where the task vector τstereovggt is defined as the weight shift required to adapt the
+original weights θ to the specific geometric constraints of stereo vision tasks. We posit
+that the task vector τstereovggt can be further formulated as a linear combination of
+multiple specialized task vectors. This hypothesis allows for the algebraic superposition
+of distinct capabilities—specifically, the camera-geometry awareness of VGGT and
+the robust features of MDE models and VFMs—into a single, unified shift within the
+parameter space. Formally, this synthesis is expressed as,
+
+                             τstereovggt = λvggt · τvggt + λmde · τmde                                  (2)
+
+τvggt and τmde denote the specialized task vectors derived from VGGT and Moge-2,
+respectively. The hyperparameters λmde and λvggt scale their respective task vectors,
+enabling τstereovggt to achieve an optimal representation. τvggt = θvggt − θ and τmde =
+θmde − θ can be explicitly parameterized by their respective weights, θvggt and θmde ,
+for which θstereovggt = (1 − λvggt − λmde ) · θ + λvggt · θvggt + λmde · θmde is derived.
+The optimal values of λmde and λvggt are updated iteratively using a data-free way.
+Specifically, features are optimized on a per-layer basis, enabling a flexible merging of
+the models. For the l-th layer of the network architecture, the modulated parameters
+of StereoVGGT, denoted as, θstereovggt (l), are defined as follows:
+
+    θstereovggt (l) = (1 − λvggt (l) − λmde (l)) · θ(l) + λvggt (l) · θvggt (l) + λmde (l) · θmde (l)   (3)
+
+
+
+
+                                                     8
+The modulated weights θstereovggt (l) are mapped onto a probability distribution P (l),
+which is computed as,
+
+                                           exp(θstereovggt (li )/β(t))
+                              (
+                               P (li ) = Pc exp(θ  stereovggt (lj )/β(t))
+                                                      j=1                                                         (4)
+                                    β (t)     = γt
+
+P (li ) denote the weight proportion of the i-th neuron’s parameters in the l-th layer, c
+represents the total number of neurons in that layer, t signifies the iteration step, and
+β (t) corresponds to the instantaneous temperature at the t-th step, γ = 0.95 here.
+The corresponding objective function is given by,
+                                                            c
+                                                            X
+                                      min       H=−                P (lj ) log2 P (lj )                           (5)
+                                λvggt ,λmde
+                                                             j=1
+
+
+We contend that this minimization of weight information entropy essentially func-
+tions as a mechanism to identify the optimal hyperparameters λvggt and λmde . This
+objective ensures that the fused parameter distribution achieves minimal stochastic-
+ity, thereby allowing the complementary strengths of VGGT and the MDE model
+to be effectively harnessed into a robust, integrated feature representation. Follow-
+ing the gradient computation, the parameters λvggt and λmde are updated iteratively
+according to Eq. (6), yielding intermediate parameters λ′vggt and λ′mde .
+                               ( (t+1)′      (t)              ∂H
+                                λvggt (l) = λvggt (l) − η · ∂λvggt (l)
+                                     (t+1)′                 (t) ∂H
+                                                                                                                  (6)
+                                    λmde (l) = λmde (l) − η · ∂λmde (l)
+
+                                                                       (t+1)′             (t+1)′
+Here, t means the t-th iteration. Subsequently, λvggt                           and λmde           are projected onto
+                                            (t+1)     (t+1)
+a probability simplex to update parameters λvggt and λmde , as defined by,
+
+                                    (t+1)     (t+1)                   (t+1)′    (t+1)′
+                              (λvggt , λmde ) = Π∆1 (λvggt , λmde )                                               (7)
+
+∆1 = {(λvggt , λmde )|λvggt + λmde = 1, λvggt ≥ 0, λmde ≥ 0} here. It confines the
+weight outputs to a fixed range, enhancing stability to accommodate the training-free
+nature of the approach. The convergence criterion for l-th layer is given by,
+
+                     (t+1)              (t)                          (t+1)          (t)
+                   λvggt (l) − λvggt (l) ≤ ε, and λmde (l) − λmde (l) ≤ ε                                         (8)
+
+ε = 10−6 here.
+   The final DINO weights θstereovggt for the l-th layer are thus obtained as,
+
+                             (T )             (T )                    (T )                         (T )
+ θstereovggt (l) = (1 − λvggt (l) − λmde (l)) · θ(l) + λvggt (l) · θvggt (l) + λmde (l) · θmde (l) (9)
+
+The variable T denotes the final iteration count, which is determined by the fulfillment
+of the termination criteria specified in Eq. (8). Furthermore, a maximum threshold of
+
+
+                                                             9
+20,000 iterations is established; if the convergence conditions are not met within this
+limit, the iterative process is automatically terminated.
+
+3.3 Feature Neck
+To further balance feature quality and camera-specific knowledge, we propose a dual-
+branch design in which VGGT neck features modulate MDE neck features. This neck
+architecture is formulated as,
+
+                           XF A = NV GGT F A (θstereovggt , ct)                    (10)
+
+As shown in Fig. 4, camera token ct is integrated via VGGT Frame Attention (FA)
+NV GGT F A with the patch tokens from the StereoVGGT re-weighted DINO θstereovggt ,
+enriching the pipeline with camera geometry knowledge. We intentionally excluded
+the Global Attention (GA) component of the Alternative Attention (AA) Block in
+VGGT neck. Since StereoVGGT uses only a single view as input, applying both global
+and frame attention is functionally redundant. These enriched patch tokens, XF A , are
+employed to modulate the features derived from the MDE neck, NM DEN eck , thereby
+generating the final output representation Xstereovggt . This process can be illustrated
+as,
+                   Xstereovggt = NM DEN eck (θstereovggt ) − α · XF A               (11)
+Here, N means the neck module, and θstereovggt represents the features output by
+our StereoVGGT DINO. α = 0.2 is a hyperparameter to modulate these features. We
+employ feature-wise subtraction to integrate the two branches. This design is moti-
+vated by the observation that the frozen attention blocks in VGGT behave analogously
+to disparity maps, where higher activation values correspond to closer distances. In
+contrast, the MDE branch yields a depth-based representation, which is inherently
+characterized by an inverse relationship where lower values represent closer distances.
+
+3.4 Disparity Prior Head
+The disparity prior dstereovggt is directly extracted from the frozen Dense Prediction
+Transformer (DP T ) [52] depth head within the VGGT [9], and can be expressed as,
+
+                            dstereovggt = DP T (Xstereovggt )                      (12)
+
+Furthermore, in disparity estimation tasks where camera intrinsic parameters are
+available, this prior is transformed into metric disparity d based on the geometric
+constraints expressed as,
+                                           f ·B
+                                    d=                                             (13)
+                                        dstereovggt
+d denotes the predicted disparity, f represents the focal, B is the baseline length.
+
+3.5 Stereo Matching Disparity Decoder
+StereoVGGT can be seamlessly adopted as the feature backbone in downstream stereo
+vision tasks. For stereo matching task, IGEV-Stereo [13] is adopted as the baseline
+
+
+                                           10
+framework. This selection is motivated by the fact that the IGEV-Stereo is a widely
+recognized method for evaluating the impact of different feature backbones. In its
+original configuration, IGEV-Stereo utilizes a VFM—MobileNetV2 [24]—as its stereo
+matching backbone. Prior work has shown that replacing MobileNetV2 with more
+powerful VFMs [53, 54] or MDE models [29, 55] leads to significant performance gains.
+Ensuring a fair comparison between StereoVGGT and existing backbones [7, 8, 56],
+we kept StereoVGGT frozen and trained only the stereo matching disparity decoder
+to caculate disparity.
+    Adhering to the architectural paradigm of IGEV-Stereo [13], the feature rep-
+                Il                Ir
+resentations Xstereovggt   and Xstereovggt  —defined in Eq. (11) and extracted by
+StereoVGGT—are fed into a Combined Geometry Encoding Volume (CGEV) [13] to
+compute the all-pairs correlation. From this geometric volume, an initial disparity map
+is derived. Subsequently, a ConvGRU-based Update Operator (ConvGRU) [13, 57] is
+employed to iteratively refine the disparity estimates across multiple stages. This inte-
+grated process is encapsulated within the Stereo Matching Disparity Decoder ϕdecoder
+where the final predicted disparity d is formulated as,
+                                        Il            Ir
+                         d = ϕdecoder (Xstereovggt , Xstereovggt )                  (14)
+
+   During the optimization phase, we maintain the same supervised training objective
+as IGEV-Stereo. We only optimize the parameters of the Disparity Decoder, while
+keeping the StereoVGGT frozen.
+
+3.6 Stereo Conversion Inpainting Model
+To demonstrate the potential of StereoVGGT for stereo conversion, Mono2Stereo [3]
+is used as our baseline framework. Mono2Stereo was chosen because it proposes two
+standardized benchmark datasets for stereo conversion, a domain where established
+quantitative benchmarks are generally lacking. Consistent with other leading stereo
+conversion methods, Mono2Stereo adopts a two-stage paradigm: it utilizes an MDE
+model to extract disparity prior in the first stage, followed by an inpainting model
+ϕinpainting to synthesize the right-view image Ir (generated) in the second stage.
+    We replace the original DAv2 [8] within the Mono2Stereo framework with our
+proposed StereoVGGT for the first stage. Following the architecture of Mono2Stereo,
+we employ the Marigold VAE [58]—pre-trained on the Mono2Stereo datasets—as the
+inpainting model for synthesized view completion. Specifically, the disparity prior
+dstereovggt produced by StereoVGGT, as defined in Eq. (12), is fed into the inpaint-
+ing model ϕinpainting alongside the left-view image Il to synthesize the generated
+right-view image Ir (generated) . This process is formally expressed as,
+
+
+                                                            1
+                       Ir (generated) = ϕinpainting (                 , Il )        (15)
+                                                        dstereovggt
+
+   The weights for both the StereoVGGT and inpainting modules are kept frozen,
+enabling the entire process to be training-free.
+
+
+                                            11
+4 Experiments
+This section provides a comprehensive evaluation of the proposed StereoVGGT’s effec-
+tiveness across various stereo vision tasks. To validate the efficacy of StereoVGGT, we
+conduct three sets of experiments:
+• Experiments were conducted on the KITTI and Scene Flow datasets to evaluate the
+  effectiveness of StereoVGGT for stereo matching. (Sec. 4.1)
+• Experiments were conducted on the Mono2Stereo and Inria 3D Movie datasets to
+  evaluate the performance of StereoVGGT for stereo conversion. (Sec. 4.2)
+• Ablation studies were conducted on the KITTI, ETH3D, and Middlebury datasets
+  to evaluate the investigate the individual contributions of StereoVGGT component
+  for monocular depth estimation. (Sec. 4.3)
+
+4.1 Stereo Matching
+To evaluate the potential of StereoVGGT for stereo matching, we build a pipeline as
+illustrated in Sec. 3.5.
+
+
+  Left View
+    Input
+
+
+
+
+ IGEV-Stereo
+(MobileNetV2)
+
+
+
+
+ AiO-Stereo
+(DA v2 et al.)
+
+
+
+
+    Ours
+
+
+
+
+Fig. 5 Visualization comparision on the KITTI dataset. The text in parentheses indicates the feature
+backbone used by each method. The preceding examples show that both input scenes contain gaps
+between the signs and poles. A key difference is that IGEV-Stereo and AiO-Stereo fail to reconstruct
+these holes, whereas our method successfully recognizes them as part of the distant background.
+
+
+KITTI online benchmark. The lower half of Tab. 1 compares different
+feature backbones integrated with the same IGEV-Stereo Disparity Decoder
+framework. The results indicate that employing the proposed StereoVGGT
+as the feature backbone yields superior performance gains over backbones
+derived from MDE models [29, 55] and VFMs [29, 53]. In comparison to
+
+
+                                                12
+                                                                     Non-occ ↓            All ↓
+  Feature Backbone       Disparity Decoder          Reference
+                                                                    all fg bg       all    fg bg
+     ViT-Large            ViT-Base+DPT  CroCo-Stereo [59]          1.51 2.56 1.30   1.59 2.65 1.38
+    MobileNet V2           CGEV+SRU    Selective-IGEV [15]         1.44 2.55 1.22   1.55 2.61 1.33
+       DAv2            SGA&MGR+ConvGRU    MonSter [27]             1.33 2.76 1.05   1.41 2.81 1.13
+       DAv2              SGA&MGR+PRU    PromptStereo [60]          1.32 2.76 1.04   1.41 2.85 1.12
+
+  MobileNet V2 [24]                            IGEV-Stereo [13]    1.49 2.62 1.27   1.59 2.67 1.38
+   EfficientNet V2                             MoCha-Stereo [14]   1.44 2.42 1.24   1.53 2.43 1.36
+     MiDaS [17]                                    LoS [26]        1.52 2.66 1.29   1.65 2.81 1.42
+  ConvNeXt V2 [56]                              GIP-Stereo [53]    1.47 2.64 1.20   1.51 2.71 1.27
+                         CGEV+ConvGRU
+ Depth Anything [37]                           Mono2Stereo [55]    1.48 2.59 1.26   1.58 2.67 1.36
+                             Paradigm
+  DINOv2 [8] et al.                             ViTAStereo [54]    1.41 2.90 1.12   1.50 2.99 1.21
+                         (IGEV-Stereo [13])
+       DAv2 [8]                                  IGEV++ [61]       1.36 2.80 1.07   1.43 2.80 1.15
+   DAv2 [8] et al.                              AIO-Stereo [29]    1.43 2.51 1.22   1.54 2.57 1.34
+      VGGT [9]                                        -            1.58 2.87 1.33   1.67 2.81 1.44
+    StereoVGGT                                        -            1.31 2.31 1.12   1.42 2.38 1.22
+Table 1 Evaluation results on KITTI benchmark. The error threshold is 3 pixel. “Non-occ”:
+Evaluation on non-occluded pixels, “All”: Evaluation on occluded pixels and non-occluded pixels,
+“all”: Percentage of outliers averaged over all ground truth pixels, “fg”: Percentage of outliers
+averaged only over foreground regions, “bg”: Percentage of outliers averaged only over
+background regions. Red, orange, and green shading indicate 1st , 2nd , and 3rd place,
+respectively. The row highlighted with yellow denotes our proposed method .
+
+
+
+
+the MobileNet V2 baseline, StereoVGGT reduces the error rates by 12.08%,
+11.83%, 11.81%, 10.69%, 10.86%, and 11.59% on the six metrics, respectively.
+The upper part of Tab. 1 compares
+StereoVGGT with other SOTA stereo                     Method           1 px ↓ EPE ↓
+matching methods, such as Prompt-               MobileNet V2 [24]        5.3     0.47
+Stereo [60] and MonSter [27]. Our stereo       EfficientNet V2 [25] 5.2          0.46
+matching network built upon Stere-                   VGGT [9]            5.3     0.46
+oVGGT has secured the 1st -place rank-              Moge-2 [10]          5.1     0.45
+ing among all published methods on                   DAv2 [8]            5.1     0.44
+the KITTI benchmark for non-occluded               StereoVGGT            4.9     0.43
+pixels. The results demonstrate that
+                                           Fig. 6 Quantitative evaluation on Scene Flow test
+StereoVGGT achieves superior perfor- set. All experiments employ the IGEV-Stereo dis-
+mance. The effectiveness of our method parity decoder. “EPE” : end-point error, “1 px” :
+is further corroborated by the qualita- EPE under threshold of 1 pixel.
+tive visualizations provided in Fig. 5.
+Scene Flow. A quantitative comparison of our method with competing approaches
+on the Scene Flow dataset is provided in Tab. 6. In addition to replacing the MobileNet
+V2 baseline with StereoVGGT, we conducted a comprehensive ablation study by
+substituting the backbone with several other advanced architectures, including Effi-
+cientNet V2, VGGT, Moge-2, and DAv2. The experimental results demonstrate that
+StereoVGGT consistently outperforms all other backbone variants across the evaluated
+metrics.
+
+
+
+                                               13
+4.2 Stereo Conversion
+Following the methodology described in Sec. 3.6, we developed a pipeline to assess the
+efficacy of StereoVGGT for the task of stereo conversion.
+Inria 3D Movie dataset. As depicted in Tab. 2, our stereo conversion method
+achieves SOTA performance across all metrics. The visual comparison in Fig. 7
+demonstrates that our method produces anaglyph 3D scenes with superior clarity.
+
+
+    Disparity Stage     Inpainting Stage        Reference         RMSE ↓ SSIM ↑ SIoU ↑ PSNR ↑
+    DPT [52]-based      SD2-depth [62]     StereoDiffusion [16]    9.345   0.2703 0.1941   28.75
+   DepthCrafter [18]      SVD [63]          StereoCrafter [4]      7.392   0.5866 0.2656   29.71
+
+        DAv2 [8]                            Mono2Stereo [3]        6.857   0.7227 0.2859   31.53
+                       Marigold VAE [58]
+       VGGT [9]         (Fine-tuned by                -            6.734   0.7082 0.2801   31.57
+       Moge-2 [10]     Mono2Stereo [3])               -            6.891   0.7247 0.2753   30.88
+      StereoVGGT                                      -            6.462   0.7343 0.2952   32.03
+
+   Table 2 Stereo conversion evaluation on Inria 3D Movie dataset.
+
+
+
+
+    StereoDiffusion      StereoCrafter        Mono2Stereo     Our StereoVGGT Version   Ground Truth
+
+
+Fig. 7 Visual comparison in anaglyph 3D format on the Inria 3D Movie dataset. The red boxes
+highlight the main differences.
+
+
+Mono2Stereo dataset. The Mono2Stereo method was specifically trained on this
+dataset. Within its framework, we compared the performance of its original DAv2
+[8] against our StereoVGGT as the disparity stage component. The results in Tab.
+3 indicate that StereoVGGT-based version of the Mono2Stereo pipeline outperforms
+the original pipeline in every scenarios across nearly all metrics, achieving a 90% win
+rate over 20 evaluated metrics.
+
+4.3 Ablation Study
+To evaluate the contribution of individual StereoVGGT components to stereo vision
+features, we formulate the following research questions and conduct corresponding
+ablation studies on standard binocular stereo matching datasets.
+
+
+                                                 14
+                       Scenes     Method     RMSE ↓ SSIM ↑ SIoU ↑ PSNR ↑
+                                Mono2Stereo 5.218 0.8161 0.2661 34.12
+                       Indoor
+                                   Ours     5.192 0.8354 0.2689 34.20
+                                Mono2Stereo 5.655 0.7653 0.2708 33.51
+                     Outdoor
+                                   Ours     5.553 0.7970 0.2743 33.72
+                                Mono2Stereo 5.763 0.7628 0.2755 33.13
+                    Animation
+                                   Ours     5.716 0.7904 0.2798 33.19
+                                Mono2Stereo 5.786 0.7810 0.2639 33.59
+                     Complex
+                                   Ours     5.626 0.8018 0.2663 33.49
+                                Mono2Stereo 4.281 0.8507 0.2818 36.08
+                       Simple
+                                   Ours     4.276 0.8804 0.2815 36.09
+                    Table 3 Quantitative comparison of our proposed method
+                    and Mono2Stereo on the Mono2Stereo dataset. Bold font
+                    indicates the better performance.
+
+
+
+
+1) Can StereoVGGT extract robust stereo features without relying on a
+dedicated downstream task decoder?
+
+                              KITTI ↓ [64]       ETH3D ↓ [65]        Middlebury ↓ [66]
+   Type       Method
+                           EPE 7 px 9 px 15 px EPE 7 px 9 px 15 px EPE 7 px 9 px 15 px
+   Gen. ZeroStereo [67] 27.91 77.48 72.40 58.85 23.85 68.35 61.71 48.66 19.98 80.43 72.61 52.81
+          Unidepth V2 [68] 9.07 63.64 47.74 9.97    3.03 15.06 9.13 0.21 27.72 89.99 84.13 70.17
+  MDE       Moge-2 [10]    6.74 32.16 18.58 6.15    4.84 19.97 12.01 0.30 18.11 68.80 52.14 39.57
+             DAv2 [8]      5.88 32.91 23.21 7.19    8.24 36.17 28.17 16.70 24.94 86.90 82.91 67.44
+              VGGT [9]   13.07 68.40 58.06 33.99 13.11 69.88 54.31 28.21 18.71 71.25 60.99 40.87
+    3R
+           fastVGGT [69] 13.07 68.41 58.11 34.05 13.11 69.89 54.32 28.21 18.70 70.77 60.44 41.01
+    StereoVGGT (Ours)       2.71 6.87 3.85 1.03     2.38 10.70 7.27 0.16 15.14 63.71 52.04 35.21
+  Table 4 Cross-dataset performance comparison of disparity estimation in a monocular
+  setting on binocular stereo datasets. “Gen.”: Generation-based method, “MDE”: Monocular
+  Depth Estimation method, “3R”: 3D Reconstruction method.
+
+
+
+
+    We leverage the properties described in Eq. (13) to evaluate the dataset using the
+disparity estimated under a monocular setting. In contrast to the settings in Sec. 4.1,
+in this section, we utilize only the left-view image and camera intrinsics (focal length
+f and baseline length B ) as inputs to generate the predicted disparity map. This
+setup allows us to isolate the intrinsic capabilities of StereoVGGT by eliminating the
+influence of the downstream disparity decoder and the inpainting model.
+    We evaluate StereoVGGT against three distinct categories of SOTA methods to
+ensure a comprehensive benchmarking. The first category (Generation-based method)
+denotes the generative framework specifically engineered for disparity estimation. The
+original ZeroStereo [67] needs two view as input. We evaluate the quality of the dispar-
+ity maps generated by its Adaptive Disparity Selection module. The second category
+
+
+                                                   15
+(Monocular Depth Estimation methods) includes established MDE models [8, 10, 68],
+which are frequently employed as feature extraction backbones in stereo matching
+pipelines. The third category (3D Reconstruction methods) encompasses general-
+purpose 3D reconstruction models [9, 69]. Experimental results in Tab. 4 demonstrate
+that StereoVGGT achieves superior performance compared to these methods. As
+illustrated in Fig. 8, the inherent feature-level degradation in VGGT [9] results in
+a significant loss of fine-grained edge details. Conversely, while DAv2 [8] maintains
+higher semantic clarity, its calibration-agnostic nature—characterized by a lack of
+explicit camera-geometry awareness—leads to incorrect spatial relationships and dis-
+torted depth hierarchies between objects. By successfully integrating the strengths of
+both paradigms, StereoVGGT mitigates these structural ambiguities, preserving sharp
+object boundaries while ensuring a geometrically consistent global layout.
+
+
+
+
+    Input View       ZeroStereo         VGGT              DA v2       StereoVGGT (Ours)   Ground Truth
+
+
+Fig. 8 Disparity maps generated by SOTA models on the ETH3D dataset. The models use monoc-
+ular condition input of binocular cameras, consisting of a left view, focal length, and baseline length.
+The white boxes highlight the main differences. The disparity maps generated by ZeroStereo exhibit
+instability and fail to accurately reconstruct some foreground objects. The disparity maps estimated
+by VGGT [9] exhibit significant limitations in edge-texture fidelity. While Depth Anything V2 (DAv2)
+[8] achieves precise edge localization, it demonstrates inaccuracies in estimating the relative depth
+ordering and inter-object spatial relationships. In contrast, StereoVGGT succeeds in providing both
+fine-grained edge estimation and a highly accurate global geometric layout.
+
+
+2) Does the proposed EMWM strategy yield superior performance com-
+pared to directly using existing weights?
+    We evaluate the impact of different weight initializations by substituting the DINO
+component of StereoVGGT with weights from DINOv2 [7], DAv2 [8], Moge-2 [10],
+and the VGGT [9]. A comparative analysis of rows 1-3 and row 5 in Tab. 5 demon-
+strates that, under equivalent levels of feature-level degradation, the incorporation
+of more precise camera pose features results in a substantial reduction in the EPE.
+This finding underscores the pivotal role of geometric camera priors in achieving high-
+precision disparity estimation. Furthermore, results from Experiment No. 4 indicate
+that, despite the inherent capacity of the VGGT for robust camera pose representa-
+tion, it yields suboptimal performance in precise disparity estimation. This limitation
+is primarily attributable to the geometric detail degradation during the feature con-
+struction phase, as quantitatively corroborated by the diminished SSIM metrics. As
+evidenced by the results in Experiment No. 5, our proposed EMWM achieves superior
+performance. The strategy successfully preserves the structural integrity of the feature
+
+
+
+
+                                                  16
+maps while simultaneously incorporating camera-aware geometry. This synergy effec-
+tively optimizes the representation for stereo matching, yielding superior accuracy and
+robustness in disparity estimation.
+
+
+                                 Camera FOV ↓                        Disparity Error ↓
+                    DINO
+              No.              FOV x     FOV y            SSIM ↑
+                    Weights                                         EPE 7 px 9 px 15 px
+                              med. mean med. mean
+               1 DINOv2 80.3 84.4          65.8   62.6      0.965   20.6 69.1 62.4   39.9
+               2  DAv2  73.7 77.2          60.0   61.8      0.965   7.38 30.5 26.4   11.0
+               3 Moge-2 30.4 35.1          15.8   14.2      0.965   3.68 16.5 9.78   0.24
+               4 VGGT 14.7 18.6            7.08   8.13      0.776   12.1 66.5 49.8   25.7
+               5     Ours     3.88 6.67    2.68 5.09        0.964   2.38 10.7 7.27 0.16
+              Table 5 Impact of weight selection. The weights of the DINO were
+              re-weighted in StereoVGGT. SSIM calculation followed the same
+              configuration as in Fig. 2. The camera FOV error is calculated
+              following the methods in [9, 10], with specific computational details
+              provided in Appendix A.1.
+
+
+
+
+                    AA Block         Camera FOV ↓                         Disparity Error ↓
+              MDE
+        No.                        FOV x     FOV y              SSIM ↑
+              Neck GA FA α                                               EPE 7 px 9 px 15 px
+                                  med. mean med. mean
+         1           ✓   ✓ -1.0   5.78    6.70    4.27   4.98   0.894    2.76 11.1 5.24     0.33
+         2     ✓           0.0    4.05    6.76    2.73   5.19   0.964    2.43 10.7 7.80     0.15
+         3     ✓     ✓   ✓ 1.0    4.59    6.40    3.28   4.79   0.939    2.65 11.5 4.78     0.22
+         4     ✓     ✓     0.2    3.93    6.67    2.72   5.09   0.964    2.39 10.7 7.26     0.16
+         5     ✓         ✓ 0.2    3.88    6.67    2.68   5.09   0.964    2.38 10.7 7.27     0.16
+        Table 6 Ablation Study on the Neck Component. “AA” is Alternative
+        Attention (AA) Block in VGGT, “GA” is Global Attention in VGGT, “FA” is
+        Frame Attention in VGGT. Given that the integration of the AA blocks is
+        implemented via element-wise subtraction within our pipeline, the
+        hyperparameter α is accordingly assigned a negative value in Experiment No.1.
+
+
+
+
+3) Does the proposed feature neck outperform using the feature neck from
+MDE or VGGT directly?
+    This ablation study investigates the relative contributions of the MDE neck and
+the VGGT neck to the overall system performance. The corresponding results are
+summarized in Tab. 6. The condition α = −1.0 corresponds to a baseline configu-
+ration where the feature neck is exclusively composed of the frozen AA blocks from
+VGGT, with no feature modulation being performed by the MDE branch. In contrast,
+Experiment No. 2 utilizes the MDE neck in isolation, excluding the VGGT neck from
+the architecture. Under these specific configurations, both the camera FOV estimation
+and the resulting disparity exhibit deviations from the ground truth.
+
+
+                                                   17
+    Experiments No. 3-5 explore various integration strategies for the two branches,
+revealing that the configuration in Experiment No. 5 achieves the superior disparity
+estimation performance. Notably, this result also demonstrates that balancing camera-
+specific knowledge with feature preservation capacity facilitates the expression of more
+robust stereo vision priors.
+4) Impact of Hyperparameter α.
+    This part presents an ablation study on hyperparameter α, with the correspond-
+ing results provided in Tab. 7. Experiments indicate that the mean camera FOV is
+estimated most accurately when α is set to 1.0. Furthermore, the median FOV error
+exhibits a monotonic decrease when α ≥ 0.4. However, an excessively large weight for
+the VGGT neck can degrade the performance of both camera pose and disparity esti-
+mation, likely due to image degradation induced by an overemphasis on this branch.
+In our experimental setup, the EPE is minimized when α is 0.2 or 0.3. Notably, the
+camera pose error at these values is also competitive with known SOTA levels, pro-
+viding further evidence for the correlation between camera knowledge and disparity
+estimation capability. This suggests that an optimal value of α within the range of
+0.2 to 0.4 may exist, striking a balance between camera knowledge and feature rep-
+resentation to achieve even higher disparity estimation accuracy. Future work could
+explore learning-based methods to adaptively determine this hyperparameter.
+
+
+                             Camera FOV ↓             Disparity Error ↓
+                     α     FOV x     FOV y
+                                                    EPE 7 px 9 px 15 px
+                          med. mean med. mean
+                    1.0   4.59 6.40   3.28   4.79   2.65 11.5 4.78    0.22
+                    0.8   4.73 6.42   3.46   4.82   2.58 11.74 5.47   0.20
+                    0.5   3.97 6.52   2.91   4.94   2.43 11.26 7.36   0.17
+                    0.4   3.81 6.57   2.62   4.99   2.40 11.07 7.45   0.16
+                    0.3   3.84 6.62   2.65   5.04   2.38 10.87 7.25   0.16
+                    0.2   3.88 6.67   2.68   5.09   2.38 10.70 7.27   0.16
+                    0.1   3.92 6.72   2.70   5.14   2.41 10.74 7.29   0.16
+                    Table 7 An ablation study on hyperparameter α
+                    performed using the ETH3D dataset. A larger value of
+                    α assigns a greater weight to the VGGT neck branch.
+
+
+
+
+5 Conclusion
+We introduce StereoVGGT, a training-free Visual Geometry Transformer designed
+to serve as a versatile foundational backbone for stereo vision tasks. This research is
+motivated by the absence of explicit camera pose priors in current SOTA stereo vision
+backbones. The omission of such geometric knowledge imposes a performance bottle-
+neck when these backbones are deployed in downstream applications. To bridge this
+gap, we developed a novel architecture derived from the VGGT. However, the vanilla
+VGGT suffers from significant feature-level structural degradation, rendering it sub-
+optimal for high-precision stereo feature extraction. StereoVGGT effectively integrates
+
+
+                                              18
+geometric camera knowledge while preserving fine-grained feature integrity. A primary
+limitation of StereoVGGT lies in its substantial parameter footprint, a characteris-
+tic inherited from the baseline 3D Foundation architecture. Future research will focus
+on model compression and distillation techniques to mitigate deployment overhead in
+resource-constrained environments.
+
+Declarations
+Data availability statement: The data are available from the corresponding author on
+reasonable request.
+
+Acknowledgements
+This work is supported by the National Key Research and Development Program
+of China (No. 2025YFE0113500), National Science Fund for Distinguished Young
+Scholars (No.62525605) and the National Natural Science Foundation of China (No.
+U25B2066, No. U22B2051).
+
+References
+ [1] Li, J., Wang, P., Xiong, P., Cai, T., Yan, Z., Yang, L., Liu, J., Fan, H., Liu,
+     S.: Practical stereo matching via cascaded recurrent network with adaptive
+     correlation. In: IEEE Conf. Comput. Vis. Pattern Recog., pp. 16263–16272 (2022)
+
+ [2] Cheng, J., Yang, X., Pu, Y., Guo, P.: Region separable stereo matching. IEEE
+     Trans. Multimedia 25, 4880–4893 (2022)
+
+ [3] Yu, S., Chen, Y., Qi, Z., Xie, Z., Wang, Y., Wang, L., Shan, Y., Lu, H.:
+     Mono2stereo: A benchmark and empirical study for stereo conversion. In: IEEE
+     Conf. Comput. Vis. Pattern Recog., pp. 21847–21856 (2025)
+
+ [4] Zhao, S., Hu, W., Cun, X., Zhang, Y., Li, X., Kong, Z., Gao, X., Niu, M., Shan,
+     Y.: Stereocrafter: Diffusion-based generation of long and high-fidelity stereoscopic
+     3d from monocular videos. arXiv preprint arXiv:2409.07447 (2024)
+
+ [5] Cheng, J., Xu, G., Guo, P., Yang, X.: Coatrsnet: Fully exploiting convolution and
+     attention for stereo matching by region separation. Int. J. Comput. Vis. 132(1),
+     56–73 (2024)
+
+ [6] Wen, B., Trepte, M., Aribido, J., Kautz, J., Gallo, O., Birchfield, S.: Foundation-
+     stereo: Zero-shot stereo matching. In: IEEE Conf. Comput. Vis. Pattern Recog.,
+     pp. 5249–5260 (2025)
+
+ [7] Oquab, M., Darcet, T., Moutakanni, T., Vo, H., Szafraniec, M., Khalidov, V.,
+     Fernandez, P., Haziza, D., Massa, F., El-Nouby, A., et al.: Dinov2: Learning robust
+     visual features without supervision. arXiv preprint arXiv:2304.07193 (2023)
+
+
+                                           19
+ [8] Yang, L., Kang, B., Huang, Z., Zhao, Z., Xu, X., Feng, J., Zhao, H.: Depth
+     anything v2. Adv. Neural Inform. Process. Syst. 37, 21875–21911 (2024)
+
+ [9] Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+     Visual geometry grounded transformer. In: IEEE Conf. Comput. Vis. Pattern
+     Recog., pp. 5294–5306 (2025)
+
+[10] Wang, R., Xu, S., Dong, Y., Deng, Y., Xiang, J., Lv, Z., Sun, G., Tong, X., Yang,
+     J.: Moge-2: Accurate monocular geometry with metric scale and sharp details.
+     arXiv preprint arXiv:2507.02546 (2025)
+
+[11] Zeiler, M.D., Fergus, R.: Visualizing and understanding convolutional networks.
+     In: Eur. Conf. Comput. Vis., pp. 818–833 (2014). Springer
+
+[12] Long, W., Chen, Z., Li, W., Zhang, Y., Yao, H., Peng, J., Cui, Z.: Leveraging
+     negative correlation for full-range self-attention in vision transformers. Pattern
+     Recognition 169, 111899 (2026)
+
+[13] Xu, G., Wang, X., Ding, X., Yang, X.: Iterative geometry encoding volume for
+     stereo matching. In: IEEE Conf. Comput. Vis. Pattern Recog., pp. 21919–21928
+     (2023)
+
+[14] Chen, Z., Long, W., Yao, H., Zhang, Y., Wang, B., Qin, Y., Wu, J.: Mocha-stereo:
+     Motif channel attention network for stereo matching. In: IEEE Conf. Comput.
+     Vis. Pattern Recog., pp. 27768–27777 (2024)
+
+[15] Wang, X., Xu, G., Jia, H., Yang, X.: Selective-stereo: Adaptive frequency informa-
+     tion selection for stereo matching. In: IEEE Conf. Comput. Vis. Pattern Recog.,
+     pp. 19701–19710 (2024)
+
+[16] Wang, L., Frisvad, J.R., Jensen, M.B., Bigdeli, S.A.: Stereodiffusion: Training-free
+     stereo image generation using latent diffusion models. In: IEEE Conf. Comput.
+     Vis. Pattern Recog., pp. 7416–7425 (2024)
+
+[17] Ranftl, R., Lasinger, K., Hafner, D., Schindler, K., Koltun, V.: Towards robust
+     monocular depth estimation: Mixing datasets for zero-shot cross-dataset transfer.
+     IEEE Trans. Pattern Anal. Mach. Intell. 44(3), 1623–1637 (2020)
+
+[18] Hu, W., Gao, X., Li, X., Zhao, S., Cun, X., Zhang, Y., Quan, L., Shan, Y.:
+     Depthcrafter: Generating consistent long depth sequences for open-world videos.
+     In: IEEE Conf. Comput. Vis. Pattern Recog. (2025)
+
+[19] Hirschmuller, H.: Stereo processing by semiglobal matching and mutual informa-
+     tion. IEEE Trans. Pattern Anal. Mach. Intell. 30(2), 328–341 (2007)
+
+[20] Cheng, J., Yin, W., Wang, K., Chen, X., Wang, S., Yang, X.: Adaptive fusion
+     of single-view and multi-view depth for autonomous driving. In: IEEE Conf.
+
+
+
+                                           20
+    Comput. Vis. Pattern Recog., pp. 10138–10147 (2024)
+
+[21] Li, Z., Liu, X., Drenkow, N., Ding, A., Creighton, F.X., Taylor, R.H., Unberath,
+     M.: Revisiting stereo depth estimation from a sequence-to-sequence perspective
+     with transformers. In: Int. Conf. Comput. Vis., pp. 6197–6206 (2021)
+
+[22] Chen, Z., Li, W., Zhang, Y., Wu, Y., Wang, B., Zhao, Y., Chen, C.: Hadamard
+     attention recurrent transformer: A strong baseline for stereo matching trans-
+     former. arXiv preprint arXiv:2501.01023 (2025)
+
+[23] Deng, J., Dong, W., Socher, R., Li, L.-J., Li, K., Fei-Fei, L.: Imagenet: A large-
+     scale hierarchical image database. In: IEEE Conf. Comput. Vis. Pattern Recog.,
+     pp. 248–255 (2009). Ieee
+
+[24] Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., Chen, L.-C.: Mobilenetv2:
+     Inverted residuals and linear bottlenecks. In: IEEE Conf. Comput. Vis. Pattern
+     Recog., pp. 4510–4520 (2018)
+
+[25] Tan, M., Le, Q.: Efficientnetv2: Smaller models and faster training. In: Interna-
+     tional Conference on Machine Learning, pp. 10096–10106 (2021). PMLR
+
+[26] Li, K., Wang, L., Zhang, Y., Xue, K., Zhou, S., Guo, Y.: Los: Local structure-
+     guided stereo matching. In: IEEE Conf. Comput. Vis. Pattern Recog., pp. 19746–
+     19756 (2024)
+
+[27] Cheng, J., Liu, L., Xu, G., Wang, X., Zhang, Z., Deng, Y., Zang, J., Chen, Y., Cai,
+     Z., Yang, X.: Monster: Marry monodepth to stereo unleashes power. In: IEEE
+     Conf. Comput. Vis. Pattern Recog., pp. 6273–6282 (2025)
+
+[28] Jiang, H., Lou, Z., Ding, L., Xu, R., Tan, M., Jiang, W., Huang, R.: Defom-
+     stereo: Depth foundation model based stereo matching. In: IEEE Conf. Comput.
+     Vis. Pattern Recog., pp. 21857–21867 (2025)
+
+[29] Zhou, J., Zhang, H., Yuan, J., Ye, P., Chen, T., Jiang, H., Chen, M., Zhang, Y.:
+     All-in-one: Transferring vision foundation models into stereo matching. In: AAAI,
+     vol. 39, pp. 10797–10805 (2025)
+
+[30] Bartolomei, L., Tosi, F., Poggi, M., Mattoccia, S.: Stereo anywhere: Robust zero-
+     shot deep stereo matching even where either stereo or mono fail. In: IEEE Conf.
+     Comput. Vis. Pattern Recog., pp. 1013–1027 (2025)
+
+[31] Lu, Y., Qin, X., Fan, H., Lai, T., Li, Z.: Wbc-net: A white blood cell segmenta-
+     tion network based on unet++ and resnet. Applied Soft Computing 101, 107006
+     (2021)
+
+[32] Chen, Z., Yao, H., Li, W., Long, W., Zhang, Y.: Rethinking low-light knowl-
+     edge for pedestrian detection in nighttime conditions. Engineering Applications
+
+
+
+                                          21
+    of Artificial Intelligence 160, 111979 (2025)
+
+[33] Li, W., Lai, T., Liu, G., Fan, H., Li, Z.: Novelty detection of leukocyte image
+     via mean-shifted feature and directly optimized subspace. IEEE Transactions on
+     Instrumentation and Measurement 72, 1–12 (2023)
+
+[34] Chen, Z., Zhao, Y., He, J., Lu, Y., Cui, Z., Li, W., Zhang, Y.: Feature distribution
+     normalization network for multi-view stereo. The Visual Computer 41(1), 409–
+     421 (2025)
+
+[35] Cao, L., Wang, C., Li, J.: Robust depth-based object tracking from a moving
+     binocular camera. Signal Processing 112, 154–161 (2015)
+
+[36] Liu, Y., Deng, Y., Chen, H., Yang, Z.: Video frame interpolation via direct synthe-
+     sis with the event-based reference. In: IEEE Conf. Comput. Vis. Pattern Recog.,
+     pp. 8477–8487 (2024)
+
+[37] Yang, L., Kang, B., Huang, Z., Xu, X., Feng, J., Zhao, H.: Depth anything:
+     Unleashing the power of large-scale unlabeled data. In: IEEE Conf. Comput. Vis.
+     Pattern Recog., pp. 10371–10381 (2024)
+
+[38] Chen, Z., Zhang, Y., Li, W., Wang, B., Zhao, Y., Chen, C.: Motif channel opened
+     in a white-box: Stereo matching via motif correlation graph. arXiv preprint
+     arXiv:2411.12426 (2024)
+
+[39] Long, W., Wu, H., Jiang, S., Zhang, J., Ji, X., Gu, S.: Idesplat: Iterative depth
+     probability estimation for generalizable 3d gaussian splatting. In: IEEE Conf.
+     Comput. Vis. Pattern Recog. (2026)
+
+[40] Yang, S., Wei, T., Lan, Y., Xiao, Z., Rao, A., Pan, X.: Dense semantic matching
+     with vggt prior. arXiv preprint arXiv:2509.21263 (2025)
+
+[41] Liu, Y., Luo, C., Tang, Z., Peng, J., Zhang, Z.: Vggt-x: When vggt meets dense
+     novel view synthesis. arXiv preprint arXiv:2509.25191 (2025)
+
+[42] Ge, S., Zhang, Y., Xie, S., Zhang, W., Zhou, M., Wang, Z.: Vggt-dp: Generaliz-
+     able robot control via vision foundation models. arXiv preprint arXiv:2509.18778
+     (2025)
+
+[43] Pei, Y., Huang, Y., Zou, Q., Zhang, X., Wang, S.: Effects of image degradation
+     and degradation removal to cnn-based image classification. IEEE Trans. Pattern
+     Anal. Mach. Intell. 43(4), 1239–1253 (2019)
+
+[44] Wang, Y., Cao, Y., Zha, Z.-J., Zhang, J., Xiong, Z.: Deep degradation prior for
+     low-quality image classification. In: IEEE Conf. Comput. Vis. Pattern Recog.,
+     pp. 11049–11058 (2020)
+
+[45] Wang, Z., Bovik, A.C., Sheikh, H.R., Simoncelli, E.P.: Image quality assessment:
+
+
+                                           22
+    from error visibility to structural similarity. IEEE Trans. Image Process. 13(4),
+    600–612 (2004)
+
+[46] Huang, M., Wang, T., Cai, Y., Fan, H., Li, Z.: Staingan: Learning a structural
+     preserving translation for white blood cell images. Journal of Biophotonics 16(11),
+     202300196 (2023)
+
+[47] Bau, D., Zhou, B., Khosla, A., Oliva, A., Torralba, A.: Network dissection: Quan-
+     tifying interpretability of deep visual representations. In: IEEE Conf. Comput.
+     Vis. Pattern Recog., pp. 6541–6549 (2017)
+
+[48] Yang, Y., Wang, Y., Wang, C., Zhang, Y., Chen, Z., He, S.: Splitflux: Learning
+     to decouple content and style from a single image. In: IEEE Conf. Comput. Vis.
+     Pattern Recog. (2026)
+
+[49] Long, W., Zhou, X., Zhang, L., Gu, S.: Progressive focused transformer for single
+     image super-resolution. In: IEEE Conf. Comput. Vis. Pattern Recog., pp. 2279–
+     2288 (2025)
+
+[50] Yang, Y., Wang, Y., Wang, C., Wang, H., He, S.: Fantasystyle: Controllable
+     stylized distillation for 3d gaussian splatting. In: AAAI, vol. 40, pp. 11784–11792
+     (2026)
+
+[51] Ilharco, G., Ribeiro, M.T., Wortsman, M., Schmidt, L., Hajishirzi, H., Farhadi,
+     A.: Editing models with task arithmetic. In: Int. Conf. Learn. Represent. (2023)
+
+[52] Ranftl, R., Bochkovskiy, A., Koltun, V.: Vision transformers for dense prediction.
+     In: Int. Conf. Comput. Vis., pp. 12179–12188 (2021)
+
+[53] Zhao, Y., Chen, Z., He, J., Li, W., Xiao, Y., Tian, C., Zhang, Y.: Gip-
+     stereo: Geometry-aware information propagation network for stereo matching.
+     Knowledge-Based Systems, 114062 (2025)
+
+[54] Liu, C.-W., Chen, Q., Fan, R.: Playing to vision foundation model’s strengths in
+     stereo matching. IEEE Transactions on Intelligent Vehicles (2024)
+
+[55] Wang, Y., Liang, Y., Li, H., Fu, Y.: Mono2stereo: Monocular knowledge transfer
+     for enhanced stereo matching. arXiv preprint arXiv:2411.09151 (2024)
+
+[56] Woo, S., Debnath, S., Hu, R., Chen, X., Liu, Z., Kweon, I.S., Xie, S.: Convnext
+     v2: Co-designing and scaling convnets with masked autoencoders. In: IEEE Conf.
+     Comput. Vis. Pattern Recog., pp. 16133–16142 (2023)
+
+[57] Lipson, L., Teed, Z., Deng, J.: Raft-stereo: Multilevel recurrent field transforms
+     for stereo matching. In: 2021 International Conference on 3D Vision (3DV), pp.
+     218–227 (2021). IEEE
+
+
+
+
+                                          23
+[58] Ke, B., Obukhov, A., Huang, S., Metzger, N., Daudt, R.C., Schindler, K.: Repur-
+     posing diffusion-based image generators for monocular depth estimation. In: IEEE
+     Conf. Comput. Vis. Pattern Recog., pp. 9492–9502 (2024)
+
+[59] Weinzaepfel, P., Lucas, T., Leroy, V., Cabon, Y., Arora, V., Brégier, R., Csurka,
+     G., Antsfeld, L., Chidlovskii, B., Revaud, J.: Croco v2: Improved cross-view com-
+     pletion pre-training for stereo matching and optical flow. In: Int. Conf. Comput.
+     Vis., pp. 17969–17980 (2023)
+
+[60] Wang, X., Yang, H., Wang, H., Cheng, J., Xu, G., Lin, M., Yang, X.: Prompt-
+     stereo: Zero-shot stereo matching via structure and motion prompts. IEEE Conf.
+     Comput. Vis. Pattern Recog. (2026)
+
+[61] Xu, G., Wang, X., Zhang, Z., Cheng, J., Liao, C., Yang, X.: Igev++: Iterative
+     multi-range geometry encoding volumes for stereo matching. IEEE Trans. Pattern
+     Anal. Mach. Intell. (2025)
+
+[62] Rombach, R., Blattmann, A., Lorenz, D., Esser, P., Ommer, B.: High-Resolution
+     Image Synthesis with Latent Diffusion Models (2021)
+
+[63] Blattmann, A., Dockhorn, T., Kulal, S., Mendelevitch, D., Kilian, M., Lorenz, D.,
+     Levi, Y., English, Z., Voleti, V., Letts, A., et al.: Stable video diffusion: Scaling
+     latent video diffusion models to large datasets. arXiv preprint arXiv:2311.15127
+     (2023)
+
+[64] Menze, M., Heipke, C., Geiger, A.: Joint 3d estimation of vehicles and scene flow.
+     In: ISPRS Workshop on Image Sequence Analysis (ISA) (2015)
+
+[65] Schops, T., Schonberger, J.L., Galliani, S., Sattler, T., Schindler, K., Pollefeys,
+     M., Geiger, A.: A multi-view stereo benchmark with high-resolution images and
+     multi-camera videos. In: IEEE Conf. Comput. Vis. Pattern Recog., pp. 3260–3269
+     (2017)
+
+[66] Scharstein, D., Hirschmüller, H., Kitajima, Y., Krathwohl, G., Nešić, N., Wang,
+     X., Westling, P.: High-resolution stereo datasets with subpixel-accurate ground
+     truth. In: German Conference on Pattern Recognition, pp. 31–42 (2014). Springer
+
+[67] Wang, X., Yang, H., Xu, G., Cheng, J., Lin, M., Deng, Y., Zang, J., Chen, Y.,
+     Yang, X.: Zerostereo: Zero-shot stereo matching from single images. In: Int. Conf.
+     Comput. Vis. (2025)
+
+[68] Piccinelli, L., Yang, Y.-H., Sakaridis, C., Segu, M., Li, S., Van Gool, L., Yu, F.:
+     Unidepth: Universal monocular metric depth estimation. In: IEEE Conf. Comput.
+     Vis. Pattern Recog., pp. 10106–10116 (2024)
+
+[69] Shen, Y., Zhang, Z., Qu, Y., Cao, L.: Fastvggt: Training-free acceleration of visual
+     geometry transformer. arXiv preprint arXiv:2509.02560 (2025)
+
+
+                                           24
+[70] Xu, Z., Yuan, K., Wang, H., Wang, Y., Song, M., Song, J.: Training-free pretrained
+     model merging. In: IEEE Conf. Comput. Vis. Pattern Recog., pp. 5915–5925
+     (2024)
+
+[71] Guan, T., Guo, J., Wang, C., Liu, Y.-H.: Bridgedepth: Bridging monocular and
+     stereo reasoning with latent alignment. In: IEEE Conf. Comput. Vis. Pattern
+     Recog., pp. 27681–27691 (2025)
+
+[72] Mayer, N., Ilg, E., Hausser, P., Fischer, P., Cremers, D., Dosovitskiy, A., Brox,
+     T.: A large dataset to train convolutional networks for disparity, optical flow,
+     and scene flow estimation. In: IEEE Conf. Comput. Vis. Pattern Recog., pp.
+     4040–4048 (2016)
+
+
+
+
+                                          25
+Appendix A               Preliminary
+A.1     Camera Parameters Solver
+To facilitate pose estimation and validate the implicit representation of camera param-
+eters within our features, we introduce a specialized solver. Following the camera head
+of VGGT [9], our pose solver involves using a frozen DPT head [52] to compute a 3D
+point cloud. The 3D points (X, Y, Z ) are then projected onto the 2D camera plane as
+(u, v ):                                            
+                                     u         1      X
+                                        =f·        ·                                (A1)
+                                     v       Z +s Y
+f is focal length, s is depth shift. We aim to minimize the objective function presented
+in Eq. (A2).
+                                        N                2
+                                       X   XYi
+                                 min              − uvi                             (A2)
+                                  f,s
+                                       i=1
+                                           Zi + s
+XYi = (xi , yi ) is the 2D coordinates of the i-th point, uvi = (ui , vi ) is the observed 2D
+pixel coordinates of the i-th point. Zi is the depth value of the i-th point, N means the
+total number of points. Followed by Moge, a solver is employed to iteratively estimate
+the focal length f and depth shift s, as formulated in Eq. (A3).
+                                         PN        xyi
+                              f ⋆         i=1 zi +s⋆ ·uvi
+                                     = PN          xyi     2
+                                           i=1 || zi +s⋆ ||                            (A3)
+                              s⋆    = LM (arg min||r(s)||2 )
+                                                      s
+
+To solve for f and s simultaneously, we employ an alternating optimization strategy.
+By first fixing s, the subproblem of solving for f becomes convex, yielding the following
+optimal solution:
+                                          PN
+                                                XYi′ · uvi
+                                f ⋆ (s) = Pi=1
+                                             N
+                                                                                     (A4)
+                                                      ′ 2
+                                             i=1 ∥XYi ∥
+Here, XYi′ = ZXY    i
+                 i +s
+                      . The subsequent step involves back-substituting the expression for
+f ⋆ (s) into the objective function to obtain a residual function that is a function of s
+alone, as shown in Eq. (A5).
+
+                                      f ⋆ (s) · XY′1 − uv1
+                                                          
+                                                    ′
+                                     f ⋆ (s) · XY2 − uv2 
+                             r(s) =                                                   (A5)
+                                                          
+                                                 ..        
+                                                 .        
+                                         f ⋆ (s) · XY′N − uvN
+
+The final s is estimated via the Levenberg-Marquardt
+                                                   algorithm, as formulated in
+                                                  f
+Eq. (A3), from which the camera focal length f = x is subsequently derived. LM
+                                                  fy
+denotes the Levenberg-Marquardt solver, and z represents our depth prior.
+
+
+
+
+                                               26
+   The camera Field-of-View (FOV) sought in this work can be analytically derived
+according to Eq. (A6).    (
+                                                 W
+                            F OVx = 2 · arctan( 2·f  )
+                                                 H
+                                                   x
+                                                                            (A6)
+                            F OVy = 2 · arctan( 2·fy )
+Here, W and H denote the width and height of the input image, respectively.
+
+A.2     Relationship between Disparity and Depth
+In stereoscopic vision, the three-dimensional structure of the world is reconstructed
+from a pair of two-dimensional images. The fundamental cue for this process is binoc-
+ular disparity—the horizontal positional difference between the projections of a scene
+point in the left and right images. Mathematically, for a 3D world point P (X, Y, Z ),
+if its projections onto the left and right image planes have coordinates xl and xr
+respectively, the disparity d is defined as d = xl − xr . This disparity d is not a direct
+measure of distance but is geometrically inversely proportional to metric depth Z , the
+absolute distance from the observer, as described by the standard binocular imaging
+model: Z = f ×Bd , where f is the focal length and B is the baseline distance between
+the cameras. This equation provides a precise, quantitative mapping from image coor-
+dinates to a scaled metric interpretation of the scene, which is crucial for applications
+like robotic navigation and precise 3D reconstruction.
+
+A.3     Definition of Training-free
+The term training-free denotes a specific methodological paradigm wherein a pre-
+trained model is adapted or utilized for a downstream task without performing any
+gradient-based updates to its parameters [51, 70]. Our application of an entropy-based
+supervisory signal for data-free model merging squarely falls within this category.
+We leverage the intrinsic property that a model’s predictive entropy—a measure of
+uncertainty calculated directly from its output distribution—can serve as a proxy
+objective to guide the merging of parameters from homologous models without any
+exposure to new labeled or unlabeled data . By minimizing the entropy of the merged
+model’s predictions, the process encourages consensus and confidence in the unified
+output space, effectively resolving parameter-level interference based on a signal that
+is generated entirely from withinthe constituent models themselves, thereby satisfying
+the core criteria of being both data-free and reliant on an objective that does not
+require a separate training loop.
+
+Appendix B              Supplementary Experiments
+B.1     Camera Pose Estimation
+We posit that learning an implicit understanding of camera parameters is crucial for
+effective feature representation in stereo vision. To evaluate the model’s awareness
+of camera geometry, we utilize the solver described in Appendix Sec. A.1 to esti-
+mate the Camera Field-of-View (FOV). Following the experimental setup described
+in Sec. 4.3, we conduct a comparative analysis between our framework and the native
+
+
+                                           27
+FOV estimation capabilities of SOTA MDE and 3R models. As summarized in Tab.
+B1, our approach demonstrates a substantial margin of improvement across all four
+evaluation metrics. Specifically, StereoVGGT outperforms the second-best perform-
+ing method by 69.5%, 59.8%, 60.8%, and 37.4%, respectively. These findings indicate
+that StereoVGGT possesses a more potent implicit representation of camera param-
+eters than the original VGGT baseline. This enhanced camera knowledge serves as a
+robust foundation, providing the necessary priors for StereoVGGT to achieve superior
+stereo-vision feature representations.
+
+
+                                            FOV x ↓          FOV y ↓
+                         Methods
+                                           med. mean        med. mean
+                        fastVGGT           12.71   16.58    6.83 8.13
+                          VGGT             12.85   16.60    7.08 8.13
+                          DAv2 †           78.41   78.99    64.24 69.18
+                         Moge-2 †          32.29   39.52    21.79 20.02
+                         VGGT †            15.77   19.58    12.01 12.33
+                    StereoVGGT (Ours)      3.88 6.67        2.68 5.09
+                   Table B1 Evaluation of left-view camera Field of
+                   View (FOV) in degrees. The dataset evaluated in this
+                   study was ETH3D binocular stereo datasets. Each
+                   method receives only the left-view image as input and
+                   outputs the intrinsic parameters of the left camera. †
+                   indicate the methods utilize the identical camera-pose
+                   solver as that integrated into StereoVGGT. Bold:
+                   Best. Underline: Second Best.
+
+
+
+
+B.2    Generalization to Other Frameworks
+To further evaluate the generalization of StereoVGGT, we conducted backbone sub-
+stitution experiments within the BridgeDepth framework [71], as shown in Tab. B2.
+BridgeDepth, a SOTA model for the Scene Flow dataset [72], is designed to support the
+seamless integration of frozen monocular depth estimation models. In our experiments,
+we replaced the default DepthAnything V2 [8] backbone with Moge-2 [10], VGGT [9],
+and our proposed StereoVGGT. The empirical results demonstrate that StereoVGGT
+consistently remains the most effective variant among the evaluated configurations,
+further substantiating its robustness across different stereo matching pipelines.
+
+B.3    Computational Cost
+This section compares the computational cost across the different models. All exper-
+iments were conducted on a single NVIDIA RTX 3090 GPU. The model inputs
+consisted of the left-view images from the KITTI dataset, along with the focal length
+and baseline length from the KITTI camera parameters. The output was a dispar-
+ity map, and the results are presented in Tab. B3. The time reported in the table
+represents the average duration over 50 inference runs.
+
+
+                                            28
+          Baseline Network Type                 Backbone                  D1 ↓ EPE ↓
+                                      MobileNet V2 (original version)      5.3   0.47
+                             VFM
+                                          EfficientNet V2 † [25]           5.2   0.46
+                             3R                 VGGT † [9]                 5.3   0.46
+          IGEV-Stereo [13]
+                                               Moge-2 † [10]               5.1   0.45
+                             MDE
+                                        DepthAnything V2 † [8]             5.1   0.44
+                                       StereoVGGT (Ours)                   4.9   0.43
+                                    DepthAnything V2 (original version)    3.7   0.37
+                             MDE
+                                                Moge-2 †                   3.7   0.39
+          BridgeDepth [71]
+                             3R                 VGGT †                     4.0   0.42
+                                        StereoVGGT (Ours)                  3.3   0.33
+         Table B2 Quantitative evaluation on Scene Flow test set. The error threshold
+         is 1 px. † denotes our reproduced version, for which no publicly available
+         source code exists. Light Gray shading indicates the baseline method .
+
+
+
+
+    Despite incorporating a substantial number of parameters, StereoVGGT does not
+suffer from a significant increase in inference time, as a large portion of the parameters
+from the MDE model and VGGT are loaded but remain inactive during inference.
+Remarkably, StereoVGGT achieves a faster inference speed than DepthAnything V2.
+The minimal increase in inference time, despite the high computational complexity, is
+likely due to the architecture’s efficient memory access patterns and uniform structure,
+which reduces bandwidth bottlenecks and enhances parallelism on GPUs.
+
+
+                    Model     Time (s) ↓ TFLOPs ↓ Param. (M) ↓ EPE (px) ↓
+                   Moge-2         0.156      1.50       326.21          6.74
+                   DA v2          0.328      1.95       335.32          5.88
+                   VGGT           0.197      3.78       1256.54         13.07
+                StereoVGGT        0.203      5.77       1891.31         2.71
+                Table B3 To evaluate computational cost, we performed
+                inference for each model on the KITTI dataset using the same
+                experimental setup as in Tab. 4.
+
+
+
+
+B.4     Disparity Perception under Ill-posed Conditions
+Ill-posed conditions refers to challenging scenarios such as thin structures, reflective
+surfaces, and textureless or weakly-textured regions, where achieving accurate dispar-
+ity estimation is particularly difficult. The ETH3D dataset [65] is specifically designed
+to include these ill-posed conditions. Building upon the results shown in Tab. 4 and
+Tab. B1, this section offers a deeper analysis of the model’s performance on this
+dataset.
+
+
+
+
+                                              29
+    In addition to the quantitative analysis provided in the main manuscript, we
+present a visual comparison of different types of ill-posed regions in Fig. B1. Specif-
+ically, MDE models, exemplified by DepthAnything V2 [8], frequently confuse the
+spatial relationships between scene objects and the imaging plane, whereas VGGT
+[9] often produces blurred object boundaries. In contrast, StereoVGGT achieves both
+fine-grained edge estimation and accurate relative distance estimation for objects.
+
+
+Reflective
+  Area
+
+
+
+   Thin
+  Object
+
+
+
+Textureless
+  Region
+
+
+                Input View        DA v2                VGGT        StereoVGGT (Ours)    Ground Truth
+
+
+Fig. B1 Disparity map comparisons across state-of-the-art models on challenging ill-posed regions.
+The models use monocular condition input of binocular cameras, consisting of a left view, focal length,
+and baseline length. The red boxes and white boxes highlight the main differences.
+
+
+
+
+B.5           Benchmark performance
+By employing StereoVGGT as the feature backbone integrated with the IGEV decoder
+[13] (detailed in Sec. 3.5), our proposed stereo matching network achieved the top-
+ranking position on the prestigious KITTI online benchmark at the time of submission,
+as illustrated in Fig. B2.
+
+
+
+
+                                                  30
+Fig. B2 StereoVGGT ranked 1st on the KITTI online benchmark among all submission methods.
+
+
+
+
+                                           31
+

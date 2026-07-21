@@ -1,0 +1,766 @@
+                                             QVGGT: Post-Training Quantized Visual Geometry Grounded Transformer
+
+                                                                           Zhizhen Pan1,2 Hesong Wang1 Huan Wang1, *
+                                                              1
+                                                                Westlake University 2 Beijing University of Posts and Telecommunications
+                                                                                                     zhizhenpan9@gmail.com
+                                                                                     {wanghesong, wanghuan}@westlake.edu.cn
+                                                                                          https://ddsacu.github.io/QVGGT/
+arXiv:2605.31124v1 [cs.CV] 29 May 2026
+
+
+
+
+                                                                                                                                           ×L     CIC
+                                                  Camera token                   Task-Aware                                                               Camera Head
+                                                                                 Optimal Scales 𝒔∗                 INT4
+                                                                                                                   weight
+
+                                                                                                                                                           Depth Head
+                                                                                                 *                 FP16
+                                                                                                                   weight
+                                                 Patched images tokens                                                                                     Point Head
+                                                                                                          Frame Block       Global Block
+
+
+                                                                                               QVGGT (W4A16)                                    VGGT (FP32)
+                                                                         QVGGT
+
+
+
+
+                                                2-view with
+                                                no overlap                                 4.2× memory reduction
+                                                       …
+
+
+
+
+                                                  22-view                               3.0 × memory reduction
+                                         Figure 1. Top: We introduce QVGGT, a three-stage post-training quantization framework that stabilizes VGGT by mixed-precision
+                                         allocation, token filtering with PCA-based information compensation, and task-aware scale search preserving 3D geometric consistency.
+                                         Bottom: Visualized 3D reconstruction results on real-world scenes show that QVGGT (W4A16) achieves comparable performance to
+                                         VGGT (FP32), while delivering 4.2× and 3.0× memory reduction for 2 input images and 22 input images, respectively.
+
+                                                                         Abstract                                   ever, its 1.2B-parameter scale severely limits deployment
+                                                                                                                    on resource-constrained platforms such as UAVs and mo-
+                                         Estimating 3D attributes directly from images has ad-                      bile AR devices. To address this limitation, we introduce
+                                         vanced rapidly with the Visual Geometry Grounded Trans-                    QVGGT, a tailored quantization framework designed to
+                                         former (VGGT), which predicts camera parameters, depth                     compress VGGT. Our approach starts from the observation
+                                         maps, and point clouds in a single forward pass. How-                      that transformer blocks within VGGT exhibit heterogeneous
+                                            * Corresponding author.                                                 sensitivity to quantization. We thus analyze per-block quan-
+                                            † Work done as a visiting research intern at ENCODE Lab, Westlake       tization sensitivity and propose a selective mixed-precision
+                                         University.                                                                strategy that allocates higher precision to the most fragile
+transformer blocks. To address the amplification of quan-       remains largely unexplored.
+tization error caused by high-variance camera and register
+tokens, we further introduce token filtering with camera in-       We propose QVGGT, a post-training quantization frame-
+formation compensation, which removes these outliers from       work tailored for 3D reconstruction transformers. First,
+activation calibration and restores their geometric cues us-    we observe that different blocks in VGGT exhibit hetero-
+ing a PCA-derived global compensation token. Finally, we        geneous sensitivity to quantization, which makes uniform
+develop a task-aware scale search mechanism that evalu-         low-bit quantization suboptimal. To address this, we per-
+ates candidate quantization scales not only through layer       form a layer-wise sensitivity analysis and adopt a selective
+reconstruction but also through multi-head supervision and      mixed-precision strategy that preserves higher precision for
+cross-head geometric consistency among camera poses,            sensitive blocks while quantizing the remaining layers to
+depth maps, and point maps. Extensive experiments on            4 bits. Second, we identify that camera and register to-
+multiple geometry perception benchmarks demonstrate that        kens produce high-magnitude activations that can dominate
+QVGGT achieves near-lossless W4A16 quantization, pre-           scale estimation during calibration, amplifying quantization
+serving the accuracy of all 3D prediction heads while deliv-    error. To mitigate this issue, we introduce a token filter-
+ering 3∼4.9× memory reduction and up to 2.8× real hard-         ing mechanism that excludes these tokens from activation
+ware speedup over FP32. Our approach makes high-fidelity        statistics, together with a camera information compensa-
+3D perception feasible on edge devices, enabling practi-        tion (CIC) strategy that restores their influence at inference
+cal deployment of feed-forward 3D reconstruction models         time via a PCA-based token. Finally, we note that stan-
+in real-world constrained environments.                         dard layer-wise reconstruction objectives do not fully re-
+                                                                flect downstream geometric performance. Therefore, we
+                                                                propose a task-aware scale search mechanism, where quan-
+1. Introduction                                                 tization scales are selected based on multi-head supervision
+                                                                and a geometric consistency objective, aligning scale opti-
+Estimating the 3D attributes of a scene from visual in-         mization with 3D reconstruction quality.
+puts is a cornerstone of computer vision, with broad ap-
+plications in robotics, augmented reality, and digital con-        We evaluate QVGGT on a suite of geometry perception
+tent creation. Traditional 3D reconstruction methods such       benchmarks, including CO3Dv2 [30], RealEstate10K [54],
+as Structure-from-Motion (SfM) [22, 38] and Multi-View          7-Scenes [33], and NRGBD [3]. Under a practical W4A16
+Stereo (MVS) [14, 25] rely on explicit geometric constraints    setting, QVGGT yields near-lossless camera pose estima-
+such as Bundle Adjustment (BA) [16], which, while ac-           tion and reduces model size by over 75%. Compared with
+curate, involve iterative optimization and high computa-        general-purpose PTQ methods such as SmoothQuant [44],
+tional cost. Recent advances in learning-based approaches,      GPTQ [12], and AWQ [21], QVGGT consistently pre-
+such as DUSt3R [41] and MASt3R [20], have demon-                serves higher accuracy, highlighting the difficulty of di-
+strated that feed-forward neural networks can directly pre-     rectly applying standard quantization techniques to VGGT.
+dict 3D attributes, significantly simplifying the reconstruc-   Furthermore, under matched quantization settings, QVGGT
+tion pipeline. Building on this line of progress, the Vi-       achieves comparable or better performance than the concur-
+sual Geometry Grounded Transformer (VGGT) [39] has              rent QuantVGGT, while maintaining favorable efficiency.
+emerged as a breakthrough model, capable of predicting all         To summarize, we make the following contributions:
+key 3D attributes in a single forward pass.
+    Despite its effectiveness, VGGT contains 1.26 billion pa-   • We present a PTQ framework for 3D geometry transform-
+rameters, resulting in a substantial memory footprint and         ers. We observe the heterogeneous quantization sensitiv-
+computational demand during inference. This makes its de-         ity of VGGT and show that it can be effectively leveraged
+ployment challenging in real-time and resource-constrained        via a selective mixed-precision strategy.
+scenarios such as robotic navigation and AR/VR percep-          • We identify a characteristic token-level activation imbal-
+tion, where both efficiency and geometric accuracy are            ance in 3D transformers, and propose a token-filtered cal-
+crucial. Among common model compression techniques,               ibration scheme with compensation to improve the ro-
+model pruning [11, 15, 34, 51, 55] and knowledge distil-          bustness of activation-based quantization.
+lation [18, 28, 37, 52] reduce model complexity but of-         • We design a task-aware scale search mechanism with
+fer limited acceleration on modern hardware. In con-              multi-head supervision and geometric consistency, align-
+trast, quantization [2, 8, 24, 44, 48] simultaneously im-         ing quantization with downstream 3D prediction tasks.
+proves compactness and speed by reducing numerical pre-         • Empirically, QVGGT achieves nearly lossless W4A16
+cision. Although quantization has enabled efficient on-           quantization across multiple 3D geometry prediction
+device inference for large language models [21, 53], quan-        benchmarks, while reducing model size by more than
+tizing large transformer-based 3D reconstruction networks         75% and decreasing the inference memory by 3∼4.9×.
+    Per-block quantization sensitivity                                                            𝑼𝑻𝑻𝒐𝒑−𝑲 𝒙𝒄 - ഥ
+                                                                                                               𝒙𝒄
+                                                                                 Camera token                           Camera Information
+                                                                                                    Top-K PCA
+                                                                                      × N times                         Compensation token (CIC)
+                                          Selective mixed-precision
+                                            quantization strategy
+
+
+                                                                                                             *
+         Frame / Global Blocks           Step 1 Sensitivity Analysis
+                                                                                            Image tokens
+                                                                               Step 2 Token Filtering with Camera Information Compensation
+
+                                                                       CIC
+
+                                                                             Camera Head                         Unprojection
+
+
+
+                                          W                                                                                     Lgeom
+                                                    W                        Depth Head                                                      Best
+                                                                                                                                Lmulti     scales s*
+                                          W
+                                                                                                                                Lrecon
+                                                   ×L                        Point Head
+
+
+                                                                                                           Step 3 Task-aware scale searching mechanism
+
+Figure 2. Overview of QVGGT. Our framework consists of three components to preserve VGGT performance under low-bit quantization.
+Step 1: Sensitivity analysis. We estimate per-block quantization sensitivity across frame-wise and global transformer blocks, enabling
+selective mixed-precision assignment for critical layers. Step 2: Token filtering with camera information compensation. To mitigate
+outlier-dominated scale estimation, we exclude camera and register tokens during activation statistics collection. A camera information
+compensation (CIC) token is then constructed via top-K PCA over camera-token activations and injected into the camera head. Step
+3: Task-aware scale search. We select quantization scales using a task-aware objective that combines multi-head losses, geometric
+consistency, and reconstruction error, jointly optimizing accuracy and robustness across all heads.
+
+2. Related Work                                                                 integers, primarily through Quantization-Aware Training
+                                                                                (QAT) or Post-Training Quantization (PTQ). QAT [5, 19,
+Learning-based 3D Reconstruction.                                               23] achieves high accuracy at extreme bit-widths by sim-
+Over the past decade, estimating 3D attributes including                        ulating quantization during training, yet its intensive re-
+camera pose, depth, and point maps has been a core research                     source demand makes it impractical for billion-parameter
+problem in 3D computer vision [13, 17]. Recent advances                         models like VGGT. Consequently, PTQ has emerged as the
+in deep learning have significantly shifted 3D reconstruc-                      preferred paradigm for Large Language Models (LLMs)
+tion from traditional geometry-based pipelines [1, 10, 22,                      [2, 8, 12, 21, 44, 53], Vision Transformers (ViTs) [46, 50],
+31, 32, 42] toward data-driven approaches. Learning-based                       and MLLMs [36, 49]. The field has progressed from
+methods have been proposed for exploring end-to-end 3D                          outlier-aware mixed-precision [8] and second-order weight
+reconstruction frameworks [4, 25, 35, 38, 40, 45, 47],                          compensation [12] toward activation-weight co-scaling [21,
+which have demonstrated the feasibility of directly pre-                        44] and mathematical distribution reshaping via rotational
+dicting dense point maps from image pairs, thereby re-                          transforms [2] or fine-grained modeling [46, 50].
+ducing reliance on explicit post-processing. Representa-                           While these approaches effectively stabilize numerical
+tive works such as DUSt3R [41] formulate 3D reconstruc-                         distributions of language and 2D vision models, they gener-
+tion as direct regression of point maps from image pairs,                       alize poorly to 3D geometry networks such as VGGT [39].
+while MASt3R [20] further improves metric consistency                           A concurrent work, QuantVGGT [9], explores post-training
+through confidence-aware optimization. More recently,                           quantization for VGGT under specific bit-width settings and
+VGGT [39] unifies multiple 3D perception tasks within a                         demonstrates competitive performance. In contrast, our ap-
+single transformer-based architecture. However, the large                       proach differs in both quantization settings and methodol-
+model size and high computational cost of VGGT signifi-                         ogy design, aiming to better accommodate the unique char-
+cantly hinder its practical deployment. In particular, com-                     acteristics of 3D geometry transformers. We defer detailed
+pression techniques for large-scale 3D transformers, such as                    comparisons to the end of the method section.
+post-training quantization, remain largely underexplored.
+Model Quantization.                                                             3. Method
+Model quantization reduces memory and computational
+                                                                                We first introduce the preliminaries of QVGGT (Section
+overhead by mapping floating-point parameters to low-bit
+                                                                                3.1). We perform the selective mixed-precision quantiza-
+                                      
+                                                                                                                                     frame_blocks.23.mlp.fc1 - Activation Distribution Histogram
+                                                                                                ) U D P H  % O R F N V                                  1e6
+                                                                                          * O R E D O  % O R F N V                                                         Mean: -3.1426
+                                                                                                6 H Q V L W L Y H  % O R F N V                    1.2                            +3 : inf
+                                                                                                                                                                            -3 : -inf
+                                                                                                                                                   1.0
+   $ F F X U D F \  ' U R S
+
+
+
+
+                                      
+                                                                                                                                             0.8
+
+
+
+
+                                                                                                                                       Frequency
+                                      
+                                                                                                                                                   0.6
+                                      
+                                      
+                                                                                                                                                   0.4
+
+                                                                                                                                             0.2
+                                      
+                                                                                                                                       0.0
+                                                                                                                                                          6    4            2         0           2
+                                                                     % O R F N  , Q G H [                                                                         Activation Value
+                                                                    (a)                                                                                                 (b)                                            (c)
+Figure 3. Motivation of selective mixed-precision quantization: (a) Per-block sensitivity analysis of VGGT. The abscissa shows the
+alternating arrangement of frame blocks and global blocks; the ordinate represents the accuracy drop of camera pose prediction on the
+CO3Dv2 dataset when each block is quantized individually. (b) The outlier distribution histogram of frame block 23 shows that some
+sensitive blocks have a long-tail distribution, which will lead to the amplification of quantization errors. (c) Activation outlier distribution
+of frame block 23, where the camera and register tokens exhibit distinct high-variance activations compared to patch tokens, leading to
+amplified quantization errors in per-channel schemes.
+
+tion (Section 3.2). Then we smooth the camera token to                                                                                                         training (QAT), which updates both weights and quantiza-
+reduce quantization error (Section 3.3). Finally, we design                                                                                                    tion parameters via backpropagation, PTQ quantizes a pre-
+a task-aware scale search methodology (Section 3.4).                                                                                                           trained model using a calibration dataset.
+                                                                                                                                                                   In this work, we focus on weight-only PTQ, where the
+3.1. Preliminary                                                                                                                                               activation remains in floating-point while the model weights
+Visual Geometry Grounded Transformer (VGGT) is a                                                                                                               are quantized to lower precision.
+feed-forward architecture designed to estimate comprehen-                                                                                                          For a weight element w ∈ W , the uniform quantization
+sive 3D scene attributes directly from multi-view RGB in-                                                                                                      functions are defined as:
+puts. Given a sequence of N RGB images (Ii )N   i=1 , where
+                                                                                                                                                                                           w             max(|w|)
+each image Ii ∈ R3×H×W observes the same static 3D                                                                                                                     Q(w) = ∆ · Round          , ∆=               , (2)
+                                                                                                                                                                                             ∆               2N −1
+scene, VGGT maps this sequence to a corresponding set of
+geometric outputs:                                                                                                                                             where x is the input activation, W is the weight, Q(W ) is its
+                                                                                                                                                               quantized counterpart, N is the bit-width, and ∆ determines
+                                                       fθ ((Ii )N                        N
+                                                                i=1 ) = {(gi , Di , Pi )}i=1 ,                                                       (1)       the quantization step size based on the maximum absolute
+                                                                                                                                                               value in the group (or channel).
+where each component is defined as follows: gi ∈ R9 de-                                                                                                           After quantization, the dequantized weight ŵ can be ex-
+notes camera parameters consisting of a rotation quaternion                                                                                                    pressed as:
+qi ∈ R4 , translation vector ti ∈ R3 , and field-of-view
+fi ∈ R2 ; Di ∈ RH×W represents the depth map; and                                                                                                                   ŵ = Q(w) = ∆ · q,                q ∈ {−2N −1 , . . . , 2N −1 − 1}. (3)
+Pi ∈ R3×H×W is the point map in 3D world coordinates.
+                                                                                                                                                               This symmetric scheme effectively reduces the storage cost
+   Input images Ii are patched into a set of tokens tI ∈                                                                                                       while maintaining arithmetic compatibility with existing
+RK×C through DINO [26]. A camera token tC        i ∈ R
+                                                         1×C
+                                                                                                                                                               GPU and accelerator instructions.
+                           i      4×C
+and four register tokens tR ∈ R       are appended to form
+the complete token sequence for each frame. The result-                                                                                                        3.2. Selective mixed-precision quantization
+ing token sequences are then processed by the VGGT back-
+                                                                                                                                                               Heterogeneous Quantization Sensitivity of VGGT
+bone, an alternating-attention (AA) transformer composed
+                                                                                                                                                               Blocks. We start our study by observing that directly apply-
+of interleaved frame blocks and global blocks, where the
+                                                                                                                                                               ing standard quantization to all Alternating Attention (AA)
+former captures intra-frame features while the latter aggre-
+                                                                                                                                                               blocks of VGGT leads to prominent and highly uneven ac-
+gates cross-frame features. Finally, the output tokens are
+                                                                                                                                                               curacy degradation. To gain deeper insights into how dif-
+passed to task-specific prediction heads, including the cam-
+                                                                                                                                                               ferent parts of VGGT respond to low-bit quantization, we
+era head and the DPT [29] head (for depth map and point
+                                                                                                                                                               conduct a systematic and fine-grained sensitivity analysis
+map prediction), to produce the final 3D attribute.
+                                                                                                                                                               by selectively quantizing individual blocks and measuring
+Post Training Quantization (PTQ) reduces model size and                                                                                                        the resulting impact on downstream prediction heads.
+inference cost by mapping floating-point parameters to low-                                                                                                       Interestingly, the camera head exhibits the strongest and
+bit integers without retraining. Unlike quantization-aware                                                                                                     most volatile dependence on block precision. As shown
+in Figure 3a, quantizing certain blocks introduces dispro-          ister, and image tokens. When camera and register tokens
+portionately large errors in camera pose estimation, even           exhibit significantly larger magnitudes, the optimization be-
+though the depth and point-map heads remain compara-                comes dominated by these high-amplitude tokens, biasing
+tively stable and robust. This analysis reveals a highly            the scale estimation toward a small subset of activations and
+heterogeneous and task-dependent sensitivity pattern within         degrading overall quantization fidelity.
+AA blocks: while some blocks can be safely quantized with               These large-magnitude outliers inflate the dynamic
+negligible performance loss, others trigger a dramatic col-         range of the corresponding activation channels. Conse-
+lapse in accuracy. These findings highlight that camera pose        quently, the quantization scale is dominated by a few
+estimation serves as a particularly sensitive and informative       extreme activations, leading to an unbalanced quantiza-
+indicator for quantization stability.                               tion resolution—fine-grained channels for camera-related
+   Using the same methodology, we conducted a sensitivity           weights but coarse quantization for others—thereby ampli-
+analysis on the different linear layers within the AA Blocks.       fying the overall quantization error.
+We find that the attention projection layer and the first FFN       Camera-token-filtered quantization strategy. To address
+layer exhibit the lowest and highest quantization sensitivity.      this bias, we propose a camera-token-filtered quantiza-
+   Our sensitivity analysis (Figure 3a) reveals that differ-
+                                                                    tion strategy that disentangles scale estimation from high-
+ent AA blocks exhibit heterogeneous robustness to quan-
+                                                                    variance tokens while preserving their camera information
+tization. To maximize model compression and minimize
+                                                                    during inference. Specifically, during the calibration phase,
+quantization errors, we adopt a selective mixed-precision           we compute activation statistics and perform scale search
+quantization strategy. Based on the sensitivity analysis, the       only using image tokens. This ensures that the optimized
+14th, 17th, and 23rd frame blocks and the 23rd global block         s∗ reflects the dynamic range of the majority token popula-
+are sensitive to quantization, for which we have chosen to
+                                                                    tion rather than being pulled by a few extreme activations.
+only quantize the attention projection layer while keeping
+the weights of the remaining layers at FP16 precision. The          Camera information compensation. Excluding camera
+other blocks exhibit relatively high quantization robustness,       tokens during scale search stabilizes quantization but re-
+so we perform INT4 quantization on them.                            moves the influence of dense global cues essential for the
+                                                                    camera head. To compensate for this information loss,
+3.3. Camera Information Compensation                                we synthesize a camera information compensation token
+Outlier distribution of camera token and register to-               (CICT) derived from the camera-token distribution ob-
+kens. Section 3.2 reveals the camera head is disproportion-         served on the calibration set. This CICT encapsulates low-
+ately vulnerable to block-wise quantization. To investigate         variance, dataset-level global geometry priors that are later
+the underlying cause, we visualize the activation statistics        re-injected into the camera head at inference.
+of each transformer block and identify that camera tokens           Let the calibration camera-token matrix be:
+                                                                                  h                               i
+(the sole inputs to the camera head) and register tokens ex-               Xc = x(1)⊤    ; x(2)⊤ ; . . . ; x(N )⊤
+                                                                                                                    ∈ RN ×2C . (5)
+                                                                                     c      c               c
+hibit outlier activation magnitudes in several quantization-
+sensitive layers. As shown in Figure 3b and Figure 3c, the          Center Xc and compute its top-K principal directions UK ∈
+2D activation heatmap of the 23rd frame block reveals a             RD×K . Project each sample:
+pronounced deviation: camera and register tokens consis-                                                 1 X (i)
+                                                                                    ⊤
+tently lie in high-magnitude regions of the activation distri-             z (i) = UK   x(i)
+                                                                                         c   − µ   , µ=           x .      (6)
+                                                                                                          N i c
+bution, while image tokens form a compact cluster around
+the mean. We empirically observe that these outlier acti-           Form the mean projection z̄ = N1 i z (i) and reconstruct
+                                                                                                      P
+vations are strongly correlated with camera pose estimation         the camera information compensation token:
+performance, as perturbing them leads to noticeable degra-
+dation in the camera head accuracy. This suggests that these                             x̃CICT = µ + UK z̄.                  (7)
+tokens carry information that is particularly sensitive for         Normalize scale to match patch-token norms (so attention
+downstream geometric prediction.                                    magnitudes remain compatible):
+   Such heterogeneity in token statistics directly affects
+activation-aware weight quantization. Per-channel (or per-                                               ∥xp ∥2
+                                                                                     xCICT = x̃CICT ·              ,          (8)
+group) weight scales s are optimized according to activation                                            ∥x̃CICT ∥2
+distribution, with the objective of minimizing the error:
+                                                                    where ∥xp ∥2 is the mean L2 norm of representative patch
+                    s∗ = arg min L(s),                              tokens from calibration. During inference, after the model
+                                s
+                                                             (4)                                              (t)
+                                                                    generates the per-frame token sequence {xc }St=1 , the syn-
+    L(s) = Q(W diag(s)) diag(s)−1 X − W X ,
+                                                                    thesized xCICT is appended to the token sequence before it
+where X = [tiC ; tiR ; tiI ] is the concatenation of camera, reg-   is passed to the camera head.
+3.4. Task-aware Scale Searching Mechanism                           Meanwhile, the point head directly outputs a dense point
+Activation-aware quantization determines the per-channel          map Wdirect . The geometry consistency loss is defined as:
+(or per-group) scaling factors s by minimizing the output                      1
+                                                                                              Wdirect (u, v) − Wproj (u, v)
+                                                                                     X
+                                                                    Lgeom =                                                       ,   (11)
+reconstruction error after quantization.                                      |Ω|                                             2
+                                                                                    (u,v)∈Ω
+   Although effective for preserving layer-wise numerical
+fidelity, this objective does not reflect the impact of quan-     where Ω denotes the set of valid pixels. This loss enforces
+tization on task-level predictions. In VGGT, where cam-           cross-head agreement during scale search, penalizing dis-
+era pose, depth, and point maps interact through strict ge-       crepancies between reconstructed and predicted geometry,
+ometric relationships, layer reconstruction quality does not      thereby guiding the selection of quantization scales toward
+necessarily guarantee accurate 3D attribute estimation. To        solutions that preserve the intrinsic 3D structure across all
+better align quantization with task objectives, we introduce      heads. The final task-aware objective for scale selection
+a task-aware scale search mechanism that supervises scale         thus becomes:
+selection using both multi-head prediction losses and geo-         Ltask (s) = Lrecon +Lcamera +αLdepth +βLpoint +Lgeo , (12)
+metric consistency constraints.
+                                                                  where α and β balance the relative importance of depth and
+Multi-head loss. Instead of minimizing only the layer re-         point-map supervision. Since the camera, depth, and point-
+construction loss, we incorporate task-level supervision de-      map losses exhibit comparable numerical ranges in prac-
+rived from VGGT’s three prediction heads. Specifically,           tice, we assign equal weights by setting α = β = 1. Fol-
+given the predicted camera parameters ĝi , depth maps D̂i ,      lowing the lightweight scale-search paradigm of AWQ [21],
+and point maps P̂i , with corresponding ground truths gi , Di ,   we perform grid search over candidate quantization scales,
+Pi , we define three head-specific task losses:                   while replacing the reconstruction-based objective with the
+                                N
+                                X                                 proposed task-aware optimization.
+                 Lcamera =            ∥ĝi − gi ∥ε ,
+                                                                  Distinction from QuantVGGT. We note a concurrent
+                                i=1
+                         N
+                                                                  work, QuantVGGT [9], which also studies PTQ for VGGT.
+                                                                  While QuantVGGT primarily employs general-purpose nu-
+                         X
+             Ldepth =          ∥Σ̂D
+                                  i ⊙ (D̂i − Di )∥,        (9)
+                         i=1
+                                                                  merical stabilization techniques (e.g., outlier dispersion
+                         N                                        and activation smoothing), QVGGT is designed from a
+                                                                  geometry-aware perspective, tailored specifically to 3D
+                         X
+              Lpoint =         ∥Σ̂P
+                                  i ⊙ (P̂i − Pi )∥,
+                         i=1                                      transformers. In particular, instead of treating camera to-
+                                                                  kens purely as outliers, we explicitly account for their im-
+where ∥ · ∥ε denotes the Huber loss, and ⊙ is the element-
+                                                                  pact on camera prediction through the proposed Camera
+wise product weighted by the predicted uncertainty maps.
+                                                                  Information Compensation (CIC). In addition, our scale
+Geometry consistency loss. VGGT is trained in a multi-            search is guided by a task-aware objective that incorpo-
+head fashion, where camera, depth, and point predictions          rates multi-head geometric consistency. Overall, QVGGT
+are mutually dependent via geometric constraints. While           emphasizes task- and structure-aware quantization, comple-
+these heads are designed to capture different geometric at-       menting the distribution-oriented design of QuantVGGT.
+tributes, they are inherently connected due to geometric
+consistency. For example, the combination of predicted            4. Experiments
+camera pose and depth can reconstruct a point map, which
+                                                                  4.1. Experimental Setups
+should agree with the direct output of the point-map head.
+Although this redundancy was originally introduced to im-         Models and benchmarks. We adopt VGGT-1B [39] as our
+prove training accuracy, we leverage it in our quantization       base model for all experiments. For the quantization con-
+framework by introducing a geometry consistency loss.             figuration, we choose the W4A16 setting, which has better
+    Formally, given the predicted depth map D, camera in-         hardware adaptability and has been widely shown to offer
+trinsics K, and extrinsics E = (R, t), we unproject depth         an optimal balance between efficiency and accuracy [21].
+values into 3D space:                                             We further apply per-group weight quantization, which has
+                                                              been shown to better retain model performance compared
+                                    u − cx
+                          D(u,  v)                                with per-channel or per-tensor quantization in both lan-
+    Wproj (u, v) = R−1             v − cy  − t , (10)
+                             f                                    guage and vision transformers [7]. We evaluate QVGGT
+                                       f
+                                                                  on four representative 3D reconstruction and geometry per-
+where (u, v) denotes the image pixel, f the focal length,         ception benchmarks: CO3Dv2 [30], RealEstate10K [54],
+and (cx , cy ) the principal point. This yields a reconstructed   7-Scenes [33], and NRGBD [3]. These datasets collec-
+point map Wproj .                                                 tively cover diverse scenarios, such as object-level and
+Table 1.    Camera pose estimation on CO3Dv2 [30] and            Table 2. Quantitative 3D reconstruction results on the 7-Scenes
+RealEstate10K [54] with 10 random frames.                        [33] and NRGBD [3] datasets.
+
+                                 CO3Dv2            Re10K                                                    7-Scenes
+  Method             W/A                                         Method            W/A
+                             AUC@30↑ Latency   AUC@30↑ Latency                                Acc↓          Comp↓             NC↑
+                                                                                          Mean    Med.    Mean    Med.    Mean    Med.
+  Baseline           FP16      89.5    0.38s     85.3    0.37s
+                                                                 Baseline          FP16   0.030   0.019   0.034   0.039   0.847   0.928
+  SmoothQuant [44]   W8A8      87.9    0.62s     81.3    0.38s
+  QuantVGGT [9]      W8A8      89.4      -       84.9      -     SmoothQuant [44] W8A8    0.067   0.060   0.058   0.042   0.702   0.760
+                                                                 GPTQ [12]        W4A16   0.051   0.033   0.053   0.025   0.802   0.880
+  QuantVGGT [9]      W4A16     89.2      -       84.4      -     AWQ [21]         W4A16   0.043   0.023   0.054   0.024   0.819   0.914
+  GPTQ [12]          W4A16     76.9    0.28s     75.6    0.27s   QVGGT (ours)     W4A16   0.031   0.019   0.035   0.021   0.849   0.927
+  AWQ [21]           W4A16     54.6    0.28s     59.2    0.28s
+  QVGGT (ours)       W4A16     89.4    0.23s     85.0    0.23s                                              NRGBD
+                                                                 Method            W/A        Acc↓          Comp↓             NC↑
+                                                                                          Mean    Med.    Mean    Med.    Mean    Med.
+scene-level, real-world data and synthetic data. We eval-
+                                                                 Baseline          FP16   0.024   0.013   0.038   0.013   0.922   0.994
+uate QVGGT on two tasks: camera pose estimation and 3D
+                                                                 SmoothQuant [44] W8A8    0.062   0.052   0.066   0.054   0.769   0.778
+reconstruction performance, and assess both geometric pre-       GPTQ [12]        W4A16   0.053   0.029   0.051   0.022   0.872   0.945
+cision and consistency after quantization.                       AWQ [21]         W4A16   0.047   0.023   0.059   0.024   0.891   0.982
+                                                                 QVGGT (ours)     W4A16   0.029   0.015   0.037   0.015   0.925   0.994
+Implementation details. All experiments are conducted on
+an RTX 4090 (24GB) with PyTorch [27]. Note that the pro-
+posed quantization method is post-training, namely, with no      lies on pseudo-quantization. As latency is inherently tied
+training cost. We adapt the HuggingFace Transformers [43]        to bit-width choices and hardware-specific optimizations, a
+library to re-implement VGGT [39] as our baseline model.         strictly comparable latency evaluation is not available.
+Comparison methods. We compare QVGGT against sev-                    We further observe that generic PTQ methods such as
+eral state-of-the-art PTQ methods originally designed for        GPTQ and AWQ suffer significant performance degrada-
+vision and language models, including SmoothQuant [44],          tion under W4A16, highlighting the challenge of directly
+GPTQ [12], and AWQ [21], as well as QuantVGGT [9], a             applying standard quantization techniques to VGGT. In
+concurrent work tailored for VGGT.                               contrast, QVGGT effectively preserves camera pose esti-
+   For generic PTQ baselines, we follow their standard con-      mation accuracy across datasets, demonstrating both robust-
+figurations (e.g., W8A8 for SmoothQuant) and additionally        ness and cross-domain generalization.
+evaluate them under matched settings (e.g., W4A16) when
+                                                                 4.3. Point Map Estimation
+applicable to ensure fair comparison. For QuantVGGT, we
+report both its original results and matched-bitwidth com-       Following CUT3R [40], we evaluate the 3D reconstruction
+parisons when available. We also report the performance of       performance of QVGGT against state-of-the-art methods
+the full-precision VGGT as the upper bound.                      on the 7-Scenes [33] and NRGBD [3] datasets. We adopt
+                                                                 three widely used metrics: accuracy (Acc), completeness
+4.2. Camera Pose Estimation                                      (Comp), and normal consistency (NC), where lower values
+We first evaluate our method on the CO3Dv2 [30] and              indicate better performance for Acc and Comp, and higher
+RealEstate10K [54] datasets for camera pose estimation, as       values are preferred for NC.
+shown in Table 1. For each scene, we randomly sample 10             Table 2 shows that QVGGT consistently achieves nearly
+images and report AUC@30, which jointly measures rela-           lossless quantization compared to the FP16 baseline, while
+tive rotation and translation accuracy.                          significantly outperforming generic quantization methods.
+    To ensure a fair comparison, we include results un-
+der matched quantization settings (W4A16). Under this
+                                                                 4.4. Ablation Study
+setting, QVGGT achieves constantly better performance            Quantization framework components. We conduct abla-
+across both datasets, while consistently delivering lower in-    tion experiments on CO3Dv2 [30] and NRGBD [3] to as-
+ference latency. It should be noted that the calibration data    sess the contribution of each component in QVGGT. The
+is sampled from Co3Dv2 and ScanNet, and RealEstate10K            results are summarized in Table 3. Naively quantizing all
+is not involved in the calibration process, demonstrating        blocks causes severe degradation on both benchmarks, con-
+the cross-dataset generalization capability of our method.       firming our earlier analysis that VGGT [39] is highly sensi-
+These results indicate that the performance gains stem from      tive to low-bit quantization, especially in blocks influencing
+our geometry-aware quantization design rather than differ-       the camera head. Selective mixed-precision quantization
+ences in the quantization regime. We note that QuantVGGT         significantly improves performance on both datasets by pre-
+does not report real hardware latency for camera pose es-        serving high-importance blocks in FP16 while quantizing
+timation on CO3Dv2, and its released implementation re-          others to 4 bits. This demonstrates that heterogeneous block
+Table 3. Ablation study on CO3Dv2 [30] and NRGBD [3]. Q:
+naively quantizing all blocks; S: selective mixed-precision quanti-                                                               Y s ' ' d ; t ϰ  ϭ ϲ Ϳ
+                                                                                                            Ϯ Ϭ ͘ Ϭ
+                                                                                                                                  s ' ' d  ; & W ϯ Ϯ Ϳ
+zation; D: token filtering with camera information compensation;
+                                                                                                            ϭ ϳ ͘ ϱ
+T: task-aware scale-search mechanism. The ✓mark means the
+component is enabled; – means the component is disabled.                                                    ϭ ϱ ͘ Ϭ
+
+
+
+
+                                                                         W Ğ Ă Ŭ  D Ğ ŵ Ž ƌ Ǉ  ; '  Ϳ
+                                                                                                            ϭ Ϯ ͘ ϱ
+                             CO3Dv2           NRGBD                                                                                                                                    ϯ ͘ ϳ п
+      Q     S      D   T                                                                                    ϭ Ϭ ͘ Ϭ
+                            AUC@30↑        Accuracy Mean↓                                                                                                                   ϯ ͘ Ϭ п
+                                                                                                              ϳ ͘ ϱ
+                                                                                                                                                              ϯ ͘ Ϯ п
+      ✓    –     –     –       54.57             0.122                                                                                             ϯ ͘ ϴ п
+                                                                                                              ϱ ͘ Ϭ    ϰ ͘ ϵ п        ϰ ͘ Ϯ п
+      –    ✓     –     –       80.76             0.057                                                                                                                                              K K D       K K D
+
+      –    ✓     ✓     –       85.91             0.054                                                        Ϯ ͘ ϱ
+      –    ✓     ✓     ✓       89.39             0.029                                                        Ϭ ͘ Ϭ
+                                                                                                                            ϭ              Ϯ            ϰ          ϴ            Ϯ Ϭ        ϯ Ϭ    ϱ Ϭ        ϭ Ϭ Ϭ
+                                                                                                                                                                    η & ƌ Ă ŵ Ğ Ɛ
+Table 4. Ablation study of the 3D reconstruction performance with     Figure 4. Peak memory reduction under different numbers of input
+different calibration image numbers.                                  frames (image resolution: 518×518).
+
+        Calibration         CO3Dv2           NRGBD                    Table 5. Comparison among different methods in terms of the
+       image numbers       AUC@30↑        Accuracy mean↓              normalized memory and latency performance with 2 input frames.
+              16              87.86            0.035
+              32              89.17            0.032                                                        Method                                       W/A              Memory ↑               Latency ↓
+             128              89.39            0.029                                                        Baseline                                  FP16                     1.00×                1.00×
+                                                                                                            QuantVGGT [9]                            W8A8                      1.93×                2.17×
+sensitivity is a key obstacle for quantizing VGGT and that                                                  QVGGT (ours)                             W4A16                     2.11×                1.93×
+protecting critical layers is essential for retaining perfor-
+mance. Next, applying token decoupling with camera infor-             24 GB GPU, QVGGT still maintains a 3.7× reduction in
+mation compensation reduces quantization-induced bias on              memory footprint. This demonstrates that our quantization
+the camera branch and yields improvements on both cam-                framework not only compresses the model parameters but
+era head and DPT [29] head predictions. Finally, adding the           also effectively mitigates the activation memory overhead
+task-aware scale-search mechanism yields the best overall             that scales with the number of frames.
+performance, achieving 89.39 (AUC@30) on CO3Dv2 and
+0.029 (accuracy mean) on NRGBD.                                       Latency efficiency comparison. Table 5 reports nor-
+                                                                      malized memory and latency performance with two input
+Robustness to calibration dataset size. Table 4 evaluates             frames. QVGGT achieves a 2.11× memory reduction and a
+QVGGT under different calibration set sizes. The results              1.93× latency speedup relative to the FP16 baseline. These
+show that our method remains highly stable, with only mi-             improvements indicate that low-bit weight quantization ef-
+nor performance variations when increasing the number of              fectively reduces memory bandwidth pressure while im-
+calibration images from 16 to 128. Although using 32 im-              proving computational efficiency during inference.
+ages yields a slight improvement, the overall trend indi-
+cates that QVGGT does not rely heavily on large calibration           5. Conclusion
+sets to obtain reliable activation statistics. This robustness
+highlights the practicality of QVGGT, as it achieves strong           This work presents QVGGT, a post-training quantization
+quantization performance even with a very small amount of             framework tailored for VGGT. We analyze the heteroge-
+calibration data.                                                     neous quantization sensitivity of VGGT and the distinct
+                                                                      behavior of camera tokens and register tokens, and ad-
+4.5. Efficiency Analysis                                              dress these challenges through a selective mixed-precision
+                                                                      scheme, token filtering with camera information compen-
+We evaluate the efficiency of QVGGT in terms of peak
+                                                                      sation, and a task-aware scale search guided by multi-head
+memory consumption and inference latency.
+                                                                      geometric consistency. Extensive experiments demonstrate
+Memory efficiency comparison. As shown in Figure 4,                   that QVGGT achieves near-lossless 4-bit quantization, im-
+our quantized model significantly reduces memory usage                proving the deployment feasibility of high-fidelity 3D per-
+compared to the full-precision VGGT [39]. With one input              ception models. We note that QuantVGGT [9] is a con-
+frame, QVGGT achieves a 4.9× reduction in peak mem-                   current work that also explores PTQ for VGGT. Our ap-
+ory, and this advantage remains consistent as the number              proach is complementary, focusing on geometry- and task-
+of input frames increases. Even at 30 input frames, where             aware design, while QuantVGGT emphasizes distribution-
+full-precision VGGT nearly reaches the memory limit of a              oriented quantization strategies.
+Acknowledgement                                                     [11] Elias Frantar and Dan Alistarh. Optimal brain compres-
+                                                                         sion: A framework for accurate post-training quantization
+This paper is supported by Young Scientists Fund of the                  and pruning. In NeurIPS, 2022. 2
+National Natural Science Foundation of China (NSFC)                 [12] Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan
+(No. 62506305), Zhejiang Leading Innovative and En-                      Alistarh.     Gptq: Accurate post-training quantization
+trepreneur Team Introduction Program (No. 2024R01007),                   for generative pre-trained transformers. arXiv preprint
+Key Research and Development Program of Zhejiang                         arXiv:2210.17323, 2022. 2, 3, 7
+Province (No. 2025C01026), Scientific Research Project              [13] Silvano Galliani, Katrin Lasinger, and Konrad Schindler.
+of Westlake University (No. WU2025WF003), Chinese                        Massively parallel multiview stereopsis by surface normal
+Association for Artificial Intelligence (CAAI) & Ant Group               diffusion. In ICCV, 2015. 3
+Research Fund - AGI Track (No. 2025CAAI-ANT-13).                    [14] Xiaodong Gu, Zhiwen Fan, Siyu Zhu, Zuozhuo Dai, Feitong
+It is also supported by the research funds of the National               Tan, and Ping Tan. Cascade cost volume for high-resolution
+Talent Program and Hangzhou Municipal Talent Program.                    multi-view stereo and stereo matching. In CVPR, 2020. 2
+                                                                    [15] Song Han, Huizi Mao, and William J Dally. Deep com-
+                                                                         pression: Compressing deep neural network with pruning,
+References                                                               trained quantization and huffman coding. In ICLR, 2016. 2
+                                                                    [16] Richard Hartley and Andrew Zisserman. Multiple View Ge-
+ [1] Sameer Agarwal, Yasutaka Furukawa, Noah Snavely, Ian Si-            ometry in Computer Vision. Cambridge University Press,
+     mon, Brian Curless, Steven M Seitz, and Richard Szeliski.           2000. 2
+     Building rome in a day. Communications of the ACM, 2011.       [17] Richard Hartley and Andrew Zisserman. Multiple view ge-
+     3                                                                   ometry in computer vision. Cambridge University Press,
+ [2] Saleh Ashkboos, Amirkeivan Mohtashami, Maximilian L                 2003. 3
+     Croci, Bo Li, Pashmina Cameron, Martin Jaggi, Dan Al-          [18] Geoffrey Hinton, Oriol Vinyals, and Jeff Dean. Distill-
+     istarh, Torsten Hoefler, and James Hensman. Quarot:                 ing the knowledge in a neural network. arXiv preprint
+     Outlier-free 4-bit inference in rotated llms. arXiv preprint        arXiv:1503.02531, 2015. 2
+     arXiv:2404.00456, 2024. 2, 3                                   [19] Benoit Jacob, Skirmantas Kligys, Bo Chen, Menglong Zhu,
+ [3] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman,             Matthew Tang, Andrew Howard, Hartwig Adam, and Dmitry
+     Matthias Nießner, and Justus Thies. Neural rgb-d surface            Kalenichenko. Quantization and training of neural networks
+     reconstruction. In CVPR, 2022. 2, 6, 7, 8                           for efficient integer-arithmetic-only inference. In CVPR,
+ [4] Eric Brachmann, Jamie Wynn, Shuai Chen, Tommaso Cav-                2018. 3
+     allari, Áron Monszpart, Daniyar Turmukhambetov, and Vic-      [20] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Ground-
+     tor Adrian Prisacariu. Scene coordinate reconstruction: Pos-        ing image matching in 3d with mast3r. In ECCV, 2024. 2,
+     ing of image collections via incremental learning of a relo-        3
+     calizer. In ECCV, 2024. 3                                      [21] Ji Lin, Jiaming Tang, Haotian Tang, Yao Fu, and Song Han.
+ [5] Mengzhao Chen, Wenqi Shao, Peng Xu, Jiahao Wang, Peng               Awq: Activation-aware weight quantization for on-device
+     Gao, Kaipeng Zhang, and Ping Luo. EfficientQAT: Efficient           llm compression and acceleration. In MLSys, 2024. 2, 3,
+     quantization-aware training for large language models. In           6, 7
+     ACL, 2025. 3                                                   [22] Shaohui Liu, Yidan Gao, Tianyi Zhang, Rémi Pautrat, Jo-
+ [6] Angela Dai, Angel X Chang, Manolis Savva, Maciej Hal-               hannes L Schönberger, Viktor Larsson, and Marc Pollefeys.
+     ber, Thomas Funkhouser, and Matthias Nießner. Scannet:              Robust incremental structure-from-motion with hybrid fea-
+     Richly-annotated 3d reconstructions of indoor scenes. In            tures. In ECCV, 2025. 2, 3
+     CVPR, 2017. 1                                                  [23] Zechun Liu, Barlas Oguz, Changsheng Zhao, Ernie Chang,
+                                                                         Pierre Stock, Yashar Mehdad, Yangyang Shi, Raghuraman
+ [7] Tim Dettmers and Luke Zettlemoyer. The case for 4-bit pre-
+                                                                         Krishnamoorthi, and Vikas Chandra. Llm-qat: Data-free
+     cision: k-bit inference scaling laws. In ICML, 2023. 6
+                                                                         quantization aware training for large language models. In
+ [8] Tim Dettmers, Mike Lewis, Younes Belkada, and Luke                  Findings of ACL, 2024. 3
+     Zettlemoyer. Llm.int8(): 8-bit matrix multiplication for       [24] Zechun Liu, Changsheng Zhao, Igor Fedorov, Bilge
+     transformers at scale. arXiv preprint arXiv:2208.07339,             Soran, Dhruv Choudhary, Raghuraman Krishnamoorthi,
+     2022. 2, 3                                                          Vikas Chandra, Yuandong Tian, and Tijmen Blankevoort.
+ [9] Weilun Feng, Haotong Qin, Mingqiang Wu, Chuanguang                  Spinquant–llm quantization with learned rotations. arXiv
+     Yang, Yuqi Li, Xiangqi Li, Zhulin An, Libo Huang, Yu-               preprint arXiv:2405.16406, 2024. 2
+     lun Zhang, Michele Magno, et al. Quantized visual geome-       [25] Zeyu Ma, Zachary Teed, and Jia Deng. Multiview stereo
+     try grounded transformer. arXiv preprint arXiv:2509.21302,          with cascaded epipolar raft. In ECCV, 2022. 2, 3
+     2025. 3, 6, 7, 8                                               [26] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy
+[10] Jan-Michael Frahm, Pierre Fite-Georgel, David Gallup, Tim           Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+     Johnson, Rahul Raguram, Changchang Wu, Yi-Hung Jen,                 Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al.
+     Enrique Dunn, Brian Clipp, Svetlana Lazebnik, et al. Build-         Dinov2: Learning robust visual features without supervision.
+     ing rome on a cloudless day. In ECCV, 2010. 3                       arXiv preprint arXiv:2304.07193, 2023. 4
+[27] Adam Paszke, Sam Gross, Francisco Massa, Adam Lerer,                  radiance fields for indoor multi-view stereo. In ICCV, 2021.
+     James Bradbury, Gregory Chanan, Trevor Killeen, Zeming                3
+     Lin, Natalia Gimelshein, Luca Antiga, et al. Pytorch: An         [43] Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chau-
+     imperative style, high-performance deep learning library. In          mond, Clement Delangue, Anthony Moi, Pierric Cistac, Tim
+     NeurIPS, 2019. 7                                                      Rault, Rémi Louf, Morgan Funtowicz, et al. Huggingface’s
+[28] Can Qin, Handong Zhao, Lichen Wang, Huan Wang, Yulun                  transformers: State-of-the-art natural language processing.
+     Zhang, and Yun Fu. Slow learning and fast inference: Ef-              arXiv preprint arXiv:1910.03771, 2019. 7
+     ficient graph similarity computation via knowledge distilla-     [44] Guangxuan Xiao, Ji Lin, Mickael Seznec, Hao Wu, Julien
+     tion. In Advances in Neural Information Processing Systems,           Demouth, and Song Han. Smoothquant: Accurate and ef-
+     2021. 2                                                               ficient post-training quantization for large language models.
+[29] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vi-             In ICML, 2023. 2, 3, 7
+     sion transformers for dense prediction. In ICCV, 2021. 4,        [45] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff,
+     8                                                                     Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and Matt
+[30] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler,                Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images
+     Luca Sbordone, Patrick Labatut, and David Novotny. Com-               in one forward pass. In CVPR, 2025. 3
+     mon objects in 3d: Large-scale learning and evaluation of        [46] Lianwei Yang, Haisong Gong, Haokun Lin, Yichen
+     real-life 3d category reconstruction. In ICCV, 2021. 2, 6, 7,         Wu, Zhenan Sun, and Qingyi Gu.                 Dopq-vit: To-
+     8, 1                                                                  wards distribution-friendly and outlier-aware post-training
+[31] Johannes L Schonberger and Jan-Michael Frahm. Structure-              quantization for vision transformers.          arXiv preprint
+     from-motion revisited. In CVPR, 2016. 3                               arXiv:2408.03291, 2024. 3
+[32] Johannes L Schönberger, Enliang Zheng, Jan-Michael              [47] Lihe Yang, Bingyi Kang, Zilong Huang, Xiaogang Xu, Jiashi
+     Frahm, and Marc Pollefeys. Pixelwise view selection for               Feng, and Hengshuang Zhao. Depth anything: Unleashing
+     unstructured multi-view stereo. In ECCV, 2016. 3                      the power of large-scale unlabeled data. In CVPR, 2024. 3
+[33] Jamie Shotton, Ben Glocker, Christopher Zach, Shahram            [48] Zhewei Yao, Reza Yazdani Aminabadi, Minjia Zhang, Xi-
+     Izadi, Antonio Criminisi, and Andrew Fitzgibbon. Scene co-            aoxia Wu, Conglong Li, and Yuxiong He. Zeroquant: Ef-
+     ordinate regression forests for camera relocalization in rgb-d        ficient and affordable post-training quantization for large-
+     images. In CVPR, 2013. 2, 6, 7                                        scale transformers. In NeurIPS, 2022. 2
+[34] Mingjie Sun, Zhuang Liu, Anna Bair, and J Zico Kolter.           [49] JiangYong Yu, Sifan Zhou, Dawei Yang, Shuoyu Li, Shuo
+     A simple and effective pruning approach for large language            Wang, Xing Hu, Chen Xu, Zukang Xu, Changyong Shu, and
+     models. arXiv preprint arXiv:2306.11695, 2023. 2                      Zhihang Yuan. Mquant: Unleashing the inference potential
+[35] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu,                    of multimodal large language models via static quantization.
+     Rakesh Ranjan, Alexander Schwing, and Zhicheng Yan.                   In ACM MM, 2025. 3
+     Mv-dust3r+: Single-stage scene reconstruction from sparse        [50] Zhihang Yuan, Chenhao Xue, Yiqi Chen, Qiang Wu, and
+     views in 2 seconds. arXiv preprint arXiv:2412.06974, 2024.            Guangyu Sun. Ptq4vit: Post-training quantization for vi-
+     3                                                                     sion transformers with twin uniform quantization. In ECCV,
+[36] Keda Tao, Haoxuan You, Yang Sui, Can Qin, and Huan                    2022. 3
+     Wang. Plug-and-play 1. x-bit kv cache quantization for video     [51] Yihua Zhang, Yuguang Yao, Parikshit Ram, Pu Zhao, Tian-
+     large language models. arXiv preprint arXiv:2503.16257,               long Chen, Mingyi Hong, Yanzhi Wang, and Sijia Liu.
+     2025. 3                                                               Advancing model pruning via bi-level optimization. In
+[37] Huan Wang, Suhas Lohit, Michael N Jones, and Yun Fu.                  NeurIPS, 2022. 2
+     What makes a ”good” data augmentation in knowledge dis-          [52] Borui Zhao, Quan Cui, Renjie Song, Yiyu Qiu, and Jiajun
+     tillation - a statistical perspective. In NeurIPS, 2022. 2            Liang. Decoupled knowledge distillation. In CVPR, 2022. 2
+[38] Jianyuan Wang, Nikita Karaev, Christian Rupprecht, and           [53] Yilong Zhao, Chien-Yu Lin, Kan Zhu, Zihao Ye, Lequn
+     David Novotny. Vggsfm: Visual geometry grounded deep                  Chen, Size Zheng, Luis Ceze, Arvind Krishnamurthy, Tianqi
+     structure from motion. In CVPR, 2024. 2, 3                            Chen, and Baris Kasikci. Atom: Low-bit quantization for
+[39] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea                    efficient and accurate llm serving. In MLSys, 2024. 2, 3
+     Vedaldi, Christian Rupprecht, and David Novotny. Vggt: Vi-       [54] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe,
+     sual geometry grounded transformer. In CVPR, 2025. 2, 3,              and Noah Snavely.          Stereo magnification: Learning
+     6, 7, 8, 1                                                            view synthesis using multiplane images. arXiv preprint
+[40] Qianqian Wang, Yifei Zhang, Aleksander Holynski,                      arXiv:1805.09817, 2018. 2, 6, 7
+     Alexei A Efros, and Angjoo Kanazawa. Continuous 3d per-          [55] Junhan Zhu, Hesong Wang, Mingluo Su, Zefang Wang, and
+     ception model with persistent state. In CVPR, 2025. 3, 7              Huan Wang. Obs-diff: Accurate pruning for diffusion mod-
+[41] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris                       els in one-shot. arXiv preprint arXiv:2510.06751, 2025. 2
+     Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-
+     sion made easy. In CVPR, 2024. 2, 3
+[42] Yi Wei, Shaohui Liu, Yongming Rao, Wang Zhao, Jiwen Lu,
+     and Jie Zhou. Nerfingmvs: Guided optimization of neural
+   QVGGT: Post-Training Quantized Visual Geometry Grounded Transformer
+                                              Supplementary Material
+A. Quantization Implementation Details                           Table A2. Ablation study of the 3D reconstruction performance
+                                                                 with camera information compensation.
+To facilitate reproducibility, we summarize the key hy-
+perparameters and implementation details. Unless other-              Camera information      CO3Dv2          NRGBD
+                                                                       compensation         AUC@30↑       Accuracy mean↓
+wise specified, we follow the default settings of the official
+VGGT [39] codebase.                                                           –                84.51           0.029
+Weight quantization. We adopt 4-bit symmetric weight-                         ✓                89.39           0.029
+only quantization with per-group scaling (group size =
+128). To ensure optimal quantization accuracy while
+minimizing the computational cost of the calibration pro-        blocks during inference. When the number of input frames
+cess, we randomly sample 128 calibration images from the         S increases, activation memory grows approximately as,
+Co3Dv2 [30] and ScanNet [6] datasets to collect activation
+statistics and perform scale search. These datasets provide                          O(S · H · W · C),
+complementary coverage of object-centric and indoor scene
+distributions, enabling more robust estimation of activation     where H and W are the height and width of the input image,
+statistics for quantization. All linear layers in alternating-   respectively, this leads to prohibitive memory consumption
+attention (AA) blocks and the camera head are quantized          when handling long sequences. To support long-sequence
+under these settings unless protected by selective mixed pre-    inference without overwhelming memory, we adopt a sim-
+cision.                                                          plified method: Intermediate outputs not used by any pre-
+Camera information compensation. For constructing the            diction head are discarded immediately; only the outputs of
+camera information compensation token, we perform PCA            blocks 4, 11, 17, and 23 are stored during the inference.
+on the camera token activations collected from the calibra-
+tion set and retain K = 32 principal components. The re-         C. Additional Analysis of Camera Information
+constructed camera information compensation token is nor-            Compensation
+malized to match the average norm of patch tokens before
+                                                                 To further analyze the heterogeneous activation patterns
+being injected into the camera head during inference.
+                                                                 that challenge low-bit quantization, we present additional
+Task-aware scale search. For the task-aware objective, we
+                                                                 2D activation heatmaps across multiple blocks of VGGT
+apply a balanced combination of head-specific losses. The
+                                                                 (Fig. A1). These visualizations consistently reveal a strong
+depth head loss is weighted with coefficient α = 0.1, and the
+                                                                 heavy-tailed distribution: camera tokens and register tokens
+point-map head loss with coefficient β = 0.1, while camera-
+                                                                 exhibit substantially larger activation magnitudes and more
+head supervision and geometry-consistency loss are used
+                                                                 irregular variance patterns compared to adjacent image to-
+with equal weight (weight=1.0).
+                                                                 kens. This amplified amplitude persists across early, mid-
+Computation cost of calibration. To assess the practical-
+                                                                 dle, and late transformer blocks, confirming that the outlier
+ity of our PTQ pipeline, we further report the calibration
+                                                                 behavior of data-independent tokens is not an isolated case
+overhead introduced by our framework. Using a calibration
+                                                                 but a systematic property of VGGT.
+set of 128 images randomly sampled from CO3Dv2. The
+                                                                     These findings highlight two key implications. First, the
+complete calibration process takes approximately 2 hours
+                                                                 pronounced deviation of camera/register tokens from the
+on a single RTX 4090 GPU. This overhead is modest com-
+                                                                 compact distribution of image tokens makes them dispro-
+pared to the full PTQ workflow and remains significantly
+                                                                 portionately influential during activation-aware scale esti-
+lower than QAT-based approaches. These results demon-
+                                                                 mation, thereby causing unstable or suboptimal quantiza-
+strate that our quantization framework is both computation-
+                                                                 tion scales. Second, since these tokens encode camera pose
+ally lightweight and suitable for deployment on widely ac-
+                                                                 cues essential for camera pose prediction, simply exclud-
+cessible consumer hardware.
+                                                                 ing them from calibration reduces quantization noise but
+                                                                 inevitably removes indispensable geometric information.
+B. Additional Analysis of Memory Efficiency
+                                                                     To explicitly verify this, we conduct an additional ab-
+VGGT [39] consists of 24 AA blocks, yet only 4 block             lation study, presented in Table A2, which isolates the
+outputs (the outputs of blocks 4, 11, 17, and 23) are con-       impact of our camera information compensation mecha-
+sumed by downstream prediction heads. However, the orig-         nism. Without compensation, the quantized model attains
+inal VGGT implementation stores the activations of all 24        84.51 AUC@30 on CO3Dv2 [30] and 0.054 mean error
+            Figure A1. The outlier distribution heatmap of global block 22, global block 23, frame block 17, and frame block 19.
+
+ Input images          QVGGT (W4A16)             VGGT (FP32)        Input images         QVGGT (W4A16)                 VGGT (FP32)
+
+
+
+
+                                                                        …
+        …
+        …
+
+
+
+
+                                                                          …
+
+
+
+
+Figure A2. Comprehensive visualization comparisons of 3D reconstruction outputs between QVGGT and full-precision VGGT, covering
+representative scene categories: indoor and outdoor environments, real-world captured scenes, and synthetically generated scenes, as well
+as single-view and multi-view inference scenarios.
+
+
+on NRGBD [3]. With CIC enabled, the quantized model
+achieves 89.39 AUC@30 on CO3Dv2—representing a sig-
+nificant performance gain—while retaining the same depth
+accuracy as the uncompensated counterpart on NRGBD.
+This validates that our proposed compensation token suc-
+cessfully retrieves the missing geometric information, re-
+solving the trade-off between stabilizing activation statistics
+during calibration and preserving critical camera pose cues.
+
+D. More Visualization Results
+We present more visual comparison results between full
+precision VGGT and QVGGT in Fig. A2.
+

@@ -1,0 +1,1202 @@
+                                          Cross-View Splatter: Feed-Forward View Synthesis with Georeferenced Images
+
+                                                   Matias Turkulainen1 *   Akshay Krishnan2      Filippo Aleotti3                                            Mohamed Sayed3
+                                                  Guillermo Garcia-Hernando3     Juho Kannala1,4      Arno Solin1,5                                           Gabriel Brostow6
+                                                                               Daniyar Turmukhambetov3
+                                             1                          2                  3                         4                           5                             6
+                                                 Aalto University           Georgia Tech       Niantic Spatial           University of Oulu          ELLIS Institute Finland       UCL
+
+                                                                                                                                                               Previous work
+arXiv:2605.19656v1 [cs.CV] 19 May 2026
+
+
+
+
+                                                                                                      Feed-Forward
+                                                                                                         3DGS
+
+
+                                                                                                           …
+                                                                                                                                                                   Ours
+
+                                                                     Ground images
+
+                                                                            +                     Cross-View
+                                                                                                   Splatter
+
+                                                                                                           …
+
+
+
+
+                                                                      Satellite image                                       Heightmap   Confidence
+
+
+                                         Figure 1. Cross-View Splatter is a feed-forward model that predicts Gaussian splats for GPS-tagged ground level images and corre-
+                                         sponding orthorectified satellite imagery from mapping services. It predicts Gaussian splats for both ground level and bird’s-eye views in
+                                         a unified coordinate system and supports multiple input images with unknown 6DoF poses. Only the GPS location of the ground level
+                                         images is required. Our model improves scene coverage and novel-view synthesis compared to using ground imagery alone.
+
+
+                                                                       Abstract                                            a new benchmark for novel-view synthesis with georefer-
+                                                                                                                           enced imagery allowing comparison to prior state-of-the-
+                                         We present Cross-View Splatter, a feed-forward method that                        art methods. Our code and data preparation will be avail-
+                                         predicts pixel-aligned Gaussian splats for outdoor scenes                         able at https://nianticspatial.github.io/
+                                         captured at ground level AND by satellite. Faithful recon-                        cross-view-splatter/.
+                                         structions require good camera coverage, but ground im-
+                                         agery is time-consuming and hard to capture at scale for
+                                         large outdoor scenes. Fortunately, satellite imagery can                          1. Introduction
+                                         provide a global geometric prior that is easy to access via
+                                         public APIs. Cross-View Splatter fuses orthorectified satel-                      Advances in 3D perception are transforming how visual
+                                         lite views with GPS-tagged ground photos to predict Gaus-                         systems model, interpret, and interact with the physical
+                                         sian splats in a unified 3D coordinate frame. By aligning                         world. Generalized 3D reconstruction, in particular, has
+                                         ground and bird’s-eye feature representations, our model                          seen considerable success, with methods like [17, 39, 81,
+                                         improves scene coverage and novel-view synthesis, com-                            83, 94, 103] allowing for accurate 3D point reconstruction
+                                         pared to ground imagery alone. We train on curated georef-                        using one or more images in a matter of seconds, with little
+                                         erenced datasets and paired satellite–terrain data, mined                         to no prior information about camera calibrations. In addi-
+                                         from open mapping services. We evaluate our method on                             tion, methods like [7, 36, 91, 95, 103] have extended feed-
+                                                                                                                           forward 3D reconstruction to novel-view synthesis by pre-
+                                            * Work done as an intern at Niantic Spatial.                                   dicting Gaussian attributes for pixel-aligned points, which
+
+
+                                                                                                                     1
+can be rendered via 3D Gaussian splatting [40], a desir-            we augment existing georeferenced ground-level datasets.
+able downstream task for 3D reconstruction. Despite this            We mine Digital Elevation Models (DEMs) and terrain
+remarkable progress, a fundamental limitation still per-            data from public geological surveys [22, 54, 77] to create
+sists: these methods are designed, trained, and evaluated           satellite-height map pairs, which provide a suitable 3D su-
+on ground level perspective imagery. This stems from the            pervisory signal for satellite perspectives.
+fact that widely used 3D foundation model training datasets         Contributions. To summarize, we provide the follow-
+consist predominantly of ground level calibrated views with         ing contributions: (1) a novel feed-forward method capable
+aligned depth maps [3, 9, 27, 28, 47, 49, 64, 67, 97]. How-         of synthesizing Gaussian splats for both ground level per-
+ever, this reliance introduces significant scalability chal-        spective imagery and orthorectified satellite views, a first of
+lenges, as modeling city-scale environments requires vast           its kind. We leverage satellite views alongside ground im-
+amounts of data that are both difficult to capture and com-         agery to achieve greater coverage and a superior ability to
+putationally costly to process.                                     extrapolate to novel views, an advantage over methods re-
+    In contrast, satellite imagery provides a complementary         stricted to ground imagery alone. (2) Curated datasets with
+perspective for outdoor captures. From a bird’s-eye view            ground level imagery with georeferenced BEV satellite im-
+(BEV), large-scale features such as roads and building              ages and terrain height maps; and (3) a new challenging out-
+footprints are more clearly delineated compared to ground-          door scenes benchmark of ground level images with aligned
+level imagery alone. High-quality satellite data is also            satellite views allowing comparison of state-of-the-art feed-
+readily available: mapping services such as Google Maps             forward 3D Gaussian splatting methods.
+[29], Azure Maps [54], and Esri World Imagery [18]
+provide global surface imagery as fast, queryable tiled             2. Related Work
+web maps (orthorectified satellite imagery). Our core
+insight is that, for geo-localized ground-level captures,           Feed-forward reconstruction. Feed-forward reconstruc-
+tiled web-map satellite imagery provides a strong prior for         tion refers to learning based methods for reconstructing
+global scene structure and geometry beyond street-view              the geometry of a scene via a single forward pass of a
+observations. Nonetheless, compared with ground-level               neural network. In contrast to classical structure-from-
+or UAV imagery [14], satellite imagery remains challeng-            motion (SfM) [8, 32, 57, 68] and multi-view stereo (MVS)
+ing due to its coarser spatial resolution and variation in          [24, 30, 66] methods that reconstruct the scene with op-
+weather, illumination, and season, making it impractical            timization schemes, feed-forward approaches are attrac-
+for conventional structure-from-motion and 3D Gaussian              tive for their speed and ability to generalize to challeng-
+splatting frameworks.                                               ing sparse inputs. The seminal work DUSt3R [86] intro-
+    We therefore leverage satellite imagery in a learned man-       duced a ViT [15] encoder-decoder with self- and cross-
+ner to capture low-resolution scene geometry. We intro-             attention that regresses two-view point maps in a canoni-
+duce Cross-View Splatter, a feed-forward method that uses           cal frame. Follow-up works [17, 39, 51, 52, 74, 81, 94]
+both ground-level imagery and orthographic satellite im-            extended DUSt3R’s two-view limited architecture to multi-
+agery from freely available mapping services. Given one or          view reconstruction. Methods like [2, 39, 81, 83, 88] also
+more ground-level images with GPS and heading metadata,             regress 6DoF camera poses relative to an arbitrary refer-
+our model queries a corresponding BEV image. Ground                 ence image, with [79] even using aerial perspective view-
+and satellite images are encoded into a unified feature space       points. However, integrating orthoimagery remains an open
+via cross-attention [15] with a strong pre-trained 3D recon-        and largely unexplored challenge.
+struction model [36, 81]. This feature space is then used to        Feed-forward novel-view synthesis.           Learning based
+regress 3D Gaussian splat attributes. We backproject splats         methods for view synthesis have also been proposed.
+from ground images using perspective projection and from            Early works adopted multi-plane images (MPI) [105] as a
+satellite images using orthographic projection, then merge          scene representation for small baseline novel-view synthe-
+them into a single 3D scene representation for novel-view           sis. They included single-view methods [76] and multi-
+rendering.                                                          view ones [71, 82, 105], and utilized CNN based architec-
+    However, orthoimagery poses a fundamental challenge.            tures for feature extraction and 3D regression. With the ad-
+Orthorectification removes perspective effects and paral-           vent of NeRF’s [55], methods like [6, 16, 98] use multi-view
+lax, making 3D reconstruction from tiled web map im-                architectures with NeRF-like volume rendering for view-
+agery alone impossible for classical MVS methods [25, 43,           synthesis.
+44, 62]. Sparse overlap between surfaces visible in satel-              The success of 3D Gaussian splatting [40] motivated
+lite and ground views also makes feature-based 3D recon-            a series of works, notably [5, 7, 33, 36, 70, 87, 91, 95],
+struction [68] very challenging. To train our feed-forward          that regress per-pixel Gaussian attributes rendered to novel
+method with suitable 3D data for ground and orthoimagery,           views via splatting-based rasterization. Methods such as
+
+
+                                                                2
+                                                                                                                               (Sec 3.4)
+                                                          Attn𝑓𝑟𝑎𝑚𝑒           Attn𝑔𝑙𝑜𝑏𝑎𝑙                                     Camera params
+                Ground views                 t 𝑔𝑟𝑜𝑢𝑛𝑑                                                                            𝑇𝑖 , K 𝑖
+                                                                                                         Camera
+                                                                                                          Head
+                                                                                                                               Depth map
+                                                                                                                                djground                𝒢 𝑔𝑟𝑜𝑢𝑛𝑑
+                                                                                                         DPT
+                                                                                                         Depth                Confidence
+                                                                                                         Head                  𝐶 ground
+
+                                                                                                             DPT              Ground GS
+                                                                                                              GS               params
+                                                                                                             Head              𝑜𝑗 , Σ𝑗 , 𝜃𝑗
+                         3DoF                                                            ×N
+                         alignment
+                                                                Attnmeta (Sec 3.3)
+
+
+
+
+                                                                                                                                                                           backprojection
+                                                                                                                                                                           Orthographic
+              Satellite view
+                                                                              Attn(t 𝑔𝑟𝑜𝑢𝑛𝑑 , t 𝑠𝑎𝑡 )                                  Height map
+                                                                                                                     DPT                  h𝑠at
+                                     t 𝑠𝑎𝑡          Attn(t 𝑠𝑎𝑡 , t 𝑔𝑟𝑜𝑢𝑛𝑑 )
+                                                                                                                    Height
+                                                                                                                    Head               Confidence
+                                                                                                                                          𝐶 𝑠at
+                                                                                                                    DPT
+                                                                                                                     GS                Satellite GS
+                                                                                                                    Head                 params
+                                                                                                        ×L
+                                                                                                                                         𝑜𝑗 , Σ𝑗 , 𝜃𝑗              𝒢 𝑠𝑎𝑡
+Figure 2. Method overview: Given geolocalized ground images and a single orthorectified satellite perspective, our model synthesizes 3D
+Gaussian splats in a shared coordinate frame. Ground views exchange information with satellite views within bidirectional cross-attention
+layers. Gaussians are predicted separately from ground and satellite branches, which are then combined into a unified coordinate frame.
+Although public elevation data is leveraged during training, only the satellite image and ground view(s) are necessary for inference.
+
+
+NoPoSplat [95] and AnySplat [36] use strong pre-trained                                                  level novel views solely from satellite imagery has also been
+3D foundation models [81, 86] as backbones, distilling their                                             studied. Shi et al. [69] use relationships between ortho-
+priors for view synthesis. This is a scalable approach, espe-                                            graphic views, height maps, and ground panoramas to warp
+cially for datasets without ground-truth geometry [50, 105].                                             satellite texture to ground level. Toker et al. [75] synthesize
+However, 3D foundation models are not trained on satel-                                                  ground views with an intermediate polar transformation net-
+lite imagery and therefore struggle in our cross-view setting.                                           work. Xu et al. [92] reconstruct a scene mesh with MVS,
+We adopt a hybrid strategy: we use pre-trained foundation                                                project it to ground views, and texture it with a diffusion
+models [36, 81] for ground-level geometry tasks, and fine-                                               model. Sat2Density [60, 61] predicts a tri-plane representa-
+tune additional satellite-specific layers to align satellite and                                         tion [4] from top-down views that can be volume-rendered
+ground-level features.                                                                                   to known camera views, and unlike other methods can use a
+Satellite images for 3D reconstruction. Prior work recon-                                                single satellite image. Inspired by these single-image meth-
+structs city-scale 3D models from satellite imagery. Tradi-                                              ods, we adopt a Gaussian splat representation for top-down
+tional methods [44, 62, 92] use MVS on non-rectified satel-                                              views that can be rasterized to novel views. Sky handling is
+lite and aerial images to recover geometry and BEV cam-                                                  also important: [61] regularizes sky regions in ground-level
+era models (RPCs). More recent methods [25, 35, 37, 43]                                                  views to be opaque, whereas [60] generates sky color with
+use Gaussian Splatting: SkySplat [35] is a multi-image                                                   StyleGAN-2 [38]. As in [61], we treat sky regions as part
+feed-forward method for satellite images, Horizon-GS [37]                                                of the ground-level reconstruction model and promote sky
+jointly splats ground and aerial views, and Skyfall-GS [43]                                              Gaussians to be far away and opaque.
+jointly optimizes splats with diffusion-based refinement.                                                   Generative satellite-to-ground methods have also been
+SkyEyes [25] follows a similar setup and reconstructs                                                    proposed. SatDreamer360 [99] predicts a tri-plane feature
+meshes from multi-view satellite imagery with surface-                                                   representation from BEV views, then synthesizes ground
+aligned Gaussians [31], refined in ground-level views via                                                views by denoising a latent diffusion model [65] with ray-
+denoising [101]. A key limitation is reliance on multi-view                                              based cross-attention. Sat2GroundScape [93] reconstructs
+off-nadir, non-orthorectified imagery, which is hard to ac-                                              a mesh from satellite views and textures it with satellite-
+quire and typically unavailable from mapping services such                                               guided denoising. Sat2Scene [45] and Sat2Vid [46] instead
+as Google Maps. To address this, [34, 90] pair orthorecti-                                               synthesize a point cloud from satellite views, then denoise
+fied satellite imagery with DEMs to predict satellite-aligned                                            and texture it with a 3D diffusion model. Streetscapes [13]
+height maps, then convert them to voxel grids for ray-                                                   generates ground-level depth and semantics from Google
+traced coarse ground-level depth. We also estimate satellite-                                            Maps height maps and semantic labels, then uses them to
+aligned height maps at inference time, but unlike methods                                                condition a video diffusion model that generates ground-
+that warp this geometry for depth prediction, we directly                                                level videos of city blocks. In contrast, feed-forward ap-
+render it into ground-level views using Gaussian splatting.                                              proaches like ours synthesize only visible regions in ground
+Satellite-to-ground view-synthesis. Generating ground-                                                   and satellite views without hallucinating unobserved areas.
+
+
+                                                                                                   3
+3. Model for Cross-View Splatter                                                                                zc
+                                                                                                                       xc
+3.1. Problem Formulation                                                                                              I sat
+
+Goal. Given an input sequence (Iiground )N   i=0 of ground level                  Gaussians, G
+georeferenced imagery, we seek to reconstruct a 3D Gaus-
+sian splatting model in a feed-forward fashion with the aid                           zw
+of a single satellite perspective. Georeferenced imagery                                     xw            zc
+refers to images tagged with 3DoF pose information, specif-                      yw
+                                                                                                                              xc
+ically GPS latitude, longitude, and heading information
+(available in most devices with an IMU [1]), which enable                                                             I0ground
+retrieval of a corresponding top-down orthographic view                                                          yc
+I sat with a known spatial resolution rsat , with units of pixels         Figure 3. Coordinate conventions. We consider camera I0ground to
+per meter, from satellite mapping services [18, 29, 54].                  define the origin of the world coordinates, i.e. the identity pose,
+Coordinate conventions. We construct a coordinate frame                   as well as the spatial location of the BEV satellite image I sat .
+                                                                          The BEV I sat frame is aligned with the heading of I0ground such
+where I0ground serves as the reference, with the queried satel-
+                                                                          that the camera look-at direction zc is pointing up in the satellite
+lite image I sat centered at this location. We consider I0ground          view. Gaussian splats G are projected via perspective projection to
+                                                ground
+as the reference frame and express images Ii>0         relative to        ground views, and orthographic projection into BEV views. Other
+                                                                                                 ground
+it. I0ground
+             also defines the zero-altitude location. See Fig. 3          ground level images Ii>0      are expressed relative to I0ground .
+for more details. We use i ∈ {0, . . . , N −1} to index images
+and j ∈ {0, . . . , M − 1} to index per-pixel attributes.                 3.3. Joint Ground and Satellite Aware Transformer
+                                                                          The direct use of VGGT for orthorectified imagery is prob-
+3.2. Preliminaries                                                        lematic: projections are not perspective, so they lack 6DoF
+                                                                          poses and camera intrinsics and, more fundamentally, depth
+Geometry transformer. We seek to encode ground level                      estimation is not usable without altitude information. In-
+perspective imagery and orthoimagery into a similar fea-                  stead, we consider the transformation between ground and
+ture space for 3D reconstruction. For ground level im-                    satellite views as 3DoF. We assume this transformation is
+ages, we adopt the VGGT [81] architecture as a feature ex-                known such that alignment as described in Fig. 3 holds.
+tractor. Images Iiground ∈ RH×W are encoded using DI-                     Similarly, we assume that the reference image I0ground de-
+NOv2 [56] to extract a sequence of patch tokens timg         i   ∈        fines the zero-altitude location. We thus formulate BEV ge-
+Rli ×d with d = 1024 being the embedding dimension and                    ometry prediction as a height-map regression problem and
+li = H×W p2    for a patch size of p = 14. A camera token                 estimating heights relative to the I0ground frame.
+tcam  ∈    1×d
+                 and four register tokens treg         1×d                   To achieve joint predictions with ground and satellite im-
+ i       R                                   i ∈ R         [12] are
+prepended to each image token sequence. These concate-                    agery, we inject cross-attention layers into the alternating-
+nated token sequences tground       = (tcam      reg img                  attention backbone of [81]. Specifically, we encode a BEV
+                              i           i , ti , ti ) are pro-                                                                      Hsat ×Wsat
+                                                                                                                                                 ×d
+cessed by a N -layer alternating-attention ViT transformer                image I sat ∈ RHsat ×Wsat as patch tokens tsat ∈ R p2
+[15]. Each layer applies the attention mechanism to either                and introduce a bidirectional attention mechanism between
+its own image token sequence, referred to as frame attention              ground tokens tground
+                                                                                           i     and tsat , referred to as Attnmeta . This
+Attnframe (ti , ti ), or jointly with all image tokens referred          consists of two residual cross-attention layers that mix sig-
+to as global attention Attnglobal {ti }N              N
+                                           i=0 , {ti }i=0 . Tokens        nals from satellite tokens tsat and ground tokens tground , so
+tground are trained to regress 6DoF relative camera poses and
+ i                                                                         Attnmeta (tsat , tground ) = A2 (tsat , A1 (tground , tsat , tsat )), (1)
+intrinsics via the camera tokens tcam  i    and dense depth and
+point maps with DPT [63] heads.                                           where A(Q, K, V ) is the multi-head attention mechanism
+Gaussian splatting. We express our 3D scene represen-                     [15, 78]. Attnmeta is performed L = 12 times.
+tation as a set G = {(µj , Σj , oj , θj )}j of Gaussian dis-              3.4. Geometry and Gaussian Splats Prediction
+tributions (µj , Σj ), with opacities oj and view-dependent
+colors θj ∈ C Nsh represented via order Nsh = 1 spher-                    Ground views. Ground tokens tground  i       flow through N-
+ical harmonics. We regress Gaussian parameters for both                   layers of alternating Attnframe and Attnglobal attention as
+ground and satellite views, represented by G ground and G sat             well as L-layers of Attnmeta . Tokens tground
+                                                                                                                 i       are used to pre-
+respectively. To render Gaussian splats we follow [40] and                dict ground level depth maps and confidences with a DPT
+use depth-sorted alpha-blending of colors based on accumu-                head:
+lated transmittance at each pixel location.                                          dground
+                                                                                       j     , Cjground = DPTdepth (tground
+                                                                                                                     i      ).        (2)
+
+
+                                                                      4
+                          Input Imgs        Input Sat                   hsat                    C sat            G ground                     G combined
+
+        Metropolis [53]
+        T & T [42]
+
+
+
+
+Figure 4. Example reconstruction outputs on scenes not seen during training. Left to right: input ground images, input satellite image,
+predicted height map, predicted height confidence (black: low, red: high), predicted ground Gaussians, predicted combined Gaussians.
+
+
+Additionally, a camera-head is used to regress the 6DoF                                                 µground
+                                                                                                          j     are regularized implicitly via depths dground
+                                                                                                                                                       j      with a
+relative pose Ti and perspective camera intrinsics Ki for                                               confidence weighted depth loss
+each input ground image using the camera tokens tcam           i ,
+                                                                                                                       M 
+which are used to define the means of ground Gaussians                                                                 X                                           
+µground   = backproject(dground    , K̂j , Tˆj ). The remaining                                             Ldepth =            dˆground
+                                                                                                                                  j      − dground
+                                                                                                                                            j            − α log Cj .   (5)
+  j                             j                                                                                                                    2
+                                                                                                                       j=1
+ground Gaussian parameters are predicted with a DPT head
+Σground
+  j     , oground
+           j      , θjground = DPT3DGS (tground
+                                           i      ) that also has a
+                                                                                                        During training, we utilize ground truth camera parameters,
+skip connection from the input images to allow color infor-
+                                                                                                        whereas at inference time we utilize predicted parameters.
+mation to propagate to the outputs [36].
+                                                                                                        Camera poses and intrinsics are regularized with an L1 loss:
+Satellite views. Satellite tokens tsat are used to regress a                                            Lcam = ∥T̂ − T ∥1 + ∥K̂ − K∥1 . Σj , i.e. the Gaussian
+height map relative to I0ground and per-pixel confidence val-                                           sizes, are regularized with a depth consistency loss between
+ues C sat , the latter of which is crucial for mitigating the im-                                       predicted depths dground
+                                                                                                                            j    and Gaussian rendered depths, so
+pact of inaccurate or noisy ground-truth terrain height data:
+                                                                                                                                M                             
+                                hsat , C sat = DPTheight (tsat ).
+                                                                                                                                X
+                                                                                          (3)                      Lconst =            dground
+                                                                                                                                        j
+                                                                                                                                                   ground
+                                                                                                                                               − D̂j,3DGS          .    (6)
+                                                                                                                                i=1
+Height map hsat is transformed into 3D Gaussian locations
+µsat
+ j utilizing the known spatial resolution r
+                                            sat
+                                                of the satellite                                        The Gaussian splat colors θjground and opacities oground
+                                                                                                                                                           j     are
+image, so                                                                                               regularized with a mean-squared error and perceptual er-
+                                            ⊤                                     ⊤                   ror [102] between ground-truth input images and Gaussian
+                                                      u       v
+ µsat
+  j = µx                       µy      µz        =   r sat   r sat   hsat (u, v)        , (4)           splats rendered from input image views, so this loss is
+
+where u, v are pixel locations in I sat . This conversion di-                                                     N 
+                                                                                                                  X                                                   
+rectly assumes an orthographic projection model for the                                                 Lground
+                                                                                                         RGB =
+                                                                                                                                   ground
+                                                                                                                            ∥Ii − Ci,3DGS                     ground
+                                                                                                                                          ∥ + γ · LPIPS(Ii , Ci,3DGS ) .
+satellite image. Similarly, the remaining satellite Gaussian                                                      i=1
+                                                                                                                                                                        (7)
+G sat attributes are regressed with a DPT head.
+Scene scale normalization. We adopt the per-batch ℓ2 -                                                  Satellite views. In a similar fashion, we regularize height
+scaling of the scene derived from backprojected depths, as                                              predictions hsat with a confidence weighted loss: Lheight =
+established in [81, 86], to normalize depths, poses of ground                                             ĥsat − hsat − α log C sat . Differently from ground views,
+                                                                                                                      2
+imagery, and we also integrate hsat and rsat into the normal-                                           for color supervision, we render satellite Gaussians to both
+ization scheme. See the Supplemental for further details.                                               input views as well as novel views, so
+Notably, at inference time, all network predictions are ex-
+pressed in the same normalized coordinate frame.                                                                  N
+                                                                                                                  X                         K
+                                                                                                                                            X
+                                                                                                         Lsat
+                                                                                                          RGB =
+                                                                                                                              sat
+                                                                                                                        ∥Ii −Ci,3DGS ∥+                      sat
+                                                                                                                                                  (∥Ik,nvs −Ck,3DGS ∥), (8)
+3.5. Losses                                                                                                       i=1                       k=1
+
+Ground views.       We supervise our ground Gaussians                                                   where Invs are selected as interpolating views between the
+G ground = {(µj , Σj , oj , θj )}j with the following losses.                                           bounds of the input images N .
+
+
+                                                                                                  5
+                                                                                           Satellite         Height Map         Ground Image
+Combined ground and BEV views. Lastly, we promote
+
+
+
+
+                                                                         Metropolis [53]
+the synergy between the two Gaussian sets G ground and G sat
+by computing a loss on G combined = G ground ∪ G sat , namely
+                              N
+                              X
+             Lcombined
+              RGB      =                   combined
+                                    ∥Ii − Ci,3DGS   ∥.    (9)
+                              i=1
+
+
+
+
+                                                                         VIGOR [106]
+BEV rendering. In Eq. (7) and Eq. (8), we regularize
+G ground and G sat with ground level views. To introduce a
+similar BEV constraint, we reproject Gaussian splats via
+orthographic projection onto the satellite plane. A key dif-
+ference lies in the Gaussian size Σj : while perspective            Figure 5. Illustration of training samples from our BEV aug-
+Gaussian splatting scales Σj proportionally to the inverse z-       mented data. Ground 3DoF pose is denoted with green ↑ arrow.
+depth (distance between camera Ti and Gaussian mean µj ),
+orthographic projection omits this depth-dependent scaling.         Table 1. Our training data consists of georeferenced outdoor im-
+Therefore, when transforming G ground and G sat into the BEV        ages that include 3DoF pose information, satellite imagery, ter-
+                                                                    rain height maps, and/or ground level depth data. Our driving
+perspective, we directly project normalized world coordi-
+                                                                    scenes are sourced from Metropolis and VIGOR. VIGOR contains
+nates into satellite pixel space using the spatial resolution
+                                                                    panoramas, we create perspective cutouts with 90◦ FoV. * we gen-
+rsat factor of the satellite image. We compute a combined           erate pseudo-ground truth depths using UniK3D [59].
+Gaussian rendering loss in the satellite view, so
+                                                                    Name                      Satellite Terrain Maps Depth Maps # scenes Static scenes?
+
+               LBEV = ∥I sat − C3DGS
+                                combined
+                                         ∥,              (10)       Metropolis [53]             ✓           ✓            ✓          75         -
+                                                                    VIGOR [106]                 ✓           ✓            *         52K         ✓
+                                                                    MapFree [1]                 -           -            ✓         655         ✓
+           combined
+where C3DGS         denotes renders from combined Gaussians         VKITTI2 [3, 23]             -           -            ✓          21         -
+  combined                                                          DL3DV[49]                   -           -            ✓         10K         ✓
+G           = G ground ∪ G sat .
+Sky regularization. Sky pixels lack reliable depth cues
+and often produce erroneous depth estimates. To handle              Maps [54], and Esri World Imagery [18]. For access, we
+such regions, we identify sky pixels using an off-the-shelf         used [19–21] and query views at ground level GPS loca-
+segmentation model [48, 80, 107] and penalize implausibly           tions at a sampling density of 2 pixels per meter, at reso-
+close depth estimates using                                         lution 512×512. For terrain data, we leverage government
+                                                                    and public lidar data, namely Geological Survey data [77]
+                        M
+                        X                                           and various data from [22]. We illustrate training samples
+         Lsky depth =         Mj · ReLU(τ − dground
+                                             j      ),   (11)
+                                                                    in Fig. 5 and give a breakdown of datasets in Table 1. We
+                        j=0
+                                                                    give more examples and details in the Supplemental. Due
+where τ is a threshold distance and                                 to licensing restrictions (e.g. Google Maps, Azure Maps) we
+                         (                                          host only our additional data, and will provide code to query
+                            1 if sky                                for the satellite images and reproduce the training datasets.
+                  Mj =
+                            0 otherwise.
+                                                                    4. Experiments
+We also observe that explicitly promoting opaqueness of the
+sky pixels is necessary, so                                         We evaluate Cross-View Splatter on novel view synthesis.
+                                                                    Datasets. We introduce a new task: view synthesis with
+                              M
+                              X                                     geolocalized outdoor images. Because no benchmark cur-
+             Lsky alpha =           Mj · ∥1 − oj ∥1 .    (12)       rently exists for this setting, we construct one by augment-
+                              j=0
+                                                                    ing the well known Tanks and Temples dataset [42] and se-
+We denote the total sky loss with Lsky = Lsky depth +               lected outdoor scenes from the DL3DV-Benchmark [49].
+Lsky alpha .                                                        Specifically, we manually align and scale the COLMAP
+                                                                    [68] reconstructions of 10 outdoor scenes from Tanks and
+3.6. Georeferenced Data Curation                                    Temples and 40 scenes from DL3DV to satellite imagery.
+To train our model, we collected a set of geolocalizable            This alignment process is detailed in the Supplemental.
+ground level datasets, then augment those with BEV satel-           We then evaluate our method and competing baselines in
+lite images and terrain height data. For orthoimages, we            a sparse view setting with varying numbers of input views.
+use tiled web map providers Google Maps [29], Azure                 Training Data. We train with a combination of ground-
+
+
+                                                                6
+Table 2. Outdoor Tanks and Temples sparse-view synthesis. Metrics are averaged over 10 scenes. For Cross-View Splatter, we report
+ground-only, terrain-only, and combined (ground+terrain) reconstructions. Methods marked with * use ground-truth intrinsics. Methods
+marked with * require multi-view input and were given one additional adjacent frame during testing. Sat2Density† takes a single satellite
+image stylized with one context image (see Fig. 6).
+                                                                                   1 context view                          2 context views                        3 context views
+  Method                                              GT Pose?           PSNR↑        SSIM↑           LPIPS↓     PSNR↑         SSIM↑         LPIPS↓     PSNR↑         SSIM↑         LPIPS↓
+
+  Splatfacto                                               ✓                 -            -               -      11.53         0.2611        0.6436     11.72         0.2888        0.6267
+  MVSplat                                                  ✓                -            -               -        6.93         0.1252        0.6997     7.58          0.1631        0.6941
+  DepthSplat                                               ✓                -            -               -        9.61         0.3146        0.6077     10.72         0.3557        0.5873
+  NoPoSplat                                                *             6.43*       0.1062*         0.7040*      8.97         0.2197        0.6830     8.82          0.2359        0.6825
+  Long-LRM                                                 -              8.53        0.3392          0.7054      8.53         0.3392        0.7054     10.54         0.3253        0.6477
+  AnySplat                                                 -              7.48        0.3572          0.6482      9.85         0.3483        0.5773     10.93         0.3775        0.5331
+  Sat2Density†                                             ✓             8.81        0.3557           0.8172      8.90         0.3507        0.8097     8.85          0.3508        0.8037
+  Ours                               Combined              -             11.13       0.3764           0.6286     11.67         0.3725        0.5984     12.00         0.3855        0.5699
+                                     Ground                -              8.92       0.3621           0.6066      9.94         0.3615        0.5877     10.61         0.3763        0.5631
+                                     Terrain               -              8.39       0.3783           0.6257      9.82         0.4341        0.7474     9.63          0.4301        0.7472
+
+                                     Table 3. Outdoor DL3DV sparse-view synthesis results. Results are averaged over 40 scenes.
+                                                                                 1 context view                          2 context views                        3 context views
+  Method                                         GT Pose?          PSNR↑            SSIM↑           LPIPS↓     PSNR↑         SSIM↑         LPIPS↓     PSNR↑         SSIM↑         LPIPS↓
+
+  Splatfacto                                          ✓                  -            -               -        13.46        0.2962         0.6158     13.61        0.3018         0.6026
+  MVSplat                                             ✓                  -            -               -        6.27         0.0413         0.7174      6.29        0.0474         0.7158
+  DepthSplat                                          ✓                  -            -               -        8.58         0.1569         0.6774      9.04        0.1817         0.6761
+  NoPoSplat                                           *                6.89*      0.0669*         0.7019*      11.01        0.2670         0.6665     11.10        0.2731         0.6687
+  Long-LRM                                            -                4.78       0.3153          0.7196       9.74         0.2842         0.6813     10.93        0.2890         0.6149
+  AnySplat                                            -                8.37        0.2639          0.6498      10.37        0.3014         0.5702     10.88        0.3122         0.5557
+  Ours                    Combined                     -               11.33       0.2741           0.6307     12.10        0.2976         0.5940     12.61        0.3204         0.5683
+                          Ground                       -               9.00        0.2592           0.6191     10.05        0.2878         0.5842     10.65        0.3103         0.5606
+                          Terrain                      -               8.24        0.2790           0.6884     8.41         0.2801         0.6932      8.30        0.2834         0.6928
+
+
+
+   GT image                           RGB (terrain)            Depth             BEV Depth                feed-forward method initialized by [86] weights, and the
+                                                                                                          e) Splatfacto [73] method, our baseline that performs per-
+                                                                                                          scene optimization using input views taking 5+ minutes
+                  Ours
+
+
+
+
+                                                                                                          to optimize each scene. We also provide qualitative re-
+                                                                                                          sults comparing satellite-to-ground-only view-synthesis us-
+    Satellite
+                                                                                                          ing Sat2Density [61].
+                                                                                                             As DL3DV-10K includes DL3DV-Benchmark scenes
+                  Sat2Density [61]
+
+
+
+
+                                                                                                          and NoPoSplat trains on the entire set, in Table 3 we eval-
+                                                                                                          uate the RealEstate10K [105] variant of NoPoSplat. We do
+                                                                                                          not compare against FLARE [103], as their training data
+                                                                                                          contains scenes of DL3DV-Benchmark and scenes of Tanks
+Figure 6. Satellite-to-ground qualitative results. Column 1: tar-                                         and Temples within the Megadepth dataset. For fairness, we
+get ground image and satellite image input. Columns (2-4): Pre-                                           center-crop input and target images to square images and
+dictions. (Top) our G sat rendered to ground-view RGB, ground-                                            rescale to each method’s training resolution.
+view depth, and BEV depth. (Bottom) Sat2Density [61] with RGB
+                                                                                                          View Selection. First, we compute frame overlaps based on
+and volume-rendered ground/BEV depths from predicted density.
+Our method produces sharper, more accurate depth maps. The                                                the number of co-visible sparse points recovered by Colmap
+scene is challenging for Sat2Density [61], as it was predominantly                                        across every view pair. For context views, we start by se-
+trained on US country-side images.                                                                        lecting the first index in each scene and then we select each
+                                                                                                          subsequent required context view by optimizing for a target
+view only datasets and those that we augment with satellite                                               overlap. For each combination of context views, we select
+imagery, see Table 1 and Sec 3.6. Note that for DL3DV[49],                                                four target views, each at varying overlap targets to the con-
+we remove benchmark scenes from our training data.                                                        text views. See the Supplemental for more details.
+Baselines. We consider various feed-forward novel-view                                                    Evaluation metrics. We report PSNR, SSIM [89], and
+methods. We compare against a) MVSplat [7] and b) Depth-                                                  LPIPS (VGG-net) [102] metrics. For our method, we re-
+Splat [91] for cost-volume based multi-view 3DGS meth-                                                    port metrics for ground level Gaussians (ground), satellite-
+ods c) AnySplat [36], a feed-forward method initialized                                                   to-ground level Gaussians (terrain), and combined ground
+by the [81] model weights, d) NoPoSplat [95], a similar                                                   and satellite Gaussians (combined (Ours)).
+
+
+                                                                                                     7
+Figure 7. Qualitative results. We show results for a target image from the Outdoor Tanks and Temples dataset under the sparse-view
+synthesis setting. Our method extrapolates into unobserved regions by leveraging visual cues from the corresponding satellite image.
+                                                                          Baseline            w/ Lconst              w/ Lsky          Input Image 1
+         14                                             AnySplat
+         12                                             Combined
+                                                        (Ours)
+ PSNR↑
+
+
+
+
+         10
+         8
+         6                                                                  w/ sat           w/ all losses           GT Image           Input Image 2
+              0
+
+
+                    1
+
+
+                          2
+
+
+                                    3
+
+
+                                              4
+
+
+                                                   5
+                  0.
+
+
+                        0.
+
+
+                                  0.
+
+
+                                           0.
+
+
+                                                   0.
+
+
+
+
+                        IoU (Context vs. Target)
+Figure 8. Stratified evaluation. Bucketed PSNR performance
+(5% bins) vs. image overlap on our geolocalized Tanks & Temples
+dataset.
+                                                                         Figure 9. Qualitative ablation of model with 2 input images.
+
+                                                                       Table 4. Quantitative ablation on the Metropolis dataset. Metrics
+Implementation details.       We use PyTorch [58] with                 are averaged over 36 test scenes, covering 2 input and 2 interpo-
+gsplat (v1.5) [96] for Gaussian rasterization. We ini-                 lated novel-views. Our satellite variant achieves superior results
+tialize our model from AnySplat [36]. We train for 4                   due to its larger BEV coverage, allowing for extrapolation into oc-
+days on 2×-A100 GPUs with a batch size of 10, using                    cluded and unseen regions in large baseline driving scenes.
+FlashAttention-v2 [10, 11] and mixed-precision. We resize               Method                                        Ground Terrain Combined
+                                                                                                                       PSNR   PSNR     PSNR
+satellite images and terrain heights such that their spatial
+extent is 244 meters. Our input resolution is 518×518.                  VGGT w/ 3DGS:
+                                                                         Lcam + Ldepth + Lground
+                                                                                          RGB                          15.26      -           -
+                                                                         +Lconst                                       16.99      -           -
+                                                                         +Lsky                                         17.10      -           -
+                                                                        VGGT w/ 3DGS w/ SAT:
+4.1. Results and Ablations                                               Lcam + Ldepth + Lconst + Lsky + Lcombined     16.99     5.24       17.17
+                                                                                                          RGB
+                                                                         +Lground
+                                                                            RGB                                        16.61     5.36       16.87
+                                                                            sat
+We report novel view synthesis results in Tables 2 and 3.                +LRGB                                         17.59    12.25       18.63
+Our method matches or outperforms baselines, with the
+satellite head (Combined) improving scores across all con-             5. Conclusions
+text coverage levels. Although overall PSNR values are low,
+this reflects the challenging setup—input–target pairs have            We introduced Cross-View Splatter, a novel feed-forward
+low overlap (IoU ≈ 0.05–0.5), making many cases diffi-                 method that predicts Gaussian splats for ground and satel-
+cult. Cost-volume baselines like MVSplat and DepthSplat                lite images. Unlike previous approaches, our BEV Gaus-
+require multiple inputs and tend to fail under 1-view or               sians increase scene coverage and improves view-synthesis
+small-baseline conditions, where our satellite-conditioned             in difficult outdoor scenes. To train our model with the
+model performs more robustly. Qualitative comparisons are              new cross-view setting, we curated a collection of exist-
+shown in Fig. 7 and Fig. 6.                                            ing datasets and supplemented them with satellite views and
+                                                                       height maps. We also introduce a new benchmark for novel-
+   In Fig. 8, we stratify Tanks and Temples by context–                view synthesis with the aid of satellite images using public
+target IoU (co-visible COLMAP features at 5% bins) and                 outdoor scenes of Tanks and Temples and DL3DV.
+plot PSNR. The satellite model outperforms the base-
+line across bins, with the largest gains at low overlap (≤             6. Acknowledgments
+0.15 IoU), indicating stronger extrapolation to novel views.
+Ablations in Tab. 4 and Fig. 9 show that consistency and sky           We thank Zawar Qureshi and Jakub Powierza for compute
+regularization improve VGGT w/ 3DGS, while VGGT w/                     infrastructure support and Alan Paul for help in generating
+3DGS w/ SAT performs best, especially with Lsat   RGB , likely
+                                                                       terrain data. MT, JK, and AS acknowledge funding from
+due to better BEV coverage of occluded and unseen regions.             the Research Council of Finland (362408, 339730).
+
+
+                                                                   8
+References                                                                   Mostafa Dehghani, Matthias Minderer, Georg Heigold,
+                                                                             Sylvain Gelly, Jakob Uszkoreit, and Neil Houlsby. An Im-
+ [1] Eduardo Arnold, Jamie Wynn, Sara Vicente, Guillermo                     age is Worth 16x16 Words: Transformers for Image Recog-
+     Garcia-Hernando, Áron Monszpart, Victor Adrian                         nition at Scale. In ICLR, 2021. 2, 4
+     Prisacariu, Daniyar Turmukhambetov, and Eric Brach-                [16] Yilun Du, Cameron Smith, Ayush Tewari, and Vincent Sitz-
+     mann. Map-free visual relocalization: Metric pose relative              mann. Learning to render novel views from wide-baseline
+     to a single image. In ECCV, 2022. 4, 6                                  stereo pairs. CVPR, 2023. 2
+ [2] Eric Brachmann, Jamie Wynn, Shuai Chen, Tommaso Cav-               [17] Bardienus Pieter Duisterhof, Lojze Zust, Philippe Weinza-
+     allari, Áron Monszpart, Daniyar Turmukhambetov, and                    epfel, Vincent Leroy, Yohann Cabon, and Jerome Revaud.
+     Victor Adrian Prisacariu. Scene coordinate reconstruction:              MASt3r-sfm: a fully-integrated solution for unconstrained
+     Posing of image collections via incremental learning of a               structure-from-motion. In 3DV, 2025. 1, 2, 13
+     relocalizer. In ECCV, 2024. 2                                      [18] Esri.      Esri World Imagery.          https : / / www .
+ [3] Yohann Cabon, Naila Murray, and Martin Humenberger.                     arcgis . com / home / item . html ? id =
+     Virtual kitti 2. arXiv preprint arXiv:2001.10773, 2020. 2,              10df2279f9684e4a9f6a7f08febac2a9.                       Ac-
+     6                                                                       cessed: 2025-10-05. 2, 4, 6
+ [4] Eric R Chan, Connor Z Lin, Matthew A Chan, Koki                    [19] Florian Fervers. Tiled Web Maps. https://github.
+     Nagano, Boxiao Pan, Shalini De Mello, Orazio Gallo,                     com/fferflo/tiledwebmaps. Accessed: 2025-10-
+     Leonidas J Guibas, Jonathan Tremblay, Sameh Khamis,                     04. 6
+     et al. Efficient geometry-aware 3d generative adversarial          [20] Florian Fervers, Sebastian Bullinger, Christoph Bo-
+     networks. In CVPR, 2022. 3                                              densteiner, Michael Arens, and Rainer Stiefelhagen.
+ [5] David Charatan, Sizhe Li, Andrea Tagliasacchi, and Vin-                 Uncertainty-aware vision-based metric cross-view geolo-
+     cent Sitzmann. pixelsplat: 3d gaussian splats from image                calization. In CVPR, 2023.
+     pairs for scalable generalizable 3d reconstruction. In CVPR,       [21] Florian Fervers, Sebastian Bullinger, Christoph Boden-
+     2024. 2                                                                 steiner, Michael Arens, and Rainer Stiefelhagen. Statewide
+ [6] Anpei Chen, Zexiang Xu, Fuqiang Zhao, Xiaoshuai Zhang,                  visual geolocalization in the wild. In ECCV, 2024. 6
+     Fanbo Xiang, Jingyi Yu, and Hao Su. Mvsnerf: Fast                  [22] Flai.    Collection of open nation-scale lidar datasets.
+     generalizable radiance field reconstruction from multi-view             https : / / registry . opendata . aws / open -
+     stereo. arXiv preprint arXiv:2103.15595, 2021. 2                        lidar-data. Accessed: 2025-10-19. 2, 6
+ [7] Yuedong Chen, Haofei Xu, Chuanxia Zheng, Bohan                     [23] Adrien Gaidon, Qiao Wang, Yohann Cabon, and Eleonora
+     Zhuang, Marc Pollefeys, Andreas Geiger, Tat-Jen Cham,                   Vig. Virtual worlds as proxy for multi-object tracking anal-
+     and Jianfei Cai. Mvsplat: Efficient 3d gaussian splatting               ysis. In CVPR, 2016. 6
+     from sparse multi-view images. In ECCV, 2024. 1, 2, 7              [24] Silvano Galliani, Katrin Lasinger, and Konrad Schindler.
+ [8] David J. Crandall, Andrew Owens, Noah Snavely, and                      Massively parallel multiview stereopsis by surface normal
+     Daniel P. Huttenlocher.        Sfm with mrfs: Discrete-                 diffusion. In ICCV, 2015. 2
+     continuous optimization for large-scale structure from mo-         [25] Zhiyuan Gao, Wenbin Teng, Gonglin Chen, Jinsen Wu,
+     tion. PAMI, 2013. 2                                                     Ningli Xu, Rongjun Qin, Andrew Feng, and Yajie Zhao.
+ [9] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Hal-                  Skyeyes: Ground roaming using aerial view images. arXiv
+     ber, Thomas Funkhouser, and Matthias Nießner. Scannet:                  preprint arXiv:2409.16685, 2024. 2, 3
+     Richly-annotated 3d reconstructions of indoor scenes. In           [26] GDAL Developers. Gdal: Geospatial data abstraction li-
+     CVPR, 2017. 2                                                           brary. https://gdal.org, 2024. 16
+[10] Tri Dao. FlashAttention-2: Faster attention with better par-       [27] Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel
+     allelism and work partitioning. In ICLR, 2024. 8                        Urtasun. Vision meets robotics: The kitti dataset. IJRR,
+[11] Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, and                   2013. 2
+     Christopher Ré. FlashAttention: Fast and memory-efficient         [28] Andreas Geiger, Philip Lenz, and Raquel Urtasun. Are we
+     exact attention with IO-awareness. In NeurIPS, 2022. 8                  ready for Autonomous Driving? The KITTI Vision Bench-
+[12] Timothée Darcet, Maxime Oquab, Julien Mairal, and Pi-                  mark Suite. In CVPR, 2012. 2
+     otr Bojanowski. Vision transformers need registers. arXiv          [29] Google.        Google Maps Platform Documentation.
+     preprint arXiv:2309.16588, 2023. 4                                      https : / / developers . google . com / maps /
+[13] Boyang Deng, Richard Tucker, Zhengqi Li, Leonidas                       documentation. Accessed: 2025-10-04. 2, 4, 6
+     Guibas, Noah Snavely, and Gordon Wetzstein.                        [30] Xiaodong Gu, Zhiwen Fan, Siyu Zhu, Zuozhuo Dai,
+     Streetscapes: Large-scale consistent street view generation             Feitong Tan, and Ping Tan. Cascade cost volume for high-
+     using autoregressive video diffusion. In SIGGRAPH, 2024.                resolution multi-view stereo and stereo matching. In CVPR,
+     3                                                                       2020. 2
+[14] Oussema Dhaouadi, Riccardo Marin, Johannes Michael                 [31] Antoine Guédon and Vincent Lepetit. Sugar: Surface-
+     Meier, Jacques Kaiser, and Daniel Cremers. Ortholoc: UAV                aligned gaussian splatting for efficient 3d mesh reconstruc-
+     6-dof localization and calibration using orthographic geo-              tion and high-quality mesh rendering. CVPR, 2024. 3
+     data. In NeurIPS Datasets and Benchmarks Track, 2025.              [32] Richard Hartley and Andrew Zisserman. Multiple View Ge-
+     2                                                                       ometry in Computer Vision. Cambridge University Press,
+[15] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov,                  2004. 2
+     Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner,                [33] Sunghwan Hong, Jaewoo Jung, Heeseong Shin, Jisang
+
+
+                                                                    9
+     Han, Jiaolong Yang, Chong Luo, and Seungryong Kim.                 [47] Zhengqi Li and Noah Snavely. Megadepth: Learning
+     Pf3plat: Pose-free feed-forward 3d gaussian splatting.                  single-view depth prediction from internet photos. In
+     arXiv preprint arXiv:2410.22128, 2024. 2                                CVPR, 2018. 2, 17
+[34] Xiaomou Hou, Wanshui Gan, and Naoto Yokoya. En-                    [48] Orly Liba, Longqi Cai, Yun-Ta Tsai, Elad Eban, Yair
+     hancing monocular height estimation from aerial images                  Movshovitz-Attias, Yael Pritch, Huizhong Chen, and
+     with street-view images. arXiv preprint arXiv:2311.02121,               Jonathan T Barron. Sky optimization: Semantically aware
+     2023. 3                                                                 image processing of skies in low-light photography. In
+[35] Xuejun Huang, Xinyi Liu, Yi Wan, Zhi Zheng, Bin                         CVPRW, 2020. 6
+     Zhang, Mingtao Xiong, Yingying Pei, and Yongjun                    [49] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin,
+     Zhang. Skysplat: Generalizable 3d gaussian splatting                    Kun Wan, Lantao Yu, Qianyu Guo, Zixun Yu, Yawen Lu,
+     from multi-temporal sparse satellite images. arXiv preprint             et al. Dl3dv-10k: A large-scale scene dataset for deep
+     arXiv:2508.09479, 2025. 3                                               learning-based 3d vision. In CVPR, 2024. 2, 6, 7, 16
+[36] Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui                [50] Andrew Liu, Richard Tucker, Varun Jampani, Ameesh
+     Ren, Yichen Jin, Xudong Xu, Mulin Yu, Jiangmiao Pang,                   Makadia, Noah Snavely, and Angjoo Kanazawa. Infinite
+     Feng Zhao, et al. Anysplat: Feed-forward 3d gaus-                       nature: Perpetual view generation of natural scenes from a
+     sian splatting from unconstrained views. arXiv preprint                 single image. In ICCV, 2021. 3
+     arXiv:2505.23716, 2025. 1, 2, 3, 5, 7, 8, 13, 16                   [51] Yuzheng Liu, Siyan Dong, Shuzhe Wang, Yingda Yin, Yan-
+[37] Lihan Jiang, Kerui Ren, Mulin Yu, Linning Xu, Junt-                     chao Yang, Qingnan Fan, and Baoquan Chen. SLAM3R:
+     ing Dong, Tao Lu, Feng Zhao, Dahua Lin, and Bo Dai.                     Real-time dense scene reconstruction from monocular RGB
+     Horizon-gs: Unified 3d gaussian splatting for large-scale               videos. In CVPR, 2025. 2
+     aerial-to-ground scenes. In CVPR, 2025. 3                          [52] Yifan Liu, Zhiyuan Min, Zhenwei Wang, Junta Wu, Tengfei
+[38] Tero Karras, Samuli Laine, Miika Aittala, Janne Hellsten,               Wang, Yixuan Yuan, Yawei Luo, and Chunchao Guo.
+     Jaakko Lehtinen, and Timo Aila. Analyzing and improving                 Worldmirror: Universal 3d world reconstruction with any-
+     the image quality of StyleGAN. In CVPR, 2020. 3                         prior prompting. arXiv preprint arXiv:2510.10726, 2025.
+[39] Nikhil Keetha, Norman Müller, Johannes Schönberger,                   2
+     Lorenzo Porzi, Yuchen Zhang, Tobias Fischer, Arno                  [53] Mapillary. Mapillary Metropolis Dataset. https://
+     Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes,                   www.mapillary.com/dataset/metropolis. Ac-
+     Jonathon Luiten, Manuel Lopez-Antequera, Samuel Rota                    cessed: 2025-10-18. 5, 6, 16
+     Bulò, Christian Richardt, Deva Ramanan, Sebastian                 [54] Microsoft.      Azure Maps.         https : / / azure .
+     Scherer, and Peter Kontschieder. MapAnything: Univer-                   microsoft . com / en - us / products / azure -
+     sal feed-forward metric 3D reconstruction. arXiv preprint               maps. Accessed: 2025-10-04. 2, 4, 6
+     arXiv:2509.13414, 2025. 1, 2                                       [55] Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik,
+[40] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler,                   Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. Nerf:
+     and George Drettakis. 3d gaussian splatting for real-time               Representing scenes as neural radiance fields for view syn-
+     radiance field rendering. TOG, 2023. 2, 4                               thesis. In ECCV, 2020. 2
+[41] Diederik P. Kingma and Jimmy Ba. Adam: A method                    [56] Maxime Oquab, Timothée Darcet, Theo Moutakanni,
+     for stochastic optimization. International Conference on                Huy V. Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernan-
+     Learning Representations (ICLR), 2015. 13                               dez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby,
+[42] Arno Knapitsch, Jaesik Park, Qian-Yi Zhou, and Vladlen                  Russell Howes, Po-Yao Huang, Hu Xu, Vasu Sharma,
+     Koltun. Tanks and temples: Benchmarking large-scale                     Shang-Wen Li, Wojciech Galuba, Mike Rabbat, Mido Ass-
+     scene reconstruction. TOG, 2017. 5, 6, 17                               ran, Nicolas Ballas, Gabriel Synnaeve, Ishan Misra, Herve
+[43] Jie-Ying Lee, Yi-Ruei Liu, Shr-Ruei Tsai, Wei-Cheng                     Jegou, Julien Mairal, Patrick Labatut, Armand Joulin, and
+     Chang, Chung-Ho Wu, Jiewen Chan, Zhenjun Zhao,                          Piotr Bojanowski. Dinov2: Learning robust visual features
+     Chieh Hubert Lin, and Yu-Lun Liu. Skyfall-gs: Synthe-                   without supervision. arXiv preprint arXiv:2304.07193,
+     sizing immersive 3d urban scenes from satellite imagery.                2023. 4
+     arXiv preprint arXiv:2510.15869, 2025. 2, 3                        [57] Linfei Pan, Daniel Barath, Marc Pollefeys, and Jo-
+[44] Matthew J. Leotta, Cheng Long, Bastien Jacquet, Michael                 hannes Lutz Schönberger. Global Structure-from-Motion
+     Zins, Daniel Lipsa, Jizhe Shan, Boyan Xu, Zhaoyu Li, Xun                Revisited. In ECCV, 2024. 2
+     Zhang, Shih-Fu Chang, Misu Purri, Jia Xue, and Kristin             [58] Adam Paszke, Sam Gross, Francisco Massa, Adam Lerer,
+     Dana. Urban Semantic 3D Reconstruction from Multiview                   James Bradbury, Gregory Chanan, Trevor Killeen, Zeming
+     Satellite Imagery. In CVPRW, 2019. 2, 3                                 Lin, Nataly Gimelshein, Luca Antiga, Alban Kopf, Fed-
+[45] Zuoyue Li, Zhenqiang Li, Zhaopeng Cui, Marc Pollefeys,                  erico Metta, Allan Chiley, Brian Stwalley, Sheng Huang,
+     and Martin R. Oswald. Sat2Scene: 3D urban scene gener-                  Jiawan Jiang, Yehezkel Chen, Peng Zeng, Xiaobing Li,
+     ation from satellite images with diffusion. In CVPR, 2024.              James Yu, Teteya Li, Andrey Kuchaiev, Kartik Ren,
+     3                                                                       Houdong Zhang, Yanghan Shi, Jani Singh, Wenzhe Yu,
+[46] Zuoyue Li, Zhenqiang Li, Zhaopeng Cui, Rongjun Qin,                     Gregory Pierson, Soumith Chintala, and Yann LeCun. Py-
+     Marc Pollefeys, and Martin R. Oswald. Sat2Vid: Street-                  torch: An imperative style, high-performance deep learning
+     view panoramic video synthesis from a single satellite im-              library. In NeurIPS, 2019. 8
+     age. In ICCV, 2021. 3                                              [59] Luigi Piccinelli, Christos Sakaridis, Mattia Segu, Yung-
+
+
+                                                                   10
+     Hsu Yang, Siyuan Li, Wim Abbeloos, and Luc Van Gool.                [75] Aysim Toker, Qunjie Zhou, Maxim Maximov, and Laura
+     UniK3D: Universal camera monocular 3d estimation. In                     Leal-Taixé. Coming Down to Earth: Satellite-to-Street
+     CVPR, 2025. 6                                                            View Synthesis for Geo-Localization. In CVPR, 2021. 3
+[60] Ming Qian, Bin Tan, Qiuyu Wang, Xianwei Zheng, Han-                 [76] Richard Tucker and Noah Snavely. Single-view view syn-
+     jiang Xiong, Gui-Song Xia, Yujun Shen, and Nan Xue. See-                 thesis with multiplane images. In CVPR, 2020. 2
+     ing through satellite images at street views. arXiv preprint        [77] U.S. Geological Survey. USGS Lidar Explorer Map.
+     arXiv:2505.17001, 2025. 3, 13, 17                                        https : / / apps . nationalmap . gov / lidar -
+[61] Ming Qian, Jincheng Xiong, Gui-Song Xia, and Nan Xue.                    explorer. Accessed: 2025-10-19. 2, 6
+     Sat2density: Faithful density learning from satellite-ground        [78] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob
+     image pairs. In ICCV, 2023. 3, 7, 13, 17, 22                             Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser,
+[62] Rongjun Qin. RPC Stereo Processor (RSP)–A Software                       and Illia Polosukhin. Attention is all you need. In NeurIPS,
+     Package for Digital Surface Model and Orthophoto Gener-                  2017. 4
+     ation from Satellite Stereo Imagery. ISPRS Annals of the            [79] Khiem Vuong, Anurag Ghosh, Deva Ramanan, Srinivasa
+     Photogrammetry, Remote Sensing and Spatial Information                   Narasimhan, and Shubham Tulsiani. Aerialmegadepth:
+     Sciences, 2016. 2, 3                                                     Learning aerial-ground reconstruction and view synthesis.
+[63] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vi-                In CVPR, 2025. 2
+     sion transformers for dense prediction. In ICCV, 2021. 4            [80] Jianyuan Wang. Skyseg. https://huggingface.
+[64] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler,                   co/JianyuanWang/skyseg. Accessed: 2025-08-10.
+     Luca Sbordone, Patrick Labatut, and David Novotny. Com-                  6
+     mon objects in 3d: Large-scale learning and evaluation of           [81] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+     real-life 3d category reconstruction. In ICCV, 2021. 2                   Vedaldi, Christian Rupprecht, and David Novotny. Vggt:
+[65] Robin Rombach, Andreas Blattmann, Dominik Lorenz,                        Visual geometry grounded transformer. In CVPR, 2025. 1,
+     Patrick Esser, and Bjorn Ommer. High-Resolution Image                    2, 3, 4, 5, 7, 13
+     Synthesis with Latent Diffusion Models. In CVPR, 2022. 3            [82] Qianqian Wang, Zhicheng Wang, Kyle Genova, Pratul
+[66] Johannes L Schönberger, Enliang Zheng, Jan-Michael                      Srinivasan, Howard Zhou, Jonathan T. Barron, Ricardo
+     Frahm, and Marc Pollefeys. Pixelwise view selection for                  Martin-Brualla, Noah Snavely, and Thomas Funkhouser.
+     unstructured multi-view stereo. In ECCV, 2016. 2                         Ibrnet: Learning multi-view image-based rendering. In
+[67] Thomas Schöps, Torsten Sattler, Christian Häne, and Marc               CVPR, 2021. 2
+     Pollefeys. A multi-view stereo benchmark with high-                 [83] Qianqian Wang, Yifei Zhang, Aleksander Holynski,
+     resolution images and multi-camera videos. In CVPR,                      Alexei A Efros, and Angjoo Kanazawa. Continuous 3d
+     2017. 2                                                                  perception model with persistent state. arXiv preprint
+[68] Johannes L. Schönberger and Jan-Michael Frahm.                          arXiv:2501.12387, 2025. 1, 2
+     Structure-from-motion revisited. In CVPR, 2016. 2, 6                [84] Ruicheng Wang, Sicheng Xu, Cassie Dai, Jianfeng Xiang,
+[69] Yujiao Shi, Dylan Campbell, Xin Yu, and Hongdong                         Yu Deng, Xin Tong, and Jiaolong Yang. Moge: Unlocking
+     Li. Geometry-guided street-view panorama synthesis from                  accurate monocular geometry estimation for open-domain
+     satellite imagery. PAMI, 2022. 3                                         images with optimal training supervision. In CVPR, 2025.
+[70] Brandon Smart, Chuanxia Zheng, Iro Laina, and Vic-                       13
+     tor Adrian Prisacariu.      Splatt3r: Zero-shot gaussian            [85] Ruicheng Wang, Sicheng Xu, Yue Dong, Yu Deng, Jian-
+     splatting from uncalibrated image pairs. arXiv preprint                  feng Xiang, Zelong Lv, Guangzhong Sun, Xin Tong, and
+     arXiv:2408.13912, 2024. 2                                                Jiaolong Yang. Moge-2: Accurate monocular geome-
+[71] Pratul P. Srinivasan, Richard Tucker, Jonathan T. Barron,                try with metric scale and sharp details. arXiv preprint
+     Ravi Ramamoorthi, Ren Ng, and Noah Snavely. Pushing                      arXiv:2507.02546, 2025. 13
+     the boundaries of view extrapolation with multiplane im-            [86] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris
+     ages. CVPR, 2019. 2                                                      Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d
+[72] Stanislaw Szymanowicz, Jason Y. Zhang, Pratul Srinivasan,                vision made easy. In CVPR, 2024. 2, 3, 5, 7, 13
+     Ruiqi Gao, Arthur Brussee, Aleksander Holynski, Ricardo             [87] Yunsong Wang, Tianxin Huang, Hanlin Chen, and Gim Hee
+     Martin-Brualla, Jonathan T. Barron, and Philipp Henzler.                 Lee. Freesplat: Generalizable 3d gaussian splatting to-
+     Bolt3D: Generating 3D Scenes in Seconds. In ICCV, 2025.                  wards free-view synthesis of indoor scenes. arXiv preprint
+     17                                                                       arXiv:2405.17958, 2024. 2
+[73] Matthew Tancik, Ethan Weber, Evonne Ng, Ruilong Li,                 [88] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang,
+     Brent Yi, Justin Kerr, Terrance Wang, Alexander Kristof-                 Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chun-
+     fersen, Jake Austin, Kamyar Salahi, Abhik Ahuja, David                   hua Shen, and Tong He. π 3 : Scalable permutation-
+     McAllister, and Angjoo Kanazawa. Nerfstudio: A modular                   equivariant visual geometry learning.        arXiv preprint
+     framework for neural radiance field development. In SIG-                 arXiv:2507.13347, 2025. 2
+     GRAPH, 2023. 7                                                      [89] Zhou Wang, A.C. Bovik, H.R. Sheikh, and E.P. Simoncelli.
+[74] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu,                       Image quality assessment: from error visibility to structural
+     Rakesh Ranjan, Alexander G. Schwing, and Zhicheng                        similarity. TIP, 2004. 7
+     Yan. MV-DUSt3R+: Single-stage scene reconstruction                  [90] Scott Workman and Hunter Blanton. Augmenting depth
+     from sparse views in 2 seconds. In CVPR, 2025. 2                         estimation with geospatial context. In ICCV, 2021. 3
+
+
+
+                                                                    11
+ [91] Haofei Xu, Songyou Peng, Fangjinhua Wang, Hermann                        view image geo-localization beyond one-to-one retrieval. In
+      Blum, Daniel Barath, Andreas Geiger, and Marc Pollefeys.                 CVPR, 2021. 6, 16
+      Depthsplat: Connecting gaussian splatting and depth. In            [107] Xiong Zhu.          Sky-segmentation-and-post-processing.
+      CVPR, 2025. 1, 2, 7                                                      https : / / github . com / xiongzhu666 / Sky -
+ [92] Ningli Xu and Rongjun Qin. Geospecific view generation                   Segmentation - and - Post - processing.               Ac-
+      – geometry-context aware high-resolution ground view in-                 cessed: 2025-08-10. 6
+      ference from satellite views. In ECCV, 2024. 3                     [108] Chen Ziwen, Hao Tan, Kai Zhang, Sai Bi, Fujun Luan, Yi-
+ [93] Ningli Xu and Rongjun Qin. Satellite to GroundScape:                     cong Hong, Li Fuxin, and Zexiang Xu. Long-lrm: Long-
+      Large-scale consistent ground view generation from satel-                sequence large reconstruction model for wide-coverage
+      lite views. In CVPR, 2025. 3                                             gaussian splats. In ICCV, 2025. 17
+ [94] Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael
+      Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier,
+      and Matt Feiszli. Fast3r: Towards 3d reconstruction of
+      1000+ images in one forward pass. In CVPR, 2025. 1,
+      2
+ [95] Botao Ye, Sifei Liu, Haofei Xu, Li Xueting, Marc Pollefeys,
+      Ming-Hsuan Yang, and Peng Songyou. No pose, no prob-
+      lem: Surprisingly simple 3d gaussian splats from sparse un-
+      posed images. In ICLR, 2025. 1, 2, 3, 7, 13
+ [96] Vickie Ye, Ruilong Li, Justin Kerr, Matias Turkulainen,
+      Brent Yi, Zhuoyang Pan, Otto Seiskari, Jianbo Ye, Jeffrey
+      Hu, Matthew Tancik, and Angjoo Kanazawa. gsplat: An
+      open-source library for gaussian splatting. JMLR, 2025. 8,
+      13
+ [97] Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner,
+      and Angela Dai. Scannet++: A high-fidelity dataset of 3d
+      indoor scenes. In ICCV, 2023. 2
+ [98] Alex Yu, Vickie Ye, Matthew Tancik, and Angjoo
+      Kanazawa. pixelNeRF: Neural radiance fields from one or
+      few images. In CVPR, 2021. 2
+ [99] Xianghui Ze, Beiyi Zhu, Zhenbo Song, Jianfeng Lu, and
+      Yujiao Shi. SatDreamer360: Geometry consistent street-
+      view video generation from satellite imagery. arXiv
+      preprint arXiv:2506.00600, 2025. 3
+[100] Kai Zhang, Sai Bi, Hao Tan, Yuanbo Xiangli, Nanxuan
+      Zhao, Kalyan Sunkavalli, and Zexiang Xu. Gs-lrm: Large
+      reconstruction model for 3d gaussian splatting. In ECCV,
+      2024. 17
+[101] Lvmin Zhang, Anyi Rao, and Maneesh Agrawala. Adding
+      conditional control to text-to-image diffusion models.
+      ICCV, 2023. 3
+[102] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shecht-
+      man, and Oliver Wang. The unreasonable effectiveness of
+      deep features as a perceptual metric. In CVPR, 2018. 5, 7
+[103] Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue,
+      Christian Rupprecht, Xiaowei Zhou, Yujun Shen, and Gor-
+      don Wetzstein. Flare: Feed-forward geometry, appearance
+      and camera estimation from uncalibrated sparse views. In
+      CVPR, 2025. 1, 7, 17
+[104] Jensen (Jinghao) Zhou, Hang Gao, Vikram Voleti, Aarya-
+      man Vasishta, Chun-Han Yao, Mark Boss, Philip Torr,
+      Christian Rupprecht, and Varun Jampani. Stable virtual
+      camera: Generative view synthesis with diffusion models.
+      arXiv preprint arXiv:2503.14489, 2025. 17
+[105] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe,
+      and Noah Snavely. Stereo magnification: Learning view
+      synthesis using multiplane images. In SIGGRAPH, 2018.
+      2, 3, 7
+[106] Sijie Zhu, Taojiannan Yang, and Chen Chen. Vigor: Cross-
+
+
+
+                                                                    12
+ Cross-View Splatter: Feed-Forward View Synthesis with Georeferenced Images
+                                                       Supplementary Material
+   In this supplementary material, we provide additional                  including scaling by ground truth depth maps [81, 84, 86]
+implementation details omitted from the main paper. We                    or camera baseline distances [95], or adopting a fully met-
+describe our custom benchmark datasets, outline the eval-                 ric coordinate system [17, 85]. As mentioned in Sec. 3.4,
+uation protocol, present further experimental analysis of                 we adopt the per-batch ℓ2 -norm scaling derived from back-
+our method, and illustrate more qualitative results of our                projected depths [81, 86] to normalize the depth and pose
+model’s performance alongside comparisons to baseline                     of the ground-level imagery. A crucial difference is that
+methods. We further discuss the limitations of the proposed               we also regress height maps hsat relative to I0ground from or-
+Cross-View Splatter approach.                                             thoimages with a known spatial resolution rsat (expressed in
+                                                                          pixels per meter). The spatial resolution rsat is used to map
+A. More Implementation Details                                            between satellite pixel space and world coordinates. Al-
+                                                                          though we regress a single per-pixel scalar value for height
+Training. We train our method with an initial learning rate               maps, its spatial consistency with the ground level depth
+of 1 × 10−4 using the AdamW [41] optimizer (weight de-                    and camera poses is paramount. Therefore, we integrate
+cay 0.05, β1 = 0.9, β2 = 0.95), and apply a cosine an-
+                                                                          hsat and rsat into the same normalization scheme. Specifi-
+nealing schedule for 70K iterations. For training, we ini-
+tialize with [36] weights and freeze ground-level patch em-               cally, we compute a scalar value s with:
+bedding, Attnframe and Attnglobal layers and fine-tune all                         M
+                                                                               1 X
+output heads which include the camera, depth, and Gaus-                   s=         ∥µj ∥2 ,     where µj = backproject(dj , Kj , Tj ).
+sian prediction heads as well as our Attnmeta layers. Our                      M j=1
+total supervision loss is given by:                                                                                                   (15)
+                                                                          s is then used to normalize all metric quantities during train-
+  Ltotal = λcam Lcam + λdepth Ldepth + λconst Lconst
+                                                                          ing: camera poses, depth maps, height maps, and the satel-
+           + λheight Lheight                                              lite spatial resolution factor: T̂ = Ts , dˆ = ds , ĥsat =
+                                                              (13)
+           + λground Lground           combined
+                      RGB + λcombined LRGB      + λsat Lsat               hsat
+                                                                                  r̂sat = s · rsat . We then train our network to regress
+                                                                            s ,
+                                                        RGB
+
+           + λsky Lsky + λbev LBEV ,                                      values in this normalized space.
+where Lsky = Lsky depth + Lsky alpha . We set λcam = 1.0,                 Height ambiguity. We have one unknown degree of free-
+λdepth = 1.0, λconst = 1.0, λheight = 1.0, λground = 1.0,                 dom in our training data, mainly the height of the ground
+λcombined = 1.0, λsat = 1.0, λsky = 0.1, and λBEV = 0.5.                  level camera with respect to the BEV height maps. We fol-
+Note, we utilize ground truth terrain heights only during                 low prior works [60, 61] and set the ground level height to
+training for our height regression loss Lheight . At inference            2 meters off the ground for all datasets. Due to this ambi-
+time, we utilize satellite RGB images.                                    guity, it is possible that the satellite-to-ground level renders
+                                                                          are not perfectly aligned with ground perspectives.
+Gaussian rendering. For Cross-View Splatter, we are able
+to render images from ground Gaussians G ground , satellite               B. Geoaligned Benchmark Dataset
+Gaussians G sat , and combined Gaussians G combined . In the
+worst case, to apply our ground level RGB losses Lground RGB ,            Benchmark alignment. We introduce a new task, novel-
+Lsat
+  RGB , and  L combined
+               RGB      we  require three forward  calls to the           view synthesis with geolocalized images, and construct an
+gsplat [96] rasterizer. Instead, we do two forward calls,                 evaluation dataset that remains in-domain with prior work
+one for G ground and G sat and alpha-blend to obtain:                     to ensure fair comparison. Neither the Tanks and Tem-
+                       ground
+                                                                          ples (Table 2) nor the DL3DV-Benchmark (Table 3) datasets
+           combined                          sat
+          C3DGS     ≈ C3DGS   + (1−αground )C3DGS ,           (14)        provide GPS metadata for geolocating ground-level images.
+                  PM               Qi−1                                   We thus perform manual alignment to localize scenes. We
+where αground = i=1 αground,i j=1 (1−αground,j ) is the ac-               first identify cues in the input images, such as street signs,
+cumulated transparency for ground Gaussians. This formu-                  building names, or distinctive landmarks (e.g., statues or
+lation is not strictly equivalent to rendering the unified set            monuments) and use these to obtain approximate GPS co-
+G combined = G ground ∪ G sat , because satellite Gaussians that          ordinates via Google Maps.
+would occlude ground Gaussians along the camera ray are                       After establishing a coarse estimate, we refine the lo-
+implicitly omitted in Eq. (14).                                           calization by projecting sparse COLMAP reconstruction
+Scene normalization. The choice of scene normalization                    points to satellite imagery. We used COLMAP reconstru-
+during training is a critical design choice. Approaches vary,             tions provided by DL3DV. For Tanks and Temples, we used
+
+
+                                                                     13
+Figure 10. Benchmark geoalignment tool. We manually align COLMAP reconstructions to satellite imagery for 10 scenes from Tanks
+and Temples and 40 scenes from DL3DV-Benchmark datasets. Top: satellite image. Bottom-left: aligned COLMAP pointcloud. Bottom-
+right: visualization of points projected to a scene image.
+
+
+camera intrinsics and camera poses provided by the dataset          the IOU of visible COLMAP tracked points. We count the
+and ran ‘colmap point triangulator’ command to generate             number of COLMAP tracked points visible in both frames
+the sparse reconstruction.                                          and divide by the union of points across frames.
+    We then manually find translation, rotation, and scal-             For all splits, we pick the first image in the sequence as a
+ing factor that aligns the point cloud to satellite imagery         context view. For the 2 and 3 context-view splits, we greed-
+with known spatial resolution, transforming scenes to met-          ily select context frames that most closely satisfy a target
+ric space. In Fig. 10 we visualization the alignment process        IOU overlap to the first context image (0.15 for DL3DV
+with a scene from the DL3DV-Benchmark dataset. Since                and 0.25 for Tanks and Temples). We then select four target
+the COLMAP reconstructions for these scenes are rather              frames that each satisfy an average IOU to selected con-
+dense, we hypothesize that this manual alignment is ac-             text frames. Those targets are 0.02, 0.05, 0.07, and 0.1 for
+curate within a few meters, but not pixel-perfect. We will          DL3DV and 0.03, 0.07, 0.1, and 0.15 for Tanks and Tem-
+release the aligned COLMAP poses and location informa-              ples.
+tion for our benchmark scenes to facilitate further research           We’ve found that the same targets IOUs don’t yield the
+in this area. We visualize satellite imagery and ground im-         desired behavior across datasets given differences in how
+ages for Tanks and Temples samples in Fig. 11 and DL3DV-            COLMAP reconstructions were created and the image res-
+Benchmark in Fig. 12.                                               olution affecting the number and coverage of tracked points.
+Test split creation. We construct our context and target            Therefore, we select a different set of target IOU values.
+view splits such that we have a range of increasingly chal-         Evaluating baselines. We evaluate all baselines using
+lenging and representative scenarios where overlap is re-           their publicly available code and pretrained weights, strictly
+duced.                                                              following each method’s recommended evaluation proto-
+   To compute frame overlap for a frame pair, we compute            col. MVSplat and DepthSplat require ground-truth camera
+
+
+                                                               14
+              Barn                                   Courthouse                                    Family
+
+
+
+
+             Horse                                     Ignatius                                   Lighthouse
+
+
+
+
+           Playground                                  Temple                                       Truck
+
+
+
+
+Figure 11. Our Tanks and Temples benchmark. Visualization of satellite and ground level images.
+
+
+
+
+     Figure 12. Our DL3DV benchmark. Visualization of satellite and ground level images.
+
+
+
+
+                                              15
+                                            Satellite   GT Height Map       Panorama
+
+            VIGOR[106]
+            VIGOR[106]
+            Metropolis[53] Metropolis[53]                                                                  Perspective Images
+
+
+
+
+                                                                        Perspective Images                       Depths
+
+
+
+
+Figure 13. Training data visualization. We showcase our training data that consists of satellite images and terrain height maps aligned
+with ground level images.
+
+
+poses for novel-view synthesis. NoPoSplat first reconstructs                      longitude location. We also generate height maps for these
+a splat and then refines each novel camera pose for 200 it-                       locations. We create perspective images with 90◦ FOV from
+erations to align it with the reconstruction. Long-LRM uses                       the panoramas and sample these as our context and target
+Plucker rays for the target-views. AnySplat performs two                          images during training.
+forward passes: one using only the context views, and an-                         Metropolis [53]. The Mapillary Metropolis dataset pro-
+other using both context and target views; the latter pro-                        vides high-resolution satellite imagery, perspective driv-
+vides estimated target poses that are then used to evaluate                       ing images (captured from forward, backward, left, and
+the context-only model. We adopt the same evaluation set-                         right cameras), panoramas, and MVS depth maps. We use
+tings as AnySplat for our Cross-View Splatter evaluation                          the original satellite images and extract centered crops at
+protocol.                                                                         ground-level positions. We also project Lidar depths to
+                                                                                  satellite images using the GDAL [26] library and these serve
+C. Training Data                                                                  as our height maps. The forward and backward perspective
+                                                                                  images suffer from severe occlusions caused by the vehi-
+Dataset reproducibility.          Our satellite API sources
+                                                                                  cle itself, and we observed that training directly on this data
+(Google, Azure, Esri) have licensing constraints on shar-
+                                                                                  leads to degraded reconstruction quality due to multi-view
+ing. Therefore, we are unable to directly share raw satellite
+                                                                                  inconsistencies. To mitigate this, we mask out thge vehicle
+images; however, code to query data for georeferenced lo-
+                                                                                  using binary masks generated by SAM2.
+cations can be provided; although, exact replication of train-
+                                                                                     We visualize various training data samples in Fig. 13.
+ing data is uncertain due to the black-box nature of the APIs
+that can change with time. For our terrain height data, we                        D. Discussion of baselines
+are able to release the full raw training data.
+VIGOR[106].         The original VIGOR dataset contains                           AnySplat [36].      We use AnySplat model at https:
+panorama images with non-centered satellite images with                           //github.com/InternRobotics/AnySplat for
+large zoom levels. We regenerate the dataset satellite im-                        our model initialisation and comparisons. The model was
+ages such that they are centered at the panorama latitude,                        trained on DL3DV-10K [49] dataset, however the 140
+
+
+                                                                             16
+scenes used in DL3DV-Benchmark split were removed
+from the training split, see https://github.com/                           GT                  SEVA                  Ours
+InternRobotics/AnySplat/issues/9.
+Long-LRM [108].     Long-LRM also removes the 140
+scenes used in DL3DV-Benchmark split from the train-
+ing set, see https://github.com/arthurhero/
+Long- LRM?tab=readme- ov- file#long- lrm-
+evaluation-results.
+FLARE [103].          Unfortunately, FLARE uses a cus-
+tom train/test split of original DL3DV-10K, see https:
+/ / github . com / ant - research / FLARE / blob /
+main/assets/DL3DV.json. Thus, their training set
+includes scenes from DL3DV-Benchmark making compar-
+ison unfair.
+   Furthermore, FLARE trains on Megadepth dataset [47],            Figure 14. Qualitative comparison to SEVA. SEVA is a gener-
+which contains scenes of Tanks and Temples dataset [42],           ative based model capable of hallucinating unseen areas whereas
+e.g. scenes in folders 5000, 5001, 5002, 5003, 5004, 5005,         our Cross-View Splatter is a feed-forward approach that predicts
+5006, 5007, 5008, 5009, 5010, 5011, 5012, 5013.                    geometry only for visible regions in ground images and satellite
+   As a result, we omit direct evaluation of FLARE on our          image.
+benchmarks.
+                                                                   E.1. Comparison to Diffusion Based Method
+Non-public baselines. The paper does not show com-
+parisons to some closely related methods. This is due to           We compare our method to Stable Virtual Camera (SEVA)
+the fact that our evaluation method requires GPS locations         [104], which is a state-of-the-art diffusion model for view-
+for input images, so we cannot compare scores on exist-            synthesis that takes in ground-level imagery and target ren-
+ing benchmarks. We thus re-run baselines on our geolocal-          der poses. We show qualitative renders in Fig. 14 and quan-
+ized evaluation scenes. For some methods, there was no             titative results in Tab. 5.
+code available to run at the time of the submission and re-
+implementation is non-trivial, see answer to “Can reviews          E.2. GPS Sensitivity Analysis
+request comparison to closed source?” on CVPR Reviewer-            We conduct satellite alignment sensitivity analysis in Tab. 6,
+Guidelines page* .                                                 simulating GPS noise and showing that Ours is robust to
+    Below we list some of the competing methods that we            noise. Specifically, we add Gaussian noise to the 3DoF
+aim to add to the evaluation table when official implemen-         translation and rotation at increasing intervals (σ) and re-
+tations are available.                                             port mean and variance after five runs (random seeds). As
+GS-LRM [100].       At the time of submission no code              satellite images have a lower sampling density compared to
+or model is available on the project web page https:               ground views, minor coordinate shifts do not significantly
+//sai-bi.github.io/project/gs-lrm/.                                impact ground NVS renders.
+
+Bolt-3D [72].    At the time of submission no code or
+                                                                   F. More Qualitative Analysis
+model is available on the project web page https://
+szymanowiczs.github.io/bolt3d.                                     We show more qualitative renders from our model. In
+Sat2Density++ [60].     At the time of submission a                Fig. 16 we show more comparisons to baseline methods.
+pretrained model is not available on the project web               In Fig. 17 we visualize side-by-side comparisons of our
+page https : / / qianmingduowan . github . io /                    ground only model (referred to as Ground in the main pa-
+sat2density-pp/.                                                   per) and our satellite enabled full model (referred to as
+                                                                   Combined in the main paper) to visually demonstrate the
+                                                                   improved coverage and completeness obtained from our
+E. More Experimental Analysis                                      full model. In Fig. 18 we visualize the outputs from the
+Here we provide more experimental analysis of the design           satellite branch independently. Finally, in Fig. 19 we com-
+choices of our proposed Cross-View Splatter.                       pare our satellite branch predictions to those obtained from
+                                                                   Sat2Density [61]. We observe that we obtain more detailed
+  * https : / / cvpr . thecvf . com / Conferences / 2025 /         BEV height map estimates as well as more realistic geome-
+ReviewerGuidelines                                                 try when we render ground views from the height estimates.
+
+
+                                                              17
+                   Table 5. Comparison to diffusion based SEVA model on our geoaligned Tanks and Temples benchmark.
+
+                                                               1 context view                2 context views            3 context views
+     Method                            GT Pose?        PSNR↑        SSIM↑       LPIPS↓   PSNR↑    SSIM↑    LPIPS↓   PSNR↑    SSIM↑    LPIPS↓
+
+
+     SEVA                                  ✓          10.39       0.3024       0.6066    12.09   0.3614   0.5284    12.65   0.3723   0.5034
+     Ours             Combined             -          11.13       0.3764       0.6286    11.67   0.3725   0.5984    12.00   0.3855 0.5699
+
+
+Table 6. GPS sensitivity analysis results for the 1-context view
+setting for Combined (Cross-View Splatter) method on Tanks &
+Temples.
+
+Trans. Noise (σ)      Combined PSNR↑ Rot. Noise (σ)           Combined PSNR↑
+0m (Manual aligned)         11.13       0◦ (Manual aligned)         11.13
+1m                      11.09 ± 0.04    5◦                      11.14 ± 0.03
+3m                      11.13 ± 0.06    10◦                     11.16 ± 0.18
+5m                      11.12 ± 0.04    15◦                     11.11 ± 0.12
+
+
+
+
+Figure 15. Limitations of satellite imagery. Notice how a build-
+ing has been rebuilt and expanded in the right frame compared to
+the left taken a few years ago. This is Family scene in Tanks and
+Temples.
+
+G. Limitations
+Our method struggles in scenarios where the ground-level
+camera observes directions that fall outside the satellite or-
+thographic view. For example, when looking upward to-
+ward the sky or downward at the ground. Because these
+look-at directions are not seen in the BEV views, their ge-
+ometry cannot be reliably inferred. The approach is also
+unsuitable for environments that are not visible from above,
+such as indoor scenes, tunnels, underpasses, or structures
+with significant overhangs. Additionally, in small-baseline,
+high-overlap input views, the advantages of incorporating
+satellite information diminishes, since ground-level geom-
+etry alone already provides sufficient coverage. Finally,
+our BEV training data is sourced primarily from USA city
+regions, which limits the model’s generalization to geo-
+graphic areas with different styles, satellite characteristics,
+or geography. There can also be inconsistencies in the satel-
+lite imagery itself; for example, if there has been a long
+temporal gap between satellite acquisition and ground-level
+capture. We illustrate such a case in Fig. 15.
+
+
+
+
+                                                                                 18
+Figure 16. Qualitative baseline comparisons. Additional qualitative comparisons of various baselines on our georeferenced Tanks and
+Temples dataset.
+
+
+
+
+                                                                19
+                   GT       Ground-Only          Full Model               GT             Ground-Only           Full Model
+  Barn
+  Ignatius
+  Family
+  cc08c0bdc34ddd
+
+
+
+
+Figure 17. Cross-View Splatter Ground-Only vs Full-Model. We visualize the benefit of Cross-View Splatter’s satellite branch on
+qualitative rendering on the Tanks and Temples and DL3DV benchmarks. Our Full-Model achieves better coverage and completeness
+compared to ground only imagery in sparse-view settings.
+
+
+
+
+                                                              20
+      Satellite      Ground Image        Pred Height       Confidence           G ground         G combined     Sat-to-Ground
+
+
+
+
+Figure 18. Cross-View Splatter satellite qualitative. We show visuals of our full-model satellite head predictions on our benchmark
+scenes. The first two rows are the inputs to the model, i.e. a BEV perspective and a ground level image. We predict height maps,
+confidence values, ground level splats, and satellite splats that can then be rendered to ground level views.
+
+
+
+
+                                                                21
+           Height Predictions                     Sat2Ground Predictions                                GT
+          Ours         Sat2Density                 Ours        Sat2Density                  Satellite        Ground Image
+
+
+
+
+Figure 19. Sat2Density [61] comparison. We compare our predictions (Columns 1-4) with Sat2Density height estimates and Sat2Density
+ground renders against the Ground Truth inputs (Columns 5-6). Both models get the same satellite image and ground image as inputs.
+
+
+
+
+                                                               22
+

@@ -1,0 +1,1588 @@
+                                         Learning Global Motion with Compact Gaussians for
+                                                  Feed-Forward 4D Reconstruction
+
+
+                                                      Mungyeom Kim1∗ Minkyeong Jeon1∗ Honggyu An1∗ Jaewoo Jung1
+                                                 Hyunah Ko1 Jisang Han1 Hyeonseo Yu1 Donghwan Shin1 Sunghwan Hong2
+                                                   Takuya Narihira3 Kazumi Fukuda3 Yuki Mitsufuji3,4† Seungryong Kim1†
+                                                     1
+                                                         KAIST AI 2 ETH Zürich, ETH AI Center         3
+                                                                                                          Sony AI   4
+                                                                                                                        Sony Group Corporation
+arXiv:2605.31595v1 [cs.CV] 29 May 2026
+
+
+
+
+                                                                              https://cvlab-kaist.github.io/C4G
+
+
+                                                                                            Abstract
+                                                         Dynamic scene reconstruction from monocular video remains a fundamental chal-
+                                                         lenge in computer vision. Existing feed-forward methods predict 3D Gaussians
+                                                         pixel-wise for each frame, suffering from duplicated Gaussians and view-dependent
+                                                         biases that hinder effective learning of scene motion. We present C4G, a feed-
+                                                         forward 4D reconstruction framework built upon a compact set of timestamp-
+                                                         conditioned learnable Gaussian query tokens. Each token aggregates corresponding
+                                                         features across the full temporal context and decodes a 3D Gaussian whose position
+                                                         is modulated by the target timestamp, enabling globally coherent motion modeling
+                                                         without per-scene optimization. To capture fine-grained details, we further intro-
+                                                         duce a video diffusion model-based rendering enhancement module. Since our
+                                                         framework effectively aggregates features into Gaussians, we extend this capability
+                                                         to feature lifting, producing a 4D feature field that supports point tracking and
+                                                         dynamic scene understanding. C4G achieves strong novel-view synthesis perfor-
+                                                         mance using significantly fewer Gaussians and without requiring camera poses,
+                                                         while exhibiting stronger motion modeling and robustness to large temporal gaps.
+
+
+                                         1    Introduction
+                                         Dynamic 4D reconstruction from monocular video is a fundamental challenge in computer vision with
+                                         broad implications for AR/VR simulation [73], robotics [69, 50], and content creation [104]. Recent
+                                         extensions of 3D Gaussian Splatting (3DGS) [39] to dynamic scenes have achieved high-fidelity 4D
+                                         reconstruction through designs such as deformable fields [106], or motion modelling [51, 98, 93].
+                                         However, these methods rely on per-scene optimization, requiring lengthy optimization for every new
+                                         video and fundamentally limiting their scalability to general-purpose video inputs.
+                                         Following the recent success of feed-forward 3DGS [9, 111], several works have sought to overcome
+                                         the limitations of per-scene optimization by learning generalizable feed-forward models for dynamic
+                                         scenes [102, 104, 58, 59, 33]. Given monocular video as input, they estimate per-pixel 3D Gaussians
+                                         in a feed-forward manner, either reconstructing the scene at specific timestamp [58, 83] or augmenting
+                                         each Gaussian with attributes such as velocity or flow to model the full 4D scene [33, 102, 104].
+                                         Despite their effectiveness on 4D reconstruction, we find that these methods exhibit critical fail-
+                                         ure modes when handling large temporal motion, as illustrated in Fig. 1-(a). When rendering at
+                                         an interpolated timestamp between input frames, per-pixel methods produce spatially duplicated
+                                         Gaussians—one set from each nearby input view—resulting in ghosting artifacts and degraded
+                                         rendering quality. Moreover, even when information from temporally distant views is necessary to fill
+                                         occluded regions (Fig. 1-(b)), these methods exhibit a strong view-dependent bias [41]: rendering at
+                                         a given timestamp relies predominantly on Gaussians from the temporally closest input view, failing
+                                         to leverage globally available information and leaving occluded regions poorly reconstructed.
+
+                                         Preprint.
+ Pixel-wise
+ Ours
+
+
+
+
+              (a) Ghost Artifacts during Interpolation       (b) Occlusion Problems in Novel-view Rendering
+Figure 1: Failures of pixel-wise feed-forward 4D reconstruction [102, 59, 104]. (a) Duplicated
+Gaussians from nearby input views cause ghost artifacts at target timestamps. (b) View-dependent
+bias prevents leveraging temporally distant views, leaving occluded regions poorly reconstructed.
+
+We argue that both issues stem from the fundamental design choice shared by all existing feed-forward
+4D methods: per-pixel Gaussian prediction. In the static setting, recent analyses [1, 67, 97] have
+already shown that pixel-aligned prediction provides excessive representational capacity, causing
+models to overfit to input-view distributions rather than learn globally consistent geometry from
+photometric supervision. This problem is further exacerbated in the 4D setting: since consecutive
+video frames exhibit smooth, gradual motion, a per-pixel model can achieve high rendering scores
+simply by interpolating Gaussians from nearby input views, without any incentive to learn the true
+underlying motion or geometry of the scene.
+To address this, we propose Compact 4D representation with Gaussians (C4G), a feed-forward
+dynamic scene reconstruction framework that replaces per-pixel prediction with learnable query-
+based prediction. Following prior work [104, 107], we extract multi-frame features with a geometric
+foundation model [92]. We then introduce a compact set of learnable queries that aggregate temporally
+and geometrically consistent information across the input frames via a transformer decoder, and
+decode them into 3D Gaussians. For temporal reasoning, we inject per-frame timestamp embeddings
+into the features and condition the queries on a target timestamp. This allows the decoded Gaussians
+to represent the scene at any moment, and dynamic scenes are obtained by decoding with varying
+target timestamps. By keeping the query set compact and aggregating across the entire input sequence,
+our design forces the Gaussians to capture global motion rather than overfitting to individual frames.
+While keeping the number of Gaussians compact is essential for the model to learn global motion,
+it inevitably introduces a trade-off with rendering quality. Although previous approaches [1, 36]
+rely on 3DGS optimization [49], it is inapplicable to dynamic scenes due to the lack of multi-view
+consistency. We therefore propose a rendering enhancement module based on a Video Diffusion
+Model (VDM) [37], which we fine-tune to refine rendered frames conditioned on the input views.
+This VDM then serves as rendering enhancer that directly improves the visual quality of renderings.
+After training, each learnable query fetches multi-frame features from spatially coherent regions
+around its corresponding Gaussian, retrieving only the information necessary to represent global
+motion. Building on this property, we propose feed-forward feature lifting network that produces
+4D feature fields, enabling point tracking and dynamic scene understanding. Whereas prior feed-
+forward 4DGS methods struggle to lift VFM features due to the input-view bias problem, our feature
+lifting decoder reuses the same learnable queries and attention patterns in C4G decoder to lift VFM
+features [85, 92] into 3D Gaussians, aggregating only those spatially coherent with each Gaussian.
+Since each Gaussian and its feature attribute originate from the same token through the same attention
+pattern, the attribute can be directly attached to its Gaussian, yielding a 4D feature field.
+To validate our framework, we conduct extensive novel-view synthesis experiments on multiple
+dynamic benchmarks [21, 73, 88, 108]. Although our compact representation uses 0.007 × or
+fewer Gaussians than per-pixel methods [102, 59, 104], it achieves state-of-the-art or competitive
+performance across all datasets by correctly modeling scene motion and aggregating information
+from the full temporal context. We further evaluate Gaussian motion estimation via 2D point tracking
+to validate our model understand the global motion, where our method substantially outperforms
+per-pixel Gaussian approaches. Finally, our 4D feature field is assessed on point tracking and dynamic
+scene understanding, confirming that the model produces meaningful 4D representations.
+
+
+                                                         2
+2     Related Works
+Per-scene Optimization-based 4D Reconstruction. Given a monocular video, traditional methods
+reconstruct non-rigid contents through RGBD sensors [6, 5, 34, 70], hand-crafted priors [45, 79, 81],
+low-rank assumptions for motion modeling [7, 14, 72], integrating monocular depth estimation
+priors [44, 56, 113] or large-scale training data [63, 94, 96, 110, 23]. Recent works extend powerful
+representations such as Neural Radiance Field (NeRF) [68] and 3D Gaussian Splatting (3DGS) [39]
+to dynamic scenarios [17, 75, 19, 64]. NeRF-based methods augment the network architecture with
+additional components such as flow fields [17, 55, 57, 90], deformable neural fields [74, 75, 77],
+dynamic time conditioning [87], or voxel-based representations [19, 8]. 3DGS-based methods further
+address NeRF’s limited rendering quality and slow rendering speeds, incorporating dynamic designs
+such as deformable fields [64, 106], 4D Gaussian primitives [100], velocity-integrated Gaussians [98],
+or motion bases [51, 93]. While these methods achieve compelling 4D reconstruction results, they
+require per-scene optimization, making it difficult to generalize across multiple scenes.
+Feed-forward 4D Reconstruction. To address these limitations, recent approaches have explored
+generalizable feed-forward networks [102, 58, 83, 23, 65, 60, 33, 104, 101] by learning priors
+from large-scale datasets or leveraging foundational priors [52, 92]. These methods either generate
+Gaussians at a specific timestamp [83, 58] or additionally predict per-Gaussian velocities to capture
+motion [102, 65, 60, 33]. Despite their success, predicting per-pixel Gaussians yields millions of
+primitives, introducing redundancy, visual artifacts, and high computational cost. Moreover, such
+per-pixel modeling induces a view-dependent bias [1, 97, 67, 41]: rendering at a given timestamp
+relies predominantly on Gaussians from the corresponding input view, and in videos with smooth
+motion, interpolating nearby per-pixel Gaussians already yields high rendering scores—providing
+little incentive to reason about long-range motion. We instead reconstruct scenes through a compact
+set of learnable query tokens, an architectural bottleneck that compels the model to aggregate temporal
+information globally.
+Towards Addressing View-dependent Bias. The tendency of reconstruction models to overfit to
+input views is a long-standing challenge in 3D reconstruction, observed in both per-scene optimiza-
+tion [15, 42, 71, 54] and feed-forward settings [26, 31, 9]. Since photometric reconstruction objectives
+alone provide insufficient signal for the model to learn globally consistent geometry, existing works
+incorporate geometric regularizations such as monocular depth priors [80, 86, 91, 54], opacity con-
+straints [42, 103], novel view self-supervision [71, 46, 38], or epipolar supervision [9, 10, 99, 27].
+This challenge is especially pronounced in dynamic scenes, where moving regions inherently break
+multi-view consistency, necessitating expert geometric models [93, 98] or explicit motion con-
+straints [93, 51]. On the architectural side, recent works show that reducing Gaussian redundancy
+itself mitigates view-dependent bias: EvolSplat [67] and VolSplat [97] estimate Gaussians per voxel
+only when needed, while C3G [1] predicts a compact set of Gaussians through learnable query tokens.
+
+3     Methodology
+We propose C4G, a learnable query-based framework that takes dynamic monocular videos as input
+and produces a compact representation of dynamic scenes. We begin by describing our problem
+formulation (§ 3.1), followed by our architecture design including 4D Gaussian reconstruction module
+and VDM refinement module (§ 3.2), analysis of emergent properties in our trained C4G (§ 3.3) and
+feature lifting decoder based on findings of analysis (§ 3.4).
+
+3.1   Problem Setup
+
+Given a monocular video V = {It ∈ RH×W ×3 }Tt=1 with T frames of width W and height H, and
+corresponding timestamps T = {t ∈ R}Tt=1 , our goal is to build a feed-forward model that render
+high-quality novel views at arbitrary timestamps tb ∈ [1, T ] without any calibrated camera poses.
+Given a set of context frames Vc ⊆ V along with their corresponding timestamps Tc ⊆ T , the model
+outputs a compact set of N 3D Gaussians {Gitb }N    i=1 representing the scene at a target timestamp
+tb . Each Gaussian is defined as Gi = {µi , σ i , Σi , ci }, where µi ∈ R3 denotes the mean position,
+                                                                               2
+σ i ∈ [0, 1) the opacity, Σi ∈ R3×3 the covariance matrix, and ci ∈ R3(l+1) the view-dependent
+color encoded via spherical harmonics [20] with l levels. Iterating over tb ∈ T yields a full dynamic
+reconstruction, enabling on-demand scene reconstruction at any moment within the temporal context.
+
+
+                                                   3
+3.2   Compact 4D Representation with Gaussians
+
+As shown in Fig. 2-(a), prior               Source Video
+works [104, 102, 59] that estimate per-                                        //
+pixel Gaussians in dynamic settings         𝑡!
+                                                                       //
+produce redundant Gaussians tied to
+individual input views, where each
+
+
+
+
+                                                  …
+                                                                      Novel view         Novel view
+Gaussian contributes reliably only
+near its observed timestamp. This           𝑡"
+leads to the model failing to cap-                                    //     //
+ture the actual scene motion, where                            (a) Pixel-wise 4DGS      (b) Ours
+rendering at an interpolated times-        Figure 2: Pixel-wise 4DGS vs. Ours. (a) Pixel-wise
+tamp results in duplicated Gaussians       methods produce duplicated, view-dependent Gaussians that
+at inconsistent spatial locations—one      cause ghosting at interpolated timestamps. (b) Our approach
+set from each nearby input view—           aggregate global temporal context, yielding a compact, uni-
+causing ghosting artifacts and de-         fied Gaussian set with temporally coherent motion.
+graded rendering quality.
+To overcome this limitation, we propose a time-conditioned, query-based transformer decoder that
+employs a compact set of learnable queries to aggregate multi-frame information via full self-attention
+to better model the scene motion as shown in Fig. 2-(b). Overall architecture is illustrated in Fig. 3.
+Visual Feature Extractor. To learn to decode compact set of Gaussians, we first extract geometry-
+grounded features Ft ∈ Rh×w×d for each frame It using an encoder E(·), where h, w, and d denote
+height, width and dimension of feature map. Following prior works [36], we initialize our backbone
+from VGGT [92] weights, which provide strong geometry priors learned from large-scale data.
+Query-based Gaussian Decoder. Based on the extracted multi-view features, we adopt a query-
+based transformer decoder DG that introduces a limited set of learnable queries further decoded into
+Gaussians through interaction with extracted features F within the transformer. Specifically, we
+introduce a fixed number of N learnable query tokens Q ∈ RN ×d which are then concatenated with
+visual features [Q; F], where [; ] denotes concatenation. These combined features are passed through
+L transformer layers with full self-attention, enabling bidirectional information interaction as follows:
+                                          [Q̄; F̄] = DG ([Q; F]),                                     (1)
+where Q̄ and F̄ denote refined queries and features, respectively. The refined query token Q̄i ∈ Rd is
+then mapped to a 3D Gaussian Gi through a Gaussian head consisting of a single MLP layer.
+Time Embedding. To make the model temporally aware, we incorporate learnable timestamp
+embeddings into both the visual features and the learnable query tokens. First, we inject per-frame
+timestamp embeddings t into the visual features of each context frame Ft , enabling the model to
+distinguish the temporal origin of each input view. Then, to generate Gaussians at a desired target time
+moment tb , we condition the learnable query tokens Q on the corresponding timestamp embedding
+tb , making the decoded Gaussians aware of the rendering time they should represent:
+                           F̂t = Ft + H(ψ(t)),             Q̂tb = Q + H(ψ(tb )),                      (2)
+where ψ denotes the sinusoidal positional embedding and H denotes a two-layer MLP. These time-
+embedded features {F̂t }Tt=1 and queries Q̂′tb are then fed into the Gaussian decoder.
+This simple design offers two key benefits. First, the limited number of Gaussians forces the model to
+represent both static and dynamic regions with the same tokens, encouraging it to learn the underlying
+motion rather than memorize individual frames. Second, it enables efficient 4D reconstruction:
+by extracting visual features once and varying only the target timestamp tb across the lightweight
+transformer decoder, we decode Gaussians at arbitrary timestamps while reusing the same queries
+and features. As each query yields temporally smooth Gaussians under varying tb , the dynamic scene
+is represented both compactly and efficiently.
+Rendering Enhancement. Keeping the number of Gaussians compact is essential for learning global
+motion, but inevitably trades off against rendering quality in high-frequency regions. Prior feed-
+forward 3DGS models [1, 36] recover fine-grained details via test-time optimization with 3DGS [39],
+yet this is not directly applicable to dynamic scenes since 3DGS assumes static scenes with multi-view
+consistency. Meanwhile, recent works [49, 82] leverage Video Diffusion Models (VDMs) [89, 37] to
+
+
+                                                           4
+                                                                                                                                                                            Frame              Mask
+                                                                                                                                                                                                                         Control Module
+
+
+
+
+                                                                                                                                           Rendered View Context View
+
+
+
+
+                                                                                                                                                                                                Inactive
+
+
+
+
+                                                                                                                                                                                                                       Control Block
+                                                                                                                                                                                                                                       Control Block
+
+
+
+                                                                                                                                                                                                                                                           Control Block
+                                                                                                                  Gaussian Head
+                                        Target View
+
+
+
+
+                                                                                                                                                                                                           Video VAE
+                    Learnable Query
+
+
+
+
+                                                                                                                                                                                                            Encoder
+                    Feature Token                                                                                                                                                                                                                      …
+                    Time Embedding
+
+
+
+
+                                                                                                                                                                                                Reactive
+                                                                Transformer Block
+
+                                                                                    Transformer Block
+               t#    Target Timestamp
+
+
+
+
+                                                      ℋ(𝜓 𝑡 )
+                    Context Timestamp
+
+                    Frame
+
+
+
+
+                                                                                                                                                                             Video Captioner
+                                                                                                          Novel View                                                                                                                                                                   Refined Video
+               t"
+Context View
+
+
+
+
+                                                                                                          Rendering
+
+
+
+
+                                                                                                                                                                                                                                                                           Video VAE
+                                                                                                                                                                                                                       DiT Block
+                                                                                                                                                                                                                                       DiT Block
+
+
+
+                                                                                                                                                                                                                                                           DiT Block
+
+
+
+                                                                                                                                                                                                                                                                            Decoder
+                                                                                                                                                                                                                                                       …
+                               ℰ
+               …
+
+
+
+
+                                                                                                                                  Target
+                                                                                                                                   View                                                        Noise
+                                                                                                                                                                               “A collection of
+               t!                                                                                                                                                            discarded, colorful
+                                                                                                        Context                                                                plastic objects
+                                                                                                         View                                                                scattered over … ”                                        Video DiT
+
+                         (a) 4D Gaussian Reconstruction Module                                                                                                                                                (b) VDM Refinement Module
+
+Figure 3: Main architecture of C4G. (a) A pre-trained encoder E extracts timestamp-injected
+features, which are decoded into 3D Gaussians by learnable query tokens conditioned on a target
+timestamp tb . (b) A VDM refinement module that takes the rendered video as input and refines it
+conditioned on the context views.
+
+generate dynamic scenes while preserving static geometry, typically by warping point maps to novel
+viewpoints and relying on the diffusion model to fill holes and synthesize dynamic content.
+In contrast, our method renders a geometrically coherent novel-view image that encompasses both
+static and dynamic components without producing disocclusion artifacts, allowing the VDM to focus
+solely on enhancing fine-grained scene details. Specifically, we adopt Wan2.1-VACE-1.3B [37],
+a diffusion model that learns to generate video conditioned on reference images following the
+ControlNet [112]. Given a context video Vc and rendered videos Ṽt from novel camera poses Pt , we
+use the context video as a reference to provide the diffusion model with hints for refinement, while
+the rendered videos serve as the generation targets. Following [37], we assign a context mask Mc = 0
+to the context frames (inactive) and a target mask Mt = 1 to the rendered frames (reactive) as control
+block inputs. We encode reactive zreactive and inactive latents zinactive using VAE encoder EVAE (·):
+                                                            zreactive = [EVAE (Vc · Mc ); EVAE (Ṽt · Mt )],                                                                                                                                                                                   (3)
+                       zinactive = [EVAE (Vc · (1 − Mc )); EVAE (Ṽt · (1 − Mt ))].                  (4)
+We feed concatenation of inactive, reactive latents and masks into the control blocks, whose output
+features are added to the corresponding layers of the original VDM [89]. After training, it serves as a
+post-processing step that refines C4G outputs through iterative denoising. Further details are in § A.4.
+Loss Functions. The 4D Gaussian reconstruction module is supervised by a photometric loss Lcolor ,
+which combines MSE and LPIPS losses computed on target viewpoints. However, dynamic regions
+provide limited multi-view consistency cues, making it difficult to recover accurate geometry from
+monocular video alone. We therefore introduce two auxiliary supervision signals derived from
+foundation models: depth and normal losses (Ldepth , Lnormal ) from MoGe-2 [95] to improve geometric
+fidelity, and a tracking loss Ltrack from CowTracker [47] to strengthen motion modeling.
+The VDM refinement module is conditioned on the VACE context features—extracted from the
+renderings of the 4D reconstruction module and the context images—together with a text prompt
+generated by Qwen3-VL-8B-Instruct [3]. Given these conditions, the VDM generates refined
+renderings from noise and is trained with flow matching [61]. Further details are provided in § A.2.
+
+3.3                 Analysis of Emergent Properties
+
+While trained solely with the rendering loss, we observe that introducing a compact set of query
+tokens enables our model to better capture global motion and scene geometry, in contrast to per-pixel
+methods that tend to overfit to individual input views. To investigate how this capability emerges,
+we examine how the learnable query tokens aggregate multi-frame features in dynamic scenes.
+Specifically, we visualize the attention maps inside the self-attention layers of DG , where queries are
+taken from the time-conditioned learnable tokens Q̂tb and keys from the visual features {F̂t }Tt=1 .
+
+
+                                                                                                                                                                        5
+                                                                                                  Query Gaussians
+             𝑡!      𝑡&       𝑡%      𝑡(         𝑡'         𝑡!$        𝑡#     𝑡!"
+
+Context
+Frames
+
+
+
+
+                                                                                         Novel View Target Frames
+ Layer 1
+ Layer 2
+
+
+
+
+Figure 4: Analysis of attention patterns. Visualization of attention maps between the learnable
+query tokens and multi-frame image features. For the query token decoding a specific Gaussian (red
+dot), the two self-attention layers exhibit complementary behaviors: the first attends to geometrically
+corresponding regions across all frames, while the second concentrates on frames temporally close to
+the target timestamp.
+
+
+As shown in Fig. 4, our model exhibits a clear emergent property in its attention behavior, where the
+two self-attention layers play complementary roles. The first layer attends broadly to geometrically
+corresponding regions across all frames without explicit supervision, while the second focuses on
+frames temporally close to the target timestamp tb . Together, they yield attention maps that are both
+spatially and temporally aware, allowing each query to retrieve only the features needed to decode
+its Gaussian. We believe this arises from an implicit optimization pressure: to reconstruct dynamic
+scenes at arbitrary timestamps with a limited number of Gaussians, the model is compelled to position
+them at geometrically coherent regions while reasoning about scene motion across frames.
+
+
+3.4        Any-feature 4D Lifting
+
+Thanks to this emergent property, we observe that the learned attention maps of DG can be directly
+leveraged to lift arbitrary 2D vision foundation model (VFM) features into 4D in a feed-forward
+manner. Such 4D feature lifting is essential for a wide range of downstream applications, including
+dynamic 3D scene understanding and 4D correspondence. However, extending feed-forward 4DGS
+networks to support feature lifting has remained fundamentally difficult as their overfitting to input
+views prevents them from modeling global scene motion, which is an essential prerequisite for
+resolving which 2D feature corresponds to which 3D Gaussian across frames. As a result, existing 4D
+feature lifting approaches [114, 35] have been confined to per-scene optimization, relying on explicit
+backward warping along Gaussian trajectories and incurring substantial computational overhead.
+Leveraging the emergent properties of DG , which already aggregates multi-frame features in a globally
+consistent manner, we overcome this limitation and present the first feed-forward feature-lifting
+architecture that directly generates 4D feature fields.
+View-invariant 4D Feature Decoder. Specifically, following [1], we design a feature decoder DF
+that mirrors the architecture of DG and reuses its attention patterns to aggregate features from any
+VFM. DF takes as input the features F′t = E ′ (It ) extracted by an arbitrary vision encoder E ′ (e.g.,
+DINOv3 [85] or VGGT [92]), together with the same learnable queries Q used in DG :
+
+
+                                       [Q̄′ ; F̄′ ] = DF ([Q; F′ ]),                                                (5)
+
+
+where Q̄′ denotes the queries refined by the feature decoder. To exploit the learned attention patterns,
+we reuse the queries and keys from DG and train only the value projection layers. The refined queries
+are then passed through a single-MLP head to produce the feature attribute of each Gaussian. Since
+the Gaussians and feature attributes are generated from the same learnable tokens, augmenting each
+Gaussian with its feature attribute naturally yields a 4D feature field. Further details are in § A.3.
+
+
+                                                      6
+Table 1: Quantitative results of novel view synthesis on dynamic datasets. Our model achieves
+superior rendering quality across all datasets without requiring GT poses, while using a limited
+number of Gaussians. Bold denotes the best and underline denotes the secondary performance.
+                          Per                        DyCheck [21]                     ADT [73]            TUM-Dynamics [88]             NVIDIA [108]
+ Methods                 scene    Pose   #G ↓
+                                                PSNR↑ SSIM↑ LPIPS↓           PSNR↑     SSIM↑ LPIPS↓     PSNR↑ SSIM↑ LPIPS↓          PSNR↑ SSIM↑ LPIPS↓
+ Shape of Motion [93]        ✓     ✓     128K     14.13   0.313     0.690       -        -       -      14.29     0.453   0.552      10.86     0.280    0.791
+ MoSca [51]                  ✓     ✓     342K     11.93   0.252     0.700     2.419    0.343   0.892    9.765     0.247   0.654      12.62     0.269    0.691
+ 4DGT [102]                  ✗     ✓     272K     12.15   0.247     0.477     19.22    0.717   0.260    17.27     0.578   0.329      15.64     0.349    0.614
+ MoVieS [59]                 ✗     ✓     802K     11.99   0.352     0.359     20.35    0.526   0.394    14.91     0.378   0.395      13.71     0.211    0.596
+ NeoVerse [104]              ✗     ✗     802K     11.90   0.251     0.450     21.94    0.629   0.270    15.26     0.437   0.415      15.86     0.322    0.492
+ Ours                        ✗     ✗      2K      15.64   0.388     0.384     22.35    0.631   0.313    19.52     0.603   0.306      20.51     0.489    0.393
+
+Table 2: Quantitative results of novel view synthesis with various interval ∆t on TUM-Dynamics.
+Across varying temporal gaps between input frames, our model consistently maintains high-quality
+novel-view synthesis. Bold denotes the best and underline denotes the secondary performance.
+                                          ∆t = 2                            ∆t = 4                       ∆t = 6                              ∆t = 8
+ Methods                Pose
+                                 PSNR↑    SSIM↑      LPIPS↓       PSNR↑     SSIM↑     LPIPS↓   PSNR↑     SSIM↑      LPIPS↓    PSNR↑          SSIM↑     LPIPS↓
+ 4DGT [102]              ✓       19.27    0.674       0.251       18.08     0.623     0.297     17.27     0.578      0.329        16.27      0.547     0.351
+ MoVieS [59]             ✓       16.30    0.441       0.314       15.93     0.432     0.334     14.91     0.378      0.395        14.23      0.322     0.428
+ NeoVerse [104]          ✗       20.14    0.671       0.216       18.23     0.575     0.296     15.26     0.437      0.415        15.94      0.475     0.387
+ Ours                    ✗       20.59    0.647       0.267       20.00     0.619     0.290     19.52     0.603      0.306        19.23      0.599     0.311
+
+
+4     Experiments
+4.1     Implementation Details
+
+We set the number of learnable queries to N = 2048 and using L = 2 transformer layers, with
+VGGT [92] as the visual encoder E(·). For the Gaussian representation, we adopt the standard
+3DGS [39] formulation but fix the spherical harmonic degree to 0, representing appearance as a
+single RGB color per Gaussian. This choice suppresses view-directional biases and improves training
+stability. For training, we use input images of resolution 224 × 224. We use Spring [66], Kubric [22]
+and RealEstate10K [115] datasets. The loss weights are set to λdepth = 0.001, λnormal = 0.001, and
+λtrack = 0.1. We optimize the model using the AdamW optimizer [62] with separate learning rates of
+1e−5 for the transformer decoder and 1e−7 for the visual backbone, combined with a cosine annealing
+scheduler that decays to 0.1 of the initial learning rate. Training is conducted with a per-GPU batch
+size of 1 across 4 NVIDIA H100 GPUs. To stabilize training, we initialize the model from C3G
+weights pretrained on static scenes, allowing the optimization to focus on the dynamic modeling.
+Further dataset and evaluation details are described in § A.5 and B.
+
+4.2     Evaluation Setting
+
+We evaluate novel-view synthesis performance across four dynamic datasets, each targeting a distinct
+aspect of dynamic scene reconstruction. DyCheck [21] captures each scene using one casually
+moving camera and two fixed cameras at synchronized time intervals. Following NeoVerse [104],
+we sample T = 64 consecutive timestamps per scene, using 32 frames at stride 2 from the casually-
+captured video (camera 0) as context input Vc and all 64 frames from a fixed-camera video (camera
+1) as evaluation targets. Metrics are computed exclusively over co-visible regions using co-visibility
+masks [93]. This setting evaluates novel-view synthesis at observed timestamps during input,
+assessing the model’s ability to render unseen viewpoints at known times. ADT [73], TUM-
+Dynamics [88], and NVIDIA [108] each provide a single camera trajectory per scene. We select
+16 temporally strided frames with stride ∆t as context input and evaluate on mid-frames between
+consecutive context frames. By default, we set ∆t = 6 for ADT and TUM-Dynamics, and ∆t = 2
+for NVIDIA. This setting evaluates novel-view synthesis at unobserved timestamps during input,
+assessing the model’s capacity for temporal interpolation and global motion understanding.
+
+4.3     Novel View Synthesis
+
+We compare against per-scene optimization methods [93, 51] and feed-forward dynamic 3DGS
+networks, categorized into pose-required [102, 59] and pose-free [104] settings. As shown in Tab. 1
+and Fig. 5, C4G achieves superior rendering quality across all dynamic datasets without requiring
+ground-truth poses, using only 0.007× or fewer Gaussians compared to competing methods. Per-
+scene optimization methods tend to overfit to sparse context input views or fail to reconstruct entirely
+(e.g., Shape of Motion on the ADT dataset), resulting in degraded multi-view consistency and poor
+
+
+                                                                                7
+GT
+           Rendered
+Neoverse
+           Refined
+           Rendered
+Ours
+           Refined
+
+
+
+
+Figure 5: Qualitative results of novel view synthesis on dynamic datasets. We further provide
+qualitative comparisons between NeoVerse and C4G, showing both the rendered outputs of the
+feed-forward reconstruction model and the results after diffusion-based refinement. Our model
+exhibits fewer occlusion holes and ghost artifacts than NeoVerse, thereby mitigating hallucinations
+introduced by the diffusion-based enhancement module.
+                      Table 3: Temporal-invariant feature.                              Table 4: Dynamic scene understanding
+                                  RGB-stacking [48, 16]            DAVIS [76, 16]                                    DAVIS [76]
+   Methods                                                                               Methods
+                               < δ 0 < δ 2 < δ 4 < δavg z
+                                                            < δ0   < δ 2 < δ 4 < δavg
+                                                                                  z                  mIOU↑   Acc↑     PSNR↑ SSIM↑      LPIPS↓
+   DINOv3-L [85]                1.3   11.3   65.6   23.2    0.6     6.2   40.7   13.7    LSeg [53]   0.550   0.801      -        -       -
+   DINOv3-L [85] + Ours         6.9   38.3   74.4   39.3    2.2    19.8   63.1   27.1
+                                                                                         LSM [18]    0.615   0.844    14.320   0.310   0.517
+   VGGT-Tracking [92]           1.1   15.9   63.6   24.8    2.7    17.9   54.0   23.1    C3G [1]     0.345   0.528    18.623   0.376   0.460
+   VGGT-Tracking [92] + Ours    4.9   28.7   68.0   33.0    4.4    23.4   68.7   30.5    Ours        0.634   0.854    20.181   0.426   0.359
+
+
+
+novel-view rendering quality. Feed-forward baselines suffer from per-view timestamp overfitting due
+to their pixel-wise prediction design, which limits their ability to capture global scene motion and
+introduces ghosting artifacts at novel viewpoints.
+In contrast, our model assigns each learnable query token to a distinct semantic region of the
+scene, enabling it to capture the full motion trajectory of that region across time. By aggregating
+information across all input views, this design encourages a more complete understanding of scene
+dynamics and constrains each Gaussian to occupy geometrically plausible locations even at unseen
+timestamps. This advantage is particularly evident on DyCheck [21], where existing methods that
+model individual timestamps tend to rely exclusively on Gaussians from temporally nearby frames,
+suppressing temporally distant Gaussians by zeroing out their opacity σ i , which introduces hole
+artifacts in the rendered output. In contrast, our model conditions Gaussian placement on the full
+global temporal context regardless of the target timestamp, enabling complete scene coverage and
+eliminating such artifacts. We further provide qualitative comparisons between NeoVerse and C4G in
+Fig. 5, showing both the rendered outputs of the feed-forward reconstruction model and the results
+after diffusion-based refinement. As shown, our model produces fewer occlusion holes and ghost
+artifacts than NeoVerse, providing cleaner anchors to the diffusion module and thereby mitigating
+hallucinations during refinement.
+We further evaluate the robustness of feed-forward models to temporally sparse inputs in Tab. 2.
+Specifically, we vary the input stride ∆t ∈ {2, 4, 6, 8} on the TUM-Dynamics [88] and measure
+novel-view synthesis quality. As shown, ours exhibits significantly less performance degradation as
+the temporal gap increases compared others. We attribute this to the inherent limitation of pixel-wise
+methods: each Gaussian represents only temporally nearby regions relative to its observed timestamp,
+making it difficult to bridge large inter-frame displacements that demand a broader understanding of
+object motion. In contrast, our model leverages learnable tokens to aggregate information across the
+full temporal context, enabling robust novel-view synthesis even under large temporal gaps.
+
+
+                                                                          8
+Table 5: Ablation studies on time embedding.                                  Table 6: Ablation studies on loss function.
+  Positional                  DyCheck [21]         TUM-Dynamics [88]                                     DyCheck [21]         TUM-Dynamics [88]
+                 Dim.                                                       Methods
+ Embeddings             PSNR ↑ SSIM ↑ LPIPS ↓   PSNR ↑ SSIM ↑ LPIPS ↓                              PSNR ↑ SSIM ↑ LPIPS ↓   PSNR ↑ SSIM ↑ LPIPS ↓
+
+      RoPE         -    12.73   0.302   0.520   14.90   0.349   0.571       Ours                   15.54   0.383   0.385   18.94   0.575   0.341
+    Sinusoidal    64    15.31   0.382   0.397   18.65   0.559   0.363       w/o Ltrack             15.46   0.381   0.390   18.97   0.574   0.342
+    Sinusoidal   128    15.39   0.377   0.388   18.67   0.560   0.355       w/o Ldepth             15.50   0.381   0.385   18.35   0.557   0.357
+    Sinusoidal   256    15.54   0.383   0.385   18.94   0.575   0.341       w/o Lnormal            15.41   0.390   0.389   17.86   0.537   0.375
+    Sinusoidal   512    15.54   0.386   0.391   18.90   0.572   0.345       w/o Ldepth , Lnormal   15.21   0.377   0.397   18.80   0.568   0.347
+
+
+
+4.4       Feature Lifting
+
+Temporal-invariant Feature Field. To validate the effectiveness of our 4D feature field, we conduct
+experiments on point tracking and scene understanding, following the evaluation protocol of TAP-
+Vid [16]. Specifically, we extract per-frame features and perform nearest-neighbor matching based
+on feature similarity. A well-constructed 4D feature field should yield projected features that are
+more temporally and geometrically consistent than the original 2D features. As shown in Tab. 3,
+features projected from our 4D field outperform the original vision foundation model features (e.g.,
+DINOv3 [85] and VGGT [92]), demonstrating that our model produces a 4D feature field with
+improved geometric and temporal consistency.
+Dynamic Scene Understanding. For scene understanding, our framework can lift arbitrary 2D
+features into the Gaussian field, allowing it to leverage semantically rich foundation models such as
+CLIP [78] and LSeg [53]. Each Gaussian is thus augmented with a semantic embedding that remains
+consistent across both viewpoints and timestamps, enabling open-vocabulary reasoning [40, 84, 13]
+directly in the 4D space. We evaluate this on the DAVIS dataset [76], using a subset of sequences in
+which LSeg can reliably distinguish foreground objects. As shown in Tab. 4, our model significantly
+outperforms prior feed-forward scene understanding methods, which are largely restricted to static
+scenes. Moreover, by aggregating features across multiple frames, our model also surpasses LSeg
+itself, demonstrating that the proposed 4D feature field not only inherits the semantic priors of
+foundation models but further enhances them through temporally coherent aggregation.
+Together, these results demonstrate that our 4D feature field offers a compact yet expressive repre-
+sentation that maintains consistency across both spatial and temporal axes. Furthermore, by lifting
+semantically rich features into each Gaussian, the field naturally augments per-Gaussian semantic
+information, enabling spatially and temporally coherent dynamic scene understanding.
+
+4.5       Ablation Studies
+
+We conduct ablation studies on the time embedding and loss function designs to validate the con-
+tribution of each component. In Tab. 5, we ablate the choice of time embedding used to condition
+the learnable query tokens on the target timestamp. The results show that sinusoidal embeddings
+consistently outperform RoPE embeddings, and increasing the embedding dimensionality yields
+steady improvements up to 256, beyond which returns saturate.
+In Tab. 6, we ablate the contribution of each loss term. The results demonstrate that expert-guided su-
+pervision signals, specifically depth Ldepth , normal Lnormal and tracking Ltrack , substantially improves
+performance over training with photometric loss Lcolor alone, confirming that these auxiliary losses
+are critical for alleviating the geometric ambiguity inherent in monocular dynamic reconstruction.
+
+5        Conclusion
+In this work, we present C4G, a feed-forward framework for dynamic scene reconstruction from
+monocular video that departs from pixel-wise Gaussian prediction. By introducing a compact set
+of timestamp-conditioned learnable query tokens, C4G aggregates multi-frame features across the
+full temporal context and decodes 3D Gaussians whose positions are adaptively modulated by the
+target timestamp. This globally motion-aware Gaussian representation further supports a range of
+downstream applications, including VDM-based rendering enhancement, point tracking, and 4D
+feature lifting. Across multiple benchmarks, C4G consistently outperforms existing feed-forward
+dynamic 3DGS methods—without requiring ground-truth poses, using significantly fewer Gaussians,
+and demonstrating particular robustness to large temporal gaps.
+
+
+
+
+                                                                        9
+References
+ [1] An, H., Jung, J., Kim, M., Hong, S., Kim, C., Fukuda, K., Jeon, M., Han, J., Narihira, T.,
+     Ko, H., et al.: C3g: Learning compact 3d representations with 2k gaussians. arXiv preprint
+     arXiv:2512.04021 (2025)
+
+ [2] An, H., Kim, J.H., Park, S., Jung, J., Han, J., Hong, S., Kim, S.: Cross-view completion
+     models are zero-shot correspondence estimators. In: Proceedings of the Computer Vision and
+     Pattern Recognition Conference. pp. 1103–1115 (2025)
+
+ [3] Bai, S., Cai, Y., Chen, R., Chen, K., Chen, X., Cheng, Z., Deng, L., Ding, W., Gao, C., Ge, C.,
+     Ge, W., Guo, Z., Huang, Q., Huang, J., Huang, F., Hui, B., Jiang, S., Li, Z., Li, M., Li, M.,
+     Li, K., Lin, Z., Lin, J., Liu, X., Liu, J., Liu, C., Liu, Y., Liu, D., Liu, S., Lu, D., Luo, R., Lv,
+     C., Men, R., Meng, L., Ren, X., Ren, X., Song, S., Sun, Y., Tang, J., Tu, J., Wan, J., Wang, P.,
+     Wang, P., Wang, Q., Wang, Y., Xie, T., Xu, Y., Xu, H., Xu, J., Yang, Z., Yang, M., Yang, J.,
+     Yang, A., Yu, B., Zhang, F., Zhang, H., Zhang, X., Zheng, B., Zhong, H., Zhou, J., Zhou, F.,
+     Zhou, J., Zhu, Y., Zhu, K.: Qwen3-vl technical report. arXiv preprint arXiv:2511.21631 (2025)
+
+ [4] Balasingam, A., Chandler, J., Li, C., Zhang, Z., Balakrishnan, H.: Drivetrack: A benchmark for
+     long-range point tracking in real-world videos. In: Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition. pp. 22488–22497 (2024)
+
+ [5] Bartle, A., Sheffer, A., Kim, V.G., Kaufman, D.M., Vining, N., Berthouzoz, F.: Physics-driven
+     pattern adjustment for direct 3d garment editing. ACM Trans. Graph. 35(4), 50–1 (2016)
+
+ [6] Bozic, A., Zollhofer, M., Theobalt, C., Nießner, M.: Deepdeform: Learning non-rigid rgb-d
+     reconstruction with semi-supervised data. In: Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition. pp. 7002–7012 (2020)
+
+ [7] Bregler, C., Hertzmann, A., Biermann, H.: Recovering non-rigid 3d shape from image streams.
+     In: Proceedings IEEE Conference on Computer Vision and Pattern Recognition. CVPR 2000
+     (Cat. No. PR00662). vol. 2, pp. 690–696. IEEE (2000)
+
+ [8] Cao, A., Johnson, J.: Hexplane: A fast representation for dynamic scenes. In: Proceedings of
+     the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 130–141 (2023)
+
+ [9] Charatan, D., Li, S.L., Tagliasacchi, A., Sitzmann, V.: pixelsplat: 3d gaussian splats from
+     image pairs for scalable generalizable 3d reconstruction. In: Proceedings of the IEEE/CVF
+     conference on computer vision and pattern recognition. pp. 19457–19467 (2024)
+
+[10] Chen, Y., Xu, H., Zheng, C., Zhuang, B., Pollefeys, M., Geiger, A., Cham, T.J., Cai, J.: Mvsplat:
+     Efficient 3d gaussian splatting from sparse multi-view images. In: European conference on
+     computer vision. pp. 370–386. Springer (2024)
+
+[11] Cho, S., Hong, S., Jeon, S., Lee, Y., Sohn, K., Kim, S.: Cats: Cost aggregation transformers for
+     visual correspondence. Advances in Neural Information Processing Systems 34, 9011–9023
+     (2021)
+
+[12] Cho, S., Hong, S., Kim, S.: Cats++: Boosting cost aggregation with convolutions and
+     transformers. IEEE Transactions on Pattern Analysis and Machine Intelligence 45(6), 7174–
+     7194 (2022)
+
+[13] Cho, S., Shin, H., Hong, S., Arnab, A., Seo, P.H., Kim, S.: Cat-seg: Cost aggregation for
+     open-vocabulary semantic segmentation. In: Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition. pp. 4113–4123 (2024)
+
+[14] Dai, Y., Li, H., He, M.: A simple prior-free method for non-rigid structure-from-motion
+     factorization. International Journal of Computer Vision 107(2), 101–122 (2014)
+
+[15] Deng, K., Liu, A., Zhu, J.Y., Ramanan, D.: Depth-supervised nerf: Fewer views and faster
+     training for free. In: Proceedings of the IEEE/CVF conference on computer vision and pattern
+     recognition. pp. 12882–12891 (2022)
+
+
+                                                  10
+[16] Doersch, C., Gupta, A., Markeeva, L., Recasens, A., Smaira, L., Aytar, Y., Carreira, J.,
+     Zisserman, A., Yang, Y.: Tap-vid: A benchmark for tracking any point in a video. Advances in
+     Neural Information Processing Systems 35, 13610–13626 (2022)
+[17] Du, Y., Zhang, Y., Yu, H.X., Tenenbaum, J.B., Wu, J.: Neural radiance flow for 4d view
+     synthesis and video processing. In: 2021 IEEE/CVF International Conference on Computer
+     Vision (ICCV). pp. 14304–14314. IEEE Computer Society (2021)
+[18] Fan, Z., Zhang, J., Cong, W., Wang, P., Li, R., Wen, K., Zhou, S., Kadambi, A., Wang, Z., Xu,
+     D., et al.: Large spatial model: End-to-end unposed images to semantic 3d. Advances in neural
+     information processing systems 37, 40212–40229 (2024)
+[19] Fridovich-Keil, S., Meanti, G., Warburg, F.R., Recht, B., Kanazawa, A.: K-planes: Explicit
+     radiance fields in space, time, and appearance. In: Proceedings of the IEEE/CVF conference
+     on computer vision and pattern recognition. pp. 12479–12488 (2023)
+[20] Fridovich-Keil, S., Yu, A., Tancik, M., Chen, Q., Recht, B., Kanazawa, A.: Plenoxels: Radiance
+     fields without neural networks. In: Proceedings of the IEEE/CVF conference on computer
+     vision and pattern recognition. pp. 5501–5510 (2022)
+[21] Gao, H., Li, R., Tulsiani, S., Russell, B., Kanazawa, A.: Monocular dynamic view synthesis:
+     A reality check. Advances in Neural Information Processing Systems 35, 33768–33780 (2022)
+[22] Greff, K., Belletti, F., Beyer, L., Doersch, C., Du, Y., Duckworth, D., Fleet, D.J., Gnanapra-
+     gasam, D., Golemo, F., Herrmann, C., et al.: Kubric: A scalable dataset generator. In: Proceed-
+     ings of the IEEE/CVF conference on computer vision and pattern recognition. pp. 3749–3761
+     (2022)
+[23] Han, J., An, H., Jung, J., Narihira, T., Seo, J., Fukuda, K., Kim, C., Hong, S., Mitsufuji, Y.,
+     Kim, S.: Dˆ 2ust3r: Enhancing 3d reconstruction with 4d pointmaps for dynamic scenes. arXiv
+     e-prints pp. arXiv–2504 (2025)
+[24] Han, J., Hong, S., Jung, J., Jang, W., An, H., Wang, Q., Kim, S., Feng, C.: Emergent outlier
+     view rejection in visual geometry grounded transformers. arXiv preprint arXiv:2512.04012
+     (2025)
+[25] Hong, S., Cho, S., Kim, S., Lin, S.: Integrative feature and cost aggregation with transformers
+     for dense correspondence. arXiv preprint arXiv:2209.08742 (2022)
+[26] Hong, S., Jung, J., Shin, H., Han, J., Yang, J., Luo, C., Kim, S.: Pf3plat: Pose-free feed-forward
+     3d gaussian splatting. arXiv preprint arXiv:2410.22128 (2024)
+[27] Hong, S., Jung, J., Shin, H., Yang, J., Kim, S., Luo, C.: Unifying correspondence pose and nerf
+     for generalized pose-free novel view synthesis. In: Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition. pp. 20196–20206 (2024)
+[28] Hong, S., Kim, S.: Deep matching prior: Test-time optimization for dense correspondence. In:
+     Proceedings of the IEEE/CVF international conference on computer vision. pp. 9907–9917
+     (2021)
+[29] Hong, S., Nam, J., Cho, S., Hong, S., Jeon, S., Min, D., Kim, S.: Neural matching fields:
+     Implicit representation of matching fields for visual correspondence. Advances in Neural
+     Information Processing Systems 35, 13512–13526 (2022)
+[30] Hu, E.J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., Chen, W., et al.: Lora:
+     Low-rank adaptation of large language models. Iclr 1(2), 3 (2022)
+[31] Huang, R., Mikolajczyk, K.: No pose at all: Self-supervised pose-free 3d gaussian splatting
+     from sparse views. In: Proceedings of the IEEE/CVF International Conference on Computer
+     Vision. pp. 27947–27957 (2025)
+[32] Huang, Z., He, Y., Yu, J., Zhang, F., Si, C., Jiang, Y., Zhang, Y., Wu, T., Jin, Q., Chanpaisit, N.,
+     et al.: Vbench: Comprehensive benchmark suite for video generative models. In: Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 21807–21818
+     (2024)
+
+
+                                                  11
+[33] Hur, J., Herrmann, C., Peng, S., Henzler, P., Ma, Z., Zickler, T., Sun, D.: Ufo-4d: Unposed
+     feedforward 4d reconstruction from two images. In: The Fourteenth International Conference
+     on Learning Representations
+[34] Innmann, M., Zollhöfer, M., Nießner, M., Theobalt, C., Stamminger, M.: Volumedeform:
+     Real-time volumetric non-rigid reconstruction. In: European conference on computer vision.
+     pp. 362–379. Springer (2016)
+[35] Ji, S., Wu, G., Fang, J., Cen, J., Yi, T., Liu, W., Tian, Q., Wang, X.: Segment any 4d gaussians.
+     arXiv preprint arXiv:2407.04504 (2024)
+[36] Jiang, L., Mao, Y., Xu, L., Lu, T., Ren, K., Jin, Y., Xu, X., Yu, M., Pang, J., Zhao, F., et al.:
+     Anysplat: Feed-forward 3d gaussian splatting from unconstrained views. ACM Transactions
+     on Graphics (TOG) 44(6), 1–16 (2025)
+[37] Jiang, Z., Han, Z., Mao, C., Zhang, J., Pan, Y., Liu, Y.: Vace: All-in-one video creation and
+     editing. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp.
+     17191–17202 (2025)
+[38] Jung, J., Han, J., Kang, J., Kim, S., Kwak, M.S., Kim, S.: Self-evolving neural radiance fields.
+     In: ICCV 2025 Workshop on Wild 3D: 3D Modeling, Reconstruction, and Generation in the
+     Wild (2023)
+[39] Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G., et al.: 3d gaussian splatting for real-time
+     radiance field rendering. ACM Trans. Graph. 42(4), 139–1 (2023)
+[40] Kim, C., Shin, H., Hong, E., Yoon, H., Arnab, A., Seo, P.H., Hong, S., Kim, S.: Seg4diff:
+     Unveiling open-vocabulary semantic segmentation in text-to-image diffusion transformers.
+     Advances in Neural Information Processing Systems 38, 71685–71724 (2026)
+[41] Kim, M., Lim, J., Han, B.: 4d gaussian splatting in the wild with uncertainty-aware regulariza-
+     tion. Advances in Neural Information Processing Systems 37, 129209–129226 (2024)
+[42] Kim, M., Seo, S., Han, B.: Infonerf: Ray entropy minimization for few-shot neural volume
+     rendering. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition. pp. 12912–12921 (2022)
+[43] Koo, J., Kim, I.H., Kim, M., Park, J., Park, S., Kim, J., Yi, J., Cho, S., Kim, S.: Mv-tap:
+     Tracking any point in multi-view videos. arXiv preprint arXiv:2512.02006 (2025)
+[44] Kopf, J., Rong, X., Huang, J.B.: Robust consistent video depth estimation. In: Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 1611–1621
+     (2021)
+[45] Kumar, S., Dai, Y., Li, H.: Monocular dense 3d reconstruction of a complex dynamic scene
+     from two perspective frames. In: Proceedings of the IEEE international conference on computer
+     vision. pp. 4649–4657 (2017)
+[46] Kwak, M.S., Song, J., Kim, S.: Geconerf: Few-shot neural radiance fields via geometric
+     consistency. arXiv preprint arXiv:2301.10941 (2023)
+[47] Lai, Z., Insafutdinov, E., Sucar, E., Vedaldi, A.: Cowtracker: Tracking by warping instead of
+     correlation. arXiv preprint arXiv:2602.04877 (2026)
+[48] Lee, A.X., Devin, C.M., Zhou, Y., Lampe, T., Bousmalis, K., Springenberg, J.T., Byravan, A.,
+     Abdolmaleki, A., Gileadi, N., Khosid, D., et al.: Beyond pick-and-place: Tackling robotic
+     stacking of diverse shapes. In: 5th Annual Conference on Robot Learning (2021)
+[49] Lee, J., Jung, J., Han, J., Narihira, T., Fukuda, K., Seo, J., Hong, S., Mitsufuji, Y., Kim, S.: 3d
+     scene prompting for scene-consistent camera-controllable video generation. arXiv preprint
+     arXiv:2510.14945 (2025)
+[50] Lee, N., Chen, Z., Pollefeys, M., Hong, S.: Tora: Topological representation alignment for 3d
+     shape assembly. arXiv preprint arXiv:2604.04050 (2026)
+
+
+                                                  12
+[51] Lei, J., Weng, Y., Harley, A.W., Guibas, L., Daniilidis, K.: Mosca: Dynamic gaussian fusion
+     from casual videos via 4d motion scaffolds. In: Proceedings of the Computer Vision and
+     Pattern Recognition Conference. pp. 6165–6177 (2025)
+[52] Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r. In: European
+     conference on computer vision. pp. 71–91. Springer (2024)
+[53] Li, B., Weinberger, K.Q., Belongie, S., Koltun, V., Ranftl, R.: Language-driven semantic
+     segmentation. arXiv preprint arXiv:2201.03546 (2022)
+[54] Li, J., Zhang, J., Bai, X., Zheng, J., Ning, X., Zhou, J., Gu, L.: Dngaussian: Optimizing
+     sparse-view 3d gaussian radiance fields with global-local depth normalization. In: Proceedings
+     of the IEEE/CVF conference on computer vision and pattern recognition. pp. 20775–20785
+     (2024)
+[55] Li, Z., Niklaus, S., Snavely, N., Wang, O.: Neural scene flow fields for space-time view
+     synthesis of dynamic scenes. In: Proceedings of the IEEE/CVF conference on computer vision
+     and pattern recognition. pp. 6498–6508 (2021)
+[56] Li, Z., Tucker, R., Cole, F., Wang, Q., Jin, L., Ye, V., Kanazawa, A., Holynski, A., Snavely,
+     N.: Megasam: Accurate, fast and robust structure and motion from casual dynamic videos. In:
+     Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp.
+     10486–10496 (2025)
+[57] Li, Z., Wang, Q., Cole, F., Tucker, R., Snavely, N.: Dynibar: Neural dynamic image-based
+     rendering. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition. pp. 4273–4284 (2023)
+[58] Liang, H., Ren, J., Mirzaei, A., Torralba, A., Liu, Z., Gilitschenski, I., Fidler, S., Oztireli, C.,
+     Ling, H., Gojcic, Z., et al.: Feed-forward bullet-time reconstruction of dynamic scenes from
+     monocular videos. arXiv preprint arXiv:2412.03526 (2024)
+[59] Lin, C., Lin, Y., Pan, P., Yu, Y., Yan, H., Fragkiadaki, K., Mu, Y.: Movies: Motion-aware 4d
+     dynamic view synthesis in one second. arXiv preprint arXiv:2507.10065 (2025)
+[60] Lin, C.H., Lv, Z., Wu, S., Xu, Z., Nguyen-Phuoc, T., Tseng, H.Y., Straub, J., Khan, N.,
+     Xiao, L., Yang, M.H., et al.: Dgs-lrm: Real-time deformable 3d gaussian reconstruction from
+     monocular videos. arXiv preprint arXiv:2506.09997 (2025)
+[61] Lipman, Y., Chen, R.T., Ben-Hamu, H., Nickel, M., Le, M.: Flow matching for generative
+     modeling. arXiv preprint arXiv:2210.02747 (2022)
+[62] Loshchilov, I., Hutter, F.:       Decoupled weight decay regularization. arXiv preprint
+     arXiv:1711.05101 (2017)
+[63] Lu, J., Huang, T., Li, P., Dou, Z., Lin, C., Cui, Z., Dong, Z., Yeung, S.K., Wang, W., Liu,
+     Y.: Align3r: Aligned monocular depth estimation for dynamic videos. In: Proceedings of the
+     Computer Vision and Pattern Recognition Conference. pp. 22820–22830 (2025)
+[64] Luiten, J., Kopanas, G., Leibe, B., Ramanan, D.: Dynamic 3d gaussians: Tracking by persistent
+     dynamic view synthesis. In: 2024 International Conference on 3D Vision (3DV). pp. 800–809.
+     IEEE (2024)
+[65] Ma, Z., Chen, X., Yu, S., Bi, S., Zhang, K., Ziwen, C., Xu, S., Yang, J., Xu, Z., Sunkavalli, K.,
+     et al.: 4d-lrm: Large space-time reconstruction model from and to any view at any time. arXiv
+     preprint arXiv:2506.18890 (2025)
+[66] Mehl, L., Schmalfuss, J., Jahedi, A., Nalivayko, Y., Bruhn, A.: Spring: A high-resolution
+     high-detail dataset and benchmark for scene flow, optical flow and stereo. In: Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 4981–4991
+     (2023)
+[67] Miao, S., Huang, J., Bai, D., Yan, X., Zhou, H., Wang, Y., Liu, B., Geiger, A., Liao, Y.:
+     Evolsplat: Efficient volume-based gaussian splatting for urban view synthesis. In: Proceedings
+     of the Computer Vision and Pattern Recognition Conference. pp. 11286–11296 (2025)
+
+
+                                                  13
+[68] Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng, R.: Nerf:
+     Representing scenes as neural radiance fields for view synthesis. Communications of the ACM
+     65(1), 99–106 (2021)
+[69] Nair, S., Rajeswaran, A., Kumar, V., Finn, C., Gupta, A.: R3m: A universal visual representa-
+     tion for robot manipulation. arXiv preprint arXiv:2203.12601 (2022)
+[70] Newcombe, R.A., Fox, D., Seitz, S.M.: Dynamicfusion: Reconstruction and tracking of
+     non-rigid scenes in real-time. In: Proceedings of the IEEE conference on computer vision and
+     pattern recognition. pp. 343–352 (2015)
+[71] Niemeyer, M., Barron, J.T., Mildenhall, B., Sajjadi, M.S., Geiger, A., Radwan, N.: Regnerf:
+     Regularizing neural radiance fields for view synthesis from sparse inputs. In: Proceedings of
+     the IEEE/CVF conference on computer vision and pattern recognition. pp. 5480–5490 (2022)
+[72] Novotny, D., Ravi, N., Graham, B., Neverova, N., Vedaldi, A.: C3dpo: Canonical 3d pose
+     networks for non-rigid structure from motion. In: Proceedings of the IEEE/CVF international
+     conference on computer vision. pp. 7688–7697 (2019)
+[73] Pan, X., Charron, N., Yang, Y., Peters, S., Whelan, T., Kong, C., Parkhi, O., Newcombe, R.,
+     Ren, Y.C.: Aria digital twin: A new benchmark dataset for egocentric 3d machine perception.
+     In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 20133–
+     20143 (2023)
+[74] Park, K., Sinha, U., Barron, J.T., Bouaziz, S., Goldman, D.B., Seitz, S.M., Martin-Brualla, R.:
+     Nerfies: Deformable neural radiance fields. In: Proceedings of the IEEE/CVF international
+     conference on computer vision. pp. 5865–5874 (2021)
+[75] Park, K., Sinha, U., Hedman, P., Barron, J.T., Bouaziz, S., Goldman, D.B., Martin-Brualla, R.,
+     Seitz, S.M.: Hypernerf: A higher-dimensional representation for topologically varying neural
+     radiance fields. arXiv preprint arXiv:2106.13228 (2021)
+[76] Pont-Tuset, J., Perazzi, F., Caelles, S., Arbeláez, P., Sorkine-Hornung, A., Van Gool, L.: The
+     2017 davis challenge on video object segmentation. arXiv preprint arXiv:1704.00675 (2017)
+[77] Pumarola, A., Corona, E., Pons-Moll, G., Moreno-Noguer, F.: D-nerf: Neural radiance fields
+     for dynamic scenes. In: Proceedings of the IEEE/CVF conference on computer vision and
+     pattern recognition. pp. 10318–10327 (2021)
+[78] Radford, A., Kim, J.W., Hallacy, C., Ramesh, A., Goh, G., Agarwal, S., Sastry, G., Askell,
+     A., Mishkin, P., Clark, J., et al.: Learning transferable visual models from natural language
+     supervision. In: International conference on machine learning. pp. 8748–8763. PmLR (2021)
+[79] Ranftl, R., Vineet, V., Chen, Q., Koltun, V.: Dense monocular depth estimation in complex
+     dynamic scenes. In: Proceedings of the IEEE conference on computer vision and pattern
+     recognition. pp. 4058–4066 (2016)
+[80] Roessle, B., Barron, J.T., Mildenhall, B., Srinivasan, P.P., Nießner, M.: Dense depth priors for
+     neural radiance fields from sparse input views. In: Proceedings of the IEEE/CVF conference
+     on computer vision and pattern recognition. pp. 12892–12901 (2022)
+[81] Russell, C., Yu, R., Agapito, L.: Video pop-up: Monocular 3d reconstruction of dynamic
+     scenes. In: European conference on computer vision. pp. 583–598. Springer (2014)
+[82] Seo, J., Choi, H., Kwon, M., Choi, J., Jin, S., Lee, G., Kim, J., Lee, J., Gu, G., Han,
+     D., et al.: Grounding world simulation models in a real-world metropolis. arXiv preprint
+     arXiv:2603.15583 (2026)
+[83] Shen, Q., Yi, X., Lin, M., Zhang, H., Yan, S., Wang, X.: Seeing world dynamics in a nutshell.
+     arXiv preprint arXiv:2502.03465 (2025)
+[84] Shin, H., Kim, C., Hong, S., Cho, S., Arnab, A., Seo, P.H., Kim, S.: Towards open-vocabulary
+     semantic segmentation without semantic labels. Advances in Neural Information Processing
+     Systems 37, 9153–9177 (2024)
+
+
+                                                14
+ [85] Siméoni, O., Vo, H.V., Seitzer, M., Baldassarre, F., Oquab, M., Jose, C., Khalidov, V.,
+      Szafraniec, M., Yi, S., Ramamonjisoa, M., et al.: Dinov3. arXiv preprint arXiv:2508.10104
+      (2025)
+ [86] Song, J., Park, S., An, H., Cho, S., Kwak, M.S., Cho, S., Kim, S.: Därf: Boosting radiance fields
+      from sparse input views with monocular depth adaptation. Advances in Neural Information
+      Processing Systems 36, 68458–68470 (2023)
+ [87] Song, L., Chen, A., Li, Z., Chen, Z., Chen, L., Yuan, J., Xu, Y., Geiger, A.: Nerfplayer:
+      A streamable dynamic scene representation with decomposed neural radiance fields. IEEE
+      Transactions on Visualization and Computer Graphics 29(5), 2732–2742 (2023)
+ [88] Sturm, J., Engelhard, N., Endres, F., Burgard, W., Cremers, D.: A benchmark for the evaluation
+      of rgb-d slam systems. In: 2012 IEEE/RSJ international conference on intelligent robots and
+      systems. pp. 573–580. IEEE (2012)
+ [89] Wan, T., Wang, A., Ai, B., Wen, B., Mao, C., Xie, C.W., Chen, D., Yu, F., Zhao, H., Yang,
+      J., et al.: Wan: Open and advanced large-scale video generative models. arXiv preprint
+      arXiv:2503.20314 (2025)
+ [90] Wang, C., Eckart, B., Lucey, S., Gallo, O.: Neural trajectory fields for dynamic novel view
+      synthesis. arXiv preprint arXiv:2105.05994 (2021)
+ [91] Wang, G., Chen, Z., Loy, C.C., Liu, Z.: Sparsenerf: Distilling depth ranking for few-shot novel
+      view synthesis. In: Proceedings of the IEEE/CVF international conference on computer vision.
+      pp. 9065–9076 (2023)
+ [92] Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt: Visual geome-
+      try grounded transformer. In: Proceedings of the Computer Vision and Pattern Recognition
+      Conference. pp. 5294–5306 (2025)
+ [93] Wang, Q., Ye, V., Gao, H., Zeng, W., Austin, J., Li, Z., Kanazawa, A.: Shape of motion: 4d
+      reconstruction from a single video. In: Proceedings of the IEEE/CVF International Conference
+      on Computer Vision. pp. 9660–9672 (2025)
+ [94] Wang, Q., Zhang, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d perception
+      model with persistent state. In: Proceedings of the Computer Vision and Pattern Recognition
+      Conference. pp. 10510–10522 (2025)
+ [95] Wang, R., Xu, S., Dong, Y., Deng, Y., Xiang, J., Lv, Z., Sun, G., Tong, X., Yang, J.:
+      Moge-2: Accurate monocular geometry with metric scale and sharp details. arXiv preprint
+      arXiv:2507.02546 (2025)
+ [96] Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric 3d vision made
+      easy. In: Proceedings of the IEEE/CVF conference on computer vision and pattern recognition.
+      pp. 20697–20709 (2024)
+ [97] Wang, W., Chen, Y., Zhang, Z., Liu, H., Wang, H., Feng, Z., Qin, W., Zhu, Z., Chen, D.Y.,
+      Zhuang, B.: Volsplat: Rethinking feed-forward 3d gaussian splatting with voxel-aligned
+      prediction. arXiv preprint arXiv:2509.19297 (2025)
+ [98] Wang, Y., Yang, P., Xu, Z., Sun, J., Zhang, Z., Chen, Y., Bao, H., Peng, S., Zhou, X.:
+      Freetimegs: Free gaussian primitives at anytime anywhere for dynamic scene reconstruction.
+      In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition.
+      pp. 21750–21760 (2025)
+ [99] Wang, Y., Huang, T., Chen, H., Lee, G.H.: Freesplat: Generalizable 3d gaussian splatting
+      towards free view synthesis of indoor scenes. Advances in Neural Information Processing
+      Systems 37, 107326–107349 (2024)
+[100] Wu, G., Yi, T., Fang, J., Xie, L., Zhang, X., Wei, W., Liu, W., Tian, Q., Wang, X.: 4d gaussian
+      splatting for real-time dynamic scene rendering. In: Proceedings of the IEEE/CVF conference
+      on computer vision and pattern recognition. pp. 20310–20320 (2024)
+
+
+                                                  15
+[101] Wu, Z., Yan, Q., Yi, X., Wang, L., Liao, R.: Streamsplat: Towards online dynamic 3d
+      reconstruction from uncalibrated video streams. arXiv preprint arXiv:2506.08862 (2025)
+[102] Xu, Z., Li, Z., Dong, Z., Zhou, X., Newcombe, R., Lv, Z.: 4dgt: Learning a 4d gaussian
+      transformer using real-world monocular videos. arXiv preprint arXiv:2506.08015 (2025)
+[103] Yang, J., Pavone, M., Wang, Y.: Freenerf: Improving few-shot neural rendering with free
+      frequency regularization. In: Proceedings of the IEEE/CVF conference on computer vision
+      and pattern recognition. pp. 8254–8263 (2023)
+[104] Yang, Y., Fan, L., Shi, Z., Peng, J., Wang, F., Zhang, Z.: Neoverse: Enhancing 4d world model
+      with in-the-wild monocular videos. arXiv preprint arXiv:2601.00393 (2026)
+[105] Yang, Z., Teng, J., Zheng, W., Ding, M., Huang, S., Xu, J., Yang, Y., Hong, W., Zhang, X.,
+      Feng, G., et al.: Cogvideox: Text-to-video diffusion models with an expert transformer. arXiv
+      preprint arXiv:2408.06072 (2024)
+[106] Yang, Z., Gao, X., Zhou, W., Jiao, S., Zhang, Y., Jin, X.: Deformable 3d gaussians for high-
+      fidelity monocular dynamic scene reconstruction. In: Proceedings of the IEEE/CVF conference
+      on computer vision and pattern recognition. pp. 20331–20341 (2024)
+[107] Ye, B., Liu, S., Xu, H., Li, X., Pollefeys, M., Yang, M.H., Peng, S.: No pose, no prob-
+      lem: Surprisingly simple 3d gaussian splats from sparse unposed images. arXiv preprint
+      arXiv:2410.24207 (2024)
+[108] Yoon, J.S., Kim, K., Gallo, O., Park, H.S., Kautz, J.: Novel view synthesis of dynamic scenes
+      with globally coherent depths from a monocular camera. In: Proceedings of the IEEE/CVF
+      Conference on Computer Vision and Pattern Recognition. pp. 5336–5345 (2020)
+[109] Yu, M., Hu, W., Xing, J., Shan, Y.: Trajectorycrafter: Redirecting camera trajectory for
+      monocular videos via diffusion models. In: Proceedings of the IEEE/CVF international
+      conference on computer vision. pp. 100–111 (2025)
+[110] Zhang, J., Herrmann, C., Hur, J., Jampani, V., Darrell, T., Cole, F., Sun, D., Yang, M.H.:
+      Monst3r: A simple approach for estimating geometry in the presence of motion. arXiv preprint
+      arXiv:2410.03825 (2024)
+[111] Zhang, K., Bi, S., Tan, H., Xiangli, Y., Zhao, N., Sunkavalli, K., Xu, Z.: Gs-lrm: Large
+      reconstruction model for 3d gaussian splatting. In: European Conference on Computer Vision.
+      pp. 1–19. Springer (2024)
+[112] Zhang, L., Rao, A., Agrawala, M.: Adding conditional control to text-to-image diffusion
+      models. In: Proceedings of the IEEE/CVF international conference on computer vision. pp.
+      3836–3847 (2023)
+[113] Zhang, Z., Cole, F., Li, Z., Rubinstein, M., Snavely, N., Freeman, W.T.: Structure and motion
+      from casual videos. In: European Conference on Computer Vision. pp. 20–37. Springer (2022)
+[114] Zhou, S., Ren, H., Weng, Y., Zhang, S., Wang, Z., Xu, D., Fan, Z., You, S., Wang, Z., Guibas,
+      L., et al.: Feature4x: Bridging any monocular video to 4d agentic ai with versatile gaussian
+      feature fields. In: Proceedings of the Computer Vision and Pattern Recognition Conference.
+      pp. 14179–14190 (2025)
+[115] Zhou, T., Tucker, R., Flynn, J., Fyffe, G., Snavely, N.: Stereo magnification: Learning view
+      synthesis using multiplane images. arXiv preprint arXiv:1805.09817 (2018)
+
+
+
+
+                                                16
+Learning Global Motion with Compact Gaussians for
+         Feed-Forward 4D Reconstruction
+           –Supplementary Material–
+
+
+This supplementary material provides additional implementation details and experimental results that
+could not be included in the main paper due to space constraints. The supplementary is organized as
+follows.
+Sec. A introduces additional implementation details covering architecture, loss functions, and dataset
+curation and sampling strategies. Sec. B provides details on the evaluation datasets and the comparison
+protocol used for feed-forward 4D Gaussian methods. Sec. C presents additional experiments and
+ablation studies. Sec. D reports additional quantitative and qualitative results on point tracking. Sec. E
+provides further qualitative results. Finally, Sec. F discusses the limitations of our model.
+We additionally provide video results on the DAVIS dataset [76], a challenging in-the-wild video
+benchmark. Since DAVIS does not provide ground-truth camera poses, we present qualitative
+comparisons exclusively between C4G and NeoVerse [104], as both are pose-free feed-forward 4D
+Gaussian Splatting frameworks that do not require camera pose inputs at inference time.
+
+
+A     Additional Implementation Details
+
+A.1   Architecture Details
+
+Visual Feature Extractor. Given a monocular video V = {It ∈ RH×W ×3 }Tt=1 with corresponding
+timestamps T = {t ∈ R}Tt=1 where H, W and T denote the frame height, width, and total number of
+frames respectively, we sample a subset of context frames Vc = {It }t∈Tc where Tc ⊆ T denotes the
+sampled frame indices. Following prior works [9, 1], we extract visual features {Ft ∈ Rh×w×d }t∈Tc
+where h, w, and d denote the spatial height, width and channel dimension respectively, using a
+pretrained geometry-grounded visual encoder E(·) (e.g., VGGT [92]):
+
+                                       {Ft }t∈Tc = E({It }t∈Tc ).                                      (6)
+
+Temporal Embedding. Given the extracted multi-view features {Ft }t∈Tc , we introduce N learnable
+Gaussian queries Q ∈ RN ×d , jointly optimized with the decoder. Each query is intended to decode a
+single 3D Gaussian representing the scene at the target time tb .
+To enable the model to distinguish representations across different timesteps and to condition the
+output on a specific target moment, we inject temporal embeddings into both the visual features and
+the learnable queries. We first normalize all timestamps relative to the target time tb and the earliest
+context frame:
+                                  t − min(Tc )         tb − min(Tc )
+                            t̂ =               , t̂b =                 = 1,                          (7)
+                                 tb − min(Tc )         tb − min(Tc )
+
+such that the target timestamp maps to 1 and all context timestamps are expressed as relative offsets.
+This normalization makes the model invariant to absolute time scales and encourages generalization
+across videos with varying temporal spans.
+The normalized timestamps are encoded via sinusoidal positional embeddings ψ(·) and projected
+through a two-layer MLP H(·), then added to their respective features:
+
+                            F̂t = Ft + H(ψ(t̂)),     Q̂tb = Q + H(ψ(t̂b )).                            (8)
+
+
+                                                   17
+Transformer Decoding. The time-conditioned visual features and queries are concatenated along
+the token dimension and passed through an L-layer Transformer decoder D(·):
+
+                                       [F̄t ; Q̄tb ] = DG ([F̂t ; Q̂tb ]),                         (9)
+where F̄t ∈ Rh×w×d and Q̄tb ∈ RN ×d are the refined visual tokens and decoded query tokens
+respectively. The visual feature tokens serve as rich contextual keys and values, while the Gaussian
+queries attend over them to aggregate spatiotemporal scene information.
+Gaussian Head. Decoded query token Q̄tb is independently mapped to a 3D Gaussians {Gitb }N
+                                                                                         i=1
+via a single-layer MLP MG (·):
+                                {Gitb }N
+                                       i=1 = MG (Q̄tb ).                                (10)
+The resulting set of N Gaussians {Gitb }N i=1 collectively represents the dynamic scene at target time
+tb , and is rendered via differentiable Gaussians splatting.
+
+A.2   Loss Details
+
+Photometric Loss. To propagate the learning signal, we render the predicted Gaussians onto target
+views It ∈ V, which include context frames with known camera poses πt . For each target timestamp
+t, we first estimate the Gaussians {Git }N                                                          ˆ
+                                         i=1 using C4G, then render each pixel p of the target view It
+through alpha blending of Gaussian color according to their depth order [39]:
+                                       N
+                                       X                    i−1
+                                                            Y
+                           Iˆt (p) =         ci σ i Gi,2D
+                                                     t            (1 − σ j Gj,2D
+                                                                            t    (p)),           (11)
+                                       i=1                  j=1
+
+where ci is the view-dependent color of the i-th Gaussian obtained by decoding spherical harmonics
+coefficients at the viewing direction, and Gi,2D
+                                             t    denotes the 2D screen-space projection of the 3D
+Gaussian under viewpoint πt .
+The photometric loss combines a pixel-wise mean squared error LMSE with LPIPS loss LLPIPS between
+rendered image Iˆt and ground-truth images It :
+                          Lcolor (t) = LMSE (Iˆt , It ) + λLPIPS LLPIPS (Iˆt , It ),             (12)
+where λLPIPS is the weighting coefficient for the LPIPS loss term, set to 0.05 by default.
+Depth Loss. To encourage geometrically accurate Gaussian placement, we supervise the rendered
+depth map against pseudo ground-truth depths. The depth map D̂t is rendered analogously to the
+color image via alpha-compositing, replacing color attributes with the z-values of the Gaussian
+means:
+                                  N
+                                  X                i−1
+                                                   Y
+                        D̂t (p) =    z i σ i Gi,2D
+                                              t        (1 − σ j Gj,2D
+                                                                 t    (p)),                (13)
+                                       i=1                  j=1
+
+where z i is the z-value of the mean position of Gaussians Git in the camera coordinate frame.
+Since no ground-truth depth is available, we generate pseudo ground-truth depth maps Dt using
+MoGe-2 [95]. As monocular depth predictions suffer from inherent scale-ambiguity, we adopt a
+scale-shift invariant loss [86, 54] rather than l1 loss:
+                                   Ldepth (t) = ∥(αD̃t + β) − Dt ∥,                              (14)
+where α and β are scale and shift parameters estimated via least-squares alignment [95] between the
+rendered and pseudo ground-truth depth as follow:
+                                         α, β = argmin Ldepth (t).                               (15)
+                                                     α,β
+
+
+Normal Loss. Complementary to depth supervision, we additionally supervise surface normals
+to enforce local geometric consistency. The pseudo ground-truth normal map is generated from
+MoGe-2 [95]. Since the normal vectors are free from scale ambiguity, we directly apply an l1 loss
+without affine alignment.
+
+
+                                                       18
+We derive the rendered normal map N̂t from the rendered depth map D̂t by first back-projecting
+pixels into 3D using camera intrinsics K:
+                                 P(u, v) = D̃(u, v)K −1 [u, v, 1]⊺ ,                            (16)
+where (u, v) denotes the pixel coordinates. Surface normals are then estimated via the cross-product
+of finite-difference gradients:
+                                                           ∂P ∂P
+                                  N̂ (u, v) = Norm(           ×    ).                           (17)
+                                                           ∂u   ∂v
+The normal loss Lnormal is computed as:
+                                        Lnormal = ∥N̂ − N ∥.                                    (18)
+
+Tracking Loss. To suppress temporal flickering and Gaussian drift across frames, we introduce a
+tracking regularization loss that anchors Gaussian trajectories to predictions from a foundational
+point tracker. For each timestamp t ∈ T , we project the mean position µt of each Gaussian Gt onto
+the image plane using known extrinsics πt and intrinsics K:
+                                             µ2D
+                                              t = Kπt µt .                                      (19)
+We then randomly select a reference timestamp t′ ∈ Tc and forward the corresponding projected
+points µ2D
+        t′ to a pretrained point tracker [47] P(·, ·), which propagates them across the full video to
+yield dense 2D trajectories:
+                                       {pt }Tt=1 = P(V, µ2Dt′ ).                                 (20)
+These predicted trajectories serve as soft constraints on the temporal motion of Gaussian means. We
+compute the tracking loss using a Huber penalty, masked by predicted point visibility:
+                                       1 X
+                          Ltrack = P             mt · Huber(∥µ2D t − pt ∥) ,                    (21)
+                                       t m t t
+
+where mt is a visibility mask active when the predicted visibility score exceeds 0.5.
+
+A.3   Feature Lifting Details
+
+Architecture details. For feature lifting, we first extract VFM features {F′t }t∈Tc from the context
+frames Vc = {It }t∈Tc using a VFM encoder E ′ (·):
+                                     {F′t }t∈Tc = E ′ ({It }t∈Tc ).                             (22)
+Following the design of the C4G Gaussian decoder, we reuse the same N learnable queries Q ∈ RN ×d
+from DG , where each query is responsible for decoding the feature attribute of one 3D Gaussian at
+the target timestamp tb . As in DG , the normalized timestamps are encoded via sinusoidal positional
+embeddings ψ(·), projected through a two-layer MLP H(·), and added to the corresponding features
+and queries:
+                          F̂′t = F′t + H(ψ(t̂)),       Q̂′tb = Q′ + H(ψ(t̂b )).                 (23)
+
+We then concatenate the VFM features and learnable queries and feed them into the feature decoder
+DF , which shares the same architecture as DG :
+                                    [F̄′t ; Q̄′tb ] = DF ([F̂′t ; Q̂′tb ]),                     (24)
+where F̄′t ∈ Rh×w×d and Q̄′tb ∈ RN ×d denote the refined feature tokens and decoded query tokens,
+respectively. Crucially, we reuse the query and key features Q and K from DG in every self-attention
+layer and propagate gradients only through the value projection. The attention is therefore computed
+as:                                                               !
+                                             ′               QK ⊺
+                              Attn(Q, K, V ) = Softmax p            V ′,                        (25)
+                                                               dQ
+where dQ denotes the dimension of the query features, and V ′ denotes the value features of DF ,
+obtained by projecting [F̂′t ; Q̂′tb ].
+
+
+                                                     19
+Decoded query token Q̄′tb is independently mapped to a 3D Gaussians {f i }N
+                                                                          i=1 via a single-layer
+MLP MF (·):
+                                                       ′
+                                    {ftib }N
+                                           i=1 = MF (Q̄tb ).                                (26)
+The resulting set of N feature attribute of each corresponding Gaussian {ftib }Ni=1 collectively repre-
+sents the dynamic scene at target time tb , and is rendered via differentiable Gaussians splatting.
+Loss function. Similar to color loss function, we render the predicted Gaussians onto target view
+It ∈ V, which include context frames with known camera poses πt . For each target timestamp t, we
+first estimate the Gaussians {Git }N                              i N
+                                     i=1 and feature attribute {ft }i=1 using C4G, then render each pixel
+p of the target view through alpha blending of features which replace the color attributes of color
+rendering:
+                                        XN               i−1
+                                                         Y
+                            F̂′t (p) =     f i σ i Gi,2D
+                                                    t        (1 − σ j Gj,2D
+                                                                       t    (p)).                    (27)
+                                        i=1               j=1
+
+The feature rendering loss combines a L1 loss between projected feature F̂′t and pseudo ground truth
+F′t which is extracted by VFM encoder F′t = E(It ) given target view image It as input:
+                                           Lfeat (t) = ∥F̂′t − F′t ∥.                                  (28)
+
+Implementation details. Building on the trained C4G weights, we additionally attach a feature
+decoder DF that shares the same architecture as DG . To demonstrate generalizability across VFMs,
+we experiment with DINOv3 [85], VGGT [92], and LSeg [53]. We adopt the same hyperparameters
+as C4G, except that we train DF for only 5K steps, since the attention patterns are already well-suited
+for aggregating relevant 2D features.
+
+A.4   VDM-based Rendering Enhancement Module Details
+
+Architecture details. The context video Vc ∈ RH×W ×Tc ×3 with Tc frames and the rendered
+video Ṽt ∈ RH×W ×Tt ×3 with Tt frames from C4G are given as input, where H and W denote
+the height and width, respectively. Following VACE [37], our VDM-based rendering enhancement
+module consists of the original video DiT [89] and a control module whose architecture follows
+ControlNet [112]. The original video DiT takes as input a noise tensor z1 ∼ N (0, 1) together with a
+caption C generated from the context video by Qwen3-VL-8B-Instruct [3].
+For the control module, we adopt the VACE scheme, which designates the inactive component as the
+reference frames and the reactive component as the re-generated target frames. To enhance rendering
+quality conditioned on the context video, we treat the rendered video as reactive and the context video
+as inactive, setting the rendered-video active mask to Mt = 1 and the context-video active mask to
+Mc = 0. The reactive and inactive latents, zreactive and zinactive , are then obtained through the VAE
+encoder EVAE (·) as follows:
+                        zreactive = [EVAE (Vc · Mc ); EVAE (Ṽt · Mt )],                               (29)
+                        zinactive = [EVAE (Vc · (1 − Mc )); EVAE (Ṽt · (1 − Mt ))].                   (30)
+
+These latents are then concatenated along the temporal axis as [zreactive ; zinactive ] and forwarded to the
+control module Rcontrol as follows:
+                                  {fl }L
+                                       l=0 = Rcontrol ([zreactive ; zinactive ]),
+                                         R
+                                                                                                       (31)
+where LR denotes the number of layers in the control module and fl denotes the hidden representation
+at layer l. These control features are then added to the corresponding hidden states of the original
+video DiT RVDM :
+                                   ṽt′ = RVDM zt , t′ , {fl }L
+                                                                     
+                                                              l=0 , C ,
+                                                                R
+                                                                                                 (32)
+where zt denotes intermediate latents at timestamp t, ṽt denotes the estimated velocity at diffusion
+                                                           ′
+
+timestep t′ , and C denotes the text caption condition.
+Loss function. For loss term, we use flow matching [61] loss following [89, 37]. Intermediate latent
+zt′ at timestamp t′ is generated as follow:
+                                          zt′ = (1 − t′ )z0 + t′ z1 ,                                  (33)
+
+
+                                                       20
+where z0 denotes noise latent and z1 denotes ground truth target video in our setting. Then, the flow
+matching loss is calculated as follows:
+                                                                                
+                                                                               2
+                                                 ′       LR
+                  LFM = Ez0 ,z1 ,t′ RVDM (zt′ , t , {fl }l=0 , C) − (z1 − z0 )     .             (34)
+                                                                               2
+
+This formulation learns a continuous transport field between noise state to image space.
+Implementation details. For training, we use input frames at a resolution of 480 × 832 and adopt
+the Kubric [22] dataset with the same sampling strategy as in C4G. The model is optimized using
+AdamW [62] with a learning rate of 1e−4, and we apply LoRA [30] with rank 128. Training is
+conducted on 4 NVIDIA H100 GPUs with a per-GPU batch size of 1 and 4 gradient accumulation
+steps, for a total of 50K steps.
+
+A.5   Dataset Details
+
+Spring. Spring dataset [66] is the high-quality synthetic video with a large proportion of dynamic
+objects. Since only a single monocular video V is available, we sample N frames as context input Vc
+and use frames whose timestamps fall within the range spanned by Tc .
+Specifically, we use the 37 scenes in training split. we randomly sample a start index from the
+video and select T = 23 consecutive frames. Of these, every other frame beginning from the
+first is designated as a context input, yielding |Tc | = 12 context frames with a temporal stride of
+2. Photometric and geometric losses are applied across all 23 frames. The non-context frames —
+which are never provided as input — require the model to predict scene appearance at unobserved
+timestamps, as they fall temporally between context frames. This design explicitly encourages
+the model to develop temporal interpolation capabilities, learning to synthesize geometrically and
+photometrically consistent Gaussians at arbitrary intermediate time moments rather than simply
+memorizing seen views.
+Kubric. Following [43], we construct our training dataset using the Kubric rendering engine [22],
+generating 1,144 synthetic scenes. Each scene consists of M = 4 multi-view videos {Vm }M        m=1 ,
+where Vm = {It,m }Tt=1 is the video captured along the m-th camera trajectory. During training, a
+single trajectory m′ is chosen as the context input Vc = Vm′ , and use frames from all M trajectories
+as novel-view rendering targets.
+However, we find that restricting the context to a single viewpoint frequently forces the model to
+extrapolate into unobserved regions, leading to training instability. To address this, we augment
+the context set by incorporating one frame from each of the M viewpoints at a randomly sampled
+timestamp t′ :
+                                    Vc ← Vm′ ∪ {It′ ,m }M m=1 .                               (35)
+By momentarily exposing the model to all viewpoints at a shared timestamp, this augmentation
+anchors multi-view geometry at that instant, stabilizes training, and enables multi-view consistency
+supervision that would otherwise be inaccessible from monocular video alone.
+RealEstate10K. We additionally use the RealEstate10K dataset [115], a multi-view static dataset,
+to enhance geometric consistency through multi-view supervision. We follow the same sampling
+strategy as Spring and set the target timestamp equal to the frame index, since RealEstate10K consists
+of static monocular videos.
+
+B     Evaluation Protocol
+B.1   Evaluation Dataset
+
+DyCheck. Following NeoVerse [104], we evaluate on 5 scenes that provide multi-view videos with
+valid camera poses: apple, block, paper-windmill, spin, and teddy. For context input, we use Camera
+0, the causally captured front-facing camera, sampling 32 frames with a temporal stride of 2 starting
+from the first frame. Novel views are then rendered from a static camera (Camera 1) across 63
+consecutive frames with stride 1, where all rendered timestamps are fully spanned by the temporal
+range of the context frames, ensuring evaluation remains strictly within the interpolation regime.
+Following Shape of Motion [93], all metrics are computed exclusively over co-visible regions to
+
+
+                                                 21
+avoid penalizing the model for regions that are fundamentally unobservable from the given context
+input.
+Aria Digital Twin. Following 4DGT [102], we use 4 monocular videos from Aria Digital Twin [73]:
+
+      – Apartment_release_multiuser_cook_seq141_M1292
+      – Apartment_release_multiskeleton_party_seq114_M1292
+      – Apartment_release_meal_skeleton_seq135_M1292
+      – Apartment_release_work_skeleton_seq137_M1292
+
+We sample 16 context frames with a temporal stride of 6 starting from the first frame, and evaluate on
+15 target frames with a temporal stride of 6 starting from the fourth frame, such that all evaluation
+timestamps are interleaved between context frames and thus lie strictly within the interpolation
+regime.
+TUM-Dynamics. We use 9 monocular videos which is all train split in TUM-Dynamics dataset [88]:
+
+      – rgbd_dataset_freiburg2_desk_with_person
+      – rgbd_dataset_freiburg3_sitting_halfsphere
+      – rgbd_dataset_freiburg3_sitting_rpy
+      – rgbd_dataset_freiburg3_sitting_static
+      – rgbd_dataset_freiburg3_sitting_xyz
+      – rgbd_dataset_freiburg3_walking_halfsphere
+      – rgbd_dataset_freiburg3_walking_rpy
+      – rgbd_dataset_freiburg3_walking_static
+      – rgbd_dataset_freiburg3_walking_xyz
+
+Similar to Aria Digital Twin, we sample 16 context frames with a temporal stride of 6 starting from
+the first frame, and evaluate on 15 target frames with a temporal stride of 6 starting from the fourth
+frame, such that all evaluation timestamps are interleaved between context frames.
+NVIDIA. For the NVIDIA dataset [108], we evaluate on 7 scenes: Balloon1, Balloon2, Jumping,
+Playground, Skating, Truck, and Umbrella. We sample context frames with a temporal stride of 2
+starting from the first frame, and evaluate on the remaining interleaved frames.
+
+B.2   Test-Time Pose Alignment
+
+As discussed in [107], methods that do not take ground-truth camera poses as input lack absolute
+scale information, and thus may predict scenes at arbitrary scales even given identical inputs. This
+scale ambiguity makes it impossible to fairly evaluate rendering quality against ground-truth poses,
+as a geometrically accurate prediction may nonetheless yield poor metrics due to scale misalignment.
+To address this, we follow NoPoSplat [107] and perform test-time pose alignment before evaluation,
+using the aligned poses to measure rendering metrics on the rendered images.
+
+B.3   Baselines
+
+4DGT, MoVieS: 4DGT [102] and MoVieS [59] is the feed-forward 4D Gaussian splatting network
+based on LRM architecture [111]. 4DGT requires RGB inputs and its corresponding camera poses
+and timestamps. For camera poses, all camera poses are transformed into the coordinate frame of the
+first image. The resulting translations are then normalized by subtracting their mean and dividing by
+the maximum distance from the mean, ensuring all translated camera centers lie within a unit sphere.
+This normalization improves numerical stability during inference. For timestamps, we normalize each
+frame index by the frame rate (FPS) of the corresponding dataset to obtain time values in seconds.
+NeoVerse: NeoVerse [104] is a feed-forward 4D Gaussian Splatting network built on the VGGT [92]
+backbone that operates without camera pose inputs. Since NeoVerse consists of feed-forward 4D
+Gaussian and video diffusion network, we evaluate only feed-foward 4D Gaussian model which
+generates Gaussians from input view distribution without any generation priors. However, the absence
+
+
+                                                 22
+Table 7: VBench [32] results for novel view generation. We randomly collect 100 unseen in-the-
+wild videos and each rendered different camera trajectories.
+ Method                          Backbone           Sub. Consist.   Back. Consists.   Temp. Flick.   Motion Smooth.   Aesth. Quality   Image Quality
+ TrajectoryCrafter [109]   CogVideoX-Fun-5B [105]      0.8543           0.9015          0.9229           0.9559          0.4840           0.6216
+ NeoVerse [104]             Wan2.1-T2V-14B [89]        0.8940           0.9159          0.9220           0.9566          0.5063           0.6401
+ Ours                      Wan2.1-VACE-1.3B [89]       0.8880           0.9179          0.9595           0.9774          0.4760           0.4483
+
+
+
+                               Table 8: Ablation studies on timestamp normalization.
+
+                                              DyCheck [21]                                    TUM-Dynamics [88]
+            Methods
+                                        PSNR ↑ SSIM ↑ LPIPS ↓                              PSNR ↑ SSIM ↑ LPIPS ↓
+            t − ttgt                        15.58         0.384             0.387            18.15           0.549            0.367
+            Min-max Norm.                   15.73         0.393             0.382            18.40           0.560            0.355
+            Ours                            15.54         0.383             0.385            18.94           0.575            0.341
+
+
+
+of pose supervision introduces scale ambiguity, causing the reconstructed scene scale to misalign with
+the ground-truth camera poses and making it difficult to fairly assess rendering quality. To resolve
+this, we apply the same test-time camera pose optimization used in our method to NeoVerse as well,
+ensuring a consistent and fair comparison.
+
+
+C       Additional Experiments and Ablation
+
+C.1       Diffusion-based Rendering Results
+
+To evaluate the performance after diffusion-based refinement, we measure the quality of novel view
+synthesis results produced by our VDM-based enhancement module using VBench [32]. Specifically,
+we first obtain novel-view rendered videos and then feed them into the video diffusion module for
+refinement. The VBench results of the refined outputs are reported in Tab. 7.
+Despite being trained only on the Kubric dataset, a substantially smaller corpus, and using a diffusion
+model with far fewer parameters, our method outperforms existing diffusion-based baselines on
+geometry-related metrics (e.g., Backward Consistent, Temporal Flickering, and Motion Smoothness),
+thanks to the global motion and consistent geometry provided by C4G rendering. While the limited
+training data and reduced model capacity yield slightly lower image quality, the C4G-rendered outputs
+serve as a coarse yet geometrically reliable anchor for novel view synthesis, enabling the diffusion
+module to produce videos with strong geometric consistency.
+
+
+C.2       Timestamp Ablation
+
+We conduct an ablation study on timestamp normalization strategies. Beyond our proposed method
+which scales all timestamps such that the target timestamp maps to 1, we compare against two
+alternatives: (1) shift normalization, which subtracts the target timestamp from all timestamps so
+that the target maps to 0, and (2) min-max normalization, which normalizes all timestamps using the
+minimum and maximum of the context timestamps.
+As shown in Tab. 8, all three strategies yield comparable performance on DyCheck, but our method
+achieves superior results on the Bonn dataset. We attribute this to the fundamental difference in
+evaluation protocol between the two benchmarks. DyCheck evaluates novel-view synthesis at the
+same timestamp across different viewpoints, meaning the model only needs to correctly identify
+the target view to render accurately, making it relatively robust to the choice of normalization. In
+contrast, Bonn requires temporal interpolation between context frames, where the relative temporal
+relationships between context and target timestamps become critical. In this setting, our normalization
+— which fixes the target timestamp as a constant reference point and expresses all context timestamps
+relative to it — provides the most stable and consistent temporal conditioning, leading to the best
+interpolation performance.
+
+
+                                                                        23
+                          Table 9: Ablation studies on dynamic loss function.
+
+                                 DyCheck [21]                      TUM-Dynamics [88]
+             λdynamic
+                           PSNR ↑ SSIM ↑ LPIPS ↓                PSNR ↑ SSIM ↑ LPIPS ↓
+                 1          15.46       0.373        0.373       18.71      0.578       0.317
+                 3          15.54       0.383        0.385       18.94      0.575       0.341
+                 5          15.50       0.386        0.394       18.94      0.572       0.353
+                10          15.27       0.380        0.405       18.82      0.564       0.368
+
+
+                            Table 10: Quantitative results of point tracking
+
+                                     ADT [73]                                  DriveTrack [4]
+  Method
+                      ∆t = 2     ∆t = 4 ∆t = 8         ∆t = 16     ∆t = 2     ∆t = 4 ∆t = 8       ∆t = 16
+  4DGT [102]            91.24       80.77    75.44      68.84       40.85      40.17      22.90    32.30
+  MoVieS [59]           91.02       78.27    62.22      64.36        7.50       7.02       2.70     5.60
+  NeoVerse [104]        96.06       97.83    94.67      82.76       47.77      47.81      33.26    41.95
+  Ours                  93.98       88.43    76.06      71.86       55.51      52.00      37.19    49.89
+
+
+
+C.3   Dynamic Mask Loss.
+
+Since our model is initialized from pretrained weights trained exclusively on static scenes, it initially
+struggles to reconstruct dynamic regions. To address this, we up-weight the loss in dynamic regions
+relative to static ones. Given a dynamic mask Mdyn , the reweighted MSE loss of photometric loss is
+defined as:
+                     LMSE (t, i) = (λdyn Mdyn,t (i) + (1 − Mdyn,t (i))) ∥It (i) − Iˆt (i)∥,           (36)
+
+where λdyn > 1 amplifies the gradient signal in dynamic regions and i denotes the pixel indices. The
+dynamic mask Mdyn,t is obtained from an off-the-shelf segmentation model given corresponding
+RGB images It . As shown in Tab. 9, this dynamic-aware loss weighting significantly improves
+reconstruction quality in motion regions.
+
+
+D     Tracking Experiments
+
+To validate the scene motion understanding of C4G over pixel-wise methods, we conduct point
+tracking evaluation against other feed-forward dynamic 3DGS frameworks on the ADT dataset [73].
+We convert movements of Gaussian from query points into a tracking field by propagating their center
+positions across timestamps. We evaluate our model by varying the input stride ∆t ∈ {2, 4, 8, 16}
+and report the < δ16 metric, which measures the fraction of predicted tracks within 16 pixels of the
+ground truth.
+As shown in Tab. 10, we evaluate point tracking by measuring the temporal consistency of Gaussian
+trajectories on the ADT [73] and DriveTrack [4] datasets with various input stride ∆t ∈ {2, 4, 8, 16}.
+Despite the inherent disadvantage that our model is not a pixel-wise estimator — meaning the nearest
+Gaussian may not perfectly align with the query point, introducing positional noise at initialization
+— our model nonetheless shows competitive results over all per-pixel baselines. This demonstrates
+that our model captures more geometrically and temporally coherent scene motion, such that even
+trajectories initialized from imperfectly aligned Gaussians yield more accurate tracking than pixel-
+aligned predictions from competing methods. While our model underperforms NeoVerse on the
+ADT dataset, we attribute this gap to a favorable bias in NeoVerse’s evaluation rather than superior
+motion understanding. Specifically, ADT contains a large proportion of static query points, and since
+NeoVerse relies on VGGT point maps, its nearest-neighbor matching tends to associate static points
+with one another, artificially inflating tracking scores. In contrast, our model produces temporally
+consistent trajectories without such bias, making the comparison on static-heavy benchmarks less
+indicative of true dynamic scene understanding.
+
+
+                                                      24
+                                                                                              Query Gaussians
+                𝑡!    𝑡&      𝑡%       𝑡(      𝑡'      𝑡!$      𝑡!#      𝑡!"
+
+
+
+
+    Context
+    Frames
+
+
+
+
+                                                                                   Novel View Target Frames
+      Layer 1
+      Layer 2
+
+
+
+
+                𝑡!    𝑡&      𝑡%       𝑡(      𝑡'      𝑡!$      𝑡!#      𝑡!"
+    Context
+    Frames
+
+
+
+
+                                                                                   Novel View Target Frames
+      Layer 1
+      Layer 2
+
+
+
+
+                     Figure 6: Attention map visualization in dynamic regions.
+
+
+E      Additional Qualitative Results
+E.1       Additional Attention Visualization on C4G.
+
+We additionally provide the visualization results of attention map extended to Fig. 4. As shown
+in Fig. 6, our model preserves its emergent attention properties [29, 25, 24] consistently across
+diverse input images, token positions, and timestamps. Examining the layer-wise attention patterns,
+we observe a clear functional specialization: Layer 1 attends broadly and consistently to spatially
+corresponding regions regardless of timestamp, while Layer 2 exhibits temporally-aware attention,
+where the attention intensity increases for tokens closer to the target timestamp and diminishes for
+those further away. This suggests a natural division of labor within the decoder, where Layer 1
+primarily captures spatial correspondences [28, 12, 11, 2] and Layer 2 progressively incorporates
+temporal context to refine the representation toward the target time moment.
+
+E.2       Analysis of Attention in VDM-based Rendering Enhancement Module
+
+We further investigate whether our VDM-based diffusion model leverages the reference images when
+enhancing the rendered images. To this end, we visualize the attention maps between the rendered
+images and the reference images within the control block in Fig. 7. As shown, the model attends to
+the reference images while refining the rendered ones, demonstrating that reference images play a
+crucial role in the enhancement process.
+
+
+
+
+                                                25
+                                                                              Query Points
+Rendered
+Rendered
+Rendered
+Rendered
+Rendered
+Rendered
+Rendered
+
+
+
+
+           Query Image    Frame 1         Frame 2         Frame 3         Frame 4
+
+    Figure 7: Attention map visualization in VDM-based rendering enhancement module.
+
+
+
+
+                                          26
+F    Limitations
+Since our model reconstructs dynamic scenes solely from the input view distribution, it can only
+generate Gaussians for regions observed at least once across the context frames. Consequently, when
+rendering from extreme viewpoints far from the context cameras, or in regions fully occluded in all
+input views, the model produces holes with zero-valued pixels. While diffusion-based refinement can
+fill these regions, it tends to hallucinate plausible content rather than recover accurate real ground
+truth image. In addition, our model cannot extrapolate beyond the temporal range of the input views:
+since C4G is trained only on interpolated timestamps, it fails to predict accurate future Gaussians,
+which in turn prevents the diffusion module from synthesizing future frames, as it relies on the target
+views rendered by C4G.
+
+
+
+
+                                                  27
+

@@ -85,4 +85,4 @@ Raw foundation-model features (F2d or F3d alone) are inadequate; query refinemen
 
 1. MoonSeg3R is the first monocular, online, zero-shot 3D instance segmentation framework, replacing posed RGB-D with CUT3R geometric priors.
 2. Self-supervised query refinement + spatial-semantic distillation, a 3D query index memory, and a state-distribution token together drive its accuracy, each contributing measurable ablation gains.
-3. It surpasses a monocular RGB-D-free baseline (OnlineAnySeg-M) by +3.3 AP on ScanNet200 at 55× lower fusion latency and approaches posed-RGB-D methods while using only monocular RGB.
+3. It surpasses a monocular RGB-D-free baseline (OnlineAnySeg-M) by +3.3 AP on ScanNet200 at ~55× lower fusion latency (55 ms vs OnlineAnySeg-M's 3000 ms) and approaches posed-RGB-D methods while using only monocular RGB.

@@ -1,0 +1,814 @@
+                                                 T RAJ VG: 3D T RAJECTORY-C OUPLED V ISUAL G EOMETRY
+                                                                      L EARNING
+
+
+                                                                  Xingyu Miao1 Weiguang Zhao2 Tao Lu3 Linning Xu3 Mulin Yu3
+                                                                          Yang Long1,∗ Jiangmiao Pang3 Junting Dong3,∗,†
+                                                                     1                        2                             3
+                                                                         Durham University        University of Liverpool       Shanghai AI Lab
+arXiv:2602.04439v2 [cs.CV] 5 Feb 2026
+
+
+
+
+                                                                            Project page: https://xingy038.github.io/TrajVG/
+
+
+
+
+                                                                                                    A BSTRACT
+                                                     Feed-forward multi-frame 3D reconstruction models often degrade on videos with object motion.
+                                                     Global-reference becomes ambiguous under multiple motions, while the local pointmap relies heavily
+                                                     on estimated relative poses and can drift, causing cross-frame misalignment and duplicated structures.
+                                                     We propose TrajVG, a reconstruction framework that makes cross-frame 3D correspondence an
+                                                     explicit prediction by estimating camera-coordinate 3D trajectories. We couple sparse trajectories,
+                                                     per-frame local point maps, and relative camera poses with geometric consistency objectives: (i)
+                                                     bidirectional trajectory–pointmap consistency with controlled gradient flow, and (ii) a pose consistency
+                                                     objective driven by static track anchors that suppresses gradients from dynamic regions. To scale
+                                                     training to in-the-wild videos where 3D trajectory labels are scarce, we reformulate the same coupling
+                                                     constraints into self-supervised objectives using only pseudo 2D tracks, enabling unified training
+                                                     with mixed supervision. Extensive experiments across 3D tracking, pose estimation, point-map
+                                                     reconstruction, and video depth show that TrajVG surpasses the current feedforward performance
+                                                     baseline.
+
+                                        1       Introduction
+
+                                        Geometric reconstruction from images seeks to recover camera motion and 3D structure from visual observations [1, 2],
+                                        and it remains a core capability for systems that need spatial understanding, such as augmented reality, robotics, and
+                                        navigation. For decades, the dominant approach has been geometric estimation, i.e., correspondences are extracted and
+                                        used to solve for camera poses and 3D structure, with global consistency enforced by iterative refinement procedures
+                                        such as bundle adjustment [3, 4, 5]. Feed-forward 3D models have recently provided an alternative by learning to
+                                        predict dense geometry and camera relationships directly from pixels [6, 7]. A common representation of geometry as
+                                        pixel-aligned point maps, turning reconstruction into dense regression with implicit correspondence reasoning inside the
+                                        network [8, 9, 10]. However, by prioritizing per-pixel geometry regression, these models often overlook the importance
+                                        of explicitly learning cross-frame correspondences.
+                                        Recent feed-forward reconstruction methods diverge fundamentally in how they represent geometry and aggregate
+                                        information across frames. Reference-frame approaches, such as VGGT [11], define predictions relative to a fixed world
+                                        reference (e.g., the first camera). While effective for static scenes, this rigid global anchoring often fails to represent
+                                        dynamic objects or complex motions where a single reference frame is insufficient. Conversely, local-frame approaches
+                                        like π 3 [12] mitigate this by predicting scale-invariant point maps in a purely per-view manner. While this design
+                                        handles non-rigid motion flexibly, it introduces a critical bottleneck, i.e., the fusion of these independent local maps
+                                        is mediated solely by the estimated camera pose. In reality, consecutive frames share a strong physical coupling that
+                                        goes beyond simple rigid transformations. Although recent frameworks like MASt3R [9], St4RTrack [13], and VGGT
+                                        capture these cross-view dependencies implicitly, they lack explicit geometric constraints to enforce this coupling.
+                                            †
+                                                Project lead.
+                                            * Corresponding author.
+
+                                                This work was completed during an internship at Shanghai AI Lab.
+                          Figure 1: Visualization results of TrajVG on in-the-wild videos.
+
+
+Consequently, when pose estimation is ambiguous (e.g., due to weak overlap or rotational drift), the lack of explicit tie
+points leads to misalignment, such as duplicated surfaces or drift, even if individual point maps are locally coherent.
+Inspired by classical SfM, we elevate cross-frame 3D correspondence from an implicit byproduct of dense regression to
+an explicit prediction that links per-view point maps. We propose TrajVG, a feed-forward reconstruction framework
+that enforces explicit geometric coupling across frames by introducing trajectory-based 3D correspondences. Rather
+than depending on a fixed reference coordinate system or the camera pose head to align these maps, we introduce a
+3D tracking branch that estimates camera-coordinate trajectories conditioned on both multi-frame visual features and
+current geometric predictions. These trajectories act as geometric tie points and drive two coupling objectives: (i)
+bidirectional consistency between trajectories and sampled point-map values, and (ii) pose consistency obtained by
+transforming trajectory points into a common reference frame.
+Specifically, we leverage a 3D tracking branch alongside the geometry and pose heads, where correspondences are for-
+mulated as 3D trajectories in camera space explicitly anchored to the predicted local point maps. This branch conditions
+not only on multi-frame visual features but also on the current geometric predictions, ensuring that matching operates
+within the lifted 3D space rather than in the image plane. We further transform these independent correspondence
+predictions into active supervision signals by constructing a set of geometric coupling constraints that tightly link sparse
+tracks, dense point maps, and camera poses. By employing explicit gradient routing, we prevent any single component
+from absorbing the entire residual error.
+We enforce this coupling through distinct optimization objectives. For geometry, we establish bidirectional consistency
+by sampling local point maps at tracking locations and minimizing their deviation from the predicted trajectories. This
+objective allows high-confidence tracks to regularize the geometry while simultaneously using the geometry as evidence
+to refine trajectory estimates. For camera pose, we impose pose consistency by projecting these trajectory points into
+a common reference frame using the predicted relative poses. To ensure robust pose optimization, we introduce a
+static-point gating mechanism that suppresses gradients from dynamic regions. This ensures that pose updates are
+driven primarily by points consistent with rigid motion. To extend to real-world video where 3D trajectory annotations
+are scarce, we adapt these coupling constraints into a self-supervised objective dependent solely on 2D tracks. 2D
+tracked pixels are used to sample predicted point maps to obtain camera-frame 3D observations. This enables unified
+training across datasets with mixed supervision and improves generalization to in-the-wild videos. To summarize, the
+main contributions of this work are as follows:
+
+       • We present a multi-frame reconstruction pipeline that treats 3D tracking as an explicit correspondence
+         relationship to predict per-frame camera-coordinate trajectories to directly improve point-map fusion and
+         relative pose estimation.
+       • We introduce two complementary consistency terms that couple trajectories, point maps, and relative poses,
+         which force the outputs to agree across frames and stabilize optimization in dynamic scenes through static-point
+         gating and controlled gradient flow.
+
+
+                                                             2
+       • We introduce a semi-supervised training scheme that transfers the same coupling constraints to in-the-wild
+         videos using pseudo 2D tracks, enabling mixed-supervision training and improving generalization.
+
+2     Related Work
+2.1   Feed-Forward 3D Reconstruction
+
+Recent methods for 3D reconstruction from images have shifted from classical geometric optimization (e.g., bundle
+adjustment) to learning-based approaches, where neural networks predict dense geometry and camera relations directly
+from pixels. The earliest works in this area, like DUSt3R [8], predicted point maps by regressing from images, turning
+the problem of correspondence matching into a learned process. This was followed by methods like MASt3R [14] that
+introduced a dense feature head and matching loss to improve geometry consistency across frames.
+These feed-forward models can be divided into two categories based on the coordinate system used for multi-frame
+fusion. One class of methods, such as VGGT [11], uses a shared world reference frame, anchoring the 3D structure and
+camera poses to a fixed coordinate system. This approach is effective when the scene contains a stable reference but can
+fail when the reference is weak or when there is substantial non-rigid motion. In contrast, π 3 [12] avoids using a fixed
+reference view and instead employs a permutation-equivariant design, predicting scale-invariant local point maps and
+affine-invariant camera relations per view. This design is more robust to complex motion patterns and occlusions, as it
+does not force a single global explanation of the scene.
+
+2.2   Point Tracking
+
+Recently, most point tracking work targets 2D trajectories in the image plane [15, 16]. PIPs [17] address long-term
+tracking through occlusions. TAPIR [18] tracks arbitrary queried points with per-frame initialization plus temporal
+refinement, and CoTracker series [15, 16] improves robustness by tracking many points jointly with a transformer.
+These methods provide strong 2D supervision signals, but they do not directly constrain 3D alignment unless paired
+with depth and pose. Some feed-forward reconstruction models also output tracks as part of joint geometry prediction,
+for example VGGT [11] includes 2D point tracks in its global-frame formulation.
+3D point tracking has recently become more active, supported by benchmarks such as TAPVid-3D [19]. Early directions
+include optimization-heavy methods that track many points across space and time, such as OmniMotion [20]. More
+recent methods lift tracking into 3D by combining tracking with depth and camera. DELTA [21] takes RGB video
+together with depth maps obtained from an off-the-shelf monocular depth estimator, and then uses an attention-based
+tracking. In the multi-camera setting, MVTracker [22] targets multi-view 3D point tracking using a practical number of
+views, and assumes known camera poses together with sensor depth or estimated multi-view depth. It fuses multi-view
+features into a 3D point cloud, uses KNN correlation, and iteratively refines tracks with a transformer update, improving
+robustness under occlusion and depth ambiguity. SpaTracker [23] targets spatio-temporal “track any point” in 3D. It lifts
+pixels to 3D with monocular depth, represents each frame in a compact 3D form, and uses iterative transformer updates
+to estimate 3D trajectories. TAPIP3D [24] represents videos as camera-stabilized 3D feature clouds and iteratively
+refines 3D motion, producing tracks in world coordinates. SpatialTrackerV2 [25] unifies point tracking, monocular
+depth, and camera pose estimation in a single feed-forward 3D tracker, producing geometry, poses, and trajectories
+together.
+Compared with these 3D tracking lines, we treat 3D tracking as an explicit correspondence module inside a recon-
+struction system, and we couple tracks, dense point maps, and poses through bidirectional consistency and pose gating
+losses. This makes the tracking branch act as a cross-frame geometric constraint for reconstruction, rather than treating
+tracking as a byproduct of geometric reconstruction.
+
+3     Method
+In Figure 2, our model predicts per-frame local pointmaps and camera poses, and we add a 3D tracking head to learn
+correspondences at scale from mostly static data. We couple tracks, pointmaps, and cameras through correlation-based
+constraints so that tracking supervision provides gradients to both the pointmap and pose branches. When metric 3D
+ground truth is unavailable, we train using only 2D tracks via self-supervised variants of the same coupled objectives.
+
+3.1   Preliminaries
+
+We index frames by t ∈ {0, . . . , T − 1} and denote the image at time t as It . Each frame has its own camera coordinate
+system, denoted by ct .
+
+
+                                                           3
+                  Input Images
+
+
+
+
+                                                                                        Pose Head
+                                                                                                     3D Tracks GT                      2D Tracks P-GT
+      Labeled                                                                                                          3D Tracks
+
+
+
+
+                                                            Feature Aggregation
+                                     ViT Backbone
+
+
+
+
+                                                                                        Track Head
+      Unlabeled
+
+
+
+
+                                                                                                           Point Map               Camera Pose
+
+
+
+
+                                                                                        Point Head
+                                                    Token
+
+Figure 2: Overview of our model. We jointly 3D track points with point-map and camera poses that tracking provides
+a direct improvement on both geometry reconstruction and camera motion.
+
+
+Camera poses. The inverse pose maps world to camera coordinates: Ĉw→ct = Ĉ−1
+                                                                            t . The relative pose from frame t
+to an anchor frame x is
+                                             Ĉt→x = Ĉ−1
+                                                       x Ĉt .                                             (1)
+
+Local pointmaps.                 For each frame t, the model predicts a pixel-aligned local pointmap
+                                                                                  P̂t (u) ∈ R3 , u = (x, y) ∈ Ω,                                        (2)
+
+where P̂t (u) is expressed in camera coordinates ct .
+
+3.2     3D Tracking
+
+Recent feed-forward 3D reconstruction models are often trained on large multi-view video datasets dominated by
+static geometry, such as indoor RGB-D scans (e.g., ScanNet [26]) and object-centric captures (e.g., CO3D [27]). In
+this setting, most apparent motion is caused by ego-motion rather than scene deformation, so 2D pixel-space tracking
+supervision is well-posed. Even when the underlying 3D point is static, its image-plane location changes with viewpoint,
+so the model must use cross-frame appearance and occlusion cues to maintain consistent tracks (e.g., VGGT [11]).
+Our goal is to learn 3D correspondences that mutually improve both pointmaps and camera poses. However, if
+trajectories are defined in a fixed world (or canonical) coordinate system, static points have a trivial solution, that is,
+for a static world point Xi , the correct trajectory is time-invariant, i.e., Xt,i = Xi . In this scenario, the 3D tracking
+branch can minimize its loss by simply producing near-zero updates to maintain a constant state, effectively ignoring
+the specific local correspondence in frame t. As the state becomes constant, the local geometric neighborhoods and
+correlation features used by the update rule also become similar across time, which further encourages a near-zero
+update rule and makes the tracking gradients insensitive to correspondence errors. This weakens the signals needed
+for feed-forward reconstruction, such as correcting pointmap overlap (duplicate surfaces), improving cross-frame
+alignment, and constraining relative camera motion.
+We avoid this by predicting tracks in the camera coordinate system of each frame. For a static world point Xi , its
+camera coordinate position:
+                                             (c )
+                                            pt,it = Ĉw→ct Hom(Xi ).                                            (3)
+where Hom(x) = [x⊤ , 1]⊤ is homogeneous coordinates. The tracking branch must explain viewpoint-induced
+geometric changes, and must re-associate the query point with the correct local neighborhood on each frame’s predicted
+pointmap.
+                          q         N
+Given query pixels {qi }i=1 in the first frame, we initialize the 3D query point by sampling the first-frame pointmap:
+                                                                      
+                                               p̂0,i = Sample P̂0 , qi .                                            (4)
+
+where Sample(P̂t , u) denotes bilinear sampling on the image grid. The 3D tracking branch then predicts a camera
+coordinate trajectory p̂t,i ∈ R3 and visibility v̂t,i ∈ [0, 1] for each frame.
+
+
+                                                                                                     4
+         Input Images                  Ours                               𝜋!                           VGGT
+
+
+
+
+Figure 3: Qualitative comparison of multi-view 3D reconstruction. Our method achieves better reconstruction
+results in field scenarios. In contrast, baseline methods suffer from issues such as overlap and loss of detail.
+
+3.3   Joint pointmaps, tracks, and cameras optimization.
+
+If the 3D tracking head is trained only to match trajectory labels, it may remain an auxiliary prediction that may not fix
+pointmap overlap or reduce pose drift. We therefore introduce coupling terms that connect (i) tracked 3D points, (ii)
+pointmap values at tracked pixels, and (iii) predicted relative camera motion.
+Let qt,i denote the 2D location of query i in frame t, and define the pointmap sample (in ct ) as:
+                                                                    
+                                            p̃t,i = Sample P̂t , qt,i ∈ R3 .                                          (5)
+We use a visibility weight wt,i and a Huber penalty ρ(·).
+
+Tracking-pointmap bidirectional consistency. We enforce agreement between the tracked 3D point and the pointmap
+value at the tracked pixel, while controlling which branch receives gradients:
+                                       X                                                      
+                              Lcons =       wt,i ρ(sg[p̂t,i ] − p̃t,i ) + ρ(p̂t,i − sg[p̃t,i ]) .            (6)
+                                        t,i
+
+where sg[·] is the stop-gradient operator.The first term updates the pointmap branch (tracks detached), while the second
+updates the tracking branch (pointmap samples detached). This avoids unstable gradient interactions where the two
+branches chase each other, and it also avoids a degenerate compromise where both outputs drift toward an averaged
+value.
+
+Camera consistency from track anchors. To accurately recover ego-motion, we must isolate rigid background
+geometry from dynamic objects. We therefore define a binary static mask mt,i using ground-truth 3D trajectories.
+Let X∗t,i and X∗x,i denote the ground-truth world coordinates of query i at frame t and anchor frame x, respectively.
+A track is considered static (i.e., mt,i = 1) only if its physical displacement satisfies ∥X∗t,i − X∗x,i ∥2 < τstatic . In
+implementation, we compute this mask in the anchor camera coordinates using a robust temporal reference (e.g., the
+median over time) to reduce sensitivity to outliers.
+Under the predicted relative motion, these static points should map to consistent locations in the anchor camera
+coordinates cx . We express a per-frame 3D point in cx via:
+                                               (c )
+                                              p̃t,ix = Ĉt→x Hom(sg[p̃t,i ]) .                                        (7)
+We then enforce (i) anchor consistency between reprojected static samples and the anchor-frame samples, and (ii)
+                                                      (c )
+supervision against the ground-truth anchor targets p̄t,ix :
+                                                                   h      i                     
+                                                             (c )                              (c )
+                  X
+          Lcam =       wt,i mt,i ρ Ĉt→x Hom(sg[p̂t,i ]) − p̄t,ix + ρ sg Ĉt→x Hom(p̂t,i ) − p̄t,ix   .
+                        t,i
+
+
+where sg[·] controls the update direction: the first term updates only the pose Ĉt→x (using static tracks), while the
+second term updates only the tracked 3D points.
+
+
+                                                             5
+Table 1: Comparison of 3D point tracking methods on the large-scale real-world TAPVid-3D [19] benchmark. C,
+U, and M are abbreviations for COLMAP [4], Unidepth [28], and MegaSAM [29]. † denotes using depth to lift 2D
+tracks to 3D tracks.
+                                           ADT                               DriveTrack                     PStudio
+  Methods
+                               AJ3D ↑      APD3D ↑       OA↑        AJ3D ↑     APD3D ↑    OA↑    AJ3D ↑     APD3D ↑   OA↑
+         †
+  TAPIR [18] + C                 7.1         11.9        72.6        8.9           14.7   80.4       6.1      10.7    75.2
+  CoTracker3† [16] + C           8.0         12.3        78.6        11.7          19.1   81.7       8.1      13.5    77.2
+  CoTracker3† [16] + U           15.8        24.4        88.9        13.5          19.9   87.1     9.2        13.8    84.2
+  TAPIR† [18] + U                15.7        24.2        87.8        12.4          19.1   84.8     7.3        13.5    84.3
+  SceneTracker + U                -          23.1         -           -            6.8     -        -         12.7     -
+  SpatialTracker [23] + U        13.6        20.9        90.5        8.3           14.5   82.8     8.0        15.0    75.8
+  SpatialTracker2 [25] + U       18.6        26.3        90.8        16.4          24.3   90.2    18.1        27.6    86.7
+  DELTA [21] + U                 16.6        24.4        86.8        14.6          22.5   85.8     8.2        15.0    76.4
+  DELTA2 [30] + U                17.0        24.7        87.2        15.6          23.8   84.6     7.7        14.4    74.1
+  CoTracker3† [16] + M           20.4        30.1        89.8        14.1          20.3   88.5    17.4        27.2    85.0
+  SpatialTracker [23] + M        15.9        23.8        90.1        7.7           13.5   85.2    15.3        25.2    78.1
+  SpatialTracker2 [25] + M       22.3        32.2        93.7        15.8          23.0   90.0    18.2        28.6    87.3
+  DELTA [21] + M                 21.0        29.3        89.7        14.6          22.2   88.1    17.7        27.3    81.4
+  TAPIP3D [24] + M               21.6        31.0        90.4        14.6          21.3   82.2    18.1        27.7    85.5
+  Our + M                        23.1        32.5        93.8        17.8          25.2   92.2    18.2        28.8    86.3
+
+Table 2: Camera Pose Estimation on RealEstate10K [31] and Co3Dv2 [27]. Metrics measure the ratio of angular
+accuracy of rotation/translation under an error of 30 degrees, the higher the better.
+
+                                        RealEstate10K                                      Co3Dv2
+        Method
+                         RRA@30 ↑        RTA@30 ↑         AUC@30 ↑           RRA@30 ↑     RTA@30 ↑         AUC@30 ↑
+        Fast3R [32]          99.05          81.86             61.68               97.49      91.11           73.43
+        CUT3R [33]           99.82          95.10             81.47               96.19      92.69           75.82
+        FLARE [34]           99.69          95.23             80.01               96.38      93.76           73.99
+        VGGT [11]            99.97          93.13             77.62               98.96      97.13           88.59
+        π 3 [12]             99.99          95.62             85.90               99.05      97.33           88.41
+        Our                  99.99          95.58             86.60               99.14      96.80           86.00
+
+
+3.4   Self-Supervision from In-the-Wild Videos
+
+A key limitation of feed-forward 3D reconstruction is the scarcity of data with reliable 3D labels. While synthetic or
+scanned datasets provide metric ground truth, they lack the diverse appearance, motion patterns, and occlusions found in
+real-world footage. To leverage the abundance of Internet videos, we extend our coupled objectives to a self-supervised
+setting using pseudo-ground-truth 2D trajectories.
+
+                                                     −1
+Pseudo 2D tracks. For an unlabeled video clip {It }Tt=0 , we generate dense 2D trajectories and visibility flags using
+an off-the-shelf tracker (e.g., CoTracker3):
+                                                    qt,i ∈ R2 , v̄t,i ∈ [0, 1].                                          (8)
+These 2D tracks serve as the correspondence signal for our 3D branches.
+
+Self-supervised term. Instead of defining new loss functions, we adapt the consistency objectives from section 3.3 to
+use the pseudo-tracks. We sample the predicted pointmaps P̂t at the tracked locations qt,i to obtain 3D samples p̃t,i .
+We then apply the bidirectional consistency terms (Lcons ) and the anchor consistency term (Lcam ) exactly as defined
+in (eq. (6) and eq. (7)), substituting the tracker-derived locations and visibility weights. Note that the second term in
+eq. (7) is not used because there is no ground truth for the camera pose.
+This formulation transfers the robust 2D correspondence signal from the video tracker to our 3D pointmap and camera
+branches without requiring explicit depth or pose labels. The gradient routing remains identical: consistency losses
+
+
+                                                                6
+Table 3: Camera Pose Estimation on Sintel [56], TUM-dynamics [57] and ScanNet [26]. Metrics measure the
+distance error of rotation/translation, the lower the better.
+
+                               Sintel                          TUM-dynamics                            ScanNet
+    Method
+                  ATE↓      RPE trans↓     RPE rot↓   ATE↓      RPE trans↓     RPE rot↓    ATE↓     RPE trans↓     RPE rot↓
+    Fast3R [32]   0.371       0.298         13.75      0.090       0.101        1.425      0.155       0.123        3.491
+    CUT3R [33]    0.217       0.070         0.636      0.047       0.015        0.451      0.094       0.022        0.629
+    Aether [58]   0.189       0.054         0.694      0.092       0.012        1.106      0.176       0.028        1.204
+    FLARE [34]    0.207       0.090         3.015      0.026       0.013        0.475      0.064       0.023        0.971
+    VGGT [11]     0.167       0.062         0.491      0.012       0.010        0.311      0.035       0.015        0.382
+    π 3 [12]      0.074       0.040         0.282      0.014       0.009        0.312      0.031       0.013        0.347
+    Our           0.108       0.038         0.274      0.011       0.008        0.307      0.030       0.013        0.351
+
+      Table 4: Point Map Estimation on DTU [59] and ETH3D [60]. Keyframes are selected every 5 images.
+
+                                         DTU                                                ETH3D
+    Method           Acc. ↓             Comp. ↓          N.C. ↑            Acc. ↓           Comp. ↓            N.C. ↑
+                  Mean      Med.   Mean      Med.     Mean     Med.    Mean     Med.      Mean     Med.    Mean    Med.
+    Fast3R [32]   3.340   1.919    2.929     1.125    0.671    0.755   0.832    0.691     0.978    0.683   0.667   0.766
+    CUT3R [33]    4.742   2.600    3.400     1.316    0.679    0.764   0.617    0.525     0.747    0.579   0.754   0.848
+    FLARE [34]    2.541   1.468    3.174     1.420    0.684    0.774   0.464    0.338     0.664    0.395   0.744   0.864
+    VGGT [11]     1.338   0.779    1.896     0.992    0.676    0.766   0.280    0.185     0.305    0.182   0.853   0.950
+    π 3 [12]      1.198   0.646    1.849     0.607    0.678    0.768   0.194    0.131     0.210    0.128   0.883   0.969
+    Our           1.435   0.762    2.119     0.621    0.678    0.769   0.173    0.117     0.200    0.124   0.887   0.970
+
+
+refine the alignment between the tracking head and pointmaps, while anchor consistency drives the learning of relative
+camera poses.
+
+Semi-supervised training strategy. While self-supervision scales correspondence learning, it cannot fully constrain
+metric structure. Relying solely on 2D consistency can lead to geometric drift (e.g., scale ambiguity) or degenerate
+solutions where the model satisfies constraints via “shortcuts” rather than valid 3D geometry. To address this, we
+employ a semi-supervised approach, training on a mixture of labeled data and in-the-wild videos. The labeled data
+anchors the metric scale and stabilizes learning, while the large-scale unlabeled data enhances the model’s robustness to
+diverse appearances and complex motions.
+
+4     Experiments
+4.1    Training Datasets.
+
+We adopt a three-stage training strategy. Our model is not trained from scratch. We initialize it with the pretrained back-
+bone weights from π 3 and keep the backbone frozen during the first stage. In this stage, we use CO3DV2 [27],
+Mapfree [35], TartanAir [36], ASE [37], VKITTI [38], MVSynth [39], ARKitScenes [40], BlendedMVS [41],
+DL3DV [42], ScanNet++ [43], ScanNet [26], MegaDepth [44], Waymo [45], WildRGBD [46], GTASfm [47], Hy-
+perSim [48], OmniWorld [49], UnReal4K [50], MatrixCity [51], Spring [52], Kubric [53], PointOdyssey [54], and
+DynamicReplica [55] to train the 3D tracking branch in the camera coordinate system. In the second stage, we mix the
+above datasets with Sekai. Using this combined data, we finetune the backbone and jointly train the point map branch
+and the camera branch. The third stage follows a setting similar to π 3 [12]. We freeze the backbone, the point map
+branch, and the camera branch. We then use the same datasets together with an internal dynamic 3D tracking dataset to
+train the confidence module and the 3D tracking branch.
+
+4.2    Comparison to the state-of-the-art
+
+We evaluate our method on five tasks: 3D tracking, camera pose estimation, point map estimation, video depth
+estimation, and monocular depth estimation. We also provide qualitative comparisons on in-the-wild field scenes in
+Figure 3, where our method produces cleaner geometry with fewer overlaps and better detail. In addition, we conduct
+comprehensive ablation studies to analyze the impact of key design.
+
+
+                                                               7
+Table 5: Point Map Estimation on 7-Scenes [61] and NRGBD [62]. Keyframes are selected every 200 images (for
+7-Scenes) and 500 images (for NRGBD) for sparse view, and every 40 images (for 7-Scenes) and 100 images (for
+NRGBD) for dense view.
+
+                                            7-Scenes                                            NRGBD
+  Method        View        Acc. ↓          Comp. ↓            NC. ↑            Acc. ↓          Comp. ↓               NC. ↑
+                         Mean     Med.    Mean    Med.     Mean     Med.     Mean    Med.     Mean      Med.    Mean      Med.
+  Fast3R [32]            0.095    0.065   0.144   0.089    0.673    0.759    0.135   0.091    0.163     0.104   0.759    0.877
+  CUT3R [33]             0.093    0.049   0.102   0.051    0.704    0.805    0.104   0.041    0.079     0.031   0.822    0.968
+  FLARE [34]             0.085    0.057   0.145   0.107    0.696    0.780    0.053   0.024    0.051     0.025   0.877    0.988
+                sparse
+  VGGT [11]              0.044    0.025   0.056   0.033    0.733    0.845    0.051   0.029    0.066     0.038   0.890    0.981
+  π 3 [12]               0.047    0.029   0.075   0.049    0.742    0.841    0.026   0.015    0.028     0.014   0.916    0.992
+  Our                    0.037    0.022   0.052   0.033    0.763    0.874    0.029   0.018    0.032     0.016   0.910    0.992
+  Fast3R [32]            0.040    0.017   0.056   0.018    0.644    0.725    0.072   0.030    0.050     0.016   0.790    0.934
+  CUT3R [33]             0.023    0.010   0.027   0.008    0.669    0.764    0.086   0.037    0.048     0.017   0.800    0.953
+  FLARE [34]             0.019    0.007   0.026   0.013    0.684    0.785    0.023   0.011    0.018     0.008   0.882    0.986
+                dense
+  VGGT [11]              0.022    0.007   0.026   0.012    0.666    0.760    0.017   0.010    0.015     0.005   0.893    0.988
+  π 3 [12]               0.016    0.007   0.022   0.011    0.689    0.792    0.015   0.008    0.013     0.005   0.898    0.987
+  Our                    0.015    0.007   0.022   0.010    0.691    0.797    0.013   0.007    0.014     0.005   0.858    0.981
+
+
+                  Table 6: Video Depth Estimation on Sintel [56], Bonn [63] and KITTI [64].
+
+                                              Sintel                         Bonn                             KITTI
+     Method               Align
+                                     Abs Rel ↓    δ < 1.25 ↑       Abs Rel ↓     δ < 1.25 ↑     Abs Rel ↓        δ < 1.25 ↑
+     DUSt3R [8]                       0.662            0.434         0.151           0.839            0.143           0.814
+     MASt3R [14]                      0.558            0.487         0.188           0.765            0.115           0.848
+     MonST3R [65]                     0.399            0.519         0.072           0.957            0.107           0.884
+     Fast3R [32]                      0.638            0.422         0.194           0.772            0.138           0.834
+     MVDUSt3R [66]                    0.805            0.283         0.426           0.357            0.456           0.342
+                          scale
+     CUT3R [33]                       0.417            0.507         0.078           0.937            0.122           0.876
+     Aether [58]                      0.324            0.502         0.273           0.594            0.056           0.978
+     FLARE [34]                       0.729            0.336         0.152           0.790            0.356           0.570
+     VGGT [11]                        0.299            0.638         0.057           0.966            0.062           0.969
+     π 3 [12]                         0.233            0.664         0.049           0.975            0.038           0.986
+     Our                              0.220            0.717         0.036           0.979            0.040           0.984
+     DUSt3R [8]                       0.570            0.493         0.152           0.835            0.135           0.818
+     MASt3R [14]                      0.480            0.517         0.189           0.771            0.115           0.849
+     MonST3R [65]                     0.402            0.526         0.070           0.958            0.098           0.883
+     Fast3R [32]                      0.518            0.486         0.196           0.768            0.139           0.808
+     MVDUSt3R [66]        scale       0.619            0.332         0.482           0.357            0.401           0.355
+                           &
+     CUT3R [33]           shift       0.534            0.558         0.075           0.943            0.111           0.883
+     Aether [58]                      0.314            0.604         0.308           0.602            0.054           0.977
+     FLARE [34]                       0.791            0.358         0.142           0.797            0.357           0.579
+     VGGT [11]                        0.230            0.678         0.052           0.969            0.052           0.968
+     π 3 [12]                         0.210            0.726         0.043           0.975            0.037           0.985
+     Our                              0.188            0.723         0.037           0.980            0.037           0.983
+
+
+
+3D Point Tracking. For a fair evaluation, we report results from a tracking-specific variant of our model where we
+freeze the pretrained backbone and fine-tune only the tracking branch. This is because our backbone is trained with
+a geometry-first objective and a first-frame-visible query design, which differs from the standard training/evaluation
+setup of 3D point trackers. As a result, directly evaluating our full model end-to-end under the geometry-oriented setup
+would provide an underestimate of the tracking capability enabled by our representation. We evaluate 3D tracking
+on TAPVid-3D [19], which contains large-scale real-world videos with long-range motion, occlusions, and mixed
+rigid/non-rigid dynamics. We report AJ3D , APD3D , and OA (Table 1), which measure 3D trajectory accuracy, 3D
+position accuracy, and visibility prediction accuracy, respectively. We compare against (i) modular pipelines that lift
+2D tracks to 3D using external depth (e.g., TAPIR [18] or CoTracker3 [16] with COLMAP [4], UniDepth [28], or
+
+
+                                                               8
+        Table 7: Monocular Depth Estimation on Sintel [56], Bonn [63], KITTI [64] and NYU-v2 [69].
+
+                             Sintel                         Bonn                        KITTI                   NYU-v2
+  Method
+                   Abs Rel↓      δ < 1.25 ↑        Abs Rel↓    δ < 1.25 ↑      Abs Rel↓    δ < 1.25 ↑     Abs Rel↓   δ < 1.25 ↑
+  DUSt3R [8]         0.488            0.532         0.139          0.832        0.109         0.873        0.081       0.909
+  MASt3R [14]        0.413            0.569         0.123          0.833        0.077         0.948        0.110       0.865
+  MonST3R [65]       0.402            0.525         0.069          0.954        0.098         0.895        0.094       0.887
+  Fast3R [32]        0.544            0.509         0.169          0.796        0.120         0.861        0.093       0.898
+  CUT3R [33]         0.418            0.520         0.058          0.967        0.097         0.914        0.081       0.914
+  FLARE [34]         0.606            0.402         0.130          0.836        0.312         0.513        0.089       0.898
+  VGGT [11]          0.335            0.599         0.053          0.970        0.082         0.947        0.056       0.951
+  MoGe1 [70]         0.273            0.695         0.050          0.976        0.054         0.977        0.055       0.952
+  MoGe2 [71]         0.277            0.687         0.063          0.973        0.049         0.979        0.060       0.940
+  π 3 [12]           0.277            0.614         0.044          0.976        0.060         0.971        0.054       0.956
+  Our                0.297            0.617         0.037          0.979        0.058         0.967        0.051       0.958
+
+       Table 8: Ablation Study for Joint Training on ETH3D [60]. 3D-Trk denote the 3D tracking branch.
+
+                        w. 3D-Trk       w. Lcons     w. Lcam   w. Lself-sup.   Acc.↓    Comp.↓    N.C↑
+                             ✗                ✗        ✗               ✗       0.177      0.201   0.888
+                             ✓                ✗        ✗               ✗       0.175      0.199   0.887
+                             ✓                ✗        ✓               ✓       0.172      0.198   0.890
+                             ✓                ✓        ✗               ✓       0.173      0.200   0.887
+                             ✓                ✓        ✓               ✗       0.170      0.196   0.889
+                             ✓                ✓        ✓               ✓       0.168      0.192   0.891
+
+
+
+MegaSAM [29]), and (ii) native 3D trackers that couple tracking with geometry and pose, such as TAPIP3D [24] and
+SpatialTracker/SpatialTracker2 [23, 25]. Table 1 shows that our method achieves the best overall performance across
+subsets and on average.
+
+Camera Pose Estimation. We are following recent feed-forward geometry models [67, 11, 8, 33, 65, 68] to evaluate
+camera pose on RealEstate10K [31] and Co3Dv2 [27] using the angular-accuracy and distance error protocol adopted
+by recent feed-forward geometry models. For each test sequence, we sample a fixed-size subset of frames and evaluate
+all frame pairs. We report relative rotation accuracy (RRA), relative translation accuracy (RTA), and the AUC of the
+accuracy–threshold curve. We further evaluate camera trajectory accuracy on Sintel [56], TUM-dynamics [57], and
+ScanNet [26] with standard trajectory metrics (ATE, RPE translation, RPE rotation). Table 2 presents relative pose
+results. On RealEstate10K, our method sets the new state-of-the-art in AUC@30 and RRA@30. On Co3Dv2, we
+achieve the highest rotation accuracy (RRA@30) and comparable performance on translation and AUC metrics relative
+to leading methods like VGGT and π 3 . Table 3 reports trajectory accuracy. Our method shows strong generalization.
+It ranks first on TUM-dynamics across all metrics and achieves the lowest ATE on ScanNet. Notably, on Sintel, we
+attain the lowest RPE for both translation and rotation. While ATE on Sintel is slightly higher than π 3 , our method
+consistently minimizes local pose errors.
+
+Point Map Estimation. We are following [33] to evaluate point map estimation on DTU [59] and ETH3D [60], and
+on long sequences from 7-Scenes [61] and NRGBD [62] under both sparse-view and dense-view sampling settings.
+Following the established evaluation in recent feed-forward reconstruction work, predicted point maps are first aligned to
+ground truth with a similarity transform (Umeyama), then optionally refined with ICP; we report Accuracy, Completion,
+and Normal Consistency.
+As reported in Table 4, our method demonstrates strong generalization across different scene types. Our method
+significantly outperforms all baselines on the complex, scene-centric ETH3D dataset, achieving the best performance
+across Accuracy, Completion, and Normal Consistency metrics. Furthermore, Table 5 highlights the robustness of our
+approach on long video sequences. On 7-Scenes, our method ranks first in both sparse-view and dense-view settings,
+surpassing the recent state-of-the-art π 3 . On NRGBD, we achieve results comparable to the top-performing method,
+confirming that our point map estimation remains stable and accurate even over extended trajectories.
+
+Video Depth Estimation. We are following [33, 65] to evaluate video depth on Sintel [56], Bonn [63], and KITTI [64].
+We follow the common protocol of evaluating depth under (i) a single scale alignment per sequence and (ii) a shared
+
+
+                                                                   9
+                        Table 9: Ablation Study for semi-supervised training on Sekai [72].
+
+                                     Setting           ATE↓       RPE trans↓     RPE rot↓
+                                     w. Lself-sup.    0.0101          0.0051      0.2515
+                                     wo. Lself-sup.   0.0154          0.0103      0.4413
+
+                          Input Images          w/o 𝓛𝐬𝐞𝐥𝐟%𝐬𝐮𝐩.                    w 𝓛𝐬𝐞𝐥𝐟%𝐬𝐮𝐩.
+
+
+
+
+                                  Figure 4: The influence of semi-supervised training.
+
+
+scale-and-shift alignment per sequence, and report Abs Rel and threshold accuracy. Quantitative results are presented
+in Table 6. Our method sets a new state-of-the-art for video depth estimation, particularly excelling in dynamic
+environments. Under the scale-only alignment protocol, we achieve the lowest Abs Rel errors on Sintel (0.220) and
+Bonn (0.036), outperforming π 3 by a clear margin. This advantage holds under the scale-and-shift protocol, where our
+method ranks first on Sintel and ties for the best performance on KITTI.
+
+Monocular Depth Estimation. We are following [33, 65] to evaluate monocular depth on Sintel [56], Bonn [63],
+KITTI [64], and NYU-v2 [69]. Following prior work, each predicted depth map is aligned independently to ground truth
+(per-image scale), and we report Abs Rel and threshold accuracy. Table 7 shows the zero-shot evaluation on monocular
+depth benchmarks. We achieve the best performance on Bonn and NYU-v2, surpassing both baseline methods (e.g., π 3 )
+and specialized monocular estimators (e.g., MoGe). On Sintel and KITTI, our method remains highly competitive,
+ranking second-best overall.
+
+4.3   Ablation Study
+
+The ablation study investigates the impact of joint training and self-supervision training. Table 8 shows the effect of
+adding our 3D tracking branch and the associated losses on ETH3D. Enabling the 3D tracking branch alone already
+improves point-map estimation, suggesting that 3D tracking acts as an auxiliary task that strengthens the shared
+representation for geometry prediction. This is in line with the observation in VGGT [11] that jointly predicting multiple
+3D quantities benefits point-map quality. When we further introduce the camera consistency term Lcam together with
+the pointmap–tracking bidirectional consistency term Lcons , the improvement becomes clearly larger than using either
+term in isolation, indicating that accurate cross-view pose alignment and dense-sparse coupling provide complementary
+constraints for multi-frame fusion. Finally, adding the self-supervised term Lself-sup. only brings a modest additional gain
+on ETH3D. We attribute this mainly to the data distribution gap, since the self-supervised stage is trained on in-the-wild
+Sekai videos [72] while evaluation is performed on ETH3D. Therefore, we further investigate the self-supervision
+effect in an additional ablation on Sekai itself. As shown in Table 9, incorporating Lself-sup. consistently improves both
+global trajectory accuracy and relative pose errors, and Figure 4 improves detail for the pointmap. It confirms that our
+self-supervision primarily enhances performance on in-the-wild data.
+
+
+                      Table 10: Ablation study for tracking branch on DynamicReplica [55].
+
+                               Setting                                AJ3D ↑   APD3D ↑       OA↑
+                               Base (Only 3D track branch)             49.8     65.7         83.4
+                               + Lcons                                 57.4     70.1         84.1
+                               + Lcons + Lcam                          59.1     72.3         85.0
+                               + Lcons + Lcam + Lself-sup.             59.5     72.5         85.1
+
+
+                                                                 10
+In addition, we analyze how the tracking-related losses affect 3D tracking quality on Dynamic Replica. Table 10 starts
+from the base model with only the 3D tracking branch, and adding Lcons yields a clear improvement across all three
+metrics, demonstrating the benefit of enforcing consistency between point maps and sparse tracks. Adding Lcam further
+improves performance, indicating that better camera alignment also helps tracking in dynamic scenes. Finally, including
+Lself-sup. provides a small but consistent additional gain and achieves the best overall results.
+
+5   Conclusion
+We present a feed-forward multi-frame reconstruction pipeline that improves geometry and camera pose by making 3D
+correspondence an explicit prediction. The model predicts camera-space 3D trajectories and couples them with dense
+local point maps and relative camera poses through bidirectional track–pointmap consistency and a pose objective
+driven by static track anchors, while suppressing gradients from dynamic regions. This coupling turns correspondence
+errors into direct training signals for both geometry and pose. We also translate the same coupling constraints into a
+semi-supervised form that only needs 2D tracks. We demonstrate that this coupled design is effective in practice and
+consistently improves reconstruction quality and camera motion estimation over strong feed-forward baselines.
+
+References
+ [1] Richard Hartley and Andrew Zisserman. Multiple view geometry in computer vision. Cambridge university press,
+     2003.
+ [2] Bill Triggs, Philip F McLauchlan, Richard I Hartley, and Andrew W Fitzgibbon. Bundle adjustment—a modern
+     synthesis. In International workshop on vision algorithms, pages 298–372. Springer, 1999.
+ [3] David G Lowe. Distinctive image features from scale-invariant keypoints. International journal of computer
+     vision, 60(2):91–110, 2004.
+ [4] Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings of the IEEE
+     conference on computer vision and pattern recognition, pages 4104–4113, 2016.
+ [5] Sameer Agarwal, Yasutaka Furukawa, Noah Snavely, Ian Simon, Brian Curless, Steven M Seitz, and Richard
+     Szeliski. Building rome in a day. Communications of the ACM, 54(10):105–112, 2011.
+ [6] Zachary Teed and Jia Deng. Droid-slam: Deep visual slam for monocular, stereo, and rgb-d cameras. Advances in
+     neural information processing systems, 34:16558–16569, 2021.
+ [7] Tinghui Zhou, Matthew Brown, Noah Snavely, and David G Lowe. Unsupervised learning of depth and ego-motion
+     from video. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 1851–1858,
+     2017.
+ [8] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d
+     vision made easy. In CVPR, 2024.
+ [9] Riku Murai, Eric Dexheimer, and Andrew J Davison. Mast3r-slam: Real-time dense slam with 3d reconstruction
+     priors. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 16695–16705, 2025.
+[10] Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang,
+     Xiaokang Yang, Yichao Yan, et al. Dens3r: A foundation model for 3d geometry prediction. arXiv preprint
+     arXiv:2507.16290, 2025.
+[11] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny. Vggt:
+     Visual geometry grounded transformer. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition, 2025.
+[12] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chun-
+     hua Shen, and Tong He. π 3 : Permutation-equivariant visual geometry learning. arXiv preprint arXiv:2507.13347,
+     2025.
+[13] Haiwen Feng*, Junyi Zhang*, Qianqian Wang, Yufei Ye, Pengcheng Yu, Michael J. Black, Trevor Darrell, and
+     Angjoo Kanazawa. St4rtrack: Simultaneous 4d reconstruction and tracking in the world. In Proceedings of the
+     IEEE/CVF International Conference on Computer Vision, 2025.
+[14] Vincent Leroy, Yohann Cabon, and Jerome Revaud. Grounding image matching in 3d with mast3r, 2024.
+[15] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia Neverova, Andrea Vedaldi, and Christian Rupprecht.
+     CoTracker: It is better to track together. 2023.
+
+
+                                                          11
+[16] Nikita Karaev, Iurii Makarov, Jianyuan Wang, Natalia Neverova, Andrea Vedaldi, and Christian Rupprecht.
+     CoTracker3: Simpler and better point tracking by pseudo-labelling real videos. 2024.
+[17] Adam W Harley, Zhaoyuan Fang, and Katerina Fragkiadaki. Particle video revisited: Tracking through occlusions
+     using point trajectories. In ECCV, 2022.
+[18] Carl Doersch, Yi Yang, Mel Vecerik, Dilara Gokay, Ankush Gupta, Yusuf Aytar, Joao Carreira, and Andrew
+     Zisserman. TAPIR: Tracking any point with per-frame initialization and temporal refinement. In Proceedings of
+     the IEEE/CVF International Conference on Computer Vision, pages 10061–10072, 2023.
+[19] Skanda Koppula, Ignacio Rocco, Yi Yang, Joe Heyward, João Carreira, Andrew Zisserman, Gabriel Brostow, and
+     Carl Doersch. Tapvid-3d: A benchmark for tracking any point in 3d, 2024.
+[20] Qianqian Wang, Yen-Yu Chang, Ruojin Cai, Zhengqi Li, Bharath Hariharan, Aleksander Holynski, and Noah
+     Snavely. Tracking everything everywhere all at once. ICCV, 2023.
+[21] Tuan Duc Ngo, Peiye Zhuang, Chuang Gan, Evangelos Kalogerakis, Sergey Tulyakov, Hsin-Ying Lee, and
+     Chaoyang Wang. Delta: Dense efficient long-range 3d tracking for any video. arXiv preprint arXiv:2410.24211,
+     2024.
+[22] Frano Rajič, Haofei Xu, Marko Mihajlovic, Siyuan Li, Irem Demir, Emircan Gündoğdu, Lei Ke, Sergey Prokudin,
+     Marc Pollefeys, and Siyu Tang. Multi-view 3d point tracking. In Proceedings of the IEEE/CVF International
+     Conference on Computer Vision (ICCV), 2025.
+[23] Yuxi Xiao, Qianqian Wang, Shangzhan Zhang, Nan Xue, Sida Peng, Yujun Shen, and Xiaowei Zhou. Spatialtracker:
+     Tracking any 2d pixels in 3d space. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition (CVPR), 2024.
+[24] Bowei Zhang, Lei Ke, Adam W Harley, and Katerina Fragkiadaki. Tapip3d: Tracking any point in persistent 3d
+     geometry. arXiv preprint arXiv:2504.14717, 2025.
+[25] Yuxi Xiao, Jianyuan Wang, Nan Xue, Nikita Karaev, Iurii Makarov, Bingyi Kang, Xin Zhu, Hujun Bao, Yujun
+     Shen, and Xiaowei Zhou. Spatialtrackerv2: 3d point tracking made easy. In ICCV, 2025.
+[26] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias Nießner. Scannet:
+     Richly-annotated 3d reconstructions of indoor scenes. In Proc. Computer Vision and Pattern Recognition (CVPR),
+     IEEE, 2017.
+[27] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David Novotny.
+     Common objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction. In International
+     Conference on Computer Vision, 2021.
+[28] Luigi Piccinelli, Yung-Hsu Yang, Christos Sakaridis, Mattia Segu, Siyuan Li, Luc Van Gool, and Fisher Yu.
+     Unidepth: Universal monocular metric depth estimation. In Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition, pages 10106–10116, 2024.
+[29] Zhengqi Li, Richard Tucker, Forrester Cole, Qianqian Wang, Linyi Jin, Vickie Ye, Angjoo Kanazawa, Aleksander
+     Holynski, and Noah Snavely. Megasam: Accurate, fast and robust structure and motion from casual dynamic
+     videos. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 10486–10496, 2025.
+[30] Tuan Duc Ngo, Ashkan Mirzaei, Guocheng Qian, Hanwen Liang, Chuang Gan, Evangelos Kalogerakis, Peter
+     Wonka, and Chaoyang Wang. Deltav2: Accelerating dense 3d tracking, 2025.
+[31] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe, and Noah Snavely. Stereo magnification: Learning
+     view synthesis using multiplane images. In SIGGRAPH, 2018.
+[32] Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier,
+     and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass. In Proceedings of the
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), June 2025.
+[33] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous 3d
+     perception model with persistent state. arXiv preprint arXiv:2501.12387, 2025.
+[34] Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue, Christian Rupprecht, Xiaowei Zhou, Yujun Shen, and
+     Gordon Wetzstein. Flare: Feed-forward geometry, appearance and camera estimation from uncalibrated sparse
+     views, 2025.
+[35] Eduardo Arnold, Jamie Wynn, Sara Vicente, Guillermo Garcia-Hernando, Áron Monszpart, Victor Adrian
+     Prisacariu, Daniyar Turmukhambetov, and Eric Brachmann. Map-free visual relocalization: Metric pose relative
+     to a single image. In ECCV, 2022.
+[36] Wenshan Wang, Delong Zhu, Xiangwei Wang, Yaoyu Hu, Yuheng Qiu, Chen Wang, Yafei Hu, Ashish Kapoor,
+     and Sebastian Scherer. Tartanair: A dataset to push the limits of visual slam. 2020.
+
+
+                                                          12
+[37] Armen Avetisyan, Christopher Xie, Henry Howard-Jenkins, Tsun-Yi Yang, Samir Aroudj, Suvam Patra, Fuyang
+     Zhang, Duncan Frost, Luke Holland, Campbell Orme, Jakob Engel, Edward Miller, Richard Newcombe, and
+     Vasileios Balntas. Scenescript: Reconstructing scenes with an autoregressive structured language model. In
+     European Conference on Computer Vision (ECCV), 2024.
+[38] Yohann Cabon, Naila Murray, and Martin Humenberger. Virtual kitti 2, 2020.
+[39] Po-Han Huang, Kevin Matzen, Johannes Kopf, Narendra Ahuja, and Jia-Bin Huang. Deepmvs: Learning
+     multi-view stereopsis. In IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2018.
+[40] Gilad Baruch, Zhuoyuan Chen, Afshin Dehghan, Tal Dimry, Yuri Feigin, Peter Fu, Thomas Gebauer, Brandon
+     Joffe, Daniel Kurz, Arik Schwartz, and Elad Shulman. ARKitscenes - a diverse real-world dataset for 3d indoor
+     scene understanding using mobile RGB-d data. In Thirty-fifth Conference on Neural Information Processing
+     Systems Datasets and Benchmarks Track (Round 1), 2021.
+[41] Yao Yao, Zixin Luo, Shiwei Li, Jingyang Zhang, Yufan Ren, Lei Zhou, Tian Fang, and Long Quan. Blendedmvs:
+     A large-scale dataset for generalized multi-view stereo networks. Computer Vision and Pattern Recognition
+     (CVPR), 2020.
+[42] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin, Kun Wan, Lantao Yu, Qianyu Guo, Zixun Yu, Yawen
+     Lu, et al. Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In Proceedings of the
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 22160–22169, 2024.
+[43] Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner, and Angela Dai. Scannet++: A high-fidelity dataset of
+     3d indoor scenes. In Proceedings of the International Conference on Computer Vision (ICCV), 2023.
+[44] Zhengqi Li and Noah Snavely. Megadepth: Learning single-view depth prediction from internet photos. In
+     Computer Vision and Pattern Recognition (CVPR), 2018.
+[45] Pei Sun, Henrik Kretzschmar, Xerxes Dotiwalla, Aurelien Chouard, Vijaysai Patnaik, Paul Tsui, James Guo, Yin
+     Zhou, Yuning Chai, Benjamin Caine, Vijay Vasudevan, Wei Han, Jiquan Ngiam, Hang Zhao, Aleksei Timofeev,
+     Scott Ettinger, Maxim Krivokon, Amy Gao, Aditya Joshi, Sheng Zhao, Shuyang Cheng, Yu Zhang, Jonathon
+     Shlens, Zhifeng Chen, and Dragomir Anguelov. Scalability in perception for autonomous driving: Waymo open
+     dataset, 2020.
+[46] Hongchi Xia, Yang Fu, Sifei Liu, and Xiaolong Wang. Rgbd objects in the wild: Scaling real-world 3d object
+     learning from rgb-d videos, 2024.
+[47] Kaixuan Wang and Shaojie Shen. Flow-motion and depth network for monocular stereo and beyond, 2019.
+[48] Mike Roberts, Jason Ramapuram, Anurag Ranjan, Atulit Kumar, Miguel Angel Bautista, Nathan Paczan, Russ
+     Webb, and Joshua M. Susskind. Hypersim: A photorealistic synthetic dataset for holistic indoor scene understand-
+     ing. In International Conference on Computer Vision (ICCV) 2021, 2021.
+[49] Yang Zhou, Yifan Wang, Jianjun Zhou, Wenzheng Chang, Haoyu Guo, Zizun Li, Kaijing Ma, Xinyue Li, Yating
+     Wang, Haoyi Zhu, Mingyu Liu, Dingning Liu, Jiange Yang, Zhoujie Fu, Junyi Chen, Chunhua Shen, Jiangmiao
+     Pang, Kaipeng Zhang, and Tong He. Omniworld: A multi-domain and multi-modal dataset for 4d world modeling.
+     arXiv preprint arXiv:2509.12201, 2025.
+[50] Filippo Aleotti, Fabio Tosi, Pierluigi Zama Ramirez, Matteo Poggi, Samuele Salti, Luigi Di Stefano, and Stefano
+     Mattoccia. Neural disparity refinement for arbitrary resolution stereo. In International Conference on 3D Vision,
+     2021. 3DV.
+[51] Yixuan Li, Lihan Jiang, Linning Xu, Yuanbo Xiangli, Zhenzhi Wang, Dahua Lin, and Bo Dai. Matrixcity: A
+     large-scale city dataset for city-scale neural rendering and beyond. In Proceedings of the IEEE/CVF International
+     Conference on Computer Vision, pages 3205–3215, 2023.
+[52] Lukas Mehl, Jenny Schmalfuss, Azin Jahedi, Yaroslava Nalivayko, and Andrés Bruhn. Spring: A high-resolution
+     high-detail dataset and benchmark for scene flow, optical flow and stereo. In Proc. IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition (CVPR), 2023.
+[53] Klaus Greff, Francois Belletti, Lucas Beyer, Carl Doersch, Yilun Du, Daniel Duckworth, David J Fleet, Dan
+     Gnanapragasam, Florian Golemo, Charles Herrmann, Thomas Kipf, Abhijit Kundu, Dmitry Lagun, Issam Laradji,
+     Hsueh-Ti (Derek) Liu, Henning Meyer, Yishu Miao, Derek Nowrouzezahrai, Cengiz Oztireli, Etienne Pot, Noha
+     Radwan, Daniel Rebain, Sara Sabour, Mehdi S. M. Sajjadi, Matan Sela, Vincent Sitzmann, Austin Stone, Deqing
+     Sun, Suhani Vora, Ziyu Wang, Tianhao Wu, Kwang Moo Yi, Fangcheng Zhong, and Andrea Tagliasacchi. Kubric:
+     a scalable dataset generator. 2022.
+[54] Yang Zheng, Adam W. Harley, Bokui Shen, Gordon Wetzstein, and Leonidas J. Guibas. Pointodyssey: A
+     large-scale synthetic dataset for long-term point tracking. In ICCV, 2023.
+
+
+                                                         13
+[55] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia Neverova, Andrea Vedaldi, and Christian Rupprecht.
+     Dynamicstereo: Consistent dynamic depth from stereo videos. CVPR, 2023.
+[56] D. J. Butler, J. Wulff, G. B. Stanley, and M. J. Black. A naturalistic open source movie for optical flow evaluation.
+     In A. Fitzgibbon et al. (Eds.), editor, European Conf. on Computer Vision (ECCV), Part IV, LNCS 7577, pages
+     611–625. Springer-Verlag, October 2012.
+[57] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram Burgard, and Daniel Cremers. A benchmark for the
+     evaluation of rgb-d slam systems. In 2012 IEEE/RSJ International Conference on Intelligent Robots and Systems,
+     pages 573–580, 2012.
+[58] Aether Team, Haoyi Zhu, Yifan Wang, Jianjun Zhou, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen,
+     Chunhua Shen, Jiangmiao Pang, and Tong He. Aether: Geometric-aware unified world modeling. arXiv preprint
+     arXiv:2503.18945, 2025.
+[59] Rasmus Jensen, Anders Dahl, George Vogiatzis, Engil Tola, and Henrik Aanæs. Large scale multi-view stereopsis
+     evaluation. In 2014 IEEE Conference on Computer Vision and Pattern Recognition, pages 406–413, 2014.
+[60] Thomas Schöps, Johannes L. Schönberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc Pollefeys,
+     and Andreas Geiger. A multi-view stereo benchmark with high-resolution images and multi-camera videos. In
+     Conference on Computer Vision and Pattern Recognition (CVPR), 2017.
+[61] Jamie Shotton, Ben Glocker, Christopher Zach, Shahram Izadi, Antonio Criminisi, and Andrew Fitzgibbon. Scene
+     coordinate regression forests for camera relocalization in RGB-D images. In CVPR, 2013.
+[62] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman, Matthias Nießner, and Justus Thies. Neural rgb-d
+     surface reconstruction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     (CVPR), pages 6290–6301, June 2022.
+[63] Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe Giguère, and Cyrill Stachniss. Refusion: 3d reconstruc-
+     tion in dynamic environments for rgb-d cameras exploiting residuals, 2019.
+[64] Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel Urtasun. Vision meets robotics: The kitti dataset. The
+     International Journal of Robotics Research, 32(11):1231–1237, 2013.
+[65] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Trevor Darrell, Forrester Cole, Deqing Sun, and
+     Ming-Hsuan Yang. Monst3r: A simple approach for estimating geometry in the presence of motion. arXiv preprint
+     arxiv:2410.03825, 2024.
+[66] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu, Rakesh Ranjan, Alexander Schwing, and Zhicheng Yan.
+     Mv-dust3r+: Single-stage scene reconstruction from sparse views in 2 seconds. arXiv preprint arXiv:2412.06974,
+     2024.
+[67] Jianyuan Wang, Christian Rupprecht, and David Novotny. Posediffusion: Solving pose estimation via diffusion-
+     aided bundle adjustment. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages
+     9773–9783, 2023.
+[68] Wang Zhao, Shaohui Liu, Hengkai Guo, Wenping Wang, and Yong-Jin Liu. Particlesfm: Exploiting dense point
+     trajectories for localizing moving cameras in the wild. In European Conference on Computer Vision, pages
+     523–542. Springer, 2022.
+[69] Pushmeet Kohli Nathan Silberman, Derek Hoiem and Rob Fergus. Indoor segmentation and support inference
+     from rgbd images. In ECCV, 2012.
+[70] Ruicheng Wang, Sicheng Xu, Cassie Dai, Jianfeng Xiang, Yu Deng, Xin Tong, and Jiaolong Yang. Moge:
+     Unlocking accurate monocular geometry estimation for open-domain images with optimal training supervision. In
+     Proceedings of the Computer Vision and Pattern Recognition Conference, pages 5261–5271, 2025.
+[71] Ruicheng Wang, Sicheng Xu, Yue Dong, Yu Deng, Jianfeng Xiang, Zelong Lv, Guangzhong Sun, Xin Tong, and
+     Jiaolong Yang. Moge-2: Accurate monocular geometry with metric scale and sharp details, 2025.
+[72] Zhen Li, Chuanhao Li, Xiaofeng Mao, Shaoheng Lin, Ming Li, Shitian Zhao, Zhaopan Xu, Xinyue Li, Yukang
+     Feng, Jianwen Sun, Zizhen Li, Fanrui Zhang, Jiaxin Ai, Zhixiang Wang, Yuwei Wu, Tong He, Jiangmiao Pang,
+     Yu Qiao, Yunde Jia, and Kaipeng Zhang. Sekai: A video dataset towards world exploration. arXiv preprint
+     arXiv:2506.15675, 2025.
+
+
+
+
+                                                           14
+

@@ -1,0 +1,1482 @@
+                                                  PAS3R: Pose-Adaptive Streaming 3D
+                                                 Reconstruction for Long Video Sequences
+
+                                                    Lanbo Xu1 , Liang Guo1 , Caigui Jiang1† , and Cheng Wang2†
+                                         1
+                                             State Key Laboratory of Human-Machine Hybrid Augmented Intelligence, Institute
+                                                  of Artificial Intelligence and Robotics, Xi’an Jiaotong University, China
+                                                     2
+                                                       University of East Anglia, Norwich, NR47TJ, United Kingdom
+arXiv:2603.21436v1 [cs.CV] 22 Mar 2026
+
+
+
+
+                                                                            Cheng.C.Wang@uea.ac.uk
+                                                                             †
+                                                                               Corresponding authors
+
+
+                                                 Abstract. Online monocular 3D reconstruction enables dense scene re-
+                                                 covery from streaming video but remains fundamentally limited by the
+                                                 stability–adaptation dilemma: the reconstruction model must rapidly
+                                                 incorporate novel viewpoints while preserving previously accumulated
+                                                 scene structure. Existing streaming approaches rely on uniform or attention-
+                                                 based update mechanisms that often fail to account for abrupt viewpoint
+                                                 transitions, leading to trajectory drift and geometric inconsistencies over
+                                                 long sequences. We introduce PAS3R, a pose-adaptive streaming recon-
+                                                 struction framework that dynamically modulates state updates accord-
+                                                 ing to camera motion and scene structure. Our key insight is that frames
+                                                 contributing significant geometric novelty should exert stronger influence
+                                                 on the reconstruction state, while frames with minor viewpoint variation
+                                                 should prioritize preserving historical context. PAS3R operationalizes
+                                                 this principle through a motion-aware update mechanism that jointly
+                                                 leverages inter-frame pose variation and image frequency cues to estimate
+                                                 frame importance. To further stabilize long-horizon reconstruction, we
+                                                 introduce trajectory-consistent training objectives that incorporate rela-
+                                                 tive pose constraints and acceleration regularization. A lightweight online
+                                                 stabilization module further suppresses high-frequency trajectory jitter
+                                                 and geometric artifacts without increasing memory consumption. Exten-
+                                                 sive experiments across multiple benchmarks demonstrate that PAS3R
+                                                 significantly improves trajectory accuracy, depth estimation, and point
+                                                 cloud reconstruction quality in long video sequences while maintaining
+                                                 competitive performance on shorter sequences. The source code is avail-
+                                                 able at https://pas-3r.github.io/PAS3R.io/.
+
+                                                 Keywords: Online 3D reconstruction · Learning rates · Fourier trans-
+                                                 forms · Acceleration constraints · Spatiotemporal smoothing
+
+
+                                         1     Introduction
+                                         3D reconstruction is a technique that extracts 3D reconstruction aims to recover
+                                         geometric scene representations from image observations and has become a fun-
+                                         damental problem in computer vision. These representations can be broadly cat-
+                                         egorized into explicit and implicit forms. Typical explicit representations include
+2      L. Xu et al.
+
+point clouds [43, 44], meshes [24, 67], and voxels [14, 31, 75]. Recently, with the
+continuous advancement of rendering technologies, novel explicit representations
+represented by 3D Gaussian Splatting (3DGS) [28] have emerged [26, 34, 74]. In
+contrast, implicit methods primarily define a continuous function to map points
+in space [35, 36, 41, 68]. Among these, point cloud–based representations remain
+widely used due to their flexibility and compatibility with downstream geometric
+processing tasks.
+    Methods based on point cloud representation typically employ calibrated
+multi-view cameras to recover scene point clouds [2,48,78]. However, monocular
+camera-captured scenes are ubiquitous in daily life, and in most cases, camera
+calibration parameters are unavailable. Consequently, numerous studies [30, 60,
+69, 70] have focused on this challenging scenario. These methods are primarily
+categorized into offline [30,66,70,77] and online [60,69,82,87] frameworks. Offline
+methods typically leverage attention mechanisms [64] to directly predict camera
+parameters from image sequences, supporting both multi-view and monocular
+scenarios. However, due to their batch-processing nature, they require loading all
+images simultaneously, causing memory consumption to scale with the sequence
+length and thus limiting their practical application. In contrast, online methods
+maintain a fixed-size state feature vector to achieve constant memory usage,
+but they inevitably introduce the issue of "catastrophic forgetting". Since online
+models rely on a single global state vector that must be updated with information
+from each new viewpoint, the proportion of historical information from early
+frames diminishes as the sequence progresses, leading to a loss of context.
+    Recent work such as TTT3R [13] attempts to mitigate this issue by adapt-
+ing the learning rate through cross-attention between historical and incoming
+features. While this mechanism partially alleviates forgetting, it does not explic-
+itly consider the magnitude of viewpoint change between frames. In practice,
+we observe that when the camera undergoes abrupt pose changes, the update
+intensity may remain insufficient, preventing the model from quickly adapting to
+new scene geometry. Conversely, when pose variation is minimal, overly strong
+updates can unnecessarily overwrite historical information. This imbalance often
+manifests as trajectory drift and geometric inconsistencies in long sequences.
+    To address this issue, we propose PAS3R (Pose-Adaptive Streaming 3D Re-
+construction), a framework designed to improve the stability of online monocular
+reconstruction over long video sequences. The central idea of PAS3R is that the
+influence of each incoming frame should be determined by the degree of geomet-
+ric novelty it introduces. Frames associated with substantial viewpoint change
+should contribute more strongly to the reconstruction state in order to capture
+new scene information, while frames with minimal pose variation should prior-
+itize preserving previously accumulated geometry. To operationalize this prin-
+ciple, PAS3R introduces a pose-adaptive state update mechanism that dynam-
+ically modulates update intensity according to inter-frame camera motion and
+scene frequency characteristics. This mechanism enables the model to rapidly
+adapt to novel viewpoints while maintaining long-term geometric consistency.
+In addition, we introduce trajectory-consistent training objectives that incorpo-
+                                                                    PAS3R        3
+
+rate relative pose constraints and acceleration regularization to improve temporal
+stability during reconstruction. Finally, a lightweight online stabilization mod-
+ule reduces residual trajectory jitter and geometric artifacts while preserving the
+efficiency required for streaming reconstruction. Compared with state-of-the-art
+(SOTA) online 3D reconstruction models, PAS3R demonstrates superior perfor-
+mance in long-sequence modeling while remaining highly competitive on short
+sequences.
+     Overall, the contributions of this work are summarized below:
+
+ – We introduce PAS3R, a streaming 3D reconstruction framework that dynam-
+   ically regulates state updates based on camera motion and scene structure,
+   enabling stable long-horizon reconstruction from monocular video streams.
+ – We propose a pose-adaptive update mechanism that estimates frame im-
+   portance using inter-frame camera displacement and image frequency cues,
+   allowing the model to balance rapid adaptation to novel viewpoints with
+   preservation of historical geometry.
+ – We introduce relative pose and acceleration regularization into the training
+   process, improving temporal coherence and reducing trajectory drift in long
+   video sequences.
+ – We design an efficient spatiotemporal stabilization strategy that suppresses
+   trajectory jitter and geometric artifacts without increasing memory over-
+   head.
+
+
+2     Related Work
+
+2.1   Traditional 3D Reconstruction Methods
+
+Early research in 3D reconstruction primarily relied on multi-view geometry the-
+ory [19, 27, 59], where Structure-from-Motion (SfM) [48] and Multi-View Stereo
+(MVS) [78] served as the cornerstones for offline reconstruction. Traditional
+pipelines, represented by COLMAP [49,50], recover high-precision camera poses
+and dense point clouds from unordered image sets through feature extraction [16,
+33, 45, 47] and global Bundle Adjustment (BA) [1, 63]. However, this paradigm’s
+reliance on global optimization typically requires simultaneous access to all his-
+torical frames, with computational complexity growing cubically with the num-
+ber of images, making it difficult to meet the real-time requirements of online
+processing. To address this, visual SLAM systems [6,9,18,21,37,38,53,61,86] in-
+troduce keyframe mechanisms and local optimization strategies. However, these
+methods still rely on SfM-style optimization within sliding windows, causing
+memory consumption and computational cost to increase with sequence length.
+In addition, their performance often degrades in low-texture environments or
+under rapid camera motion, where accumulated errors can significantly affect
+reconstruction quality. In contrast, our work focuses on enabling stable long-
+sequence reconstruction under constant memory constraints, which is essential
+for streaming reconstruction scenarios.
+4       L. Xu et al.
+
+2.2   End-to-End 3D Reconstruction Methods
+
+In contrast to traditional methods that decouple feature tracking, back-end op-
+timization, and mapping into independent modules, end-to-end approaches seek
+to build a unified differentiable framework that directly maps image sequences to
+3D geometric representations. As a pioneering model, DUSt3R [70] introduced
+a radically novel paradigm based on Transformers for dense and unconstrained
+stereo 3D reconstruction of arbitrary image collections, operating without prior
+camera calibration or viewpoint poses. However, DUSt3R was specifically de-
+signed for image pairs and lacks support for multi-view inputs. Although several
+follow-up works [8, 12, 65, 83] have extended it to broader scenarios, its funda-
+mental limitations remain. To overcome this, VGGT [66] and Fast3r [77] adopted
+feed-forward Transformer architectures with global attention, allowing for multi-
+view input in a single pass. Nevertheless, the high computational cost of global
+attention and the inability to handle incremental frames limit their application
+in online reconstruction.
+    As an alternative, CUT3R [69] utilizes recurrent networks to update mem-
+ory states and employs local attention to extend end-to-end 3D reconstruction
+to the online domain. In addition, contemporary works [51, 76] also achieves
+successful online 3D reconstruction by employing a similar memory-update ap-
+proach. More recently, TTT3R [13] introduced cross-attention learning rates [55]
+and state resets from the perspective of Test-Time Training (TTT) [4, 25, 58],
+while InfiniteVGGT (IVGGT) [81] utilized adaptive the key-value cache (KV-
+cache) [85] to further extend end-to-end online reconstruction to long sequences
+with promising results. Despite these advances, existing online reconstruction
+approaches still struggle to balance rapid adaptation to new viewpoints with
+preservation of previously accumulated geometry. In particular, update mecha-
+nisms based primarily on attention or feature similarity do not explicitly account
+for the magnitude of viewpoint change between frames. As a result, large pose
+transitions may not sufficiently influence state updates, while small viewpoint
+changes may unnecessarily overwrite historical information. Our work addresses
+this limitation by introducing pose-adaptive state modulation, which explicitly
+incorporates camera motion and image structural cues when determining the
+influence of each incoming frame.
+
+
+2.3   Spatial Geometric Consistency
+
+High-quality 3D reconstruction depends not only on accurate camera trajectory
+estimation but also on the spatial consistency [73,80] and edge sharpness [5,29,72]
+of dense geometric representations. Although end-to-end models can directly
+regress dense point clouds, the absence of explicit geometric constraints often
+leads to high-frequency artifacts, particularly near depth-discontinuous object
+boundaries and planar surfaces. Traditional smoothing techniques [22,42,46] can
+reduce noise but often blur geometric edges and degrade structural detail. To
+address this issue, edge-preserving filtering methods such as bilateral filtering [3,
+17,20,40,62,84] have been widely used in geometry processing. Inspired by these
+                                                                                                                            PAS3R                              5
+
+                                              Model inference process
+    Image Stream                                                          Point cloud                                          Model fine-tuning
+                                                                                                                                training process
+                                          Memory
+
+
+
+
+                             Decoder
+                   Encoder
+                                                                          Camera pose   Camera pose
+                                                                                                                                   Total loss
+                                       Cross-attention   Learning rate
+
+                                                                                        Spatiotemporal
+
+
+
+
+                                                                                                         Online
+        ...
+                                                                          Point cloud    stabilization
+                                                                                            module
+                                          Memory
+
+
+
+
+                             Decoder
+                   Encoder
+                                                                          Camera pose                             3D regression
+                                                                                                                                   Pose loss       RGB loss
+                                       Cross-attention    Learning rate                                               loss
+         ...
+
+
+
+
+                                                                          Point cloud
+                                                                                        Point cloud
+                                          Memory
+
+
+
+
+                             Decoder
+                   Encoder                                                Camera pose
+                                                                                                                                                Acceleration
+                                                                                                                    RPE loss       ATE loss
+                                       Cross-attention   Learning rate                                                                           constrain
+                                                                            Fourier
+                                                                           transform
+                                                                                         Depth map
+
+
+
+
+Fig. 1: The overall pipeline. Given a streaming image sequence, the model maintains
+a persistent memory that is iteratively updated through cross-attention with incoming
+frames. PAS3R introduces pose-adaptive state update modulation, where the update
+intensity (learning rate) is dynamically adjusted based on camera motion and image
+structure (via Fourier analysis), allowing the model to balance adaptation to novel
+viewpoints and preservation of accumulated geometry. During inference, the model
+predicts camera poses and dense point clouds at each step. During training, we further
+enforce trajectory-consistent optimization using a novel pose loss with ATE, RPE, and
+acceleration constraints. A lightweight online spatiotemporal stabilization module is
+applied to reduce trajectory jitter and geometric artifacts. Together, these components
+enable stable and scalable long-horizon streaming 3D reconstruction.
+
+approaches, we incorporate an online bilateral spatial filtering strategy to refine
+reconstructed point clouds during inference. This lightweight refinement step
+suppresses artifacts in planar regions while preserving sharp object boundaries,
+improving geometric consistency without increasing model complexity.
+
+
+3      Approach
+This work focuses on improving the stability and reconstruction fidelity of online
+monocular 3D reconstruction over long video sequences. Streaming reconstruc-
+tion models maintain a persistent internal state that must be updated sequen-
+tially as new frames arrive. The effectiveness of this paradigm critically depends
+on how strongly each incoming frame influences the state update. PAS3R ad-
+dresses this challenge through pose-adaptive state modulation, which dynamically
+regulates the update intensity of the reconstruction state according to camera
+motion and scene characteristics. As illustrated in Fig. 1, the proposed method
+consists of three components. First, pose-adaptive state update modulation (Sec-
+tion 3.1); Second, trajectory-consistent model optimization (Section 3.2); Third,
+lightweight online stabilization module (Section 3.3). Together these components
+enable stable long-horizon reconstruction while preserving the efficiency required
+for streaming inference.
+
+3.1       Pose-Adaptive State Update Modulation
+Streaming reconstruction models maintain an internal state that encodes ac-
+cumulated scene information. During sequential processing, this state must be
+6        L. Xu et al.
+
+
+
+
+     (a) CUT3R                      (b) TTT3R                                 (c) TTTWL                             (d) Real view
+
+Fig. 2: Effect of adaptive state update weighting. We evaluate the impact of
+adaptive update weighting in a real-world indoor video sequence. The red bounding
+box highlights a keyframe region where the camera undergoes significant pose varia-
+tion. Ideally, the trajectory following this region should remain approximately parallel.
+However, both CUT3R [69] and TTT3R [13] exhibit noticeable drift from the real tra-
+jectory, while the adaptive weighting strategy (TTTWL denotes PAS3R with adaptive
+update only) helps maintain trajectory continuity under abrupt viewpoint changes.
+
+updated as new frames arrive. In the Test-Time Training (TTT) [57] paradigm,
+this state can be interpreted as a set of fast weights that are updated dynamically
+while the model parameters (i.e., slow weights) fixed during inference. Formally,
+let the internal state at time step t − 1 be represented as St−1 ∈ Rn×c . When a
+new observation Xt arrives, the state update can be expressed as in Eq. (1):
+                          \label {state update} \mathrm {Update}(S_{t-1},X_t)=S_{t-1}-\beta \nabla (S_{t-1},X_t)                    (1)
+where ∇(St−1 , Xt ) is a learned gradient function represents the association be-
+tween the previous state St−1 and the current observation Xt , with β controlling
+the update magnitude (learning rate). Intuitively, this online learning process
+encodes KV-cache from the current observation into a fixed-length memory the
+state as accurately as possible.
+    In conventional streaming reconstruction frameworks, the update magnitude
+is typically fixed or determined by internal attention mechanisms. However, such
+approaches do not explicitly account for the degree of geometric novelty intro-
+duced by each frame. As a result, frames with significant viewpoint changes
+may not sufficiently influence the state update, while frames with minimal mo-
+tion may unnecessarily overwrite historical information. An example is shown
+in Fig. 2. To address this limitation, we introduce pose-adaptive state update
+modulation, which dynamically adjusts the update magnitude based on two com-
+plementary cues: Inter-frame camera motion, which reflects viewpoint change;
+Image structural richness, which indicates the availability of geometric informa-
+tion.
+    Inter-frame camera motion encompasses both translation and rotation. An in-
+crease in translation distance indicates higher camera velocity, while an increase
+in rotation angle signifies a trajectory inflection point or abrupt rotational jitter.
+Therefore, we calculate the weighted sum of the two to obtain the result shown
+in Eq. (2):
+                                   \label {new rot weight} s_1 = w_1 \Delta x + w_2 \Delta q  (2)
+where ∆x represents the magnitude of translation displacement and ∆q denotes
+the magnitude of rotation change, both of which are positive values; w1 and w2
+                                                                                                                                                      PAS3R    7
+
+are their respective weights, and s1 serves as the comprehensive score for the
+camera pose displacement.
+   Furthermore, we employ the Fourier transform to conduct a more rigorous
+evaluation of the current frame’s image quality. To minimize computational over-
+head and eliminate the interference of color information on structural features,
+the current frame is first converted to a grayscale image Igray . A Discrete Fourier
+Transform (DFT) is then performed on Igray and centered as follows in Eq. (3):
+
+                          \label {DFT} F(u, v) = \text {shift}(\|\mathcal {F}\{I_{gray}(x, y)\}\|)                                                            (3)
+where F{Igray (x, y)} denotes the 2D Discrete Fourier Transform of the grayscale
+image. The shift function is responsible for moving the zero-frequency low-
+frequency components—representing the overall smooth brightness and back-
+ground—to the geometric center (cx, cy) of the matrix. F (u, v) represents the
+resulting centered magnitude spectrum matrix. To filter out low-frequency sig-
+nals and preserve high-frequency information, we construct a high-pass filter
+matrix M (u, v), whose mathematical form is defined in Eq. (4):
+
+                             \label {high-pass filter matrix} M(u, v) = \begin {cases} 1, & u^2 + v^2 > r^2 \\ 0, & \text {otherwise} \end {cases}            (4)
+
+where r is the radius of a circle centered at the origin of the coordinate axes;
+signals outside this radius are categorized as high-frequency components and
+are retained. Consequently, we can determine the proportion of high-frequency
+signals R and calculate the final image quality score s2 , as shown in Eq. (5) and
+Eq. (6):
+                               \label {high-frequency signals} R = \frac {\sum _{u, v} [F(u, v) \cdot M(u, v)]}{\sum _{u, v} F(u, v) + \epsilon }             (5)
+
+
+                                          \label {quality score} s_2 = \frac {1}{1 + e^{-20.0 \times (R - 0.1)}}                                              (6)
+
+By integrating the camera pose displacement score s1 and the image quality
+score s2 , we derive the total score s for the current frame according to Eq.(7):
+
+                                                                          \label {total score} s = s_1 \cdot s_2                                              (7)
+
+To prevent excessive weight magnitude, we clip the maximum value of s at
+1.0. This restricted total score is then utilized as the final learning rate weight.
+Through this adaptive learning rate weighting strategy, our method maintains
+trajectory continuity during smooth camera motion while remaining responsive
+to abrupt camera jitter and extends the model’s reconstruction and prediction
+performance across extended sequences.
+
+3.2   Trajectory-Consistent Model Optimization
+While the pose-adaptive state update mechanism enhances overall trajectory
+continuity and local variability, a potential issue arises if the model maintains a
+8       L. Xu et al.
+
+                     1.8                                                                                                                                    1.8
+
+
+                     1.6                                                                                                                                    1.6
+
+
+                     1.4                                                                                                                                    1.4
+
+
+
+
+              Y(m)
+
+
+
+
+                                                                                                                                                     Y(m)
+                     1.2                                                                                                                                    1.2
+
+
+                     1.0                                                                                                                                    1.0
+                                                                                                        GT                                                                                                                                     GT
+                     0.8
+                                                                                                        TTTWL                                               0.8
+                                                                                                                                                                                                                                               TTTLM
+
+                     0.6                                                                                                                                    0.6
+                       −1.0       −0.8         −0.6         −0.4         −0.2          0.0          0.2          0.4           0.6                            −1.0        −0.8          −0.6       −0.4         −0.2          0.0           0.2          0.4    0.6
+                                                                       X(m)                                                                                                                                    X(m)
+
+
+
+
+Fig. 3: Effect of trajectory-consistent training. When large camera motion occurs
+after relatively stable frames, adaptive updates alone may produce abrupt trajectory
+variations. The proposed loss formulation reduces these discontinuities and produces
+smoother and more physically consistent camera trajectories. TTTWL denotes PAS3R
+with adaptive update only (Section 3.1), while TTTLM denotes PAS3R with adaptive
+update and trajectory-consistent training (Section 3.2).
+
+small learning rate weight when the preceding video sequence is relatively stable;
+if the camera then undergoes a sudden, large-scale displacement, the model will
+assign a significantly higher weight. Although this allows the model to track the
+camera’s motion, it can manifest as a sharp, unnatural mutation in the trajectory
+(an occurrence that is physically improbable in real-world filming scenarios), as
+shown in Fig. 3.
+    To address this phenomenon, we introduce a trajectory-consistent training
+objective that regularizes the camera motion predicted by the model. The key
+idea is to explicitly enforce both local pose consistency and physically plausible
+motion dynamics during training, enabling the model to produce more stable
+trajectories when combined with the adaptive state updates of Section 3.1.
+    Our framework is compatible with streaming reconstruction architectures
+[13, 69], and the total loss consists of three components: the confidence-aware
+regression loss Lconf , the camera pose loss Lpose , and the RGB loss Lrgb .
+    Lconf and Lrgb follow the definitions used in CUT3R [69] and are written as:
+
+                                 \label {3D regression loss} \mathcal {L}_{conf} = \sum _{(\bm {\hat {p}}, c) \in (\bm {\hat {I}_p}, C)} \left ( c \cdot \left \| \frac {\bm {\hat {p}}}{\hat {s}} - \frac {\bm {p}}{s} \right \|_2 - \alpha \log c \right )           (8)
+
+
+
+                                                                                                  \label {RGB loss} \mathcal {L}_{rgb} = \left \| \bm {\hat {I}_r} - \bm {I_r} \right \|_2^2                                                                           (9)
+
+where ŝ and s represent the scale normalization factors for the predicted point
+cloud Iˆp and the ground truth point cloud Ip , respectively. Ir denotes the ground
+truth RGB image pixels, while Iˆr denotes the model predicted RGB pixels.
+    Pose-adaptive Loss. We introduce an enhanced pose loss that combines
+global trajectory accuracy with local motion consistency. Specifically, the pose
+loss consists of three complementary components: The first is the Absolute Tra-
+jectory Error (ATE), defined as follows in Eq.(10):
+
+
+                             \label {ATE loss} \mathcal {L}_{ATE} = \frac {1}{N} \sum _{t=1}^{N} \left ( \left \| \frac {\bm {\hat {x}_t}}{\hat {s}} - \frac {\bm {x_t}}{s} \right \|_2 + (1 - |\bm {\hat {q}_t} \cdot \bm {q_t}|) \right )                           (10)
+                                                                                                                                                                                                                                                    PAS3R     9
+
+                      −2.92                                                                                                                       −2.92
+
+
+
+                                                                                                                                                  −2.94
+                      −2.94
+                                                                                         GT                                                                                                                               GT
+                                                                                         w/o smoothing                                                                                                                    Smoothing
+                      −2.96                                                                                                                       −2.96
+
+
+
+
+                                                                                                                                           Y(m)
+               Y(m)
+                      −2.98                                                                                                                       −2.98
+
+
+
+                      −3.00                                                                                                                       −3.00
+
+
+
+                      −3.02                                                                                                                       −3.02
+
+
+                         −0.74       −0.72          −0.70           −0.68          −0.66          −0.64           −0.62                               −0.74          −0.72           −0.70           −0.68          −0.66           −0.64   −0.62
+                                                                       X(m)                                                                                                                             X(m)
+
+               (a) w/o temporal stabilization                                                                                                                          (b) Full method
+
+                                 Fig. 4: Effect of online trajectory stabilization.
+
+where x̂t represents the predicted translation vector, xt represents the ground
+truth translation vector, q̂t is the predicted rotation quaternion, and qt is the
+ground truth rotation quaternion. The second component is the Relative Pose
+Error (RPE), whose mathematical expression is defined in Eq.(11):
+
+
+               \label {RPE loss} \mathcal {L}_{RPE} = \frac {1}{N-1} \sum _{t=2}^{N} \left ( \left \| \Delta \bm {\hat {x}_t} - \Delta \bm {x_t} \right \|_2 + \left \| \Delta \bm {\hat {q}_t} - \Delta \bm {q_t} \right \|_2 \right )                     (11)
+
+
+here, ∆ denotes the difference between the current frame and the preceding
+frame; thus, the solution can only be computed when N > 1. The final term is
+the acceleration stabilization constraint, which penalizes trajectory acceleration
+to reduce jitter, as defined in Eq.(12):
+
+
+                                         \label {smooth loss} \mathcal {L}_{acc} = \frac {1}{N-2} \sum _{t=3}^{N} \left ( \left \| \Delta ^2 \bm {\hat {x}_t} \right \|_2 + \left \| \Delta ^2 \bm {\hat {q}_t} \right \|_2 \right )                        (12)
+
+
+The final Pose-loss is a weighted sum of these three terms, as shown in Eq.(13):
+
+                                   \label {pose loss} \mathcal {L}_{pose} = w_a \cdot \mathcal {L}_{ATE} + w_r \cdot \mathcal {L}_{RPE} + w_s \cdot \mathcal {L}_{acc}                                                                                      (13)
+
+The Total loss is the weighted sum of the 3D regression loss, RGB loss, and
+Pose-loss, as defined in Eq.(14):
+
+                                               \label {sum loss} \mathcal {L} = \lambda _1 \cdot \mathcal {L}_{conf} + \lambda _2 \cdot \mathcal {L}_{rgb} + \lambda _3 \cdot \mathcal {L}_{pose}                                                           (14)
+
+3.3   Online Spatiotemporal Stabilization
+Despite improvements introduced by pose-adaptive state updates and trajectory-
+consistent training, minor prediction noise may still accumulate during sequential
+inference. This noise often manifests as small trajectory jitter Fig. 4 or geometric
+artifacts in reconstructed point clouds Fig. 5. To further improve robustness
+without introducing additional model complexity, we incorporate a lightweight
+online stabilization module that operates during inference.
+Temporal Trajectory Stabilization. Camera trajectory jitter often arises
+from small frame-level prediction fluctuations. To reduce this effect, we apply
+online stabilization to the predicted camera movement. Given an input sequence
+10        L. Xu et al.
+
+
+
+
+    (a) w/o spatial refinement                                                                                             (b) Full method                                                                                                                                              (c) GT
+
+                    Fig. 5: Effect of online spatial geometry refinement.
+
+of image frames I n×H×W , let the i-th frame be IiH×W and its preceding frame
+     H×W
+be Ii−1    . Let x̂i = X{IiH×W }, x̂i−1 = X{Ii−1 H×W
+                                                       }, q̂i = Q{IiH×W }, and
+              H×W
+q̂i−1 = Q{Ii−1       } represent the camera translation and rotation quantities
+predicted by the model in the world coordinate system for frames i and i −
+1, respectively. We first apply One Euro filtering [11] to the predicted camera
+translation, a process that can be formulated as follows Eq. (15):
+
+                            \label {filtering} \begin {array}{cc} \bm {x_{i-1}} = \alpha _{i-2} \cdot \bm {\hat {x}_{i-1}} + (1 - \alpha _{i-2}) \cdot \bm {x_{i-2}} \\ \bm {x_i} = \alpha _{i-1} \cdot \bm {\hat {x_i}} + (1 - \alpha _{i-1}) \cdot \bm {x_{i-1}} \end {array} 
+                                                                                                                                                                                                                                                                                                 (15)
+
+In Eq. (15), xi−2 , xi−1 , and xi denote the smoothed translation vectors for the
+(i − 2)-th, (i − 1)-th, and i-th frames, respectively. αi−2 represents the smooth-
+ing factor between the (i − 1)-th and (i − 2)-th frames, and αi−1 represents the
+smoothing factor between the i-th and (i−1)-th frames. For the rotation quater-
+nions, we first normalize the predicted quaternion q̂i of the i-th frame and the
+smoothed quaternion qi−1 of the (i − 1)-th frame. Subsequently, we apply the
+Spherical Linear Interpolation (Slerp) function to perform temporal smoothing.
+The mathematical expression is as follows:
+
+                                                        \label {smoothed quaternions} \begin {array}{cc} \bm {q_{i-1}} = \text {Slerp}(\bm {q_{i-2}}, \bm {\hat {q}_{i-1}}; \alpha _{i-2}) \\ \bm {q_i} = \text {Slerp}(\bm {q_{i-1}}, \bm {\hat {q}_i}; \alpha _{i-1}) \end {array} 
+                                                                                                                                                                                                                                                                                                 (16)
+
+Spatial Geometry Refinement. Experimental observations revealed that dur-
+ing the final visualization stage, point cloud data predicted by the model often
+exhibited artifacts at object boundaries or unnatural protrusions on smooth sur-
+faces, as shown in Fig. 5. To resolve these issues, we apply online bilateral spatial
+filtering [62] to the point clouds during inference. This method effectively pre-
+vents mutual interference between data on different sides of an edge, thereby
+achieving smoothness in flat regions while preserving the sharpness of object
+contours.
+
+
+4      Experiments
+We evaluate PAS3R through a comprehensive experimental study covering cam-
+era pose estimation (Sec. 4.1), depth prediction (Sec. 4.2), dense 3D reconstruc-
+tion (Sec. 4.3), and ablation study (Sec. 4.4). These experiments aim to assess
+                                                                   PAS3R       11
+
+two key aspects of streaming reconstruction: long-horizon stability and geometric
+fidelity under continuous viewpoint changes.
+    Unlike offline reconstruction methods that process entire image sets simul-
+taneously, streaming systems must update a persistent internal state as frames
+arrive sequentially. As a result, performance degradation often becomes more
+pronounced as the sequence length increases. Our evaluation therefore focuses
+not only on final reconstruction accuracy but also on how reconstruction quality
+evolves over time as the number of processed frames grows.
+Baselines. We compare PAS3R with several recent state-of-the-art online re-
+construction frameworks, including CUT3R [69], TTT3R [13], IVGGT [81], and
+Mem4D [10]. All models follow the same preprocessing pipeline as used in CUT3R
+and TTT3R to ensure fair comparison. Experiments are conducted on a server
+equipped with 8 NVIDIA RTX 4090 GPUs. Importantly, PAS3R introduces only
+lightweight computations and maintains the constant-memory property required
+for streaming reconstruction, making the improvements applicable in practical
+long-video scenarios.
+
+4.1   Camera Pose Estimation
+We first evaluate the quality of camera trajectory estimation on ScanNet [15],
+Sintel [7] and Tum dynamic [54] datasets. Absolute Trajectory Error (ATE) and
+Relative Pose Error (RPE) are used as evaluation metrics.
+    We first conduct our evaluations on sequences ranging from the first 50 to
+1000 frames for each scene on Scannet. Fig. 6 analyzes how pose accuracy evolves
+as the number of input frames increases on ScanNet sequences. This experi-
+ment reveals a key property of PAS3R: trajectory stability improves relative
+to competing methods as the sequence length grows. While most methods ex-
+hibit gradually increasing drift, the trajectory error of PAS3R grows much more
+slowly, indicating that the proposed pose-adaptive update mechanism effectively
+mitigates long-term error accumulation.
+    Similarly to the experimental configuration of CUT3R, Tab. 1 further eval-
+uates performance on shorter sequences from the Sintel and TUM datasets.
+PAS3R achieves the best translational RPE and remains competitive in ATE
+across both datasets. Although the rotational RPE is slightly higher than the
+best-performing baseline in some cases, the overall trajectory remains more sta-
+ble over long horizons.
+    These results suggest that the primary advantage of PAS3R lies not only
+in local pose accuracy but also in maintaining consistent trajectory estimation
+throughout extended sequences, which is essential for reliable streaming recon-
+struction.
+
+4.2   DEPTH ESTIMATION
+We next evaluate depth prediction accuracy using the Bonn dataset. Two stan-
+dard metrics are used: Absolute Relative Error (Abs Rel) and δ < 1.25 (the per-
+centage of predicted depths within a 1.25 factor of the ground truth). To ensure a
+12                           L. Xu et al.
+
+                                                                                                                                                                                           4.95
+         0.825                                                                                     0.120
+                                                                                                                                                                                           4.50
+         0.750
+                                                                                                   0.105
+                                                                                                                                                                                           4.05
+         0.675
+         0.600                                                                                     0.090                                                                                   3.60
+
+
+
+
+                                                                                    RPE trans(m)
+
+
+
+
+                                                                                                                                                                              RPE rot(m)
+         0.525                                                                                                                                                                             3.15
+                                                                                                   0.075
+ATE(m)
+
+         0.450                                                                                                                                                                             2.70
+                                                                                                   0.060
+         0.375                                                                                                                                                                             2.25
+
+         0.300                                                                                     0.045                                                                                   1.80
+
+         0.225                                                                                                                                                                             1.35
+                                                                     CUT3R                         0.030
+         0.150                                                       TTT3R                                                                                                                 0.90
+                                                                     IVGGT                         0.015
+         0.075                                                                                                                                                                             0.45
+                                                                     PAS3R
+         0.000                                                                                     0.000                                                                                   0.00
+                 0   100   200   300   400   500   600   700   800   900   1000                            0   100   200   300   400   500   600   700   800   900   1000                         0   100   200   300   400   500   600   700   800   900   1000
+                                   Number of Input Views                                                                     Number of Input Views                                                                  Number of Input Views
+
+                     (a) ATE on Scannet                                                              (b) RPE trans on Scannet                                                                     (c) RPE rot on Scannet
+
+                                       Fig. 6: Comparison of camera pose estimation on Scannet [15]
+
+Table 1: Quantitative comparison on Sintel [7] and Tum [54] datasets. Bold indicates
+the best performance, and underlined indicates the second best. ↓ indicates lower is
+better.
+
+
+                                                                                                    Sintel                                                                                                               Tum
+         Method
+                                                    ATE ↓                         RPE trans ↓                                      RPE rot ↓                            ATE ↓                               RPE trans ↓                               RPE rot ↓
+
+         Mem4D [10]                                  0.263                          0.091                                                0.812                              0.061                                  0.020                                    0.517
+         CUT3R [69]                                  0.209                          0.071                                                0.632                              0.047                                  0.015                                    0.448
+         TTT3R [13]                                  0.210                          0.090                                                0.730                              0.029                                  0.013                                    0.379
+         IVGGT [81]                                  0.237                          0.096                                                0.806                              0.027                                  0.012                                    0.313
+         Ours                                        0.211                          0.053                                                0.688                              0.027                                  0.011                                    0.475
+
+
+
+comprehensive evaluation, we report depth estimation results under three differ-
+ent alignment settings: original (direct prediction), scale-aligned, and scale-and-
+shift-aligned. The sequence lengths for evaluation range . We initially evaluate
+the depth prediction performance from 50 to 500 frames on Bonn dataset [39].
+    The results shown in Fig. 7 reveal an interesting pattern. PAS3R achieves the
+strongest performance in the original depth prediction setting, indicating that
+the predicted geometry is already well aligned with the ground truth without
+requiring post-hoc scaling. In contrast, some competing methods exhibit large
+errors in the original evaluation but improve significantly after scale alignment,
+suggesting that their predictions rely more heavily on global scaling correction.
+This behavior reflects an important property of pose-adaptive updates. By ad-
+justing the influence of incoming frames according to camera motion and scene
+structure, PAS3R maintains a more coherent internal representation of scene
+geometry. As a result, the predicted depth remains consistent even without ad-
+ditional alignment.
+    Tab. 2 further reports results on short sequences from Sintel [7], Bonn [39],
+and KITTI [23] datasets. PAS3R maintains performance comparable to state-
+of-the-art online reconstruction methods across all datasets, demonstrating that
+the improvements in long-sequence stability do not compromise performance in
+short sequences.
+                                                                                                                                                                                                                                           PAS3R                              13
+
+          0.7                                                                                                    0.10                                                              1.2                      0.09                                                              1.1
+                                                                                       1.4
+          0.6                                                                                                    0.09                                                                                       0.08
+                                                                                       1.2
+                                                                                                                 0.08
+          0.5                                                                                                                                                                                               0.07
+                                                                                       1.0
+                                                                                                                                                                                   1.1
+                                                                                                                 0.07
+          0.4
+Abs Rel
+
+                                                                                       0.8                                                                                                                  0.06
+
+
+
+
+                                                                                                       Abs Rel
+
+
+
+
+                                                                                                                                                                                                  Abs Rel
+                                                                                             σ<1.25
+
+
+
+
+                                                                                                                                                                                         σ<1.25
+
+
+
+
+                                                                                                                                                                                                                                                                                    σ<1.25
+                                                                   CUT3R                                         0.06                                                                                                                                                         1.0
+          0.3                   Abs Rel                            TTT3R               0.6                                                                                                                  0.05
+                                σ<1.25                             IVGGT                                         0.05
+                                                                   PAS3R               0.4                                                                                         1.0
+          0.2                                                                                                                                                                                               0.04
+                                                                                                                 0.04
+                                                                                       0.2
+          0.1                                                                                                    0.03                                                                                       0.03
+                                                                                       0.0
+          0.0                                                                                                    0.02                                                              0.9                      0.02                                                              0.9
+                0         100             200         300          400           500                                    0        100      200         300       400          500                                   0        100      200         300        400         500
+                                    Number of Input Views                                                                               Number of Input Views                                                                      Number of Input Views
+
+
+                    (a) Depth evaluation on                                                                             (b) Depth evaluation on                                                                        (c) Depth evaluation on
+                        Bonn(oringinal)                                                                                      Bonn(Scale)                                                                                  Bonn(Scale&Shift)
+
+                                                                           Fig. 7: Comparison of depth on Bonn [39]
+Table 2: Quantitative comparison on Sintel, Bonn [39], and Kitti [23] datasets. Bold
+indicates the best performance, and underlined indicates the second best. ↓ indicates
+lower is better, while ↑ indicates higher is better.
+
+
+                                                                                  Sintel                                                                              Bonn                                                                             Kitti
+      Method
+                                                        Abs Rel ↓                                     σ < 1.25 ↑                              Abs Rel ↓                        σ < 1.25 ↑                                         Abs Rel ↓                      σ < 1.25 ↑
+
+      Mem4D [10]                                                  0.520                                           43.1                            0.072                                      95.7                                  0.140                            82.0
+      CUT3R [69]                                                  0.432                                           47.0                            0.077                                      93.8                                  0.122                            87.6
+      TTT3R [13]                                                  0.406                                           48.8                            0.069                                      95.4                                  0.114                            90.6
+      IVGGT [81]                                                  0.329                                           66.0                            0.059                                      97.4                                  0.185                            69.8
+      Ours                                                        0.407                                           48.7                            0.064                                      96.6                                  0.115                            91.4
+
+4.3                       3D RECONSTRUCTION
+
+To evaluate the quality of reconstructed geometry, we conduct experiments on
+the 7-Scenes dataset using Accuracy (Acc), Completeness (Comp), and Nor-
+mal Consistency (NC) as evaluation metrics. The evaluation is conducted on
+video sequences ranging from 50 to 400 frames. The quantitative comparison
+results in Fig. 8 illustrate how reconstruction quality evolves as the number of
+processed frames increases. A clear trend emerges: while competing methods
+gradually degrade as the sequence length grows, PAS3R maintains relatively
+stable reconstruction metrics across the entire sequence. This stability high-
+lights the advantage of the pose-adaptive update strategy, which prevents new
+frames from excessively overwriting previously accumulated geometry. Quantita-
+
+                                                                                                                                                                                                            0.62
+          0.165                                                                                                  0.105
+                                                                                                                                                                                                            0.61
+          0.150
+                                                                                                                 0.090                                                                                      0.60
+          0.135
+                                                                                                                                                                                                            0.59
+          0.120                                                                                                  0.075
+          0.105                                                                                                                                                                                             0.58
+                                                                                 CUT3R
+                                                                                                                 0.060
+                                                                                                       Comp
+
+
+
+
+                                                                                 TTT3R
+                                                                                                                                                                                                  NC
+Acc
+
+
+
+
+          0.090                                                                                                                                                                                             0.57
+                                                                                 IVGGT
+          0.075                                                                  PAS3R                           0.045                                                                                      0.56
+          0.060
+                                                                                                                                                                                                            0.55
+          0.045                                                                                                  0.030
+                                                                                                                                                                                                            0.54
+          0.030
+                                                                                                                 0.015
+          0.015                                                                                                                                                                                             0.53
+
+          0.000                                                                                                  0.000                                                                                      0.52
+                     50     100       150       200         250   300      350         400                                  50    100   150     200     250     300    350         400                                 50   100    150     200     250     300    350         400
+                                          Number of Input Views                                                                           Number of Input Views                                                                     Number of Input Views
+
+                          (a) Acc on 7scene                                                                                  (b) Comp on 7scene                                                                             (c) NC on 7scene
+
+                                                      Fig. 8: Comparison of 3D Reconstruction on 7scene [52]
+14                      L. Xu et al.
+
+                          GT           PAS3R   IVGGT    TTT3R          CUT3R
+
+
+     Stair
+     Kitchen Office
+
+
+
+
+Fig. 9: Qualitative comparison of 3D reconstruction results. In the Stair scene, methods
+such as IVGGT and CUT3R suffer from large spatial drift. In the Office and Kitchen
+scene, IVGGT, TTT3R, and CUT3R all experience varying degrees of structural col-
+lapse at wall corners, whereas PAS3R remains well aligned with the GT.
+
+tively, PAS3R achieves the best performance in both Accuracy and Completeness
+while maintaining competitive Normal Consistency. These results indicate that
+the proposed framework improves both global geometric alignment and local
+surface reconstruction quality.
+    Fig. 9 provides qualitative comparisons across three representative scenes
+(Stair, Office, and Kitchen). Competing methods often exhibit spatial drift or
+structural distortion, particularly in regions with large viewpoint changes. In con-
+trast, PAS3R reconstructs more coherent scene geometry with fewer structural
+artifacts. This improvement is especially noticeable in complex indoor environ-
+ments where repeated viewpoint changes occur.
+
+4.4                   Ablation Study
+We validate the design of our proposed components through a series of abla-
+tion experiments, as summarized in Tab. 3. We evaluate camera pose estima-
+tion, depth estimation, and 3D point cloud reconstruction on the TUM (1,000
+frames), Bonn (500 frames), and 7-Scene (400 frames) datasets, respectively.
+According to the results of the ablation study, the pose-adaptive state update
+modulation significantly improves camera pose estimation, depth prediction, and
+point cloud reconstruction quality. Trajectory-consistent training yields consis-
+tent improvements across all metrics, thereby enhancing the overall performance
+of the framework. Finally, removing the online spatiotemporal stabilization mod-
+ule slightly improves certain individual metrics but degrades overall trajectory
+stability. This highlights the complementary role of the stabilization module:
+while it may introduce minor smoothing effects in isolated metrics, it signifi-
+cantly improves overall reconstruction robustness in streaming scenarios.
+
+5                     Conclusion
+We presented PAS3R, a pose-adaptive framework for streaming monocular 3D
+reconstruction that addresses the stability–adaptation dilemma in long video se-
+                                                                                   PAS3R             15
+
+Table 3: Quantitative ablation study results on Tum1000 [54], Bonn500 [39], and
+7Scene400 [52] datasets. The best results are highlighted in bold, and the second-best
+results are underlined. ↓ indicates lower is better, while ↑ indicates higher is better.
+
+                                             Tum1000                Bonn500           7Scene400
+Method
+                                  ATE ↓ RPE trans ↓ RPE rot ↓ Abs Rel ↓ δ < 1.25 ↑ Acc ↓ Comp ↓ NC ↑
+w/o pose-adaptive state update     0.10854   0.00374   0.46871   0.0757   95.24   0.048   0.028   0.563
+w/o trajectory-consistent training 0.05616   0.00459   0.59215   0.0710   95.35   0.023   0.021   0.562
+w/o spatiotemporal stabilization 0.04980     0.01138   0.61098   0.0710   95.36   0.019   0.019   0.561
+Full Method                        0.05214   0.00354   0.52595   0.0709   95.35   0.018   0.021   0.564
+
+
+quences. By dynamically regulating frame influence according to geometric nov-
+elty, PAS3R enables rapid adaptation to new viewpoints while preserving previ-
+ously accumulated scene structure. Combined with trajectory-consistent training
+and lightweight online stabilization, the framework significantly improves cam-
+era pose estimation, depth prediction, and reconstruction quality across multiple
+benchmarks, particularly on long sequences. These results highlight the impor-
+tance of pose-aware update strategies for robust streaming reconstruction.
+Limitations. Despite its effectiveness, PAS3R still has limitations. Current
+benchmarks provide limited coverage of diverse long video streams, and rota-
+tional trajectory accuracy can be further improved.
+
+
+Acknowledgements
+This paper is supported by NSFC under grant No. 62495092, 62125305 and Nat-
+ural Science Basic Research Plan in Shaanxi Province of China (No. 2025SYS-
+SYSZD-023). Cheng Wang is funded by Royal Society ISPF International Col-
+laboration Award (ICA\R2\252130).
+
+
+References
+ 1. Agarwal, S., Snavely, N., Seitz, S.M., Szeliski, R.: Bundle adjustment in the large.
+    In: ECCV. pp. 29–42. Springer (2010)
+ 2. Barnes, C., Shechtman, E., Finkelstein, A., Goldman, D.B.: Patchmatch: A ran-
+    domized correspondence algorithm for structural image editing. ACM TOG 28(3),
+    24 (2009)
+ 3. Barron, J.T., Poole, B.: The fast bilateral solver. In: ECCV. pp. 617–632. Springer
+    (2016)
+ 4. Behrouz, A., Zhong, P., Mirrokni, V.: Titans: Learning to memorize at test time.
+    arXiv preprint arXiv:2501.00663 (2024)
+ 5. Bochkovskii, A., Delaunoy, A., Germain, H., Santos, M., Zhou, Y., Richter, S.R.,
+    Koltun, V.: Depth pro: Sharp monocular metric depth in less than a second. arXiv
+    preprint arXiv:2410.02073
+ 6. Brachmann, E., Krull, A., Nowozin, S., Shotton, J., Michel, F., Gumhold, S.,
+    Rother, C.: Dsac-differentiable ransac for camera localization. In: CVPR. pp. 6684–
+    6692 (2017)
+ 7. Butler, D.J., Wulff, J., Stanley, G.B., Black, M.J.: A naturalistic open source movie
+    for optical flow evaluation. In: ECCV. pp. 611–625. Springer (2012)
+16      L. Xu et al.
+
+ 8. Cabon, Y., Stoffl, L., Antsfeld, L., Csurka, G., Chidlovskii, B., Revaud, J., Leroy,
+    V.: Must3r: Multi-view network for stereo 3d reconstruction. In: CVPR. pp. 1050–
+    1060 (2025)
+ 9. Cadena, C., Carlone, L., Carrillo, H., Latif, Y., Scaramuzza, D., Neira, J., Reid, I.,
+    Leonard, J.J.: Past, present, and future of simultaneous localization and mapping:
+    Toward the robust-perception age. IEEE Transactions on robotics 32(6), 1309–
+    1332 (2017)
+10. Cai, X., Wang, S., Wang, P., Wang, Y., Fan, Z., Li, W., Zhang, T., Tao, J., Jin,
+    Y., Li, D.: Mem4d: Decoupling static and dynamic memory for dynamic scene
+    reconstruction. arXiv preprint arXiv:2508.07908 (2025)
+11. Casiez, G., Roussel, N., Vogel, D.: 1€ filter: a simple speed-based low-pass filter
+    for noisy input in interactive systems. In: Proceedings of the SIGCHI Conference
+    on Human Factors in Computing Systems. pp. 2527–2530 (2012)
+12. Chen, X., Chen, Y., Xiu, Y., Geiger, A., Chen, A.: Easi3r: Estimating disentangled
+    motion from dust3r without training. arXiv preprint arXiv:2503.24391 (2025)
+13. Chen, X., Chen, Y., Xiu, Y., Geiger, A., Chen, A.: Ttt3r: 3d reconstruction as test-
+    time training. In: ICLR (2026), https://openreview.net/forum?id=aMs6FtNaY5
+14. Choy, C.B., Xu, D., Gwak, J., Chen, K., Savarese, S.: 3d-r2n2: A unified ap-
+    proach for single and multi-view 3d object reconstruction. In: ECCV. pp. 628–644.
+    Springer (2016)
+15. Dai, A., Chang, A.X., Savva, M., Halber, M., Funkhouser, T., Nießner, M.: Scannet:
+    Richly-annotated 3d reconstructions of indoor scenes. In: CVPR. pp. 5828–5839
+    (2017)
+16. DeTone, D., Malisiewicz, T., Rabinovich, A.: Superpoint: Self-supervised interest
+    point detection and description. In: CVPR. pp. 224–236 (2018)
+17. Digne, J., De Franchis, C.: The bilateral filter for point clouds. Image Processing
+    On Line 7, 278–287 (2017)
+18. Engel, J., Koltun, V., Cremers, D.: Direct sparse odometry. IEEE TPAMI 40(3),
+    611–625 (2017)
+19. Faugeras, O.: Three-dimensional computer vision: a geometric viewpoint. MIT
+    press (1993)
+20. Fleishman, S., Drori, I., Cohen-Or, D.: Bilateral mesh denoising. In: ACM SIG-
+    GRAPH 2003 Papers, pp. 950–953 (2003)
+21. Forster, C., Zhang, Z., Gassner, M., Werlberger, M., Scaramuzza, D.: Svo: Semidi-
+    rect visual odometry for monocular and multicamera systems. IEEE Transactions
+    on Robotics 33(2), 249–265 (2016)
+22. Gedraite, E.S., Hadad, M.: Investigation on the effect of a gaussian blur in im-
+    age filtering and segmentation. In: Proceedings ELMAR-2011. pp. 393–396. IEEE
+    (2011)
+23. Geiger, A., Lenz, P., Stiller, C., Urtasun, R.: Vision meets robotics: The kitti
+    dataset. The international journal of robotics research 32(11), 1231–1237 (2013)
+24. Groueix, T., Fisher, M., Kim, V.G., Russell, B.C., Aubry, M.: A papier-mâché
+    approach to learning 3d surface generation. In: CVPR. pp. 216–224 (2018)
+25. Gu, A., Dao, T.: Mamba: Linear-time sequence modeling with selective state
+    spaces. In: First conference on language modeling (2024)
+26. Guo, M., Wang, B., He, K., Matusik, W.: Tetsphere splatting: Represent-
+    ing high-quality geometry with lagrangian volumetric meshes. In: Yue, Y.,
+    Garg, A., Peng, N., Sha, F., Yu, R. (eds.) ICLR. vol. 2025, pp. 30290–
+    30314 (2025), https://proceedings.iclr.cc/paper_files/paper/2025/file/
+    4ae7d78ebbe48f772e31c5c3fcc04c43-Paper-Conference.pdf
+                                                                         PAS3R         17
+
+27. Hartley, R., Zisserman, A.: Multiple view geometry in computer vision. Cambridge
+    university press (2003)
+28. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G.: 3d gaussian splatting for
+    real-time radiance field rendering. ACM TOG 42(4), 139–1 (2023)
+29. Kopf, J., Rong, X., Huang, J.B.: Robust consistent video depth estimation. In:
+    CVPR. pp. 1611–1621 (2021)
+30. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: ECCV. pp. 71–91. Springer (2024)
+31. Liu, C., Kong, D., Wang, S., Li, J., Yin, B.: Dlgan: Depth-preserving latent gener-
+    ative adversarial network for 3d reconstruction. IEEE TMM 23, 2843–2856 (2020)
+32. Loshchilov, I., Hutter, F.: Decoupled weight decay regularization. arXiv preprint
+    arXiv:1711.05101 (2017)
+33. Lowe, D.G.: Distinctive image features from scale-invariant keypoints. IJCV 60(2),
+    91–110 (2004)
+34. Lu, T., Yu, M., Xu, L., Xiangli, Y., Wang, L., Lin, D., Dai, B.: Scaffold-gs: Struc-
+    tured 3d gaussians for view-adaptive rendering. In: CVPR. pp. 20654–20664 (2024)
+35. Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng,
+    R.: Nerf: Representing scenes as neural radiance fields for view synthesis. In: ECCV.
+    pp. 405–421. Springer (2020)
+36. Müller, T., Evans, A., Schied, C., Keller, A.: Instant neural graphics primitives
+    with a multiresolution hash encoding. ACM TOG 41(4), 1–15 (2022)
+37. Mur-Artal, R., Tardós, J.D.: Orb-slam2: An open-source slam system for monoc-
+    ular, stereo, and rgb-d cameras. IEEE Transactions on robotics 33(5), 1255–1262
+    (2017)
+38. Newcombe, R.A., Lovegrove, S.J., Davison, A.J.: Dtam: Dense tracking and map-
+    ping in real-time. In: ICCV. pp. 2320–2327. IEEE (2011)
+39. Palazzolo, E., Behley, J., Lottes, P., Giguere, P., Stachniss, C.: Refusion: 3d recon-
+    struction in dynamic environments for rgb-d cameras exploiting residuals. In: 2019
+    IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS).
+    pp. 7855–7862. IEEE (2019)
+40. Paris, S., Durand, F.: A fast approximation of the bilateral filter using a signal
+    processing approach. In: ECCV. pp. 568–580. Springer (2006)
+41. Park, J.J., Florence, P., Straub, J., Newcombe, R., Lovegrove, S.: Deepsdf: Learning
+    continuous signed distance functions for shape representation. In: CVPR. pp. 165–
+    174 (2019)
+42. Perona, P., Malik, J.: Scale-space and edge detection using anisotropic diffusion.
+    IEEE TPAMI 12(7), 629–639 (2002)
+43. Qi, C.R., Su, H., Mo, K., Guibas, L.J.: Pointnet: Deep learning on point sets for
+    3d classification and segmentation. In: CVPR. pp. 652–660 (2017)
+44. Qi, C.R., Yi, L., Su, H., Guibas, L.J.: Pointnet++: Deep hierarchical feature learn-
+    ing on point sets in a metric space. NeurIPS 30 (2017)
+45. Rublee, E., Rabaud, V., Konolige, K., Bradski, G.: Orb: An efficient alternative to
+    sift or surf. In: ICCV. pp. 2564–2571. IEEE (2011)
+46. Rudin, L.I., Osher, S., Fatemi, E.: Nonlinear total variation based noise removal
+    algorithms. Physica D: nonlinear phenomena 60(1-4), 259–268 (1992)
+47. Sarlin, P.E., DeTone, D., Malisiewicz, T., Rabinovich, A.: Superglue: Learning
+    feature matching with graph neural networks. In: CVPR. pp. 4938–4947 (2020)
+48. Schonberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: CVPR. pp.
+    4104–4113 (2016)
+18      L. Xu et al.
+
+49. Schönberger, J.L., Price, T., Sattler, T., Frahm, J.M., Pollefeys, M.: A vote-and-
+    verify strategy for fast spatial verification in image retrieval. In: ACCV. pp. 321–
+    337. Springer (2016)
+50. Schönberger, J.L., Zheng, E., Frahm, J.M., Pollefeys, M.: Pixelwise view selection
+    for unstructured multi-view stereo. In: ECCV. pp. 501–518. Springer (2016)
+51. Shen, G., Deng, T., Qin, X., Wang, N., Wang, J., Wang, Y., Chen, Y., Wang, H.,
+    Wang, J.: Mut3r: Motion-aware updating transformer for dynamic 3d reconstruc-
+    tion. arXiv preprint arXiv:2512.03939 (2025)
+52. Shotton, J., Glocker, B., Zach, C., Izadi, S., Criminisi, A., Fitzgibbon, A.: Scene
+    coordinate regression forests for camera relocalization in rgb-d images. In: CVPR.
+    pp. 2930–2937 (2013)
+53. Strasdat, H., Davison, A.J., Montiel, J.M., Konolige, K.: Double window optimi-
+    sation for constant time visual slam. In: ICCV. pp. 2352–2359. IEEE (2011)
+54. Sturm, J., Engelhard, N., Endres, F., Burgard, W., Cremers, D.: A benchmark for
+    the evaluation of rgb-d slam systems. In: 2012 IEEE/RSJ international conference
+    on intelligent robots and systems (IROS). pp. 573–580. IEEE (2012)
+55. Su, J., Ahmed, M., Lu, Y., Pan, S., Bo, W., Liu, Y.: Roformer: Enhanced trans-
+    former with rotary position embedding. Neurocomputing 568, 127063 (2024)
+56. Sun, P., Kretzschmar, H., Dotiwalla, X., Chouard, A., Patnaik, V., Tsui, P., Guo,
+    J., Zhou, Y., Chai, Y., Caine, B., et al.: Scalability in perception for autonomous
+    driving: Waymo open dataset. In: CVPR. pp. 2446–2454 (2020)
+57. Sun, Y., Li, X., Dalal, K., Xu, J., Vikram, A., Zhang, G., Dubois, Y., Chen, X.,
+    Wang, X., Koyejo, S., et al.: Learning to (learn at test time): Rnns with expressive
+    hidden states. arXiv preprint arXiv:2407.04620 (2024)
+58. Sun, Y., Wang, X., Liu, Z., Miller, J., Efros, A., Hardt, M.: Test-time training
+    with self-supervision for generalization under distribution shifts. In: ICML. pp.
+    9229–9248. PMLR (2020)
+59. Szeliski, R.: Computer vision: algorithms and applications. Springer Nature (2022)
+60. Teed, Z., Deng, J.: Droid-slam: Deep visual slam for monocular, stereo, and rgb-d
+    cameras. NeurIPS 34, 16558–16569 (2021)
+61. Teed, Z., Lipson, L., Deng, J.: Deep patch visual odometry. In: Oh, A., Naumann,
+    T., Globerson, A., Saenko, K., Hardt, M., Levine, S. (eds.) NeurIPS. vol. 36, pp.
+    39033–39051. Curran Associates, Inc. (2023), https://proceedings.neurips.cc/
+    paper _ files / paper / 2023 / file / 7ac484b0f1a1719ad5be9aa8c8455fbb - Paper -
+    Conference.pdf
+62. Tomasi, C., Manduchi, R.: Bilateral filtering for gray and color images. In: ICCV.
+    pp. 839–846. IEEE (1998)
+63. Triggs, B., McLauchlan, P.F., Hartley, R.I., Fitzgibbon, A.W.: Bundle adjust-
+    ment—a modern synthesis. In: International workshop on vision algorithms. pp.
+    298–372. Springer (1999)
+64. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N., Kaiser,
+    Ł., Polosukhin, I.: Attention is all you need. NeurIPS 30 (2017)
+65. Wang, H., Agapito, L.: 3d reconstruction with spatial memory. arXiv preprint
+    arXiv:2408.16061 (2024)
+66. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: CVPR. pp. 5294–5306 (2025)
+67. Wang, N., Zhang, Y., Li, Z., Fu, Y., Liu, W., Jiang, Y.G.: Pixel2mesh: Generating
+    3d mesh models from single rgb images. In: ECCV. pp. 52–67 (2018)
+68. Wang, P., Liu, L., Liu, Y., Theobalt, C., Komura, T., Wang, W.: Neus: Learning
+    neural implicit surfaces by volume rendering for multi-view reconstruction. In:
+    NeurIPS. Curran Associates. (2021)
+                                                                           PAS3R         19
+
+69. Wang, Q., Zhang, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d
+    perception model with persistent state. In: CVPR. pp. 10510–10522 (2025)
+70. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric 3d
+    vision made easy. In: CVPR. pp. 20697–20709 (2024)
+71. Wang, W., Zhu, D., Wang, X., Hu, Y., Qiu, Y., Wang, C., Hu, Y., Kapoor,
+    A., Scherer, S.: Tartanair: A dataset to push the limits of visual slam. In: 2020
+    IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS).
+    pp. 4909–4916. IEEE (2020)
+72. Wang, Y., Shi, M., Li, J., Huang, Z., Cao, Z., Zhang, J., Xian, K., Lin, G.: Neural
+    video depth stabilizer. In: ICCV. pp. 9466–9476 (2023)
+73. Weinzaepfel, P., Leroy, V., Lucas, T., Brégier, R., Cabon, Y., Arora, V., Antsfeld,
+    L., Chidlovskii, B., Csurka, G., Revaud, J.: Croco: Self-supervised pre-training for
+    3d vision tasks by cross-view completion. NeurIPS 35, 3502–3516 (2022)
+74. Wu, G., Yi, T., Fang, J., Xie, L., Zhang, X., Wei, W., Liu, W., Tian, Q., Wang,
+    X.: 4d gaussian splatting for real-time dynamic scene rendering. In: CVPR. pp.
+    20310–20320 (2024)
+75. Wu, J., Zhang, C., Xue, T., Freeman, B., Tenenbaum, J.: Learning a probabilistic
+    latent space of object shapes via 3d generative-adversarial modeling. NeurIPS 29
+    (2016)
+76. Wu, Y., Zheng, W., Zhou, J., Lu, J.: Point3r: Streaming 3d reconstruction with
+    explicit spatial pointer memory. arXiv preprint arXiv:2507.02863 (2025)
+77. Yang, J., Sax, A., Liang, K.J., Henaff, M., Tang, H., Cao, A., Chai, J., Meier,
+    F., Feiszli, M.: Fast3r: Towards 3d reconstruction of 1000+ images in one forward
+    pass. In: CVPR. pp. 21924–21935 (2025)
+78. Yao, Y., Luo, Z., Li, S., Fang, T., Quan, L.: Mvsnet: Depth inference for unstruc-
+    tured multi-view stereo. In: ECCV. pp. 767–783 (2018)
+79. Yeshwanth, C., Liu, Y.C., Nießner, M., Dai, A.: Scannet++: A high-fidelity dataset
+    of 3d indoor scenes. In: CVPR. pp. 12–22 (2023)
+80. Yin, W., Liu, Y., Shen, C., Yan, Y.: Enforcing geometric constraints of virtual
+    normal for depth prediction. In: ICCV (October 2019)
+81. Yuan, S., Yang, Y., Yang, X., Zhang, X., Zhao, Z., Zhang, L., Zhang, Z.: In-
+    finitevggt: Visual geometry grounded transformer for endless streams. arXiv
+    preprint arXiv:2601.02281 (2026)
+82. Zhang, C., Moing, G.L., Koppula, S., Rocco, I., Momeni, L., Xie, J., Sun, S.,
+    Sukthankar, R., Barral, J.K., Hadsell, R., et al.: Efficiently reconstructing dynamic
+    scenes one d4rt at a time. arXiv preprint arXiv:2512.08924 (2025)
+83. Zhang, J., Herrmann, C., Hur, J., Jampani, V., Darrell, T., Cole, F., Sun, D.,
+    Yang, M.H.: Monst3r: A simple approach for estimating geometry in the presence
+    of motion. ICLR (2024)
+84. Zhang, Z., Lin, Z., Xu, J., Jin, W.D., Lu, S.P., Fan, D.P.: Bilateral attention
+    network for rgb-d salient object detection. IEEE TIP 30, 1949–1961 (2021)
+85. Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.,
+    Ré, C., Barrett, C., et al.: H2o: Heavy-hitter oracle for efficient generative inference
+    of large language models. NeurIPS 36, 34661–34710 (2023)
+86. Zhu, Z., Peng, S., Larsson, V., Xu, W., Bao, H., Cui, Z., Oswald, M.R., Pollefeys,
+    M.: Nice-slam: Neural implicit scalable encoding for slam. In: CVPR. pp. 12786–
+    12796 (2022)
+87. Zhuo, D., Zheng, W., Guo, J., Wu, Y., Zhou, J., Lu, J.: Streaming 4d visual
+    geometry transformer. arXiv preprint arXiv:2507.11539 (2025)
+20      L. Xu et al.
+
+A     Implementation details of Approach
+
+A.1    More details on trajectory-consistent model optimization
+
+During trajectory-consistent model optimization, we utilized a mixture of three
+datasets to cover both indoor and outdoor scenarios: the Scannet++ dataset [79],
+the Waymo dataset [56], and the TartanAir dataset [71], with a mixing ratio of
+5:3:2. There is no overlap between the fine-tuning data and the test sets used in
+our experiments. The image resolution was set to 512 × 384, and the maximum
+number of frames per sample was 64. The network parameters were initialized
+using the ViT-Large model with pre-trained CUT3R [69] weights and optimized
+using the AdamW optimizer [32]. The initial learning rate was set to 1e-7 with
+a maximum learning rate of 1e-6, employing a linear warm-up and cosine decay
+strategy. The entire training process was conducted on 8 RTX 4090 GPUs.
+
+
+A.2    More details on online stabilization module
+
+This section provides comprehensive implementation details for the online sta-
+bilization module introduced in Sec. 3.3 of the main paper. To ensure the repro-
+ducibility of our research, we elaborate on the formal mathematical derivations
+and specific parameter configurations of this module. Specifically, the smoothing
+factor αi−1 in Eq. (15) of the main paper is formulated as follows:
+
+                                                                                             \label {smoothing factor} \alpha _{i-1} = \frac {2\pi \cdot f_{i-1} \cdot t'_{i-1}}{2\pi \cdot f_{i-1} \cdot t'_{i-1} + 1}                                                                                             (17)
+
+where t′i−1 represents the time interval between the i-th frame timestamp ti
+and the (i − 1)-th frame timestamp ti−1 . fi−1 denotes the cutoff frequency that
+dictates the magnitude of the smoothing factor for the (i − 1)-th frame, which
+is mathematically expressed by:
+
+                                                                                                               \label {frame} f_{i-1} = f_{\min } + \beta \cdot |v_{i-1}|                                                                                                                                           (18)
+
+where fmin is the minimum cutoff frequency. A smaller value of fmin results in
+a more stable trajectory when the camera is stationary but introduces higher
+latency during rapid camera movement; conversely, a larger value reduces latency
+at the cost of increased trajectory jitter. β serves as the dynamic gain for the
+cutoff frequency fi−1 , and its impact on the trajectory and latency is similar to
+that of fmin . vi−1 denotes the instantaneous velocity from frame i − 1 to frame
+i, calculated as the difference between the predicted translation of frame i (x̂i )
+and the processed translation of frame i − 1 (xi−1 ), divided by the time interval
+t′i−1 . Additionally, for the Slerp function employed in Eq. (16) of the main paper,
+its formal definition is given by:
+
+                         \label {Spherical Linear Interpolation} \begin {array}{cc} Slerp(\mathbf {a}, \mathbf {b}; \gamma ) = \frac {\sin ((1-\gamma )\theta )}{\sin \theta } \mathbf {a} + \frac {\sin (\gamma \theta )}{\sin \theta } \mathbf {b} \\ \cos \theta = \mathbf {a} \cdot \mathbf {b} \end {array} 
+                                                                                                                                                                                                                                                                                                                    (19)
+                                                                                                                                                                                                                                  PAS3R                               21
+
+                                                                                                                                                                                                    0.55
+         0.150                                                                                              0.0150
+
+         0.135                                                                                              0.0135                                                                                  0.50
+         0.120                                                                                              0.0120
+                                                                                                                                                                                                    0.45
+         0.105                                                                                              0.0105
+
+
+
+
+                                                                                             RPE trans(m)
+
+
+
+
+                                                                                                                                                                                       RPE rot(m)
+ATE(m)
+
+         0.090                                                                                              0.0090                                                                                  0.40
+
+         0.075                                                                                              0.0075
+                                                                                                                                                                                                    0.35
+         0.060                                                                                              0.0060
+
+         0.045                                                                                              0.0045                                                                                  0.30
+                                                                         CUT3R
+         0.030                                                                                              0.0030
+                                                                         TTT3R                                                                                                                      0.25
+         0.015                                                           IVGGT                              0.0015
+                                                                         PAS3R
+         0.000                                                                                              0.0000                                                                                  0.20
+                 0   100   200   300   400   500   600     700   800    900   1000                                   0   100   200   300   400   500   600   700   800   900   1000                        0   100   200   300   400   500   600   700   800   900   1000
+                                   Number of Input Views                                                                               Number of Input Views                                                                 Number of Input Views
+
+                       (a) ATE on TUM                                                                            (b) RPE trans on TUM                                                                          (c) RPE rot on TUM
+
+                                        Fig. 10: Comparison of camera pose estimation on TUM [54]
+
+
+where the parameter γ represents the interpolation factor, ranging from 0 to 1.
+In addition, the specific process of spatial geometry refinement is as follows: For
+any predicted point p̂ within the point cloud, its processed position p is obtained
+through a weighted average of points q̂ within its neighborhood S:
+
+                                                           \label {smoothed position} p = \frac {1}{W_p} \sum _{\hat {q} \in S} G_{\sigma _s} (\|\hat {p} - \hat {q}\|) \cdot G_{\sigma _r} (|D_p - D_q|) \cdot D_p                                             (20)
+
+
+Gσs represents the spatial proximity factor, where a smaller distance between
+p̂ and q̂ results in a higher weight. Gσr acts as the geometric similarity factor,
+measuring the depth difference between p̂ and q̂. When points within the neigh-
+borhood lie on opposite sides of an edge, the weights decrease rapidly toward
+zero. This mechanism effectively prevents mutual interference between data on
+different sides of an edge.
+
+
+B                     More Results and Comparison
+To further verify the reliability of our proposed method, we provide additional
+experimental results on camera pose estimation (Sec. B.1), depth evaluation
+(Sec. B.2), and 3D reconstruction quality (Sec. B.3). Furthermore, we present
+a comprehensive comparison between our method and state-of-the-art online
+reconstruction approaches in terms of GPU memory consumption and frame rate
+(FPS) (Sec. B.4). In addition, it should be noted that the code of Mem4D [10]
+has not been made public yet, so all the results of Mem4D mentioned come from
+its original paper. Since CUT3R samples the TUM dataset [54] at intervals,
+we slightly adjusted the time interval parameter of PAS3R when evaluating its
+camera pose performance under CUT3R settings in main paper.
+
+B.1                        Camera Pose Estimation
+We also evaluate camera pose estimation performance on TUM, whose sequences
+range from the first 50 to 1000 frames for each scene. The quantitative results
+are shown in Fig. 10. Experimental results demonstrate that though the RPE
+rot of PAS3R is slightly lower than that of competing methods on TUM, it ex-
+hibits a substantial, near-categorical lead over CUT3R, TTT3R [13], and Infinite
+22                                     L. Xu et al.
+
+                                                                                       8
+                                                                                                                                                                          3.5
+       4.0                                                                                                                                                                                                                                                           7
+                                                                                       7
+                                                                                                                                                                          3.0                                                                                        6
+       3.5
+                                                                                       6
+                                                                                                                                                                          2.5                                                                                        5
+       3.0
+                                                                                       5
+                                                                                                                                                                          2.0                                                                                        4
+Y(m)
+
+
+
+
+                                                                                                                                                                                                                                                              Y(m)
+                                                                                Y(m)
+
+
+
+
+                                                                                                                                                                   Y(m)
+       2.5                                                      GT                     4                                                                                                                                                                             3
+                                                                CUT3R                                                                                                     1.5
+                                                                IVGGT                  3                                                                                                  GT                                                                                                                    GT
+       2.0                                                                                                                                                                                                                                                           2
+                                                                                                                                                       GT                 1.0             CUT3R                                                                                                                 CUT3R
+                                                                TTT3R                                                                                  CUT3R                              IVGGT                                                                                                                 IVGGT
+                                                                PAS3R                  2                                                               IVGGT                              TTT3R
+                                                                                                                                                                                                                                                                     1
+       1.5
+                                                                                                                                                                          0.5                                                                                                                                   TTT3R
+                                                                                                                                                       TTT3R
+                                                                                                                                                                                          PAS3R                                                                                                                 PAS3R
+                                                                                       1                                                               PAS3R                                                                                                         0
+       1.0                                                                                                                                                                0.0
+             0       1   2         3     4        5   6   7      8      9                        2              3                4       5         6           7                0     1           2         3                  4             5           6                 2         3            4         5          6
+                                             X(m)                                                                                X(m)                                                                  X(m)                                                                                    X(m)
+
+
+                 (a) Scene 721 on                                                                (b) Scene 793 on                                                                   (c) Scene 766 on                                                                     (d) Scene 781 on
+                     Scannet                                                                         Scannet                                                                            Scannet                                                                              Scannet
+
+
+          1.00
+                                                      Fig. 11: Comparison of camera trajectories on Scannet [15]
+                                                                                                 1.2                                                                                                            1.0                          0.26                                                                     0.95
+          0.95                                                                                                                0.26
+          0.90
+                                                                                                                                                                                                                                             0.24                                                                     0.90
+          0.85                                                                                   1.0                          0.24                                                                              0.9
+          0.80
+          0.75                                                                                                                                                                                                                               0.22                                                                     0.85
+                                                                                                                              0.22
+          0.70                                                                                   0.8
+          0.65                                                                                                                                                                                                  0.8                          0.20                                                                     0.80
+          0.60                                                                                                                0.20
+Abs Rel
+
+
+
+
+                                                                                                                    Abs Rel
+
+
+
+
+                                                                                                                                                                                                                                   Abs Rel
+                                                                                                       σ<1.25
+
+
+
+
+                                                                                                                                                                                                                      σ<1.25
+          0.55                                                                                                                                                                                                                               0.18                                                                     0.75
+
+
+
+
+                                                                                                                                                                                                                                                                                                                             σ<1.25
+                                                                                                 0.6
+          0.50                                                          CUT3R                                                 0.18                                                                              0.7
+          0.45                                                          TTT3R                                                                                                                                                                0.16                                                                     0.70
+          0.40                          Abs Rel
+                                                                        IVGGT                    0.4                          0.16
+          0.35                          σ<1.25
+                                                                        PAS3R                                                                                                                                   0.6                          0.14                                                                     0.65
+          0.30
+                                                                                                                              0.14
+          0.25                                                                                   0.2
+          0.20                                                                                                                                                                                                                               0.12                                                                     0.60
+          0.15                                                                                                                0.12                                                                              0.5
+          0.10                                                                                                                                                                                                                               0.10                                                                     0.55
+                                                                                                 0.0                          0.10
+          0.05
+          0.00                                                                                                                                                                                                  0.4                          0.08                                                                     0.50
+                 0           100              200         300           400                500                                       0       100         200          300                 400         500                                           0        100           200           300          400       500
+                                         Number of Input Views                                                                                         Number of Input Views                                                                                             Number of Input Views
+
+
+                     (a) Depth evaluation on                                                                                         (b) Depth evaluation on                                                                                            (c) Depth evaluation on
+                         Kitti(oringinal)                                                                                                 Kitti(Scale)                                                                                                     Kitti(Scale&Shift)
+
+                                                                              Fig. 12: Comparison of depth on Kitti [23]
+
+
+VGGT (IVGGT) [81] in terms of ATE and RPE trans. This performance gap is
+particularly pronounced in long video sequences.
+   In addition, we perform visualization of the alignment between the predicted
+camera trajectories and the ground-truth trajectories on Scannet dataset [15].
+The results validate that PAS3R achieves the optimal trajectory fitting perfor-
+mance in most scenarios, and we present partial representative results in Fig. 11.
+
+B.2                           DEPTH ESTIMATION
+We further evaluate the depth prediction accuracy on Kitti [23], with sequence
+lengths from 50 to 500 frames, as shown in Fig. 12. Regarding the evaluation
+on the Kitti dataset, PAS3R shows slightly lower performance than CUT3R and
+TTT3R under the original setting. However, it consistently achieves the best
+performance under both scale-aligned and scale-and-shift-aligned evaluations.
+In comparison, IVGGT demonstrates relatively lower performance across these
+evaluation settings on this dataset. Overall, these results suggest that PAS3R
+maintains competitive and stable depth estimation performance compared with
+current state-of-the-art online reconstruction methods.
+
+B.3                           3D RECONSTRUCTION
+While our model is mainly tailored for long sequences, we also seek to vali-
+date its competitive performance on short sequences. To this end, following the
+experimental setup of CUT3R, we evaluate the 3D point cloud reconstruction
+quality of our model on two relatively short-sequence benchmarks, namely the
+7Scene dataset [52] and the NRGBD dataset [52], and conduct a comprehensive
+                                                                                   PAS3R    23
+
+                            GT         PAS3R          IVGGT       TTT3R       CUT3R
+
+
+  Room Pumpkin Heads
+
+
+
+
+                        Fig. 13: More qualitative comparison of 3D reconstruction results
+
+comparison with state-of-the-art online methods. The quantitative comparison
+results are summarized in Tab. 4.
+
+
+Table 4: Quantitative comparison on 7-Scenes and NRGBD datasets [52]. Bold indi-
+cates the best performance, and underlined indicates the second best. Acc (Accuracy)
+and Comp (Completeness) are error metrics, where ↓ indicates lower is better.
+
+
+                                               7-Scenes [52]      NRGBD [52]
+                               Method
+                                              Acc ↓   Comp ↓     Acc ↓    Comp ↓
+
+                               Mem4D [10]    0.185     0.178     0.271     0.212
+                               CUT3R [69]    0.120     0.156     0.100     0.078
+                               TTT3R [13]    0.156     0.196     0.105     0.080
+                               IVGGT [81]    0.124     0.106     0.110     0.109
+                               Ours          0.151     0.182     0.103     0.087
+
+
+
+    As summarized in Tab. 4, the evaluation results on short sequences from the
+7-Scene and NRGBD datasets demonstrate that PAS3R continues to demon-
+strate strong competitiveness relative to current state-of-the-art methods. Fur-
+thermore, to visually demonstrate the discrepancies in point cloud reconstruction
+quality more intuitively, we present additional qualitative results on the 7Scene
+dataset with an image sequence length of 400 and the NRGBD dataset with
+short sequence, as illustrated in Fig. 13. The experimental results show that
+PAS3R not only has leading performance for long sequences but is also highly
+competitive in short sequence point cloud reconstruction.
+
+
+B.4                    GPU Usage And FPS Estimation
+
+We further evaluate the GPU peak memory usage and frames per second (FPS)
+of our model on the ScanNet dataset across sequence lengths ranging from 50 to
+24     L. Xu et al.
+
+                                                                                                           12
+                              22
+
+                              20                                                                           10
+
+                              18
+                                                                                                            8
+
+
+
+
+              GPU Usage(GB)
+                              16                                                       CUT3R
+                              14                                                       TTT3R
+
+
+
+
+                                                                                                     FPS
+                                                                                                            6
+                                                                                       IVGGT
+                              12                                                       PAS3R
+                              10                                                                            4
+
+                               8
+                                                                                                            2
+                               6
+
+                               4                                                                            0
+                                   0   100   200   300   400   500   600   700   800    900   1000                200    400        600         800   1000
+                                                     Number of Input Views                                              Number of Input Views
+
+               (a) Comparison of GPU usage                                                                      (b) Comparison of FPS
+
+           Fig. 14: Comparison of GPU usage and FPS on Scannet [15]
+
+1000 frames, and compare these metrics with state-of-the-art online reconstruc-
+tion methods, as depicted in Fig. 14. The results indicate that PAS3R maintains
+stable runtime performance while preserving constant memory consumption as
+the sequence length increases. These results confirm that the proposed frame-
+work satisfies the efficiency requirements for online 3D reconstruction and scales
+well to long video sequences.
+

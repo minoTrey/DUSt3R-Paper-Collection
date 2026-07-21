@@ -1,0 +1,1268 @@
+                                        PaceVGGT: Pre-Alternating-Attention Token Pruning
+                                               for Visual Geometry Transformers
+
+
+                                                                Haotang Li                                  Zhenyu Qi
+                                                            University of Arizona                       University of Arizona
+                                                          haotangl@arizona.edu                        qzydustin@arizona.edu
+arXiv:2605.08371v1 [cs.CV] 8 May 2026
+
+
+
+
+                                                Shaohan Henry Wang                        Kebin Peng                      Zi Wang
+                                                 University of Arizona              East Carolina University          Augusta University
+                                             shaohanwang@arizona.edu                  pengk24@ecu.edu               ziwang1@arizona.edu
+
+                                                   Qing Guo                          Sen He                        Huanrui Yang
+                                                Nankai University              University of Arizona            University of Arizona
+                                              tsingqguo@ieee.org               senhe@arizona.edu             huanruiyang@arizona.edu
+
+
+
+                                                                                        Abstract
+
+                                                    Visual Geometry Transformer (VGGT) is a strong feed-forward model for multiple
+                                                    3D tasks, but its Alternating-Attention (AA) stack scales quadratically in the total
+                                                    token count, making long clips expensive. Existing token-reduction accelerators
+                                                    operate inside AA, leaving the patch grid that enters AA uncompressed. We
+                                                    introduce PaceVGGT, a pre-AA token pruning framework that prunes DINO patch
+                                                    tokens before the first AA block of a frozen VGGT. PaceVGGT trains a lightweight
+                                                    Token Scorer that estimates per-token importance from DINO features. The scorer
+                                                    is first distilled against an AA-internal attention target from the unpruned backbone,
+                                                    then refined under downstream camera, depth, and point-map losses. A per-frame
+                                                    keep budget fixes the backbone-visible sequence length, while an importance-
+                                                    adaptive merge/prune assignment preserves residual content from high-saliency
+                                                    frames under a fixed total merge budget. A Feature-guided Restoration module
+                                                    reconstructs the dense spatial grid required by the prediction heads. On ScanNet-50
+                                                    and 7-Scenes, PaceVGGT remains on the reconstruction quality–latency frontier
+                                                    while reducing inference latency. On ScanNet-50, it reduces latency by 5.1×
+                                                    over unmodified VGGT at N = 300 and 1.47× over LiteVGGT at N = 1000.
+                                                    These results identify pre-AA pruning as a viable acceleration route for frozen
+                                                    VGGT-style geometry transformers.
+
+
+                                        1    Introduction
+
+                                        The Visual Geometry Transformer (VGGT) [1] is a multitask 3D foundation model that jointly
+                                        predicts camera intrinsics, depth maps, point maps, and 2D tracks in a single forward pass. Building
+                                        on a line of feed-forward predecessors [2, 3, 4, 5], VGGT serves as a strong backbone for downstream
+                                        geometry tasks. The flexibility comes at substantial computational cost: token count grows linearly
+                                        in the number of input frames N , and global self-attention scales quadratically in the total token
+                                        count [6, 7, 8, 9, 10]. In our profiling, vanilla VGGT requires over 95 GB of VRAM at FP16 mixed
+                                        precision on a single H100 GPU for a 360-frame input sequence with 1036 patch tokens per frame.
+                                        Yet, reducing VGGT inference cost while keeping the backbone frozen and training only lightweight
+                                        acceleration modules remains an open problem.
+
+                                        Preprint.
+                                                                                                                                Frame 𝑁          Frame 𝑁 + 10
+
+                                                                                                                                            ⋯⋯                  ⋯⋯
+
+
+
+              Alternating-Attention
+PatchEnbed
+
+
+
+
+                                                                    PatchEnbed
+                                    Global Attn
+              Frame Attn
+
+
+
+
+                                                  Unmerge
+
+
+
+
+                                                                                                          Restore
+                                                            Heads
+
+
+
+
+                                                                                                                        Heads
+                                                                                           Alternating-
+                           Merge
+
+
+
+
+                                                                                 Prune
+                                                                                            Attention
+
+
+                               xN
+                                                                                                                                  Intra-frame     Inter-frame
+               SOTAs’ (in-AA)                                                            Ours (pre-AA)
+                                                          (b) Pairwise cosine similarity of DINO patch to-
+(a) Structural difference between SOTAs and Ours pruning. kens at the output of the frozen DINO backbone.
+Figure 1: Empirical observation for pre-AA token pruning in VGGT. PaceVGGT moves token reduc-
+tion to the DINO-to-AA interface, so the reduced sequence propagates through every downstream
+AA block rather than only a suffix of the backbone. This source-level cut exposes larger latency gains
+as sequence length grows while preserving the dense prediction interface through restoration.
+Existing token-reduction accelerators for VGGT [10, 11, 12] operate inside the Alternating-Attention
+(AA) stack. These methods reduce tokens only after the full patch grid has entered AA, so the earlier
+part of the backbone still processes all N P patch tokens. Since VGGT uses a frozen self-supervised
+ViT backbone [13, 14, 15] to extract patch tokens from input frames, a pre-AA cut at the DINO-to-AA
+interface places every frame-attention and global-attention block downstream of the reduction, and
+amortizes the same token-count drop across every backbone layer (Figure 1a).
+Three observations motivate pruning at the DINO-to-AA interface. First, DINO patch embeddings on
+indoor scenes contain measurable redundancy (Figure 1b). Second, applying ToMe [16] directly to
+DINO features reduces wall-clock time, showing that this interface can support early token reduction
+(Table 4). Third, the same ToMe variant degrades Chamfer distance, indicating that the scoring
+criterion must preserve tokens that disambiguate camera pose, depth boundaries, and cross-view
+correspondences [11, 17]. The challenge is therefore to score tokens before AA without erasing the
+3D signal that AA relies on.
+We supervise pre-AA token scoring using AA-layer attention from the unpruned backbone. We
+do not treat attention as a causal explanation; we use it as a teacher signal for how the full model
+allocates computation across tokens. Table 4 shows that selecting tokens using the AA-internal target
+in Equation (1) yields a Chamfer distance below the unpruned baseline, establishing that the signal a
+pre-AA scorer must predict is already present inside the backbone. We instantiate this hypothesis in
+PaceVGGT, a pre-AA token pruning framework that wraps a frozen VGGT with three lightweight
+modules: a Token Scorer module that predicts each DINO patch token’s geometric importance before
+AA, supervised by AA-internal attention and downstream task losses; a Token Pruning module
+that partitions the scored tokens into keep, merge, and prune sets under a per-frame keep budget,
+producing a reduced sequence for the unmodified backbone; and a Feature-guided Restoration module
+that reconstructs the dense spatial grid required by the depth and point map heads. On ScanNet-50,
+this design achieves a 5.1× speedup over the unmodified VGGT at N = 300 frames and a 1.47×
+speedup over LiteVGGT at N = 1000 (Table 1).
+The main contributions are: 1) we identify pre-AA token pruning as a source-level acceleration
+axis for visual geometry transformers and show that its success depends on a geometry-aware
+scoring criterion; 2) we propose PaceVGGT, which wraps a frozen VGGT with a Token Scorer
+module distilled from AA-internal attention, a Token Pruning module under importance-adaptive
+keep/merge/prune routing, and a Feature-guided Restoration module that preserves dense prediction;
+3) Across ScanNet-50, 7-Scenes, and NRGBD, PaceVGGT remains on the reconstruction quality–
+latency frontier; on ScanNet-50, it preserves camera-pose quality and delivers a 5.1× speedup over
+unmodified VGGT at N = 300 and a 1.47× speedup over LiteVGGT at N = 1000.
+
+2            Related Work
+Where pruning happens. Existing token-reduction accelerators for VGGT prune inside the
+alternating-attention stack, which restricts savings to a suffix of the pipeline. FastVGGT [10]
+merges redundant tokens within global attention layers. LiteVGGT [11] caches geometry-aware
+
+
+                                                                                                                    2
+                                    Tokens              Token
+
+
+
+
+                       PatchEnbed
+                                                                          Loss
+                                         ...            Scorer
+                                                                                                               Camera
+     ...                                ...
+                                                                                                                Pose
+
+
+
+
+                                      ...
+                                                                       Alternating-
+
+
+
+
+                                                                                                      Heads
+                                            ...          Token                           Token
+                                                                        Attention
+                                                        Pruning                        Restoration
+                                                                           (AA)                                Point
+                                                                                                               Cloud
+
+                            Token Pruning                                              Token Restoration
+            Ranking                  Prune               Merge                              Cross Attention
+      ...     ...     ...             ...         ...        ...                 ...       ...   ...     ...
+      𝒦       ℳ        𝒫              𝒦           ℳ          𝒦                   𝒦
+
+                                              Record Index                                    Rearrange
+
+Figure 2: Overview of PaceVGGT. The Token Scorer assigns an importance score to every DINO
+patch token before the first AA block. The Token Pruning module partitions the scored tokens into
+a keep set K, a merge set M, and a prune set P under a single keep ratio r, absorbs merge tokens
+into the keep set, and feeds the reduced sequence to the frozen VGGT backbone. Feature-guided
+Restoration module then reconstructs dense spatial grid required by the depth and point map heads.
+
+merge decisions across the global layers. Co-Me [12] performs confidence-guided merging inside
+the attention block. VGGT-Long [18], StreamVGGT [19], and InfiniteVGGT [20] target long or
+streaming sequences through chunking, causal attention, and bounded rolling memory, respectively;
+these approaches address sequence length and memory rather than the location of token reduction.
+Among the VGGT accelerators considered here, prior methods do not reduce the patch-token se-
+quence before it enters the AA stack. PaceVGGT moves the cut to the DINO-to-AA interface, so
+every frame-attention and global-attention block operates on the reduced sequence.
+
+
+What drives the pruning criterion. Representative ViT token-reduction criteria rely on hand-
+designed similarity scores, class-attention readouts, or learned gates developed primarily for single-
+image recognition. DynamicViT [21], IA-RED2 [22], A-ViT [23], Evo-ViT [24], and ATS [25] learn
+or derive token-selection policies during the transformer forward pass. EViT [26] ranks tokens by
+their attention to the [CLS] token, TokenLearner [27] learns a compact set of adaptive tokens, and
+SparseViT [28] exploits activation sparsity in high-resolution ViTs. ToMe [16] merges tokens by
+cosine similarity without any learning. These criteria reflect 2D saliency for image recognition and
+are not designed to preserve the camera-anchoring and cross-view-matching roles that tokens play
+in a geometry transformer. LiteVGGT introduces a geometry-aware similarity for merging, but the
+criterion still operates inside the backbone and is not exposed as a pre-AA scoring signal. PaceVGGT
+derives the criterion from AA-internal attention (camera attention and global matching scores), so the
+scorer reflects the geometric role each token will play once it reaches the AA layers.
+
+
+Whether the predictor is trained. Recent VGGT accelerator FastVGGT [10] is training-free;
+Co-Me [12] does not finetune the base model but trains a lightweight confidence predictor which
+thresholds attention confidence. The training-free design avoids upfront cost, but it limits the pruning
+criterion to signals available without task-level adaptation. In the 2D domain, DynamicViT trains a
+token sparsification policy and EViT reorganizes tokens using class-attention scores; these objectives
+and readouts are tied to image classification and do not directly specify geometric roles in multi-view
+reconstruction. PaceVGGT trains the Token Scorer in two stages: first by distilling AA-internal
+attention from the unpruned backbone, then under downstream camera, depth, and point-map losses.
+
+
+3   Method
+
+We introduce PaceVGGT, a pre-AA token pruning framework for VGGT. Section 3.1 establishes
+the empirical preliminaries that motivate the design, Section 3.2 distills the supervision target from
+AA-internal attention and instantiates the Token Scorer, Section 3.3 describes the importance-adaptive
+Token Pruning and Feature-guided Restoration modules, and Section 3.4 covers training and inference.
+
+
+                                                                   3
+3.1   Preliminaries
+
+A pre-AA cut amortizes a single token-count reduction across every backbone layer. Existing token-
+reduction accelerators [10, 11, 12] act inside the AA stack, so the layers preceding their cut still
+operate on the full grid of N P DINO patch tokens, where N is the number of input frames and P is
+the number of patches per frame. Moving the cut to the DINO output places every frame-attention
+and global-attention block downstream of the reduction, and Figure 1a shows the resulting latency
+curve across keep ratios.
+A 2D feature-similarity criterion delivers the latency benefit of a pre-AA cut but not its accuracy
+budget. Cosine-merging in DINO space at the same keep ratio reduces wall-clock time over the
+unmodified VGGT, but collapses tokens that are visually similar in 2D yet disambiguate camera pose,
+depth discontinuities, and cross-view correspondences, and the AA layers lose the geometric signal
+they depend on [17, 11]. The empirical comparison is reported in Table 4 (Section 4.4).
+The signal a pre-AA scorer must predict is already present in the AA layers themselves. Selecting
+tokens at the same keep ratio using the AA-internal target in Equation (1), computed from the
+unpruned backbone, yields a Chamfer distance of 0.485, below the unmodified VGGT baseline at
+0.492. This target-selection diagnostic is not available at inference, since computing it requires the
+forward pass that pre-AA pruning aims to accelerate. We do not treat attention as a causal explanation;
+we use it as a teacher signal for how the unpruned backbone allocates computation across tokens.
+The result establishes a target distribution that a pre-AA scorer should reproduce, and motivates a
+learned predictor supervised by AA-internal attention. We instantiate this predictor in Section 3.2
+and validate the hypothesis empirically in Section 4.4.
+
+3.2   Distilling AA-Internal Feature Importance
+
+The supervision target for the pre-AA scorer is a convex blend of two AA-internal signals correspond-
+ing to two distinct token roles: anchoring camera estimation, and matching across views. We write
+the target as
+                     S ⋆ (i) = α · Norm(Scam (i)) + (1 − α) · Norm(Sglobal (i)) ,                    (1)
+where Scam and Sglobal capture the two roles defined below, Norm(·) denotes per-frame min-max
+normalization, and α ∈ [0, 1] is a blending coefficient. The target is treated as a soft saliency signal
+rather than a strict label. The choice of α is studied in Section C.
+
+Camera-anchoring score. For token i in frame f , camera-anchoring score is average attention that
+frame f ’s own camera token [CAM]f places on i, taken across all global attention layers and heads:
+                                                        L   H
+                                             1 X X [CAM]f →i
+                               Scam (i) =         Ah,l       ,                                      (2)
+                                            L·H
+                                                    l=1 h=1
+        [CAM] →i
+where Ah,l f is the attention weight from frame f ’s camera token to token i at head h of global
+attention layer l. Tokens with high Scam are the ones the same-frame camera token attends to most
+across layers, so they anchor pose estimation in the unpruned backbone.
+
+Cross-view-matching score. The cross-view-matching score of token i is the maximum, over all
+other tokens j ̸= i, of the layer- and head-averaged attention from i to j:
+                                                                L   H
+                                                     1 X X i→j
+                              Sglobal (i) = max           Ah,l ,                                    (3)
+                                             j̸=i   L·H
+                                                            l=1 h=1
+
+where Ai→j
+        h,l is the global-attention weight from token i to token j at head h of layer l. Empirically,
+tokens with high Sglobal tend to emphasize corners, depth discontinuities, and repeatable texture,
+which are useful for cross-view correspondence and depth-boundary recovery.
+
+Token Scorer. A lightweight depth-wise convolutional network, the Token Scorer, regresses S ⋆
+from the DINO feature map F ∈ Rh×w×D of each frame, with h · w = P . It comprises a 1 × 1 point-
+wise convolution that projects the DINO embedding to a hidden dimension Dh , a 3 × 3 depth-wise
+convolution, and a final 1 × 1 convolution that produces a single channel. Batch normalization and a
+
+
+                                                    4
+GELU activation follow each of the first two convolutions, and a sigmoid activation maps the final
+output to [0, 1]. The scorer outputs a per-token score S ∈ [0, 1]h×w for every frame. The scorer is
+compact and operates once on the DINO feature map before AA. Operating on the DINO feature map
+preserves the spatial structure of the patch grid without additional positional encoding. The objective
+that distills S ⋆ into the scorer is defined in Section 3.4.
+
+3.3   Importance-Adaptive Token Pruning and Restoration
+
+Token Pruning. The Token Pruning module routes the N P patch tokens of a clip into three disjoint
+sets, the keep set K, the merge set M, and the prune set P, governed by a single keep ratio r ∈ (0, 1]
+and a fixed total merge fraction γ. Camera tokens [CAM]f and the R = 4 register tokens per frame
+are excluded from routing and pass through to the backbone unmodified.
+A single user-facing keep ratio r determines the backbone-visible sequence length exactly. Within
+each frame f , the top Kf = ⌈P r⌉ tokens by predicted score Si join K, so the per-frame keep count
+is fixed regardless of score distribution and the backbone-visible sequence length |K| = N ⌈P r⌉
+is constant for any given r. Merge and prune tokens both leave the backbone-visible sequence, so
+changes to the merge/prune split inside the non-kept set do not perturb backbone compute.
+A frame-level importance summary computed from the residual scores of non-kept tokens drives a
+non-uniform per-frame merge budget under the fixed total merge fraction γ. For each frame f , the
+residual saliency is summarized as
+                                 1 X
+                        ϕf =          Si ,      Nf = {i ∈ f : i ∈ / K},                       (4)
+                               |Nf |
+                                      i∈Nf
+
+and the clip-level merge budget γN P is allocated proportionally to ϕf :
+                                                                  !
+                                                            ϕf
+                             Mf = round γ · N P · PN                 .                          (5)
+                                                           g=1 ϕg
+                         P        
+Let BM = min ⌊γN P ⌋, f |Nf | . We allocate BM proportionally to ϕf , cap Mf ≤ |Nf |, and
+                                                                         P
+redistribute any residual budget by largest-remainder rounding so that f Mf = BM . When
+P
+   g ϕg = 0, we allocate BM uniformly across frames under the same cap and rounding rule. Within
+each frame, the top Mf tokens of Nf by score join M and the remaining P − Kf − Mf tokens join
+P. High-saliency frames therefore absorb more residual content through merging, while low-saliency
+frames discard more through pruning.
+Merge tokens are absorbed into the keep set through a similarity-weighted scatter-add restricted to
+intra-frame neighbors. For each merge token m ∈ M in frame f , the nearest keep token in the same
+frame is identified by cosine similarity in DINO feature space:
+                                                         ⟨Fm , Fk ⟩
+                                 dst(m) = arg max                   ,                               (6)
+                                                 k∈Kf   ∥Fm ∥ ∥Fk ∥
+where Kf denotes the keep set restricted to frame f . The keep tokens are then updated through a
+weighted scatter-add:                       P
+                                      Fk + m:dst(m)=k Sm · Fm
+                            F̂k =             P                   ,                          (7)
+                                         1 + m:dst(m)=k Sm
+where Sm is the predicted score of merge token m. The keep token enters with implicit weight 1 so
+that it serves as a fixed geometric anchor: its position is already validated by the top-K selection,
+and re-weighting it by Sk would allow merge-token mass to displace a high-confidence reference.
+The intra-frame restriction preserves the local spatial structure that the depth and point map heads
+depend on. The reduced sequence F̂ ∈ R|K|×D then enters the VGGT backbone in place of the full
+N P -token grid.
+
+Feature-guided Restoration. After the backbone processes the reduced sequence, the Feature-
+guided Restoration module reconstructs the dense spatial grid required by the depth and point map
+heads. The module operates independently per frame. The backbone yields a sparse set of |K|
+
+
+                                                  5
+                              ′
+output features G ∈ R|K|×D , and
+                               a feature-guided cross attention restores the
+                                                                           dense grid for each
+           f                              f               f                        f
+                                                                        f
+frame f : Gdense = CrossAttn Q = WQ Ffull , K = WK FK , V = WV G where Ffull          ∈ RP ×D
+is frame f ’s full-resolution DINO feature map, FKf ∈ R⌈P r⌉×D is its restriction to the keep set, and
+                  ′
+Gf ∈ R⌈P r⌉×D is the backbone output for frame f . The linear projections WQ , WK ∈ RD×d map
+                                                                     ′
+DINO features to a shared d-dimensional space, and WV ∈ RD ×d projects backbone features to
+the same space, followed by a linear output projection back to D′ . The per-frame cross-attention
+cost is O(P · ⌈P r⌉ · d); applied over the clip, restoration costs O(N · P · ⌈P r⌉ · d). It is linear in N
+because restoration is performed independently per frame and introduces no additional cross-frame
+attention. Camera and register tokens are excluded from both queries and keys; they retain their
+backbone outputs without restoration. The module uses a single multi-head cross-attention layer with
+                                                 ′
+4 heads. The dense outputs Gdense ∈ RN P ×D feed the standard DPT head without modification of
+the head weights.
+
+3.4   Training and Inference
+
+Training schedule. The Token Scorer and the Feature-guided Restoration module are trained while
+VGGT backbone remains frozen. We reuse the original VGGT supervision [1] as the task-level
+training signal; complete loss definitions provided in Appendix A.3. Training proceeds in two stages.
+In the first stage, we train only the Token Scorer using scorer distillation: Lstage1 = Ldistill =
+  1
+     PN P               ⋆                                                            ⋆
+NP      i=1 BCE(Si , S (i)) , where Si is the predicted token-importance score and S (i) is the target
+derived from the unpruned VGGT backbone, as described in Section 3.2. This stage anchors the scorer
+to internal VGGT signals before task-level gradients are introduced, which improves optimization
+stability.
+In the second stage, we jointly fine-tune the Token Scorer and the Feature-guided Restoration module
+with a task-aware objective:
+
+      Lstage2 = λd Ldistill + λr Lrestore + λt LVGGT ,          Lrestore = MSE(Gdense , Gfull ) ,      (8)
+
+where Lrestore aligns the restored dense features with the unpruned reference features, and LVGGT
+denotes the original VGGT downstream supervision: LVGGT = Lcamera + Ldepth + Lpmap . We
+omit the VGGT tracking loss because this work evaluates reconstruction and camera pose, while
+2D tracking is outside the reported task scope. We set λd = λr = 1 and λt = 0.1: because Stage 1
+has already anchored the scorer to a calibrated target, a small task-loss weight suffices to introduce
+task-aware drift without destabilizing the distillation anchor. Stage 2 propagates task gradients to the
+Token Scorer only through the score-weighted merging in Equation (7); the keep and prune decisions
+rely on a non-differentiable top-K selection, so the scorer’s task-aware update is concentrated on
+the merge tier, while Ldistill continues to supervise keep- and prune-tier scores throughout. The
+two-stage schedule is compared against single-stage joint training in Appendix C, where it yields a
+more stable optimization trajectory.
+
+Parameter overhead. PaceVGGT adds the Token Scorer and the Feature-guided Restoration
+module on top of the frozen VGGT backbone. The Token Scorer contributes D · Dh + 9Dh +
+Dh convolution parameters, up to bias and normalization terms. The restoration cross-attention
+contributes 2Dd + 2D′ d projection parameters, up to biases. The added modules account for less
+than 1% of VGGT’s parameter count.
+
+Inference. At inference, the Token Scorer scores the DINO features of all input frames. Under a
+single ratio r, each frame contributes its top-scoring tokens to the keep set. The remaining tokens are
+split into a merge tier and a prune tier, with the merge budget allocated across frames in proportion to
+a frame-level importance summary computed from the same scores. Merge tokens are absorbed into
+the keep set through similarity-weighted aggregation, and prune tokens are discarded. The reduced
+sequence is processed by the frozen VGGT backbone, and the Feature-guided Restoration module
+restores the dense spatial grid required by the depth and point map heads. Backbone-visible sequence
+length is determined entirely by r. The Token Scorer, the merging step, and the Feature-guided
+Restoration module add overhead outside the backbone, so the latency measurements in Section 4
+report end-to-end inference time.
+
+
+                                                    6
+Table 1: Point cloud reconstruction on ScanNet-50. CD denotes Chamfer distance (lower is better).
+Time denotes wall-clock inference per clip. OOM denotes out of memory.
+                   N = 1000              N = 500              N = 300               N = 100
+    Method
+                CD↓        Time↓      CD↓       Time↓      CD↓       Time↓       CD↓       Time↓
+ VGGT           OOM        OOM       OOM        OOM        0.492      37.8s     0.473       5.4s
+    FastVGGT    0.495      99.4s     0.501      35.4s      0.480      15.0s     0.460       3.0s
+    Co-Me       0.488      77.8s     0.498      29.2s      0.475      12.4s     0.459       1.9s
+    LiteVGGT    0.490      58.4s     0.489      20.9s      0.471      9.1s      0.451       1.7s
+    Ours        0.484      39.6s     0.487      17.7s      0.470      7.4s      0.455       1.4s
+
+
+4     Evaluation
+
+4.1    Evaluation Setup
+
+We evaluate PaceVGGT on two main indoor benchmarks under the FastVGGT [10] protocol: ScanNet-
+50 at N ∈ {100, 300, 500, 1000} and 7-Scenes [29] at strides 3 and 10. The Token Scorer and
+Feature-guided Restoration module are trained on ScanNet [30] train scenes only; 7-Scenes [31] is
+evaluated zero-shot. Tasks are 3D point cloud reconstruction (CD, Acc, Comp, NC) and camera
+pose estimation (ATE, ARE, RPE-rot, RPE-trans), with wall-clock inference time per clip reported
+alongside every quality metric. We compare against VGGT [1] and the three most directly comparable
+in-AA accelerators (FastVGGT [10], Co-Me [12], LiteVGGT [11]); all baselines are rerun on identical
+hardware at their paper-recommended hyperparameters. We follow the standard VGGT configuration
+with P = 1036 patch tokens and R = 4 register tokens per frame, input resolution 518 × 392, and
+FP16 precision with Flash-Attention 2 [32]. Defaults are r = 0.40, γ = 0.30, and α = 0.25 unless
+stated otherwise. Detailed training configurations are provided in Appendix A.1. All experiments run
+on a single NVIDIA H100; reported wall-clock times are the median of 3 trials after 2 warmup runs.
+Additional experimental details and NRGBD [33] results are in Appendix A and Appendix B.2.
+
+
+4.2    3D Reconstruction
+
+Across the evaluated ScanNet-50 and 7-Scenes settings, PaceVGGT preserves reconstruction quality
+while reducing latency, with a 5.1× speedup over unmodified VGGT at N = 300 and a 1.47×
+speedup over LiteVGGT at N = 1000.
+
+ScanNet-50. Table 1 reports Chamfer distance and inference time on ScanNet-50 across four
+input sequence lengths. Against the unmodified VGGT, which exhausts memory beyond N = 300,
+PaceVGGT delivers a 5.1× speedup at N = 300 (7.4 s vs. 37.8 s) with lower Chamfer distance
+(0.470 vs. 0.492). Relative to LiteVGGT, PaceVGGT runs faster at every tested length and matches
+or slightly improves Chamfer distance for N ∈ {300, 500, 1000}. At N = 1000, PaceVGGT runs in
+39.6 s versus 58.4 s for LiteVGGT (1.47×) with CD 0.484 versus 0.490. At N = 100, LiteVGGT
+achieves slightly lower CD (0.451 vs. 0.455), while PaceVGGT has lower latency (1.4 s vs. 1.7 s).
+
+7-Scenes. Table 2 reports point cloud reconstruction on 7-Scenes. Relative to LiteVGGT,
+PaceVGGT runs faster at both strides and remains on the quality-latency frontier. At stride 10,
+LiteVGGT has marginally better accuracy (0.016 vs. 0.017) and normal consistency (0.615 vs.
+0.614), while PaceVGGT has lower latency (1.5 s vs. 1.6 s) and better completeness (0.028 vs.
+0.030). At stride 3, PaceVGGT improves accuracy and normal consistency at lower latency while
+matching LiteVGGT on completeness. The 7-Scenes results provide a zero-shot check that the
+ScanNet-trained scorer is not tied only to the ScanNet evaluation split.
+Figure 3 (top row) compares point clouds from ScanNet-50 and 7-Scenes. On long sequences the
+two methods produce comparable reconstructions despite the latency gap. The qualitative examples
+are consistent with the quantitative ablations: PaceVGGT retains corner and edge structure in
+repeated-texture regions where DINO-only merging degrades reconstruction.
+
+
+                                                 7
+Table 2: Point cloud reconstruction on 7-Scenes at two strides. Acc and Comp are lower-is-better;
+NC is higher-is-better.
+                           7-Scenes – Stride 3                         7-Scenes – Stride 10
+ Method
+                 Acc↓      Comp↓        NC↑       Time↓       Acc↓      Comp↓         NC↑      Time↓
+ VGGT            0.019      0.031      0.604       43.3s      0.019      0.029        0.609     5.2s
+ FastVGGT        0.017      0.027      0.603       17.4s      0.017      0.028        0.611     3.1s
+ Co-Me           0.017      0.029      0.601       15.1s      0.017      0.028        0.612     2.6s
+ LiteVGGT        0.017      0.027      0.607       13.3s      0.016      0.030        0.615     1.6s
+ Ours            0.016      0.027      0.610       8.1s       0.017      0.028        0.614     1.5s
+
+
+
+
+                 VGGT               FastVGGT               LiteVGGT              PaceVGGT
+
+Figure 3: Qualitative results. Top row: point cloud reconstructions on ScanNet-50. Bottom row:
+reconstructed camera trajectories against ground truth on a representative ScanNet-50 sequence.
+PaceVGGT tracks the reference path without visible drift.
+
+4.3   Camera Pose Estimation
+
+Camera-pose metrics remain close across methods, and PaceVGGT has the lowest latency at both
+tested sequence lengths. Table 3 reports ATE, ARE, RPE-rot, RPE-trans, and inference time on
+ScanNet-50 at N ∈ {100, 300}. Relative to LiteVGGT, PaceVGGT attains lower ARE and RPE-rot
+at both tested lengths, with lower wall-clock time. Figure 3 (bottom row) visualizes the reconstructed
+camera trajectory: PaceVGGT follows the ground-truth path closely.
+
+4.4   Ablation Studies
+
+The ablations isolate which design choices in PaceVGGT are load-bearing. All ablations are con-
+ducted on ScanNet-50 at N = 300 with r = 0.40 fixed unless stated otherwise.
+Importance of 3D-aware supervision. Table 4 reports four pre-AA pruning variants on ScanNet-50
+at the same keep ratio r = 0.40. Replacing the learned scorer with vanilla ToMe applied to DINO
+features degrades Chamfer distance from 0.470 to 0.536, a 0.066 regression that drives quality below
+the unmodified VGGT and shows that a 2D feature-similarity criterion can erase the geometric signal
+AA depends on. Selecting tokens directly with the AA-internal target in Equation (1), computed from
+the unpruned backbone, gives CD 0.485, but this diagnostic is not deployable because computing the
+target requires the full forward pass that pre-AA pruning aims to skip. The learned scorer outperforms
+this diagnostic at deployable cost, indicating that task-aware training and restoration add value beyond
+copying the AA target.
+Three-way keep/merge/prune assignment. Table 5 compares three assignment variants at the same
+keep ratio. The three-way assignment outperforms both pure pruning (γ = 0) and full merging (no
+prune tier), since mid-score tokens carry information that pruning loses and high-score tokens carry
+distinctiveness that merging blurs.
+
+
+                                                   8
+             Table 3: Camera pose estimation on ScanNet-50. All metrics are lower-is-better.
+                               N = 300                                     N = 100
+    Method     ATE↓    ARE↓    RPE-       RPE-     Time↓   ATE↓    ARE↓    RPE-       RPE-     Time↓
+                               rot↓      trans↓                            rot↓      trans↓
+ VGGT          0.117   3.997   1.070     0.053     37.8s   0.116   3.897   1.525     0.082     5.4s
+    FastVGGT 0.117     4.073   0.994     0.051     15.0s   0.117   4.018   1.710     0.087     3.0s
+    Co-Me      0.117   4.054   0.993     0.052     12.4s   0.117   3.951   1.601     0.083     1.9s
+    LiteVGGT 0.118     3.997   0.992     0.051     9.1s    0.117   3.946   1.526     0.085     1.7s
+    Ours       0.117   3.995   0.990     0.051     7.4s    0.116   3.905   1.523     0.081     1.4s
+
+Table 4: Necessity of 3D-aware supervision on ScanNet-50, N = 300, at keep ratio r = 0.40. The
+AA-target selection row uses Equation (1) computed from the unpruned backbone; its time isolates
+the routed forward pass and excludes target computation, so it is a non-deployable diagnostic.
+    Method                                                     CD↓                    Time↓
+ VGGT                                                         0.492                   37.8s
+ VGGT + DINO ToMe                                             0.536                    7.2s
+ VGGT + AA-target selection                                   0.485                    7.6s
+    Ours                                                      0.470                    7.4s
+
+
+Accuracy-efficiency frontier. Table 6 sweeps the keep ratio r ∈ {0.05, 0.10, 0.20, 0.40, 0.50} at
+fixed γ = 0.30. Below r = 0.20, Chamfer distance degrades sharply as the keep set becomes too
+sparse to preserve geometric structure. Between r = 0.40 and r = 0.50, additional kept tokens
+deliver only 0.002 of further CD improvement at 1.2 s of additional latency, indicating saturation of
+the marginal benefit. We adopt r = 0.40 as the operating point used elsewhere in the paper, since it
+captures the bulk of the achievable CD while avoiding the saturation tail.
+The two-stage training schedule outperforms single-stage joint training and either stage in isolation;
+the comparison is reported in Appendix C. Together, the ScanNet-50 frontier, the 7-Scenes zero-
+shot result, and the ToMe / AA-target ablation support the central claim: pre-AA pruning needs a
+geometry-aware scoring signal rather than DINO similarity alone.
+
+
+
+5     Conclusion
+
+We introduced PaceVGGT, a pre-AA token pruning framework for frozen VGGT-style geometry
+transformers. The main finding is that token reduction can be moved to the DINO-to-AA interface
+when the scoring signal is distilled from AA-internal attention rather than derived from 2D feature
+similarity alone. The Token Scorer, keep/merge/prune routing, and Feature-guided Restoration
+module together make this source-level cut compatible with the dense prediction heads. On ScanNet-
+50 and 7-Scenes, PaceVGGT remains on the reconstruction quality–latency frontier while reducing
+inference latency; the NRGBD results in the appendix show the same trend. At the tested sequence
+lengths on ScanNet-50, it preserves camera-pose quality and delivers a 5.1× speedup over unmodified
+VGGT at N = 300 and a 1.47× speedup over LiteVGGT at N = 1000 on a single H100 with FP16
+and Flash-Attention 2. These results support pre-AA pruning as a practical acceleration route for
+frozen VGGT-style geometry transformers in indoor reconstruction and pose-estimation settings.
+
+
+Limitations. The Token Scorer is trained on ScanNet train scenes; stronger domain shift may
+degrade the importance scores. The Feature-guided Restoration module uses a single cross-attention
+block, which may be insufficient at very high output resolutions. The current evaluation focuses on
+indoor 3D reconstruction with small to moderate camera motion. Outdoor scenes and large-baseline
+configurations remain outside the evaluated regime; addressing them may require retuning α or
+adopting a sequence-dependent keep-ratio schedule. We do not evaluate the 2D tracking head, so the
+reported task coverage is limited to reconstruction and camera pose. Details in Appendix D.
+
+
+                                                   9
+           Table 5: Three-way assignment on ScanNet-50, N = 300, at keep ratio r = 0.40.
+ Variant                                                                              CD↓
+ Pure pruning (γ = 0)                                                                 0.503
+ Full merging (no prune tier)                                                         0.489
+ Three-way (ours)                                                                     0.470
+       Table 6: Accuracy-efficiency frontier on ScanNet-50, N = 300, with γ = 0.30 fixed.
+ Metric                   r = 0.05        r = 0.10         r = 0.20        r = 0.40           r = 0.50
+ CD↓                        0.548           0.501            0.478           0.470             0.468
+ Time↓                          4.9s         5.6s            6.5s             7.4s              8.6s
+
+
+Acknowledgments and Disclosure of Funding
+Use unnumbered first level headings for the acknowledgments. All acknowledgments go at the
+end of the paper before the list of references. Moreover, you are required to declare funding
+(financial activities supporting the submitted work) and competing interests (related financial activities
+outside the submitted work). More information about this disclosure can be found at: https:
+//neurips.cc/Conferences/2026/PaperInformation/FundingDisclosure.
+Do not include this section in the anonymized submission, only in the final paper. You can use
+the ack environment provided in the style file to automatically hide this section in the anonymized
+submission.
+
+References
+ [1] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David
+     Novotny. Vggt: Visual geometry grounded transformer. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, 2025.
+ [2] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jérôme Revaud. DUSt3R:
+     Geometric 3d vision made easy. In CVPR, 2024.
+ [3] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3d with
+     MASt3R. In ECCV, 2024.
+ [4] Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai,
+     Franziska Meier, and Matt Feiszli. Fast3R: Towards 3d reconstruction of 1000+ images in one
+     forward pass. arXiv preprint arXiv:2501.13928, 2025.
+ [5] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A. Efros, and Angjoo Kanazawa.
+     Continuous 3d perception model with persistent state. arXiv preprint arXiv:2501.12387, 2025.
+ [6] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai,
+     Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly,
+     Jakob Uszkoreit, and Neil Houlsby. An image is worth 16x16 words: Transformers for image
+     recognition at scale. In International Conference on Learning Representations (ICLR), 2021.
+ [7] Hugo Touvron, Matthieu Cord, Matthijs Douze, Francisco Massa, Alexandre Sablayrolles, and
+     Hervé Jégou. Training data-efficient image transformers and distillation through attention. In
+     International Conference on Machine Learning (ICML), pages 10347–10357, 2021.
+ [8] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining
+     Guo. Swin Transformer: Hierarchical vision transformer using shifted windows. In Proceedings
+     of the IEEE/CVF International Conference on Computer Vision (ICCV), pages 10012–10022,
+     2021.
+ [9] Wenhai Wang, Enze Xie, Xiang Li, Deng-Ping Fan, Kaitao Song, Ding Liang, Tong Lu, Ping
+     Luo, and Ling Shao. Pyramid vision transformer: A versatile backbone for dense prediction
+     without convolutions. In Proceedings of the IEEE/CVF International Conference on Computer
+     Vision (ICCV), pages 568–578, 2021.
+
+
+                                                    10
+[10] You Shen, Zhipeng Zhang, Yansong Qu, and Liujuan Cao. FastVGGT: Training-free accelera-
+     tion of visual geometry transformer. arXiv preprint arXiv:2509.02560, 2025.
+[11] Zhijian Shu, Cheng Lin, Tao Xie, Wei Yin, Ben Li, Zhiyuan Pu, Weize Li, Yao Yao, Xun Cao,
+     Xiaoyang Guo, and Xiao-Xiao Long. Litevggt: Boosting vanilla vggt via geometry-aware
+     cached token merging. arXiv preprint arXiv:2512.04939, 2025.
+[12] Yutian Chen, Yuheng Qiu, Ruogu Li, Ali Agha, Shayegan Omidshafiei, Jay Patrikar, and
+     Sebastian Scherer. Co-me: Confidence-guided token merging for visual geometric transformers,
+     2025.
+[13] Mathilde Caron, Hugo Touvron, Ishan Misra, Hervé Jégou, Julien Mairal, Piotr Bojanowski,
+     and Armand Joulin. Emerging properties in self-supervised vision transformers. In Proceedings
+     of the IEEE/CVF International Conference on Computer Vision (ICCV), pages 9650–9660,
+     2021.
+[14] Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr Dollár, and Ross Girshick. Masked
+     autoencoders are scalable vision learners. In Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition (CVPR), pages 16000–16009, 2022.
+[15] Maxime Oquab et al. DINOv2: Learning robust visual features without supervision. arXiv
+     preprint arXiv:2304.07193, 2023.
+[16] Daniel Bolya, Cheng-Yang Fu, Xiaoliang Dai, Peizhao Zhang, Christoph Feichtenhofer, and
+     Judy Hoffman. Token merging: Your ViT but faster. In ICLR, 2023.
+[17] Yuanwen Yue, Anurag Das, Francis Engelmann, Siyu Tang, and Jan Eric Lenssen. Improving
+     2D Feature Representations by 3D-Aware Fine-Tuning. In European Conference on Computer
+     Vision (ECCV), 2024.
+[18] Kai Deng, Zexin Ti, Jiawei Xu, Jian Yang, and Jin Xie. VGGT-Long: Chunk it, loop it, align it –
+     pushing vggt’s limits on kilometer-scale long rgb sequences. arXiv preprint arXiv:2507.16443,
+     2025.
+[19] Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou, and Jiwen Lu. Streaming 4d visual
+     geometry transformer. arXiv preprint arXiv:2507.11539, 2025.
+[20] Shuai Yuan, Yantai Yang, Xiaotian Yang, Xupeng Zhang, Zhonghao Zhao, Lingming Zhang,
+     and Zhipeng Zhang. InfiniteVGGT: Visual geometry grounded transformer for endless streams.
+     arXiv preprint arXiv:2601.02281, 2026.
+[21] Yongming Rao, Wenliang Zhao, Benlin Liu, Jiwen Lu, Jie Zhou, and Cho-Jui Hsieh. Dynam-
+     icViT: Efficient vision transformers with dynamic token sparsification. In NeurIPS, 2021.
+[22] Bowen Pan, Rameswar Panda, Yifan Jiang, Zhangyang Wang, Rogerio Feris, and Aude Oliva.
+     IA-RED2 : Interpretability-aware redundancy reduction for vision transformers. In Advances in
+     Neural Information Processing Systems (NeurIPS), pages 24898–24911, 2021.
+[23] Hongxu Yin, Arash Vahdat, Jose M. Alvarez, Arun Mallya, Jan Kautz, and Pavlo Molchanov.
+     A-ViT: Adaptive tokens for efficient vision transformer. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition (CVPR), pages 10809–10818, 2022.
+[24] Yifan Xu, Zhijie Zhang, Mengdan Zhang, Kekai Sheng, Ke Li, Weiming Dong, Liqing Zhang,
+     Changsheng Xu, and Xing Sun. Evo-ViT: Slow-fast token evolution for dynamic vision
+     transformer. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 36, pages
+     2964–2972, 2022.
+[25] Mohsen Fayyaz, Soroush Abbasi Koohpayegani, Farnoush Rezaei Jafari, Sunando Sengupta,
+     Hamid Reza Vaezi Joze, Eric Sommerlade, Hamed Pirsiavash, and Jürgen Gall. Adaptive
+     token sampling for efficient vision transformers. In European Conference on Computer Vision
+     (ECCV), pages 396–414, 2022.
+[26] Youwei Liang, Chongjian Ge, Zhan Tong, Yibing Song, Jue Wang, and Pengtao Xie. Not all
+     patches are what you need: Expediting vision transformers via token reorganizations. In ICLR,
+     2022.
+
+
+                                                11
+[27] Michael S. Ryoo, A. J. Piergiovanni, Anurag Arnab, Mostafa Dehghani, and Anelia Angelova.
+     TokenLearner: Adaptive space-time tokenization for videos. In Advances in Neural Information
+     Processing Systems (NeurIPS), pages 12786–12797, 2021.
+[28] Xuanyao Chen, Zhijian Liu, Haotian Tang, Li Yi, Hang Zhao, and Song Han. SparseViT:
+     Revisiting activation sparsity for efficient high-resolution vision transformer. In Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pages
+     2061–2070, 2023.
+[29] Jamie Shotton, Ben Glocker, Christopher Zach, Shahram Izadi, Antonio Criminisi, and Andrew
+     Fitzgibbon. Scene coordinate regression forests for camera relocalization in RGB-D images. In
+     CVPR, 2013.
+[30] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias
+     Nießner. ScanNet: Richly-annotated 3d reconstructions of indoor scenes. In CVPR, 2017.
+[31] Ben Glocker, Shahram Izadi, Jamie Shotton, and Antonio Criminisi. Real-time rgb-d camera
+     relocalization. In International Symposium on Mixed and Augmented Reality (ISMAR). IEEE,
+     October 2013.
+[32] Tri Dao. FlashAttention-2: Faster attention with better parallelism and work partitioning. In
+     International Conference on Learning Representations (ICLR), 2024.
+[33] Dejan Azinović, Ricardo Martin-Brualla, Dan B. Goldman, Matthias Nießner, and Justus Thies.
+     Neural RGB-D surface reconstruction. In CVPR, 2022.
+[34] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vision transformers for dense prediction.
+     In ICCV, 2021.
+
+
+A     Experimental Details
+A.1   Training Configuration Details
+
+We train the Token Scorer and Feature-guided Restoration module for 100 epochs each, using the
+AdamW optimizer with a learning rate of 1 × 10−5 and a batch size of 24. The distillation stage
+uses a fixed keep ratio of 0.4 and a blending coefficient α of 0.25. The task-aware optimization stage
+uses the same keep ratio and blending coefficient, without distillation loss. We use the ScanNet train
+scenes for training and report results on the ScanNet-50 test set.
+
+A.2   VGGT Backbone Notation
+
+VGGT [1] receives a clip of N frames, encodes each frame with a frozen DINO backbone [15]
+into P patch tokens, appends a learnable camera token [CAM] and R register tokens per frame, and
+processes the resulting sequence through L AA blocks that pair intra-frame self-attention with global
+self-attention, with H heads per layer. After the aggregator, dedicated heads decode [CAM] into
+camera parameters and decode the patch tokens into depth and point maps via a DPT head [34]. We
+refer to N, P, L, H, [CAM], R throughout the main paper without redefinition.
+
+A.3   Vanilla VGGT Training Losses
+
+We reproduce the downstream training objective of VGGT [1] for completeness. The aggregate
+downstream loss combines a camera term, a depth term, and a point map term:
+                                Ldown = Lcamera + Ldepth + Lpmap .                                 (9)
+
+Camera loss.    The predicted camera vector ĝi is compared to the ground truth gi through the Huber
+loss ∥ · ∥ϵ :
+                                                 N
+                                                 X
+                                     Lcamera =         ∥ĝi − gi ∥ϵ .                            (10)
+                                                 i=1
+
+
+                                                 12
+Depth and point map losses. Following DUSt3R [2] and the aleatoric-uncertainty regression
+formulation, each loss combines a value term, a gradient term, and a log-uncertainty regularizer:
+                      N
+                      X
+           Ldepth =         ΣD                  D                             D
+                             i ⊙ (D̂i − Di ) + Σi ⊙ (∇D̂i − ∇Di ) − βunc log Σi ,                  (11)
+                      i=1
+                      N
+                      X
+           Lpmap =          ΣP                  P                             P
+                             i ⊙ (P̂i − Pi ) + Σi ⊙ (∇P̂i − ∇Pi ) − βunc log Σi .                  (12)
+                      i=1
+
+Here, D̂i , Di and P̂i , Pi are the predicted and ground-truth depth and point maps for frame i, ΣD    P
+                                                                                                  i , Σi
+are the predicted aleatoric uncertainty maps, ⊙ is the channel-broadcast element-wise product, and
+βunc is the log-uncertainty regularization coefficient, distinct from the blending coefficient α in
+Equation (1). The notation matches Wang et al. [1].
+
+B     Additional Results
+B.1   Peak GPU Memory Protocol
+
+Peak GPU memory is measured with the same clip construction, input resolution, precision, and
+warmup protocol used for the timing measurements in Section 4.1. We reset the CUDA peak-memory
+counter immediately before the measured forward pass and record the maximum allocated memory
+after synchronizing the device. OOM entries in Table 1 indicate that the method could not complete
+the measured forward pass on a single NVIDIA H100 under this protocol.
+
+B.2   NRGBD Reconstruction
+
+Table 7 reports point cloud reconstruction on NRGBD [33], which contains noisy RGB-D captures.
+The Token Scorer and Feature-guided Restoration module are the same ScanNet-trained checkpoints
+used elsewhere; no NRGBD-specific tuning is performed. Relative to LiteVGGT, PaceVGGT
+runs faster at both strides and remains on the reconstruction quality–latency frontier. At stride 10,
+PaceVGGT matches accuracy, improves completeness and normal consistency, and reduces latency
+from 2.1 s to 1.9 s. At stride 3, PaceVGGT improves accuracy and normal consistency at lower
+latency, with a 0.001 completeness regression. These results provide an additional zero-shot check
+under noisier capture conditions.
+
+Table 7: Point cloud reconstruction on NRGBD at two strides. Acc and Comp are lower-is-better;
+NC is higher-is-better.
+                        NRGBD — Stride 3                       NRGBD — Stride 10
+ Method
+                Acc↓     Comp↓       NC↑    Time↓       Acc↓     Comp↓     NC↑      Time↓
+ VGGT            0.033       0.017     0.644      74.4s      0.016       0.017      0.668       8.4s
+ FastVGGT        0.031       0.019     0.663      33.7s      0.017       0.017      0.672       4.7s
+ Co-Me           0.031       0.019     0.659      25.9s      0.018       0.018      0.672       3.8s
+ LiteVGGT        0.032       0.017     0.670      20.2s      0.017       0.019      0.677       2.1s
+ Ours            0.031       0.018     0.678      15.6s      0.017       0.017      0.678       1.9s
+
+
+C     Additional Ablation Studies
+C.1   Two-Stage Training Schedule
+
+Table 8 compares four training schedules at N = 300. The two-stage schedule (distillation followed
+by task-aware optimization) gives the lowest CD among the tested schedules, supporting the use of
+distillation before task-aware optimization is introduced.
+Feature-guided Restoration. Table 9 compares three strategies for reconstructing the dense grid
+after the backbone. Feature-guided cross-attention outperforms zero filling and bilinear interpolation,
+
+
+                                                  13
+                  Table 8: Effect of the training schedule on ScanNet-50, N = 300.
+ Schedule                                                                           CD↓
+ Stage 1 only (distillation)                                                        0.492
+ Stage 2 only (no distillation pretraining)                                         0.506
+ Single-stage joint (full objective from start)                                     0.486
+ Two-stage (ours)                                                                   0.470
+
+
+
+since DINO similarity routes information that spatial coordinates alone cannot, especially in regions
+where the keep set is locally sparse.
+
+
+                Table 9: Feature-guided Restoration variants on ScanNet-50, N = 300.
+ Restoration variant                                                                CD↓
+ Zero filling                                                                       0.521
+ Bilinear interpolation                                                             0.494
+ Feature-guided cross-attention (ours)                                              0.470
+
+
+
+Composition of the supervision target. Table 10 varies the blending coefficient α in Equation (1).
+The convex blend at α = 0.25 outperforms both end-points (camera-only at α = 1 and matching-only
+at α = 0). Each end-point overlooks a token role that the other captures: pure camera attention
+misses tokens that drive depth prediction, while pure global matching misses tokens that anchor pose
+estimation but are not cross-view distinctive. The close results at α = 0.25 and α = 0.5 (CD 0.470
+and 0.471) indicate low sensitivity in that range.
+
+
+Table 10: Composition of the supervision target. Effect of the blending coefficient α on ScanNet-50,
+N = 300.
+ Metric                        α=0            α = 0.25         α = 0.5   α = 0.75           α=1
+ CD↓                           0.489              0.470         0.471      0.476            0.483
+
+
+
+Importance-adaptive merge allocation. Table 11 replaces the importance-adaptive allocation
+(Equation (5)) with a uniform per-frame budget Mf = ⌈γP ⌉. The importance-adaptive variant
+outperforms uniform allocation at the same total merge budget, validating the use of residual non-kept
+saliency as a per-frame importance summary: high-saliency frames benefit from absorbing more
+through merging, while low-saliency frames benefit from discarding more through pruning.
+
+
+D    Additional Discussion
+
+PaceVGGT relocates token pruning from within the VGGT backbone to the input side. The resulting
+savings extend across patch embedding, the early intra-frame attention layers, and every layer of the
+global attention. The benefit is most pronounced for long input sequences, which is also the regime
+where visual geometry transformers are hardest to deploy. The Token Scorer remains computationally
+lightweight, since it operates on inexpensive DINO features and adopts a compact convolutional
+design.
+
+Domain shift. The Token Scorer is currently trained on ScanNet train scenes. Strong domain
+shift between training and test domains may degrade the importance scores, since tokens that are
+3D-informative in one domain may not retain that role in another. Cross-domain generalization is a
+separate problem that this paper does not address; it would likely require multi-domain training data
+and a domain-agnostic supervision target.
+
+
+                                                          14
+Table 11: Importance-adaptive versus uniform merge allocation on ScanNet-50, N = 300. Keep
+ratio and total merge budget are held constant.
+ Allocation                                                                       CD↓
+ Uniform per-frame (Mf = ⌈γP ⌉)                                                   0.482
+ Importance-adaptive (ours)                                                       0.470
+
+
+Restoration expressiveness. The Feature-guided Restoration module restores dense outputs
+through a single cross attention block. For very high resolution outputs, a more expressive de-
+sign may be required, for example a stack of cross attention blocks with hierarchical refinement, or a
+learned spatial gate that down-weights ambiguous keep tokens.
+
+Outdoor and large-baseline configurations. The current evaluation focuses on indoor 3D recon-
+struction with small to moderate camera motion. Outdoor scenes and large-baseline configurations
+may require a different blending coefficient α in Equation (1), and possibly a non-uniform keep-ratio
+schedule across the input sequence, since the distribution of 3D-informative tokens differs between
+dense indoor scenes and sparse outdoor scenes.
+
+E    Broader Impacts
+PaceVGGT accelerates an existing frozen VGGT backbone for indoor 3D reconstruction; it does not
+introduce new sensing modalities, new deployment surfaces, or new training data. The societal-impact
+considerations are therefore inherited from the underlying VGGT model and from feed-forward
+3D reconstruction systems generally. On the positive side, reduced inference latency and memory
+consumption lower the computational cost and energy use of 3D reconstruction, making it more
+accessible on commodity hardware. On the negative side, accelerated 3D reconstruction shares
+the dual-use profile of the baseline model: faster scene reconstruction could in principle facilitate
+surveillance or unauthorized spatial mapping. We do not foresee risks specific to token pruning
+beyond those already present in the unmodified backbone.
+
+
+
+
+                                                 15
+NeurIPS Paper Checklist
+    1. Claims
+      Question: Do the main claims made in the abstract and introduction accurately reflect the
+      paper’s contributions and scope?
+      Answer: [Yes]
+      Justification: The introduction outlines the proposed PaceVGGT. We clearly define its
+      intended scope, use cases in Section 3, ensuring the claims accurately reflect the method’s
+      capabilities.
+      Guidelines:
+         • The answer [N/A] means that the abstract and introduction do not include the claims
+           made in the paper.
+         • The abstract and/or introduction should clearly state the claims made, including the
+           contributions made in the paper and important assumptions and limitations. A [No] or
+           [N/A] answer to this question will not be perceived well by the reviewers.
+         • The claims made should match theoretical and experimental results, and reflect how
+           much the results can be expected to generalize to other settings.
+         • It is fine to include aspirational goals as motivation as long as it is clear that these goals
+           are not attained by the paper.
+    2. Limitations
+      Question: Does the paper discuss the limitations of the work performed by the authors?
+      Answer: [Yes]
+      Justification: The limitations are discussed in Section 5
+      Guidelines:
+         • The answer [N/A] means that the paper has no limitation while the answer [No] means
+           that the paper has limitations, but those are not discussed in the paper.
+         • The authors are encouraged to create a separate “Limitations” section in their paper.
+         • The paper should point out any strong assumptions and how robust the results are to
+           violations of these assumptions (e.g., independence assumptions, noiseless settings,
+           model well-specification, asymptotic approximations only holding locally). The authors
+           should reflect on how these assumptions might be violated in practice and what the
+           implications would be.
+         • The authors should reflect on the scope of the claims made, e.g., if the approach was
+           only tested on a few datasets or with a few runs. In general, empirical results often
+           depend on implicit assumptions, which should be articulated.
+         • The authors should reflect on the factors that influence the performance of the approach.
+           For example, a facial recognition algorithm may perform poorly when image resolution
+           is low or images are taken in low lighting. Or a speech-to-text system might not be
+           used reliably to provide closed captions for online lectures because it fails to handle
+           technical jargon.
+         • The authors should discuss the computational efficiency of the proposed algorithms
+           and how they scale with dataset size.
+         • If applicable, the authors should discuss possible limitations of their approach to
+           address problems of privacy and fairness.
+         • While the authors might fear that complete honesty about limitations might be used by
+           reviewers as grounds for rejection, a worse outcome might be that reviewers discover
+           limitations that aren’t acknowledged in the paper. The authors should use their best
+           judgment and recognize that individual actions in favor of transparency play an impor-
+           tant role in developing norms that preserve the integrity of the community. Reviewers
+           will be specifically instructed to not penalize honesty concerning limitations.
+    3. Theory assumptions and proofs
+      Question: For each theoretical result, does the paper provide the full set of assumptions and
+      a complete (and correct) proof?
+
+
+                                                 16
+  Answer: [N/A]
+  Justification: The paper does not include theoretical results; it presents an empirical systems
+  contribution (token pruning framework) validated through experiments rather than formal
+  proofs or theorems.
+  Guidelines:
+     • The answer [N/A] means that the paper does not include theoretical results.
+     • All the theorems, formulas, and proofs in the paper should be numbered and cross-
+       referenced.
+     • All assumptions should be clearly stated or referenced in the statement of any theorems.
+     • The proofs can either appear in the main paper or the supplemental material, but if
+       they appear in the supplemental material, the authors are encouraged to provide a short
+       proof sketch to provide intuition.
+     • Inversely, any informal proof provided in the core of the paper should be complemented
+       by formal proofs provided in appendix or supplemental material.
+     • Theorems and Lemmas that the proof relies upon should be properly referenced.
+4. Experimental result reproducibility
+  Question: Does the paper fully disclose all the information needed to reproduce the main ex-
+  perimental results of the paper to the extent that it affects the main claims and/or conclusions
+  of the paper (regardless of whether the code and data are provided or not)?
+  Answer: [Yes]
+  Justification: we disclose all the information needed to reproduce the main experimental
+  results of the paper in Section 4
+  Guidelines:
+     • The answer [N/A] means that the paper does not include experiments.
+     • If the paper includes experiments, a [No] answer to this question will not be perceived
+       well by the reviewers: Making the paper reproducible is important, regardless of
+       whether the code and data are provided or not.
+     • If the contribution is a dataset and/or model, the authors should describe the steps taken
+       to make their results reproducible or verifiable.
+     • Depending on the contribution, reproducibility can be accomplished in various ways.
+       For example, if the contribution is a novel architecture, describing the architecture fully
+       might suffice, or if the contribution is a specific model and empirical evaluation, it may
+       be necessary to either make it possible for others to replicate the model with the same
+       dataset, or provide access to the model. In general. releasing code and data is often
+       one good way to accomplish this, but reproducibility can also be provided via detailed
+       instructions for how to replicate the results, access to a hosted model (e.g., in the case
+       of a large language model), releasing of a model checkpoint, or other means that are
+       appropriate to the research performed.
+     • While NeurIPS does not require releasing code, the conference does require all submis-
+       sions to provide some reasonable avenue for reproducibility, which may depend on the
+       nature of the contribution. For example
+       (a) If the contribution is primarily a new algorithm, the paper should make it clear how
+            to reproduce that algorithm.
+       (b) If the contribution is primarily a new model architecture, the paper should describe
+            the architecture clearly and fully.
+       (c) If the contribution is a new model (e.g., a large language model), then there should
+            either be a way to access this model for reproducing the results or a way to reproduce
+            the model (e.g., with an open-source dataset or instructions for how to construct
+            the dataset).
+       (d) We recognize that reproducibility may be tricky in some cases, in which case
+            authors are welcome to describe the particular way they provide for reproducibility.
+            In the case of closed-source models, it may be that access to the model is limited in
+            some way (e.g., to registered users), but it should be possible for other researchers
+            to have some path to reproducing or verifying the results.
+
+
+                                           17
+5. Open access to data and code
+   Question: Does the paper provide open access to the data and code, with sufficient instruc-
+   tions to faithfully reproduce the main experimental results, as described in supplemental
+   material?
+  Answer: [Yes]
+  Justification: We will release code upon acceptance.
+   Guidelines:
+      • The answer [N/A] means that paper does not include experiments requiring code.
+      • Please see the NeurIPS code and data submission guidelines (https://neurips.cc/
+        public/guides/CodeSubmissionPolicy) for more details.
+      • While we encourage the release of code and data, we understand that this might not
+        be possible, so [No] is an acceptable answer. Papers cannot be rejected simply for not
+        including code, unless this is central to the contribution (e.g., for a new open-source
+        benchmark).
+      • The instructions should contain the exact command and environment needed to run to
+        reproduce the results. See the NeurIPS code and data submission guidelines (https:
+        //neurips.cc/public/guides/CodeSubmissionPolicy) for more details.
+      • The authors should provide instructions on data access and preparation, including how
+        to access the raw data, preprocessed data, intermediate data, and generated data, etc.
+      • The authors should provide scripts to reproduce all experimental results for the new
+        proposed method and baselines. If only a subset of experiments are reproducible, they
+        should state which ones are omitted from the script and why.
+      • At submission time, to preserve anonymity, the authors should release anonymized
+        versions (if applicable).
+      • Providing as much information as possible in supplemental material (appended to the
+        paper) is recommended, but including URLs to data and code is permitted.
+6. Experimental setting/details
+   Question: Does the paper specify all the training and test details (e.g., data splits, hyperpa-
+   rameters, how they were chosen, type of optimizer) necessary to understand the results?
+  Answer: [Yes]
+  Justification: We provide all the training and test details in Section 4.1
+   Guidelines:
+      • The answer [N/A] means that the paper does not include experiments.
+      • The experimental setting should be presented in the core of the paper to a level of detail
+        that is necessary to appreciate the results and make sense of them.
+      • The full details can be provided either with the code, in appendix, or as supplemental
+        material.
+7. Experiment statistical significance
+   Question: Does the paper report error bars suitably and correctly defined or other appropriate
+   information about the statistical significance of the experiments?
+  Answer: [No]
+  Justification: The main tables report deterministic evaluation metrics and median wall-clock
+  time over repeated inference trials, but do not include error bars or formal significance tests.
+   Guidelines:
+      • The answer [N/A] means that the paper does not include experiments.
+      • The authors should answer [Yes] if the results are accompanied by error bars, confidence
+        intervals, or statistical significance tests, at least for the experiments that support the
+        main claims of the paper.
+      • The factors of variability that the error bars are capturing should be clearly stated (for
+        example, train/test split, initialization, random drawing of some parameter, or overall
+        run with given experimental conditions).
+
+
+                                            18
+      • The method for calculating the error bars should be explained (closed form formula,
+        call to a library function, bootstrap, etc.)
+      • The assumptions made should be given (e.g., Normally distributed errors).
+      • It should be clear whether the error bar is the standard deviation or the standard error
+        of the mean.
+      • It is OK to report 1-sigma error bars, but one should state it. The authors should
+        preferably report a 2-sigma error bar than state that they have a 96% CI, if the hypothesis
+        of Normality of errors is not verified.
+      • For asymmetric distributions, the authors should be careful not to show in tables or
+        figures symmetric error bars that would yield results that are out of range (e.g., negative
+        error rates).
+      • If error bars are reported in tables or plots, the authors should explain in the text how
+        they were calculated and reference the corresponding figures or tables in the text.
+ 8. Experiments compute resources
+   Question: For each experiment, does the paper provide sufficient information on the com-
+   puter resources (type of compute workers, memory, time of execution) needed to reproduce
+   the experiments?
+   Answer: [Yes]
+   Justification: All experiments used one NVIDIA H100 GPU. Training the Token Scorer and
+   Feature-guided Restoration modules took approximately 200 GPU-hours. Baseline evalua-
+   tions took approximately 50 GPU-hours in total. Preliminary ablations not reported in the
+   main tables required approximately 75 additional GPU-hours. Peak-memory measurement
+   follows Section A.1.
+   Guidelines:
+      • The answer [N/A] means that the paper does not include experiments.
+      • The paper should indicate the type of compute workers CPU or GPU, internal cluster,
+        or cloud provider, including relevant memory and storage.
+      • The paper should provide the amount of compute required for each of the individual
+        experimental runs as well as estimate the total compute.
+      • The paper should disclose whether the full research project required more compute
+        than the experiments reported in the paper (e.g., preliminary or failed experiments that
+        didn’t make it into the paper).
+ 9. Code of ethics
+   Question: Does the research conducted in the paper conform, in every respect, with the
+   NeurIPS Code of Ethics https://neurips.cc/public/EthicsGuidelines?
+   Answer: [Yes]
+   Justification: Our work focuses on algorithmic improvements and relies entirely on standard,
+   publicly available, open-source datasets. We did not collect new data involving human
+   subjects, nor does the proposed methodology involve the processing of personally identifiable
+   information.
+   Guidelines:
+      • The answer [N/A] means that the authors have not reviewed the NeurIPS Code of
+        Ethics.
+      • If the authors answer [No], they should explain the special circumstances that require a
+        deviation from the Code of Ethics.
+      • The authors should make sure to preserve anonymity (e.g., if there is a special consid-
+        eration due to laws or regulations in their jurisdiction).
+10. Broader impacts
+   Question: Does the paper discuss both potential positive societal impacts and negative
+   societal impacts of the work performed?
+   Answer: [Yes]
+
+
+                                            19
+    Justification: Due to space constraints in the main text, a discussion of both the positive and
+    negative potential societal impacts is provided in Appendix E.
+    Guidelines:
+       • The answer [N/A] means that there is no societal impact of the work performed.
+       • If the authors answer [N/A] or [No], they should explain why their work has no societal
+          impact or why the paper does not address societal impact.
+       • Examples of negative societal impacts include potential malicious or unintended uses
+          (e.g., disinformation, generating fake profiles, surveillance), fairness considerations
+          (e.g., deployment of technologies that could make decisions that unfairly impact specific
+          groups), privacy considerations, and security considerations.
+       • The conference expects that many papers will be foundational research and not tied
+          to particular applications, let alone deployments. However, if there is a direct path to
+          any negative applications, the authors should point it out. For example, it is legitimate
+          to point out that an improvement in the quality of generative models could be used to
+          generate Deepfakes for disinformation. On the other hand, it is not needed to point out
+          that a generic algorithm for optimizing neural networks could enable people to train
+          models that generate Deepfakes faster.
+       • The authors should consider possible harms that could arise when the technology is
+          being used as intended and functioning correctly, harms that could arise when the
+          technology is being used as intended but gives incorrect results, and harms following
+          from (intentional or unintentional) misuse of the technology.
+       • If there are negative societal impacts, the authors could also discuss possible mitigation
+          strategies (e.g., gated release of models, providing defenses in addition to attacks,
+          mechanisms for monitoring misuse, mechanisms to monitor how a system learns from
+          feedback over time, improving the efficiency and accessibility of ML).
+11. Safeguards
+    Question: Does the paper describe safeguards that have been put in place for responsible
+    release of data or models that have a high risk for misuse (e.g., pre-trained language models,
+    image generators, or scraped datasets)?
+    Answer: [N/A]
+    Justification: the paper poses no such risks.
+    Guidelines:
+       • The answer [N/A] means that the paper poses no such risks.
+       • Released models that have a high risk for misuse or dual-use should be released with
+          necessary safeguards to allow for controlled use of the model, for example by requiring
+          that users adhere to usage guidelines or restrictions to access the model or implementing
+          safety filters.
+       • Datasets that have been scraped from the Internet could pose safety risks. The authors
+          should describe how they avoided releasing unsafe images.
+       • We recognize that providing effective safeguards is challenging, and many papers do
+          not require this, but we encourage authors to take this into account and make a best
+          faith effort.
+12. Licenses for existing assets
+    Question: Are the creators or original owners of assets (e.g., code, data, models), used in
+    the paper, properly credited and are the license and terms of use explicitly mentioned and
+    properly respected?
+    Answer: [Yes]
+    Justification: We use ScanNet, 7-Scenes, and NRGBD under their respective research
+    licenses/terms. We use the public VGGT implementation and baseline implementations
+    under their released licenses. We do not redistribute datasets.
+    Guidelines:
+       • The answer [N/A] means that the paper does not use existing assets.
+       • The authors should cite the original paper that produced the code package or dataset.
+
+
+                                             20
+      • The authors should state which version of the asset is used and, if possible, include a
+        URL.
+      • The name of the license (e.g., CC-BY 4.0) should be included for each asset.
+      • For scraped data from a particular source (e.g., website), the copyright and terms of
+        service of that source should be provided.
+      • If assets are released, the license, copyright information, and terms of use in the
+        package should be provided. For popular datasets, paperswithcode.com/datasets
+        has curated licenses for some datasets. Their licensing guide can help determine the
+        license of a dataset.
+      • For existing datasets that are re-packaged, both the original license and the license of
+        the derived asset (if it has changed) should be provided.
+      • If this information is not available online, the authors are encouraged to reach out to
+        the asset’s creators.
+13. New assets
+   Question: Are new assets introduced in the paper well documented and is the documentation
+   provided alongside the assets?
+   Answer: [N/A]
+   Justification: The paper does not release new assets.
+   Guidelines:
+      • The answer [N/A] means that the paper does not release new assets.
+      • Researchers should communicate the details of the dataset/code/model as part of their
+        submissions via structured templates. This includes details about training, license,
+        limitations, etc.
+      • The paper should discuss whether and how consent was obtained from people whose
+        asset is used.
+      • At submission time, remember to anonymize your assets (if applicable). You can either
+        create an anonymized URL or include an anonymized zip file.
+14. Crowdsourcing and research with human subjects
+   Question: For crowdsourcing experiments and research with human subjects, does the paper
+   include the full text of instructions given to participants and screenshots, if applicable, as
+   well as details about compensation (if any)?
+   Answer: [N/A]
+   Justification: the paper does not involve crowdsourcing nor research with human subjects.
+   Guidelines:
+      • The answer [N/A] means that the paper does not involve crowdsourcing nor research
+        with human subjects.
+      • Including this information in the supplemental material is fine, but if the main contribu-
+        tion of the paper involves human subjects, then as much detail as possible should be
+        included in the main paper.
+      • According to the NeurIPS Code of Ethics, workers involved in data collection, curation,
+        or other labor should be paid at least the minimum wage in the country of the data
+        collector.
+15. Institutional review board (IRB) approvals or equivalent for research with human
+    subjects
+   Question: Does the paper describe potential risks incurred by study participants, whether
+   such risks were disclosed to the subjects, and whether Institutional Review Board (IRB)
+   approvals (or an equivalent approval/review based on the requirements of your country or
+   institution) were obtained?
+   Answer: [N/A]
+   Justification:the paper does not involve crowdsourcing nor research with human subjects.
+   Guidelines:
+
+
+                                            21
+       • The answer [N/A] means that the paper does not involve crowdsourcing nor research
+          with human subjects.
+       • Depending on the country in which research is conducted, IRB approval (or equivalent)
+          may be required for any human subjects research. If you obtained IRB approval, you
+          should clearly state this in the paper.
+       • We recognize that the procedures for this may vary significantly between institutions
+          and locations, and we expect authors to adhere to the NeurIPS Code of Ethics and the
+          guidelines for their institution.
+       • For initial submissions, do not include any information that would break anonymity (if
+          applicable), such as the institution conducting the review.
+16. Declaration of LLM usage
+    Question: Does the paper describe the usage of LLMs if it is an important, original, or
+    non-standard component of the core methods in this research? Note that if the LLM is used
+    only for writing, editing, or formatting purposes and does not impact the core methodology,
+    scientific rigor, or originality of the research, declaration is not required.
+    Answer: [N/A]
+    Justification: The core method development in this research does not involve LLMs as any
+    important, original, or non-standard components. LLM is only used for grammar editing.
+    Guidelines:
+       • The answer [N/A] means that the core method development in this research does not
+          involve LLMs as any important, original, or non-standard components.
+       • Please refer to our LLM policy in the NeurIPS handbook for what should or should not
+          be described.
+
+
+
+
+                                           22
+

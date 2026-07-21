@@ -1,0 +1,307 @@
+                                              Sat3R: Satellite DSM Reconstruction via RPC-Aware Depth Fine-tuning
+
+                                               Qiaoyi Yang1 , Chaoyi Zhou1 , Xi Liu1 , Run Wang1 , Minghui Xu1 , Mert D. Pesé1
+                                               Feng Luo1 , Yuhao Xu1 , Zhi-Qi Cheng2 , Qiushi Chen1 , Hairong Qi3 , Siyu Huang1
+                                                                1                        2                                3
+                                                                    Clemson University       University of Washington         University of Tennessee
+arXiv:2605.07264v1 [cs.CV] 8 May 2026
+
+
+
+
+                                                                Abstract
+
+                                        Accurate Digital Surface Model (DSM) reconstruction from
+                                        satellite imagery is critical for applications such as disas-
+                                        ter response, urban planning, and large-scale geographic
+                                        mapping. Existing approaches face a fundamental trade-
+                                        off: optimization-based methods achieve strong accuracy
+                                        but require hours of per-scene computation, while general-
+                                        izable geometry foundation models offer near-instant infer-
+                                        ence but fail to generalize to satellite imagery due to the
+                                        domain gap introduced by the Rational Polynomial Cam-
+                                        era (RPC) model and mismatched depth scale distributions.
+                                        We present Sat3R, a feed-forward framework that bridges
+                                        this gap via RPC-aware metric depth fine-tuning of Depth
+                                        Anything V2 using the Scale-Invariant Logarithmic (SiLog)            Figure 1. Runtime vs. accuracy comparison on DFC2019 [17].
+                                        loss. By constructing physically consistent pseudo depth             Sat3R is the first feed-forward framework for satellite DSM recon-
+                                        supervision from RPC geometry, Sat3R adapts a monoc-                 struction, achieving comparable accuracy to optimization-based
+                                        ular depth foundation model to the satellite domain with-            SatDN with over 300× speedup, while outperforming all zero-
+                                        out per-scene optimization. Experiments on the DFC2019               shot feed-forward baselines in reconstruction accuracy.
+                                        benchmark demonstrate that Sat3R reduces MAE by 38%
+                                        over zero-shot feed-forward baselines and achieves compet-           tion per scene, but require hours of optimization per scene,
+                                        itive accuracy against optimization-based methods, while             making them impractical for time-sensitive applications.
+                                        delivering over 300× speedup. Sat3R demonstrates that                On the other hand, generalizable geometry foundation
+                                        feed-forward models, when properly adapted to the satellite          models (GFMs) [21, 28] offer near-instant inference
+                                        domain, can match optimization-based accuracy at a frac-             without per-scene optimization, but perform poorly when
+                                        tion of the computational cost, paving the way for practical         applied directly to satellite imagery. As shown in Fig. 1,
+                                        large-scale satellite DSM reconstruction.                            optimization-based methods achieve strong accuracy but at
+                                                                                                             the cost of hours of computation per scene, while GFMs
+                                                                                                             offer near-instant inference but with substantially degraded
+                                                                                                             accuracy on satellite imagery — no existing method
+                                        1. Introduction
+                                                                                                             delivers both the speed required for operational deployment
+                                        Accurate Digital Surface Model (DSM) reconstruction from             and the accuracy demanded by downstream applications.
+                                        satellite imagery supports a wide range of applications, in-             We identify two key reasons for this failure of GFMs
+                                        cluding disaster response, urban planning, and large-scale           on satellite data. First, satellite cameras follow the Ratio-
+                                        geographic mapping. Given multi-view satellite images and            nal Polynomial Camera (RPC) model, which has no ex-
+                                        their associated Rational Polynomial Camera (RPC) meta-              plicit camera center, making the physical definition of depth
+                                        data, the goal is to recover a dense height map of the ob-           fundamentally incompatible with the perspective-camera
+                                        served scene.                                                        assumption underlying these models. Second, the depth
+                                           Existing approaches fall into two categories.                     scale distribution of satellite imagery differs substantially
+                                        Optimization-based methods such as SatDN [8] achieve                 from the natural image datasets on which these models are
+                                        competitive DSM accuracy by fitting a neural representa-             trained.
+    To bridge this domain gap, we propose Sat3R, an RPC-         scene optimization. For monocular depth estimation, Depth
+aware fine-tuning approach. We construct image–depth             Anything (DA) [7, 27, 28] achieves strong zero-shot per-
+training pairs from the training split of the DFC2019 satel-     formance on natural images by training on large-scale la-
+lite dataset [17] by defining a physically consistent pseudo     beled and unlabeled data. For multi-view geometry, mod-
+depth based on RPC geometry: for each pixel, we com-             els such as VGGT [21] and AnySplat [4] directly infer
+pute the slant-range distance between a near-plane refer-        3D structure from multiple input views in a single feed-
+ence point and the true surface intersection along the imag-     forward pass. Despite their efficiency, these models are
+ing ray. This pseudo depth serves as metric depth supervi-       trained exclusively on natural image datasets and fail to gen-
+sion to fine-tune Depth Anything V2 (DA2) [28] using the         eralize to satellite imagery, where the RPC camera model
+Scale-Invariant Logarithmic (SiLog) loss [1]. At inference,      and depth scale distribution differ fundamentally from the
+predicted depths are back-projected through the RPC model        perspective-camera assumption underlying these methods.
+to produce a DSM. As illustrated in Fig. 1, compared to          This domain gap motivates our work, which constructs
+zero-shot feed-forward baselines, our method reduces MAE         RPC-aware training data to adapt DA2 [28] for satellite
+by 38%. Compared to optimization-based SatDN, Sat3R              DSM reconstruction.
+achieves competitive accuracy while delivering over 300×
+speedup.                                                         2.3. Satellite 3D Reconstruction
+    In summary, our contributions are:                           Early attempts to apply neural rendering to satellite imagery
+• We propose Sat3R, the first feed-forward framework for         adapt NeRF to the unique properties of satellite acquisition.
+   satellite DSM reconstruction, enabling efficient inference    Several works focus on appearance modeling, incorporating
+   without per-scene optimization.                               shadow cues [10], and dynamic object uncertainty [11] to
+• We introduce a pseudo depth construction pipeline for          improve novel view synthesis quality. Others target geomet-
+   RPC satellite imagery, providing physically consistent        ric accuracy, introducing photo-consistency constraints [16]
+   metric depth supervision for fine-tuning monocular depth      or hash-grid representations [2] to accelerate optimization.
+   foundation models.                                            SatDN [8] extends this line by adapting the RPC cam-
+• Extensive experiments on the DFC2019 dataset demon-            era model into a NeRF-based framework, achieving strong
+   strate that Sat3R achieves competitive DSM accuracy           DSM accuracy but requiring hours of per-scene optimiza-
+   against optimization-based methods with over 300×             tion. Our work departs from this paradigm by adopting a
+   speedup, while outperforming all zero-shot feed-forward       feed-forward approach, eliminating per-scene optimization
+   baselines by 38% in MAE.                                      entirely.
+
+2. Related Work                                                  3. Method
+2.1. Optimization-Based 3D Reconstruction                        3.1. Problem Formulation
+Classical multi-view stereo (MVS) methods reconstruct 3D         Given a set of N overlapping satellite images {Ii }Ni=1 and
+structure by matching correspondences across images and          their associated RPC models {Ri }N  i=1 , our goal is to re-
+optimizing for geometric consistency [15, 18–20]. While          construct a Digital Surface Model (DSM) representing the
+effective, these pipelines require careful calibration and       height of the scene at each geographic location. The overall
+are computationally expensive at scale. Neural rendering         pipeline of Sat3R is shown in Fig. 2.
+approaches such as NeRF [12–14, 22] have significantly
+advanced reconstruction quality by representing scenes as        3.2. Pseudo Depth Construction
+continuous volumetric functions optimized per scene. More        Satellite imagery is governed by the RPC model, which
+recent methods based on 3D Gaussian Splatting (3DGS) [3,         provides no explicit camera center, making standard per-
+5, 9, 29, 31] improve rendering efficiency while maintaining     spective depth undefined. We define a physically consistent
+competitive reconstruction quality. However, the per-scene       pseudo depth analogous to the camera-to-surface distance
+optimization nature of these methods results in inference        in perspective geometry.
+times on the order of minutes to hours, limiting their appli-
+                                                                    For each image, we define a near-plane at altitude:
+cability in time-sensitive scenarios such as disaster response
+and large-scale mapping.                                                                zref = zmax + δ                    (1)
+2.2. Generalizable Geometry Foundation Models
+                                                                 where zmax is the maximum scene altitude from image meta-
+Recent work has demonstrated that large-scale pretraining        data and δ = 50 m is a fixed margin. For each pixel, we
+can yield powerful geometry estimators [4, 6, 7, 21, 23–         compute its RPC imaging ray and find its intersection with
+26, 28, 30, 32] that generalize across scenes without per-       the near-plane pnear and with the true surface psurface via
+Figure 2. Overview of Sat3R. Given multi-view satellite images and their associated RPC models, we first construct pseudo depth super-
+vision via slant-range geometry. The constructed image–depth pairs are used to fine-tune DA2 in an RPC-aware manner. At inference,
+per-view depth maps are fused and back-projected through the RPC model to produce the final DSM.
+
+fixed-point iteration on the ground-truth DSM. The pseudo                  3.4. DSM Reconstruction
+depth is then defined as the slant-range distance:
+                                                                           At inference, DA2 predicts per-view depth maps with a
+                                                                           maximum depth range of 150 m, calibrated to the satellite
+                       d = ∥psurface − pnear ∥2                      (2)
+                                                                           scene depth distribution. Per-view depth maps are fused
+                                                                           into metric depth using the multi-view fusion module [8].
+This construction provides per-pixel metric depth super-                   Each pixel’s fused depth d∗i is back-projected into 3D space
+vision for DA2 [28]. Training pairs are curated from                       along its RPC imaging ray:
+DFC2019 [17] by retaining scenes with complete RGB–
+CLS alignment, sufficient multi-view coverage, and ex-
+cluding winter scenes identified via IMD acquisition times-                                  Pi = RPC−1 (ui , vi , d∗i )             (4)
+tamps.
+                                                                           where (ui , vi ) is the image coordinate and Pi ∈ R3 is
+3.3. RPC-Aware Fine-tuning                                                 the recovered 3D point in geographic coordinates (longi-
+                                                                           tude, latitude, altitude). The 3D points from all views are
+We fine-tune DA2 [28] on the constructed image–depth                       then aggregated and rasterized onto a uniform 2D grid, with
+pairs following the metric depth fine-tuning protocol                      height values pooled via p90 to produce the final DSM
+of DA2, using the Scale-Invariant Logarithmic (SiLog)                      H ∈ RW ×H . Since RPC-aware fine-tuning outputs metric-
+loss [1]:                                                                  scale depth, it provides a better initial estimate for the fu-
+                                     2                         2         sion stage, accelerating convergence of the depth fusion op-
+              1 PN                     λ PN
+   LSiLog =          log dˆi − log di − 2           ˆ
+                                            i=1 log di − log di      (3)   timization.
+              N i=1                     N
+
+
+where dˆi and di are the predicted and pseudo ground-truth
+                                                                           4. Experiments
+depth values respectively, and λ is a variance minimization
+factor. The maximum depth range for inference is set to                    4.1. Implementation Details
+150 m to align with the satellite scene depth distribution.
+This enables Sat3R to directly output metric-scale depth                   We train and evaluate on the DFC2019 satellite dataset [17].
+without requiring scale recovery in post-processing.                       Please refer to the appendix A for more details.
+  Method         JAX 207   JAX 214   JAX 260   OMA 212   OMA 287   OMA 315    Mean                                              Time↓
+                MAE↓/MED↓ MAE↓/MED↓ MAE↓/MED↓ MAE↓/MED↓ MAE↓/MED↓ MAE↓/MED↓ MAE↓/MED↓
+  Optimization-based methods
+  SatDN [8]      2.399 / 1.214   1.816 / 0.732   1.620 / 0.961   0.888 / 0.529   0.894 / 0.405   1.022 / 0.598   1.44 / 0.74   5h 36min
+  Feed-forward methods
+  AnySplat [4] 4.477 / 3.743     8.689 / 6.665   4.897 / 4.138   1.123 / 1.938   3.153 / 2.247   2.930 / 2.201   4.21 / 3.49   1min 37s
+  VGGT [21]     5.519 / 4.476    6.346 / 4.121   3.699 / 2.711   2.786 / 2.234   3.804 / 2.509   2.483 / 1.647   4.11 / 2.95   1min 31s
+  DA3 [7]       4.647 / 3.653    8.341 / 5.651   4.658 / 5.651   2.118 / 1.193   3.557 / 2.816   2.887 / 2.058   4.37 / 3.50   1min 40s
+  DA2 [28]      4.578 / 3.254    7.841 / 5.403   4.014 / 3.224   4.230 / 3.078   3.681 / 3.203   3.214 / 2.486   4.59 / 3.44   1min 26s
+  Ours          3.437 / 2.082    5.372 / 2.934   3.515 / 2.573   0.781 / 0.446   2.528 / 1.974   1.305 / 0.662   2.82 / 1.78   1min 05s
+
+Table 1. DSM reconstruction accuracy on six scenes from DFC2019 dataset [17]. Ours achieves the best performance among feed-forward
+methods and approaches optimization-based SatDN, while running over 300× faster.
+
+
+
+
+Figure 3. Qualitative comparison of DSM reconstruction results on selected DFC2019 scenes. Red boxes highlight representative regions
+where different methods show visible structural differences.
+
+4.2. Experiment Results                                                 contrast, Sat3R produces DSMs with accurate scale range,
+                                                                        sharper building boundaries, and better preservation of fine-
+As shown in Table 1, Sat3R consistently outperforms all                 grained geometric details, closely matching the ground
+feed-forward baselines, reducing mean MAE from 4.59 for                 truth.
+zero-shot DA2 to 2.82 and mean MED from 3.44 to 1.78,                   4.3. Ablation Study
+demonstrating that RPC-aware metric depth fine-tuning ef-               We investigate the effect of the maximum depth threshold
+fectively bridges the domain gap between natural and satel-             during inference. Detailed ablation results are provided in
+lite imagery. Despite being a feed-forward method, Sat3R                Appendix B.
+closely approaches the accuracy of the optimization-based
+upper bound SatDN, while delivering over 300× speedup.                  5. Conclusion
+   As shown in Fig. 3, zero-shot feed-forward baselines suf-            We present Sat3R, a feed-forward framework for satel-
+fer from severe scale drift and blurry boundaries due to                lite DSM reconstruction that bridges the domain gap be-
+the domain gap between natural and satellite imagery. In                tween natural and satellite imagery via RPC-aware fine-
+tuning of Depth Anything V2. By constructing physically                 [12] Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik,
+consistent pseudo depth supervision from RPC geometry,                       Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. Nerf:
+Sat3R adapts a monocular depth foundation model to the                       Representing scenes as neural radiance fields for view syn-
+satellite domain without per-scene optimization. Experi-                     thesis. In ECCV, 2020. 2
+ments on DFC2019 [17] demonstrate that Sat3R achieves                   [13] Ben Mildenhall, Dor Verbin, Pratul P. Srinivasan, Peter
+competitive accuracy against optimization-based methods                      Hedman, Ricardo Martin-Brualla, and Jonathan T. Barron.
+while delivering over 300× speedup, establishing a prac-                     MultiNeRF: A Code Release for Mip-NeRF 360, Ref-NeRF,
+tical and efficient baseline for satellite DSM reconstruc-                   and RawNeRF, 2022.
+tion.                                                                   [14] Thomas Müller, Alex Evans, Christoph Schied, and Alexan-
+                                                                             der Keller. Instant neural graphics primitives with a multires-
+References                                                                   olution hash encoding. ACM Trans. Graph., 41(4):102:1–
+                                                                             102:15, 2022. 2
+ [1] Shariq Farooq Bhat, Reiner Birkl, Diana Wofk, Peter Wonka,         [15] Linfei Pan, Daniel Barath, Marc Pollefeys, and Jo-
+     and Matthias Müller. Zoedepth: Zero-shot transfer by com-              hannes Lutz Schönberger. Global Structure-from-Motion
+     bining relative and metric depth, 2023. 2, 3                            Revisited. In European Conference on Computer Vision
+ [2] Camille Billouard, Dawa Derksen, Emmanuelle Sarrazin,                   (ECCV), 2024. 2
+     and Bruno Vallet. Sat-ngp : Unleashing neural graphics             [16] Yingjie Qu and Fei Deng. Sat-mesh: Learning neural im-
+     primitives for fast relightable transient-free 3d reconstruction        plicit surfaces for multi-view satellite reconstruction. Remote
+     from satellite imagery, 2024. 2                                         Sensing, 15:4297, 2023. 2
+ [3] Binbin Huang, Zehao Yu, Anpei Chen, Andreas Geiger, and            [17] Bertrand Le Saux, Naoto Yokoya, Ronny Hänsch, and My-
+     Shenghua Gao. 2d gaussian splatting for geometrically accu-             ron Brown. Data fusion contest 2019 (dfc2019), 2019. 1, 2,
+     rate radiance fields. In SIGGRAPH 2024 Conference Papers.               3, 4, 5
+     Association for Computing Machinery, 2024. 2                       [18] Johannes Lutz Schönberger and Jan-Michael Frahm.
+ [4] Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui Ren,                Structure-from-motion revisited. In Conference on Com-
+     Yichen Jin, Xudong Xu, Mulin Yu, Jiangmiao Pang, Feng                   puter Vision and Pattern Recognition (CVPR), 2016. 2
+     Zhao, et al. Anysplat: Feed-forward 3d gaussian splatting          [19] Johannes Lutz Schönberger, True Price, Torsten Sattler, Jan-
+     from unconstrained views. arXiv preprint arXiv:2505.23716,              Michael Frahm, and Marc Pollefeys. A vote-and-verify strat-
+     2025. 2, 4, 7                                                           egy for fast spatial verification in image retrieval. In Asian
+ [5] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler,                   Conference on Computer Vision (ACCV), 2016.
+     and George Drettakis. 3d gaussian splatting for real-time          [20] Johannes Lutz Schönberger, Enliang Zheng, Marc Pollefeys,
+     radiance field rendering. ACM Transactions on Graphics, 42              and Jan-Michael Frahm. Pixelwise view selection for un-
+     (4), 2023. 2                                                            structured multi-view stereo. In European Conference on
+ [6] Vincent Leroy, Yohann Cabon, and Jerome Revaud. Ground-                 Computer Vision (ECCV), 2016. 2
+     ing image matching in 3d with mast3r, 2024. 2                      [21] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+ [7] Haotong Lin, Sili Chen, Jun Hao Liew, Donny Y. Chen,                    Vedaldi, Christian Rupprecht, and David Novotny. Vggt:
+     Zhenyu Li, Guang Shi, Jiashi Feng, and Bingyi Kang. Depth               Visual geometry grounded transformer. In Proceedings of
+     anything 3: recovering the visual space from any views.                 the IEEE/CVF Conference on Computer Vision and Pattern
+     arXiv preprint arXiv:2511.10647, 2025. 2, 4, 7                          Recognition, 2025. 1, 2, 4, 7
+ [8] Tianle Liu, Shuangming Zhao, Wanshou Jiang, and Bingx-             [22] Peng Wang, Lingjie Liu, Yuan Liu, Christian Theobalt, Taku
+     uan Guo. Sat-dn: Implicit surface reconstruction from multi-            Komura, and Wenping Wang. Neus: Learning neural implicit
+     view satellite images with depth and normal supervision.                surfaces by volume rendering for multi-view reconstruction.
+     arXiv preprint arXiv:2502.08352, 2025. 1, 2, 3, 4, 7                    arXiv preprint arXiv:2106.10689, 2021. 2
+ [9] Xi Liu, Chaoyi Zhou, and Siyu Huang. 3dgs-enhancer:                [23] Qianqian Wang, Yifei Zhang, Aleksander Holynski,
+     Enhancing unbounded 3d gaussian splatting with view-                    Alexei A Efros, and Angjoo Kanazawa. Continuous 3d
+     consistent 2d diffusion priors. In Advances in Neural In-               perception model with persistent state. arXiv preprint
+     formation Processing Systems (NeurIPS), 2024. 2                         arXiv:2501.12387, 2025. 2
+[10] Roger Marı́, Gabriele Facciolo, and Thibaud Ehret. Sat-            [24] Run Wang, Chaoyi Zhou, Amir Salarpour, Xi Liu, Zhi-Qi
+     NeRF: Learning multi-view satellite photogrammetry with                 Cheng, Feng Luo, Mert D. Pesé, and Siyu Huang. Flexmap:
+     transient objects and shadow modeling using RPC cameras.                Generalized hd map construction from flexible camera con-
+     In 2022 IEEE/CVF Conference on Computer Vision and Pat-                 figurations, 2026.
+     tern Recognition Workshops (CVPRW), pages 1310–1320,               [25] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris
+     2022. 2                                                                 Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-
+[11] Roger Marı́, Gabriele Facciolo, and Thibaud Ehret. Multi-               sion made easy. In CVPR, 2024.
+     date earth observation nerf: The detail is in the shadows.         [26] Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael Henaff,
+     In Proceedings of the IEEE/CVF Conference on Computer                   Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and Matt
+     Vision and Pattern Recognition (CVPR) Workshops, pages                  Feiszli. Fast3r: Towards 3d reconstruction of 1000+ im-
+     2034–2044, 2023. 2                                                      ages in one forward pass. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition
+     (CVPR), 2025. 2
+[27] Lihe Yang, Bingyi Kang, Zilong Huang, Xiaogang Xu, Jiashi
+     Feng, and Hengshuang Zhao. Depth anything: Unleashing
+     the power of large-scale unlabeled data. In CVPR, 2024. 2
+[28] Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao, Xiao-
+     gang Xu, Jiashi Feng, and Hengshuang Zhao. Depth any-
+     thing v2. arXiv:2406.09414, 2024. 1, 2, 3, 4, 7
+[29] Zehao Yu, Anpei Chen, Binbin Huang, Torsten Sattler, and
+     Andreas Geiger. Mip-splatting: Alias-free 3d gaussian splat-
+     ting. In Proceedings of the IEEE/CVF Conference on Com-
+     puter Vision and Pattern Recognition (CVPR), pages 19447–
+     19456, 2024. 2
+[30] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-
+     pani, Trevor Darrell, Forrester Cole, Deqing Sun, and Ming-
+     Hsuan Yang. Monst3r: A simple approach for estimat-
+     ing geometry in the presence of motion. arXiv preprint
+     arxiv:2410.03825, 2024. 2
+[31] Chaoyi Zhou, Xi Liu, Feng Luo, and Siyu Huang. Latent
+     radiance fields with 3d-aware 2d representations. In Inter-
+     national Conference on Learning Representations (ICLR),
+     2025. 2
+[32] Chaoyi Zhou, Run Wang, Feng Luo, Mert D. Pesé, Zhiwen
+     Fan, Yiqi Zhong, and Siyu Huang. Ff3r: Feedforward fea-
+     ture 3d reconstruction from unconstrained views. In CVPR
+     Findings, 2026. 2
+         Max Depth     Mean MAE↓       Mean MED↓
+             100           3.312           2.254
+             300           3.412           2.354
+             150           3.131           1.963
+
+   Table 2. Ablation study on the maximum depth threshold.
+
+
+Appendix
+In the Appendix, we provide the following:
+• comprehensive implementation details in Section A
+• comprehensive ablation details in Section B
+
+A. Implementation Details
+Training pairs are constructed from scenes with complete
+RGB–CLS alignment and sufficient multi-view coverage,
+with winter scenes excluded via IMD acquisition times-
+tamps. We fine-tune DA2 [28] for 40 epochs with a learning
+rate of 5×10−6 using the AdamW optimizer on 2×NVIDIA
+A100 40GB GPUs. All inference experiments are con-
+ducted on a single NVIDIA A100 40GB GPU. At infer-
+ence, per-view depth maps are fused using the SatDN fu-
+sion module [8] and rasterized to a DSM grid via p90 pool-
+ing. We evaluate on 6 held-out scenes (JAX 207, JAX 214,
+JAX 260, OMA 212, OMA 287, OMA 315) unseen during
+training, using Mean Absolute Error (MAE) and Median Er-
+ror (MED) as metrics.
+    We compare against two categories of methods.
+Optimization-based: SatDN [8], which fits a neural repre-
+sentation per scene and serves as the accuracy upper bound.
+Feed-forward: DA2 [28], DA3 [7], VGGT [21], and AnyS-            Figure 4. Qualitative ablation on the maximum depth threshold.
+                                                                 Setting the threshold to 150m produces sharper boundaries and
+plat [4]. For all feed-forward baselines, per-view depths are
+                                                                 more accurate height estimation compared to 100m and 300m.
+processed through the same depth fusion, alignment, and
+rasterization pipeline to ensure a fair comparison.
+
+B. Ablation Study
+As shown in Table 2 and Fig. 4, a threshold of 150m
+achieves the best performance across all metrics. A smaller
+value (100m) causes saturation near the depth boundary,
+while a larger value (300m) reduces effective depth resolu-
+tion relative to the actual scene range (∼55–94 m), degrad-
+ing accuracy. This confirms that aligning the depth range
+with the satellite data distribution is critical for effective
+fine-tuning.
+

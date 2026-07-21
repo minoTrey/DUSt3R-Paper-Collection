@@ -1,0 +1,1561 @@
+                                            CoMo3R-SLAM: Collaborative Monocular Dense
+                                            SLAM with Learned 3D Reconstruction Priors for
+                                                    Outdoor Multi-Agent Systems
+                                                                       Zhihao Cao1          Qi Shao2,3     Shuhao Zhai4                Feng Tian1
+
+                                                                         Anh Nguyen2           Hesheng Wang5           Baoru Huang2,6
+arXiv:2605.30488v1 [cs.RO] 28 May 2026
+
+
+
+
+                                                        1                    2                                   3
+                                                            ETH Zurich           University of Liverpool             Harbin Engineering University
+                                                4                                  5                                              6
+                                                    University of Ottawa               Shanghai Jiao Tong University                  Imperial College London
+
+
+                                                     Abstract: Collaborative dense SLAM is essential for multi-robot teams to achieve
+                                                     scalable and consistent 3D perception across large-scale outdoor environments.
+                                                     Existing systems typically depend on depth sensors, incurring significant payload,
+                                                     power, and calibration costs. Monocular RGB cameras are a lightweight alter-
+                                                     native, but collaborative monocular dense SLAM remains difficult due to scale
+                                                     ambiguity, unreliable inter-agent data association, especially in outdoor scenes
+                                                     where low overlap and repetitive structures make traditional feature matching un-
+                                                     reliable, motivating robust geometric information. We propose CoMo3R-SLAM,
+                                                     the first collaborative monocular dense RGB SLAM system that leverages robust
+                                                     learned feed-forward 3D reconstruction priors for outdoor multi-agent mapping.
+                                                     Each agent runs a prior-guided front-end for real-time tracking and local dense fu-
+                                                     sion, while a coordinator performs dense pointmap matching for cross-agent veri-
+                                                     fication, closed-form Sim(3) gauge synchronization, and GPU-accelerated global
+                                                     bundle adjustment with segment-level depth optimization. Requiring neither
+                                                     depth sensors nor parametric intrinsics, our system produces robust cross-agent
+                                                     constraints and globally consistent metric maps from monocular RGB alone. On
+                                                     Tanks and Temples (T&T) and Waymo sequences, CoMo3R-SLAM achieves the
+                                                     best ATE on three of four T&T scenes and competitive Waymo accuracy, match-
+                                                     ing or exceeding state-of-the-art RGB-D methods while running online at 8 FPS.
+
+                                                     Keywords: Multi-agent Systems, Dense SLAM, Learning-based 3D Priors
+                                                                                                                                              Monocular RGB Input
+
+
+
+
+                                                Outdoor Multi-Agent SLAM
+                                                                                                                 Runtime: 8 FPS
+                                                             Agent 1              Agent 2           Inter-edge
+                                                                                                                 ATE (RMSE): 0.051 m
+
+
+                                         Figure 1: CoMo3R-SLAM performs collaborative monocular dense SLAM from two RGB-only agent streams
+                                         on the outdoor Barn scene [1]. Given monocular image sequences with limited cross-agent overlap, our system
+                                         estimates globally aligned camera trajectories, establishes inter-agent constraints, and reconstructs a consistent
+                                         dense scene geometry without depth sensors, running at 8 FPS with an ATE RMSE of 0.051 m. The anonymous
+                                         project website of CoMo3R-SLAM is available at https://como3r-slam.github.io.
+1   Introduction
+
+Outdoor multi-robot teams deployed in search and rescue, environmental monitoring, and coopera-
+tive autonomous driving must construct and maintain a shared, globally consistent 3D understanding
+of large-scale outdoor environments. Collaborative SLAM addresses this requirement by fusing ob-
+servations from multiple agents into a single coherent map, enabling robot teams to cover space
+faster and with greater robustness than any single platform operating in isolation [2, 3].
+Most existing collaborative dense SLAM systems achieve metric consistency by relying on active
+depth sensors [4, 5, 6, 7, 8, 9, 10]. While depth measurements simplify cross-agent alignment
+to rigid SE(3) registration, they impose prohibitive payload, power, and calibration overhead for
+lightweight outdoor robot teams. Monocular RGB cameras therefore constitute an attractive alterna-
+tive, yet outdoor collaborative monocular dense SLAM remains largely unsolved. Due to monocular
+scale ambiguity, each agent reconstructs its local map only up to an unknown similarity transform,
+so inter-agent fusion must estimate both relative pose and scale across independently reconstructed
+maps. This makes cross-agent alignment highly dependent on reliable visual association, which is
+particularly challenging outdoors. Existing monocular multi-agent SLAM systems are mainly evalu-
+ated in sparse mapping regimes [11, 12] or indoor environments [12, 13, 14], leaving outdoor dense
+reconstruction underexplored. In large-scale outdoor scenes, low inter-agent overlap, wide view-
+point changes, complex illumination, and repetitive or textureless structures often make traditional
+cross-agent feature matching unreliable, preventing robust relative Sim(3) estimation.
+Recent learned feed-forward 3D vision models such as DUSt3R [15], MASt3R [16], and VGGT [17]
+regress dense pointmaps and pixel-level correspondences directly from raw RGB images without
+known intrinsics or hand-crafted features. These learned priors have already enabled monocular
+dense SLAM systems [18, 19], that produce globally consistent trajectories and maps. However,
+all such systems still assume a single continuous trajectory evolving under one gauge. Extending
+them to multi-agent operation requires (i) detecting shared regions across independent robots, (ii)
+reconciling per-agent scales, and (iii) fusing partial reconstructions into a common reference frame.
+We observe that the learning-based priors themselves supply the missing evidence: their metric
+pointmaps provide a soft scale anchor across agents, while dense, geometry-grounded correspon-
+dences enable 3D structural verification more robust than sparse features under outdoor challenges.
+Building on this observation, we propose CoMo3R-SLAM, the first collaborative monocular dense
+SLAM framework that places learned 3D reconstruction priors at the center of outdoor multi-agent
+system. The system follows a two-level hierarchical architecture. Each agent runs a prior-guided
+front-end that tracks pose and fuses a local dense map from its RGB stream using ray-range residuals
+on a generic central-camera model. A central coordinator then proposes candidate cross-agent links
+via retrieval over the prior’s encoder features, verifies them with dense symmetric pointmap match-
+ing under a geometric match-fraction test, synchronizes the agents’ independent gauges through a
+closed-form Sim(3) alignment, and jointly refines all keyframes via GPU-accelerated global bundle
+adjustment over a unified multi-agent factor graph with segment-level depth refinement. All track-
+ing and optimization operate in Sim(3) and assume only a unique camera center, making the system
+immediately deployable on heterogeneous robot teams with arbitrary, uncalibrated cameras. On
+challenging outdoor multi-agent benchmarks, CoMo3R-SLAM achieves camera-pose accuracy and
+globally consistent dense geometry competitive with state-of-the-art RGB-D collaborative methods.
+Our main contributions are as follows:
+1. We propose CoMo3R-SLAM, the first collaborative monocular dense SLAM framework that
+   systematically incorporates learned feed-forward 3D reconstruction priors at the center of out-
+   door multi-agent system. A two-level hierarchical architecture couples a prior-guided per-agent
+   front-end with a central coordinator, replacing sparse feature matching with dense learned ge-
+   ometry for both intra- and inter-agent data association.
+2. We introduce a prior-guided cross-agent association pipeline that generates candidate links by
+   retrieval over the learning-based prior’s features, verifies them via dense symmetric pointmap
+
+
+                                                 2
+      matching under a geometric match-fraction test, and resolves independent agent gauges through
+      closed-form Sim(3) alignment, yielding reliable constraints even under low overlap, large view-
+      point change, and repetitive outdoor structure.
+3. We develop a GPU-accelerated global Sim(3) bundle adjustment over a unified multi-agent fac-
+   tor graph constructed from intra- and inter-agent associations with ray-based residuals. The
+   solver is stabilized on ill-conditioned Hessians by a robustified sparse Cholesky factorization
+   and complemented by segment-level depth refinement that alternates pose and depth optimiza-
+   tion, all under a generic camera model that assumes only a unique camera center.
+
+2     Related Work
+2.1    Multi-Agent Collaborative Visual SLAM
+
+Collaborative SLAM enables multi-robot teams to jointly localize and map environments beyond
+any single platform’s reach, which is critical for large-scale outdoor tasks such as search and res-
+cue and cooperative driving. Traditional systems [11, 2, 3, 20, 21] follow the classical pipeline of
+per-agent tracking, appearance-based place recognition, inter-agent loop closure, and pose-graph
+optimization, relying almost exclusively on sparse visual features for cross-agent constraints. While
+effective in well-textured or controlled settings, these sparse associations degrade severely un-
+der the low overlap, large viewpoint changes, and repetitive structures common outdoors. Re-
+cent dense collaborative methods leverage neural radiance fields [6, 5, 9] and 3D Gaussian Splat-
+ting [4, 7, 10, 8, 22, 23] to produce high-fidelity, renderable maps through cross-agent submap fu-
+sion. However, they almost universally require RGB-D input, incurring prohibitive payload, power,
+and calibration costs for lightweight outdoor fleets. Meanwhile, purely monocular collaborative
+SLAM remains limited to sparse mapping [11, 12], indoor scenarios [12, 13, 14], conventional
+feature-based inter-agent verification [11, 24], or offline merging [13]. Online outdoor multi-agent
+dense SLAM from monocular RGB alone thus remains largely unexplored.
+
+2.2    Dense Monocular SLAM and Neural Mapping
+
+Classical monocular SLAM has evolved from filtering-based methods such as MonoSLAM [25] to
+feature-based systems like ORB-SLAM3 [26] and direct methods including LSD-SLAM [27] and
+DSO [28]. These approaches yield good accuracy given sufficient texture and parallax but produce
+only sparse or semi-dense maps and require fixed, calibrated intrinsics. Dense monocular SLAM
+seeks per-pixel geometry: early systems such as DTAM [29] used hand-crafted regularization, while
+learning-based methods like DROID-SLAM [30] and DPV-SLAM [31] couple learned correspon-
+dences with dense bundle adjustment. A parallel line exploits differentiable rendering via neural ra-
+diance fields [32, 33, 34, 35, 36, 37, 38] or 3D Gaussian Splatting [39, 40, 41, 42, 43, 44, 45, 46, 47],
+though most target RGB-D input and assume known parametric intrinsics. Despite strong single-
+agent results, existing dense monocular SLAM pipelines share two limitations that hinder multi-
+agent outdoor setting deployment: (i) dependence on precise, fixed intrinsics that are hard to obtain
+or maintain across heterogeneous robot teams, and (ii) inherent per-agent scale ambiguity that pre-
+vents direct map alignment and fusion. Without reliable dense cross-view correspondences and a
+soft scale anchor, monocular dense SLAM cannot scale to collaborative settings.
+
+2.3    Foundation Models and Learned 3D Priors for Vision
+
+Feed-forward 3D reconstruction networks transform geometry estimation as a learned prediction
+problem. DUSt3R [15] directly regresses dense pointmaps in a common frame without known in-
+trinsics; MASt3R [16] enriches this with dense local descriptors for explicit matching, and MASt3R-
+SfM [48] extends it to unordered collections. Subsequent foundation models [17, 49, 50, 51] fur-
+ther generalize these priors to many-view and streaming regimes. Building on them, MASt3R-
+SLAM [18] and VGGT-SLAM [19] show that learned 3D priors can deliver globally consistent
+dense poses and geometry from monocular RGB alone, yet both assume a single continuous tra-
+
+
+                                                   3
+    Multi-Agent Monocular Capture             MASt3R Priors                        Front-end                  Intra- & Inter- Loop Closure   Global Refinement
+
+
+
+
+                                                                     MASt3R
+                                      VIT      Transformer   Multi                                                                                               Pose
+                                                                                                                                                           Refinement
+                                    Encoder     Decoder      Head                                                     CoMo3R-SLAM Process
+
+
+                                                                                                       Agent 1                                 Depth Refinement
+
+                                                                                    Inter Edge
+
+
+
+
+                                                                                                                                                                  Coherent
+                                                                                                                                                                  Segment
+                                                                                                           Agent 2
+
+      Agent 1            Agent 2                 Matching                              Intra-Inter Graph                 Loop Closure
+                                                                              5m
+
+
+
+
+       No Need                                                 3D Reconstruction                                                                    3D Reconstruction
+ Intrinsic Parameters                                         with CoMo3R-SLAM                                                                              (Normal)
+
+
+Figure 2: Overview of CoMo3R-SLAM. Each agent runs a prior-guided front-end (Sec. 3.3) that tracks its
+pose and fuses a local dense pointmap from a monocular RGB stream using a feed-forward 3D reconstruction
+prior. A central coordinator retrieves candidate cross-agent links over the prior’s encoder features, verifies them
+by dense symmetric pointmap matching, and synchronizes the agents’ independent gauges with a closed-form
+Sim(3) alignment (Sec. 3.4). All keyframe poses are jointly refined by a GPU-accelerated global Sim(3)
+bundle adjustment over a unified multi-agent factor graph and propagated back to every agent (Sec. 3.5).
+
+jectory under one gauge. CoMo3R-SLAM addresses the missing collaborative layer, lifting learned
+feed-forward 3D reconstruction priors from single-agent to multi-agent outdoor settings. By exploit-
+ing the prior’s dense metric pointmaps as soft scale anchors and its geometry-grounded correspon-
+dences for robust cross-agent verification, our system achieves reliable inter-agent data association
+and gauge synchronization under low overlap and large viewpoint changes, capabilities beyond both
+classical sparse multi-agent SLAM.
+
+
+3      Method
+
+3.1      System Overview
+
+CoMo3R-SLAM is a collaborative dense SLAM system for a team of Na robots, each carrying a
+single monocular RGB camera and producing an independent, asynchronous image stream. The
+system is organized into a two-level hierarchical architecture. At Level 1, every agent runs its own
+front-end process with learned feed-forward 3D reconstruction prior, which tracks its pose, selects
+keyframes, fuses a local dense pointmap, and maintains a local Sim(3) keyframe graph (Sec. 3.3).
+At Level 2, a coordinator process receives keyframes from local agents, proposes and verifies cross-
+agent associations (Sec. 3.4), and runs a global bundle adjustment over the union of all agents’
+keyframes (Sec. 3.5). The coordinator periodically broadcasts the globally optimized poses back to
+the agents, allowing each agent to continue real-time tracking in the shared global frame.
+
+3.2      Learned 3D Priors and the Generic Camera Model
+
+Feed-forward 3D reconstruction prior. We use a MASt3R-style two-view prior F [16]. Given
+two images I i , I j ∈ RH×W ×3 , a shared encoder extracts patch tokens, which are then processed
+by cross-attention decoder heads to produce dense pointmaps Xii , Xij ∈ RH×W ×3 for images i and
+j, both expressed in the coordinate frame of camera i, together with per-pixel geometric confidence
+Cii , Cij ∈ RH×W ×1 , dense d-dimensional local descriptor field Dii , Dij ∈ RH×W ×d , and per-pixel
+descriptor confidences Qii , Qji ∈ RH×W ×1 . Since MASt3R is trained with metric-scale supervision
+whenever metric ground truth is available, its pointmaps provide an approximate learned scale prior.
+We exploit this prior as a soft anchor for each monocular agent’s gauge, while still allowing residual
+scale corrections in the global Sim(3) optimization.
+
+
+                                                                                   4
+Generic central camera model. CoMo3R-SLAM makes no assumption about a fixed or parametric
+camera model beyond a single, common camera centre through which all rays of a frame pass.
+                                                                                             X
+We convert geometry into a ray representation with the normalization operator ψ(X) = ∥X∥         and
+                        
+π(X) = ψ(X), ∥X∥ , so a pixel observation is a unit ray ψ(X) together with a scalar range ∥X∥.
+This central-camera abstraction handles heterogeneous robot teams equipped with cameras without
+intrinsics; unless stated otherwise, the method below assumes no calibration, and the optional use of
+known intrinsics is deferred to Appendix Sec. A.5.
+Pose representation. Because monocular reconstruction is determined only up to a similarity trans-
+form and the learned pointmaps can carry inconsistent scales, every camera pose is a similarity
+                                                         3
+transform T = [ sR  t
+                  0 1 ] ∈ Sim(3), with R ∈ SO(3), t ∈ R , and scale s > 0. Poses are updated by a
+left perturbation T ← Exp(τ )T with Lie algebra τ ∈ sim(3) ∼   = R7 , and we use analytic Jacobians
+and tangent-space retraction throughout [52]. Optimizing over Sim(3) rather than SE(3) makes a
+per-keyframe scale an explicit degree of freedom, which is the mechanism by which both intra-agent
+and inter-agent scale are reconciled.
+
+3.3   Prior-Guided Per-Agent Front-End
+
+Each agent runs an independent front-end that turns its RGB stream into a local dense map. The
+front-end is feature-free in the classical sense, where it never detects keypoints, and uses the dense
+pointmaps and descriptors of the prior for both correspondence and geometry.
+Pointmap matching. For an incoming frame I f and the current keyframe I k , the prior predicts
+the associated pointmaps and descriptors. Rather than a brute-force descriptor search, we obtain a
+dense pixel correspondence by iterative projective matching on the ray image: each predicted 3D
+point of I k is projected into I f by iteratively refining its pixel location p to minimize the angular
+ray error [18]
+                                                                       2
+                                  p⋆ = arg min ψ [Xff ]p − ψ(x) ,
+                                                            
+                                                                                                    (1)
+                                              p
+
+where x ∈ Xfk is the queried 3D point and [ · ]p denotes pixel-indexed lookup. The match is then re-
+fined within a local descriptor window, and the previous frame’s correspondence is reused as initial-
+ization for temporal warm-starting. Matches with large 3D discrepancy are rejected q as occlusions.
+This yields a dense set of correspondences Mkf with per-match confidence qmn = Qkk,m Qff,n ,
+where m indexes the keyframe-side pixel and n the frame-side pixel, consistent with the residual of
+Eq. (2).
+Tracking. Given Mkf , the relative pose Tkf ∈ Sim(3) of the frame with respect to the keyframe is
+estimated by minimizing a robust ray-and-range residual,
+                          4
+                                                                   "          f             #
+                                                                                           k
+                   X    X     
+                                   −1/2
+                                                                   ψ Tkf Xf,n    − ψ X̂k,m
+Etrack (Tkf ) =              ρ Σmn emn (Tkf ) c , emn (T ) =                 f           k
+                                                                                                 ,
+                (m,n)∈M c=1
+                                                                        Tkf Xf,n   − X̂k,m
+                        kf
+                                                                                                 (2)
+          k
+where X̂k,m    denotes the keyframe’s canonical pointmap fused via a running confidence-weighted
+average, ρ is a Huber robust kernel, and Σmn = Σ/qmn with Σ = diag(σr2 I3 , σd2 ) separately weight-
+ing the 3-D ray and 1-D range error per match. The ray term enforces directional consistency under
+the central-camera model and is bounded against outliers. For robustness, Equation (2) is solved by
+Levenberg-Marquardt (LM) within an IRLS framework, replacing the Gauss-Newton (GN) solver
+of [18] while retaining its IRLS reweighting scheme.
+Keyframing and local fusion. A new keyframe is created when the number of valid matches or
+unique keyframe pixels falls below a threshold. The keyframe’s canonical pointmap is incrementally
+fused across all frames that register to it by a confidence-weighted running average,
+
+                                  Ĉkk X̂kk + Cfk (Tkf Xfk )
+                         X̂kk ←                                ,   Ĉkk ← Ĉkk + Cfk ,             (3)
+                                         Ĉkk + Cfk
+
+                                                      5
+Table 1: Quantitative comparison of tracking accuracy (ATE RMSE [m]) on the Tanks and Temples dataset [1].
+‡
+  indicates our system without known calibration. ✗ indicates invalid results due to the failure.
+                                                                RGB-D                                                       RGB
+                     Scene
+                                                                                                                                ‡
+                                   MAGiC-SLAM [4]   MAC-Ego3D [7]       CP-SLAM [6]   MNE-SLAM [5]    MultiSlam-DiffPose [12]       CoMo3R-SLAM (Ours)
+                     Barn                0.519            ✗                4.972          0.152                 0.221                     0.051
+                     Caterpillar         0.349          0.361              5.873          0.155                 0.148                     0.102
+                     Ignatius            0.356            ✗                6.178          0.162                 0.167                     0.144
+                     Truck               0.316          0.374              6.250          0.190                 0.035                     0.053
+
+                                   Caterpillar                          Truck                        Ignatius                             Barn
+MAGiC-SLAM
+CoMo3R-SLAM (Ours)
+
+
+
+
+Figure 3: Qualitative comparison of dense reconstructions on the Tanks and Temples dataset [1]. Top: MAGiC-
+SLAM [4] (RGB-D). Bottom: CoMo3R-SLAM (RGB only). Our method produces comparable or superior
+reconstruction quality across all four scenes without depth sensors.
+
+which suppresses the noise of any single short-baseline prediction. Each new keyframe is linked
+to its predecessor by a sequential edge, and intra-agent loop closures are added by querying the
+agent’s local retrieval database; the resulting per-agent Sim(3) keyframe graph is refined by a local
+LM-IRLS optimization (Appendix Sec. B.2).
+
+3.4 Geometrically Verified Cross-Agent Association
+
+The coordinator fuses per-agent maps into a single collaborative map through three stages, includ-
+ing retrieval, geometric verification, and gauge synchronization, via the feed-forward prior F from
+Sec. 3.2, eliminating the need for separate place-recognition or keypoint-detection modules.
+Cross-agent retrieval. Each keyframe’s encoder tokens are forwarded through the prior’s released
+HOW-style retrieval head [53] and aggregated into a binary ASMK representation [54] over its
+pretrained codebook, then inserted into a shared inverted-file database tagged by agent identity. For
+each new keyframe, top-ranked cross-agent neighbors exceeding a fixed similarity threshold are
+retained as candidate links; the retrieval-head architecture are detailed in Sec. B.3.
+Geometric verification. For a candidate pair (i, j) from agents a ̸= b, the prior decodes both direc-
+tions to produce
+               qdense bidirectional correspondences with validity masks and per-pixel confidence
+scores qmn = Qii,m Qji,n in each decoded direction. Defining the match fraction ν as the propor-
+tion of pixels with valid, high-confidence matches in the other view, a candidate is accepted only
+if min(νi , νj ) ≥ τinter , which rejects one-sided matches and, by operating on the prior’s dense 3D
+predictions rather than sparse features, handles low overlap and repetitive structures robustly.
+Gauge synchronization. Each agent’s keyframe chain lives in its own arbitrary frame and scale.
+One designated agent serves as the global gauge anchor. When a verified edge first connects two pre-
+viously unsynchronized agents, the coordinator lifts matched canonical points into their respective
+world frames and solves for the aligning similarity transform via Umeyama [55]:
+                                        X                     j                       2
+             s⋆ , R⋆ , t⋆ = arg min                                              i
+                                                                   
+                                                   sRTW Cj X̂j,n + t − TW Ci X̂i,m      ,        (4)
+                                                           s,R,t
+                                                                    (m,n)∈Mij
+                                                                                        ⋆ ⋆ ⋆
+falling back to a rigid snap when correspondences are insufficient. The resulting T ⋆ = s 0R t1 ∈
+Sim(3) is left-multiplied onto every keyframe pose of the unsynchronized agent, transporting its
+entire chain into the already-synchronized gauge. By anchoring each newly-connected pair on its
+
+
+                                                                                      6
+lower-indexed agent with agent 0 as the global gauge, all chains are transitively aligned to a single
+global frame, providing a well-conditioned initialization for global bundle adjustment.
+
+3.5   Global Sim(3) Bundle Adjustment over the Multi-Agent Factor Graph
+
+Unified factor graph. The coordinator maintains a single factor graph G = (V, E) whose vertices
+V are the Sim(3) poses {TW Ci } of all agents’ keyframes in one flat global index space, each tagged
+with its agent identity. The edge set E = Eintra ∪ Einter contains intra-agent sequential edges and
+the verified inter-agent edges of Sec. 3.4; intra-agent loop closures are resolved within each agent’s
+local front-end graph (Sec. 3.3) and do not enter the global graph. Every edge, whether intra- or
+inter-agent, stores the dense pointmap correspondences Mij , their validity masks, the canonical
+pointmaps X̂ of both endpoints, and the per-match confidences qmn obtained from the prior.
+Pose refinement. All keyframe poses are refined by minimizing the global ray-and-range energy
+                                       4  
+                       X        X      X                                    −1
+          Eglobal =                      ρ Σ−1/2
+                                             mn  e mn (Tij )  c
+                                                                 ,     Tij = TW Ci TW Cj ,         (5)
+                      (i,j)∈E (m,n)∈Mij c=1
+
+where emn and Σmn = Σ/qmn take the same ray-and-range form and confidence weighting as in
+Eq. (2). Inter- and intra-agent edges thus contribute identically shaped residuals, fusing cross-agent
+constraints into a single homogeneous optimization without a separate map-merging stage.
+Segment-level depth refinement. The optimization above treats each keyframe’s dense geometry
+as fixed; a final stage refines that geometry as well. Optimizing every pixel’s range independently is
+under-constrained and prohibitively large, so we adopt a segment-level parameterization, a strategy
+long used for dense monocular reconstruction [56, 57, 58]: each keyframe is partitioned into a few
+hundred compact segments whose pixels share a single depth degree of freedom. Segments are ob-
+tained by SLIC superpixel clustering [56] applied not to RGB but to prior-derived geometry, where
+per-pixel surface normals and log-range read from the canonical pointmap, so segment boundaries
+                                                                                          k
+follow 3D structure. The pixel ranges of segment g are reparameterized as dp = ∥X̂k,p       ∥ exp(sg )
+                               k
+with the ray direction ψ(X̂k,p    ) held fixed within each depth step, leaving one log-scale sg ∈ R
+per segment. The stacked log-scales are solved by Gauss-Newton from the same dense residuals as
+Eq. (5), now including the verified inter-agent edges, so cross-agent correspondences directly con-
+strain structure through the per-segment scalars, augmented by a boundary term that ties adjacent
+segments’ depth ratios to the prior’s prediction and a prior term anchoring the scales toward the
+learned geometry. Because pose and structure are coupled through the cross-agent constraints, the
+terminal refinement alternates a pose LM-IRLS step (Appendix Eq. (25), geometry frozen) with a
+depth LM-IRLS step (Appendix Eq. (24), poses frozen) until both converge.
+
+4     Experiments
+
+We evaluate CoMo3R-SLAM on outdoor multi-agent benchmarks against state-of-the-art RGB-D
+and RGB collaborative dense SLAM. Full implementation details, additional ablations on known
+calibration, and a day/night robustness study are deferred to the supplementary material.
+Datasets, baselines, and metric. We evaluate on Tanks and Temples (T&T) [1] and Waymo [59]
+outdoor scenes. For both benchmarks, each sequence is split into two sub-trajectories with narrow
+overlap, simulating two agents observing the same scene independently. We compare against four
+RGB-D collaborative dense SLAM systems, including MAGiC-SLAM [4], MAC-Ego3D [7], CP-
+SLAM [6], MNE-SLAM [5], and one RGB multi-agent system, MultiSlam-DiffPose [12]. Tracking
+accuracy is measured by ATE RMSE [m] after global alignment to ground truth. Unless otherwise
+noted, all baselines assume known camera intrinsics, whereas our system operates without known
+intrinsics. Best results are highlighted as first , second , and third .
+Tanks and Temples. Table 1 reports per-scene ATE on T&T. CoMo3R-SLAM achieves the best
+ATE on Barn (0.051 m), Caterpillar (0.102 m), and Ignatius (0.144 m), and the second-best on Truck.
+
+
+                                                  7
+Table 2: Quantitative comparison of tracking accuracy (ATE RMSE [m]) on the autonomous driving Waymo
+dataset [59]. ‡ indicates our system without known calibration. ✗ indicates invalid results due to the failure.
+                                                  RGB-D                                                      RGB
+           Scene
+                                                                                                                 ‡
+                    MAGiC-SLAM [4]   MAC-Ego3D [7]        CP-SLAM [6]   MNE-SLAM [5]   MultiSlam-DiffPose [12]       CoMo3R-SLAM (Ours)
+           158686        2.269          6.063               12.277           1.849                 1.808                   1.773
+           134763        1.276          3.506               10.287           1.173                 2.607                   1.965
+           153495        7.846          8.827                 ✗              2.811                   ✗                     3.491
+           106762       14.441          26.867              32.641           5.013                   ✗                     5.004
+
+
+                                         134763                                           153495                                   158686
+RGB MESH
+NORMAL
+
+
+
+
+Figure 4: Dense reconstruction results of CoMo3R-SLAM on three Waymo driving scenes [59]. Each column
+shows the fused RGB reconstructed mesh, and surface normals, demonstrating coherent large-scale outdoor
+geometry from monocular RGB input alone.
+
+Despite using only RGB and no known intrinsics, our system outperforms all four RGB-D baselines
+on three of four scenes, and is more than an order of magnitude more accurate than the closest
+RGB competitor on Barn and Caterpillar. Our dense and geometry-grounded pointmap verification
+accepts these difficult inter-agent edges only when both directions of the prior agree, and the closed-
+form Umeyama gauge synchronization then transports the second agent’s chain into the anchor’s
+gauge with a metric-consistent scale, yielding well-conditioned cross-agent constraints for the sub-
+sequent Sim(3) bundle adjustment. The qualitative comparison in Figure 3 confirms that this pose
+accuracy translates into reconstruction quality: against the RGB-D MAGiC-SLAM, our monocu-
+lar meshes are comparable or denser in surface coverage and recover fine structure (Truck wheels,
+Ignatius statue) without any depth sensor.
+Waymo. Table 2 reports ATE on Waymo. The driving scenes are substantially harder than T&T
+due to forward-dominant motion, very low parallax, large absolute scale, and highly repetitive street
+structure. CP-SLAM diverges entirely on 153495, MultiSlam-DiffPose fails on both 153495 and
+106762, and even the best RGB-D method degrades by an order of magnitude relative to its T&T per-
+formance. CoMo3R-SLAM is the best method overall on 158686 (1.773 m) and 106762 (5.004 m),
+and remains competitive with RGB-D baseline MNE-SLAM on 134763 and 153495. We attribute
+this to two mechanisms working together: the soft metric prior carried by the MASt3R pointmaps
+prevents the per-agent gauges from drifting in scale during long, forward-dominant stretches with
+little parallax, while the Sim(3) bundle adjustment redistributes the residual scale through the inter-
+agent edges rather than locking it to a brittle initial guess. Figure 4 visualizes the fused reconstruc-
+tions and surface normals on three Waymo scenes, showing coherent road surfaces, building façades,
+and vegetation recovered from monocular input alone over hundreds of metres of driving.
+
+5           Conclusion
+
+We presented CoMo3R-SLAM, the first collaborative monocular dense SLAM framework that
+places learned feed-forward 3D reconstruction priors at the core of outdoor multi-agent mapping.
+A two-level hierarchical architecture pairs prior-guided per-agent front-ends with a central coordi-
+nator that performs prior-feature retrieval, dense pointmap verification, closed-form Sim(3) gauge
+synchronization, and GPU-accelerated global Sim(3) bundle adjustment over a unified multi-agent
+factor graph with segment-level depth refinement. On Tanks and Temples and Waymo, CoMo3R-
+SLAM achieves trajectory accuracy and dense reconstruction quality competitive with, and on most
+scenes superior to, state-of-the-art RGB-D collaborative systems, all from monocular RGB input
+without known intrinsics and at approximately 8 FPS.
+
+
+                                                                         8
+Limitations and Future Work. Two limitations remain. First, the system assumes a single, com-
+mon camera centre and inherits the training-data statistics of the underlying 3D prior; strongly non-
+central or heavily distorted optics (e.g. wide-angle fisheye, catadioptric cameras) fall outside this
+regime. Second, the coordinator-based design prioritises simplicity and global consistency but ties
+communication load and fault tolerance to a single process as the team scales. Future work includes
+(i) adapting the 3D prior to wide-FoV and fisheye imagery, and (ii) extending to a fully peer-to-peer
+formulation where neighbouring agents exchange compressed pointmap summaries and run local
+sub-graph bundle adjustment, removing the single-aggregation-point dependency.
+
+
+
+
+                                                 9
+References
+ [1] A. Knapitsch, J. Park, Q.-Y. Zhou, and V. Koltun. Tanks and temples: Benchmarking large-
+     scale scene reconstruction. ACM Transactions on Graphics (ToG), 36(4):1–13, 2017.
+
+ [2] P. Schmuck, T. Ziegler, M. Karrer, J. Perraudin, and M. Chli. Covins: Visual-inertial slam for
+     centralized collaboration. arXiv preprint arXiv:2108.05756, 2021.
+
+ [3] Y. Tian, Y. Chang, F. H. Arias, C. Nieto-Granda, J. P. How, and L. Carlone. Kimera-multi:
+     Robust, distributed, dense metric-semantic slam for multi-robot systems. IEEE transactions
+     on robotics, 38(4), 2022.
+
+ [4] V. Yugay, T. Gevers, and M. R. Oswald. Magic-slam: Multi-agent gaussian globally consistent
+     slam. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages
+     6741–6750, 2025.
+
+ [5] T. Deng, G. Shen, C. Xun, S. Yuan, T. Jin, H. Shen, Y. Wang, J. Wang, H. Wang, D. Wang,
+     et al. Mne-slam: Multi-agent neural slam for mobile robots. In Proceedings of the Computer
+     Vision and Pattern Recognition Conference, pages 1485–1494, 2025.
+
+ [6] J. Hu, M. Mao, H. Bao, G. Zhang, and Z. Cui. Cp-slam: Collaborative neural point-based slam
+     system. Advances in Neural Information Processing Systems, 36:39429–39442, 2023.
+
+ [7] X. Xu, F. Xue, S. Zhao, Y. Pan, S. Scherer, and X. Huang. Mac-ego3d: Multi-agent gaussian
+     consensus for real-time collaborative ego-motion and photorealistic 3d reconstruction. In Pro-
+     ceedings of the Computer Vision and Pattern Recognition Conference, pages 854–863, 2025.
+
+ [8] L. Chen, Y. Su, J. Wang, P. Han, Z. Xia, S. Bu, K. Li, B. Hu, S. Meng, and G. Wang. Coma-
+     slam: Collaborative multi-agent gaussian slam with geometric consistency. In Proceedings of
+     the AAAI Conference on Artificial Intelligence, volume 40, pages 2922–2929, 2026.
+
+ [9] T. Deng, G. Shen, X. Chen, S. Yuan, H. Shen, G. Peng, Z. Wu, J. Wang, L. Xie, D. Wang,
+     et al. Mcn-slam: Multi-agent collaborative neural slam with hybrid implicit neural scene
+     representation. arXiv preprint arXiv:2506.18678, 2025.
+
+[10] A. Thomas, A. Sonawalla, A. Rose, and J. P. How. Grand-slam: Local optimization for globally
+     consistent large-scale multi-agent gaussian slam. IEEE Robotics and Automation Letters, 2025.
+
+[11] P. Schmuck and M. Chli. Ccm-slam: Robust and efficient centralized collaborative monocular
+     simultaneous localization and mapping for robotic teams. Journal of Field Robotics, 36(4):
+     763–781, 2019.
+
+[12] L. Lipson and J. Deng. Multi-session slam with differentiable wide-baseline pose optimization.
+     In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 19626–19635, 2024.
+
+[13] Y. Zhou and H. Wu. Multi-agent monocular dense slam with 3d reconstruction priors. arXiv
+     preprint arXiv:2511.19031, 2025.
+
+[14] Y. Li, P. Ye, and Q. Jia. Mang-slam: Multi-agent neural submap and gaussian representation
+     for dense mapping. IEEE Robotics and Automation Letters, 11(2):2242–2249, 2025.
+
+[15] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud. Dust3r: Geometric 3d vision made
+     easy. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition,
+     pages 20697–20709, 2024.
+
+[16] V. Leroy, Y. Cabon, and J. Revaud. Grounding image matching in 3d with mast3r. In European
+     conference on computer vision, pages 71–91. Springer, 2024.
+
+
+                                                10
+[17] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny. Vggt: Visual ge-
+     ometry grounded transformer. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 5294–5306, 2025.
+[18] R. Murai, E. Dexheimer, and A. J. Davison. Mast3r-slam: Real-time dense slam with 3d recon-
+     struction priors. In Proceedings of the Computer Vision and Pattern Recognition Conference,
+     pages 16695–16705, 2025.
+[19] D. Maggio, H. Lim, and L. Carlone. Vggt-slam: Dense rgb slam optimized on the sl (4)
+     manifold. Advances in Neural Information Processing Systems, 38:129839–129867, 2026.
+[20] P.-Y. Lajoie, B. Ramtoula, Y. Chang, L. Carlone, and G. Beltrame. Door-slam: Distributed,
+     online, and outlier resilient slam for robotic teams. IEEE Robotics and Automation Letters, 5
+     (2):1656–1663, 2020.
+[21] P.-Y. Lajoie and G. Beltrame. Swarm-slam: Sparse decentralized collaborative simultaneous
+     localization and mapping framework for multi-robot systems. IEEE Robotics and Automation
+     Letters, 9(1):475–482, 2023.
+[22] M. M. Li, P.-Y. Lajoie, J. Liu, and G. Beltrame. Compact keyframe-optimized multi-agent
+     gaussian splatting slam. arXiv preprint arXiv:2604.00804, 2026.
+[23] J. Yu, T. Chen, and M. Schwager. Hammer: heterogeneous, multi-robot semantic gaussian
+     splatting. IEEE Robotics and Automation Letters, 2025.
+[24] Z. Cao, Q. Shao, S. Zhai, J. Zhang, A. Nguyen, and B. Huang. Mags-slam: Monocular multi-
+     agent gaussian splatting slam for geometrically and photometrically consistent reconstruction.
+     arXiv preprint arXiv:2605.10760, 2026.
+[25] A. J. Davison, I. D. Reid, N. D. Molton, and O. Stasse. Monoslam: Real-time single cam-
+     era slam. IEEE transactions on pattern analysis and machine intelligence, 29(6):1052–1067,
+     2007.
+[26] C. Campos, R. Elvira, J. J. G. Rodrı́guez, J. M. Montiel, and J. D. Tardós. Orb-slam3: An
+     accurate open-source library for visual, visual–inertial, and multimap slam. IEEE transactions
+     on robotics, 37(6):1874–1890, 2021.
+[27] J. Engel, T. Schöps, and D. Cremers. Lsd-slam: Large-scale direct monocular slam. In Euro-
+     pean conference on computer vision, pages 834–849. Springer, 2014.
+[28] J. Engel, V. Koltun, and D. Cremers. Direct sparse odometry. IEEE transactions on pattern
+     analysis and machine intelligence, 40(3):611–625, 2017.
+[29] R. A. Newcombe, S. J. Lovegrove, and A. J. Davison. Dtam: Dense tracking and mapping
+     in real-time. In 2011 international conference on computer vision, pages 2320–2327. IEEE,
+     2011.
+[30] Z. Teed and J. Deng. Droid-slam: Deep visual slam for monocular, stereo, and rgb-d cameras.
+     Advances in neural information processing systems, 34:16558–16569, 2021.
+[31] L. Lipson, Z. Teed, and J. Deng. Deep patch visual slam. In European Conference on Computer
+     Vision, pages 424–440. Springer, 2024.
+[32] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. Nerf:
+     Representing scenes as neural radiance fields for view synthesis. Communications of the ACM,
+     65(1):99–106, 2021.
+[33] E. Sucar, S. Liu, J. Ortiz, and A. J. Davison. imap: Implicit mapping and positioning in real-
+     time. In Proceedings of the IEEE/CVF international conference on computer vision, pages
+     6229–6238, 2021.
+
+
+                                                11
+[34] Z. Zhu, S. Peng, V. Larsson, W. Xu, H. Bao, Z. Cui, M. R. Oswald, and M. Pollefeys. Nice-
+     slam: Neural implicit scalable encoding for slam. In Proceedings of the IEEE/CVF conference
+     on computer vision and pattern recognition, pages 12786–12796, 2022.
+
+[35] Z. Zhu, S. Peng, V. Larsson, Z. Cui, M. R. Oswald, A. Geiger, and M. Pollefeys. Nicer-slam:
+     Neural implicit scene encoding for rgb slam. In 2024 International Conference on 3D Vision
+     (3DV), pages 42–52. IEEE, 2024.
+
+[36] M. M. Johari, C. Carta, and F. Fleuret. Eslam: Efficient dense slam system based on hybrid rep-
+     resentation of signed distance fields. In Proceedings of the IEEE/CVF conference on computer
+     vision and pattern recognition, pages 17408–17419, 2023.
+
+[37] E. Sandström, Y. Li, L. Van Gool, and M. R. Oswald. Point-slam: Dense neural point cloud-
+     based slam. In Proceedings of the IEEE/CVF international conference on computer vision,
+     pages 18433–18444, 2023.
+
+[38] L. Liso, E. Sandström, V. Yugay, L. Van Gool, and M. R. Oswald. Loopy-slam: Dense neural
+     slam with loop closures. In Proceedings of the IEEE/CVF conference on computer vision and
+     pattern recognition, pages 20363–20373, 2024.
+
+[39] B. Kerbl, G. Kopanas, T. Leimkühler, G. Drettakis, et al. 3d gaussian splatting for real-time
+     radiance field rendering. ACM Trans. Graph., 42(4):139–1, 2023.
+
+[40] N. Keetha, J. Karhade, K. M. Jatavallabhula, G. Yang, S. Scherer, D. Ramanan, and J. Luiten.
+     Splatam: Splat track & map 3d gaussians for dense rgb-d slam. In Proceedings of the
+     IEEE/CVF conference on computer vision and pattern recognition, pages 21357–21366, 2024.
+
+[41] E. Sandström, G. Zhang, K. Tateno, M. Oechsle, M. Niemeyer, Y. Zhang, M. Patel,
+     L. Van Gool, M. Oswald, and F. Tombari. Splat-slam: Globally optimized rgb-only slam with
+     3d gaussians. In Proceedings of the Computer Vision and Pattern Recognition Conference,
+     pages 1680–1691, 2025.
+
+[42] W. Zhang, Q. Cheng, D. Skuddis, N. Zeller, D. Cremers, and N. Haala. Hi-slam2: Geometry-
+     aware gaussian slam for fast monocular scene reconstruction. IEEE Transactions on Robotics,
+     41:6478–6493, 2025.
+
+[43] M. Li, S. Liu, H. Zhou, G. Zhu, N. Cheng, T. Deng, and H. Wang. Sgs-slam: Semantic gaussian
+     splatting for neural dense slam. In European Conference on Computer Vision, pages 163–179.
+     Springer, 2024.
+
+[44] V. Yugay, Y. Li, T. Gevers, and M. R. Oswald. Gaussian-slam: Photo-realistic dense slam with
+     gaussian splatting. arXiv preprint arXiv:2312.10070, 2023.
+
+[45] H. Matsuki, R. Murai, P. H. Kelly, and A. J. Davison. Gaussian splatting slam. In Proceedings
+     of the IEEE/CVF conference on computer vision and pattern recognition, pages 18039–18048,
+     2024.
+
+[46] Z. Peng, T. Shao, Y. Liu, J. Zhou, Y. Yang, J. Wang, and K. Zhou. Rtg-slam: Real-time 3d
+     reconstruction at scale using gaussian splatting. In ACM SIGGRAPH 2024 conference papers,
+     pages 1–11, 2024.
+
+[47] Z. Cao, H. Wu, L. W. Tang, Z. Luo, W. Zhang, M. Pollefeys, Z. Zhu, and M. R. Oswald. Mcgs-
+     slam: A multi-camera slam framework using gaussian splatting for high-fidelity mapping.
+     arXiv preprint arXiv:2509.14191, 2025.
+
+[48] B. P. Duisterhof, L. Zust, P. Weinzaepfel, V. Leroy, Y. Cabon, and J. Revaud. Mast3r-sfm:
+     a fully-integrated solution for unconstrained structure-from-motion. In 2025 International
+     Conference on 3D Vision (3DV), pages 1–10. IEEE, 2025.
+
+
+                                                12
+[49] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa. Continuous 3d perception
+     model with persistent state. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 10510–10522, 2025.
+[50] Y. Liu, S. Dong, S. Wang, Y. Yin, Y. Yang, Q. Fan, and B. Chen. Slam3r: Real-time dense
+     scene reconstruction from monocular rgb videos. In Proceedings of the Computer Vision and
+     Pattern Recognition Conference, pages 16651–16662, 2025.
+[51] H. Wang and L. Agapito. 3d reconstruction with spatial memory. In 2025 International Con-
+     ference on 3D Vision (3DV), pages 78–89. IEEE, 2025.
+[52] Z. Teed and J. Deng. Tangent space backpropagation for 3d transformation groups. In Proceed-
+     ings of the IEEE/CVF conference on computer vision and pattern recognition, pages 10338–
+     10347, 2021.
+[53] G. Tolias, T. Jenicek, and O. Chum. Learning and aggregating deep local descriptors for
+     instance-level recognition. In European Conference on Computer Vision, pages 460–477.
+     Springer, 2020.
+
+[54] G. Tolias, Y. Avrithis, and H. Jégou. To aggregate or not to aggregate: Selective match kernels
+     for image search. In Proceedings of the IEEE international conference on computer vision,
+     pages 1401–1408, 2013.
+[55] S. Umeyama. Least-squares estimation of transformation parameters between two point pat-
+     terns. IEEE Transactions on pattern analysis and machine intelligence, 13(4):376–380, 1991.
+
+[56] R. Achanta, A. Shaji, K. Smith, A. Lucchi, P. Fua, and S. Süsstrunk. Slic superpixels compared
+     to state-of-the-art superpixel methods. IEEE transactions on pattern analysis and machine
+     intelligence, 34(11):2274–2282, 2012.
+[57] A. Concha and J. Civera. Dpptam: Dense piecewise planar tracking and mapping from a
+     monocular sequence. In 2015 IEEE/RSJ International Conference on Intelligent Robots and
+     Systems (IROS), pages 5686–5693. IEEE, 2015.
+[58] K. Mazur, G. Bae, and A. J. Davison. Superprimitive: Scene reconstruction at a primitive level.
+     In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 4979–4989, 2024.
+
+[59] P. Sun, H. Kretzschmar, X. Dotiwalla, A. Chouard, V. Patnaik, P. Tsui, J. Guo, Y. Zhou, Y. Chai,
+     B. Caine, et al. Scalability in perception for autonomous driving: Waymo open dataset. In
+     Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     2446–2454, 2020.
+
+
+
+
+                                                 13
+Appendix / Supplemental Materials
+3D Reconstruction                                           3D Reconstruction
+with CoMo3R-SLAM                                            (Normal)
+
+
+
+
+                                                 Agent 1                                                Agent 2
+
+
+
+Figure 5: CoMo3R-SLAM performs collaborative monocular dense SLAM from two RGB-only agent streams
+on the outdoor Courthouse scene [1]. Given monocular image sequences with limited cross-agent overlap, our
+system estimates globally aligned camera trajectories, establishes inter-agent constraints, and reconstructs a
+consistent dense scene geometry without depth sensors.
+
+
+A      Additional Methodology Details
+This section provides the formulas, derivations, and algorithmic specifics that the main paper omits
+due to space. It expands on the per-agent residuals (Sec. A.1) and their analytical Jacobians on
+Sim(3) (Sec. A.2); makes the multi-agent factor-graph notation explicit (Sec. A.3); writes the
+closed-form gauge synchronization and its fallback (Sec. A.4); completes the known-calibration
+variant (Sec. A.5); and gives the full segment-level depth refinement together with the terminal
+pose-depth alternation (Sec. A.6 to Sec. A.7). The final paragraph (Sec. A.8) details how the
+globally-optimized poses are propagated back to each agent.
+
+A.1     Ray-and-Range Residuals and Per-Match Weighting
+
+The tracking energy of Eq. (2) and the global energy of Eq. (5) share a common per-match residual
+                                       "                       #
+                                               j          i
+                                         ψ T Xj,n  − ψ X̂i,m
+                           emn (T ) =          j         i
+                                                                  ∈ R4 ,                      (6)
+                                           T Xj,n  − X̂i,m
+whose unit-ray component lies on the unit 2-sphere, which is a 2-dimensional submanifold of R3 .
+Therefore, its three entries carry only two intrinsic degrees of freedom. we keep the redundant 3-
+vector form because the projector that appears in the analytical Jacobian (Eq. (10)) makes this rank-2
+structure explicit at the linearisation level and preserves the closed-form Jacobian block used below.
+The diagonal covariance
+                               1
+                                                                         q
+                                  Σ, Σ = diag σr2 I3 , σd2 , qmn = Qjj,n Qii,m ,
+                                                            
+                   Σmn =                                                                           (7)
+                             qmn
+separates the angular noise σr of a ray observation from the metric noise σd of a range observation,
+and divides by the geometric mean of the two endpoint descriptor confidences so that the prior’s own
+uncertainty modulates the influence of each match. The robust energies of Eqs. (2) and (5) apply the
+Huber kernel ρ(·) of breakpoint k = 1.345 independently to each entry of the whitened residual; the
+per-match contribution
+                                           X4
+                                               ρ [Σ−1/2
+                                                               
+                                                    mn emn ]c                                      (8)
+                                           c=1
+lets ray and range outliers be downweighted independently, which is is important because the prior’s
+directional and metric noise can fail in markedly different regimes (e.g. a textureless surface yields
+
+
+                                                           14
+a sharp ray but an unreliable range). Each scalar component thus carries its own IRLS weight
+                                                                                    −1/2
+w(rc ) = min 1, k/|rc | , absorbed into the diagonal of the square-root information Σmn at every
+iteration of the solver of Sec. B.2.
+
+A.2   Analytical Jacobians on Sim(3)
+
+All solvers in CoMo3R-SLAM use the left-perturbation retraction T ← Exp(τ )T of Sec. 3.2 with
+τ = (v, ω, ζ) ∈ sim(3), where v ∈ R3 is the translation perturbation, ω ∈ R3 the rotation
+perturbation, and ζ ∈ R the log-scale perturbation. Writing x = T X with dx = ∥x∥, the directional
+derivative of a transformed point with respect to τ is
+                                Dx
+                                   = I3 − [x]× x ∈ R3×7 ,
+                                               
+                                                                                                    (9)
+                                Dτ
+which is the same block used by the original MASt3R-SLAM derivation [18]. The unit-ray and
+range Jacobians follow by the chain rule:
+
+                                                xx⊤           x⊤
+                                                   
+                          Dψ(x)        1                Ddx
+                                  =         I3 − 2    ,     =    .                    (10)
+                            Dx        dx         dx     Dx    dx
+
+Writing the per-match residual of Eq. (6) as emn = (e⊤       ψ , ed )
+                                                                      ⊤
+                                                                        with the unit-ray block eψ =
+       j          i                                               j
+ψ(T Xj,n ) − ψ(X̂i,m  ) ∈ R3 and the range scalar ed = ∥T Xj,n ∥ − ∥X̂i,m     i
+                                                                                ∥ ∈ R, the chain rule
+                    3×7                     1×7
+yields ∂eψ /∂τ ∈ R       and ∂ed /∂τ ∈ R        that are stacked into a 4×7 block per match. For a
+                           −1
+relative-pose edge Tij = TW  Ci TW Cj
+                                      , the  contribution of τ at the two endpoints follows from the
+Sim(3) adjoint AdT : sim(3) → sim(3) defined by T exp(ξ)T −1 = exp(AdT ξ) [52],
+                           DTij                         DTij
+                                 = −AdT −1 ,                  = +AdT −1 ,                          (11)
+                          DTW Ci       W Ci            DTW Cj       W Ci
+
+
+
+so that every edge contributes the same residual block to two 7×7 diagonal Hessian entries and one
+off-diagonal block, regardless of whether the edge is intra-agent or inter-agent. This sparsity pattern
+is what allows the solver of Sec. B.2 to scale to the unified multi-agent factor graph at a constant
+per-edge cost.
+
+A.3   Unified Multi-Agent Factor Graph
+
+The coordinator maintains a single factor graph G = (V, E) whose vertices i ∈ V are addressed
+                                                                       PNa −1 kf
+in a single flat global index space {0, 1, . . . , N −1}, where N = a=0      Na is the total number
+of keyframes across all agents. A side map a(i) ∈ {0, 1, . . . , Na − 1} records the originating
+agent identity of vertex i, and each agent a keeps a private local-to-global map so that its front-end
+can address its own keyframes both by local index (for local fusion) and by global index (for the
+coordinator’s solves). The edge set is E = Eintra ∪ Einter , including
+                                                             
+     Eintra = (i, j) a(i) = a(j), α(i, j) = 1 , Einter = (i, j) a(i) ̸= a(j), ν(i, j) = 1 ,       (12)
+
+where the admission predicate α(·, ·) selects the per-agent sequential edges that have been promoted
+to the global graph and ν(·, ·) selects the geometrically-verified cross-agent edges of Sec. 3.4; intra-
+agent loop closures are resolved inside each agent’s local LM-IRLS solve (Sec. 3.3) and do not
+enter E. Every edge, irrespective of class, stores the same payload: the two endpoints’ canonical
+pointmaps X̂ii , X̂jj , the dense correspondence index sets Mij , Mji with their validity masks, and
+the per-match confidences qmn . The global energy of Eq. (5) then expresses the relative pose as
+                                         −1
+                                  Tij = TW Ci TW Cj ,    ∀(i, j) ∈ E,                              (13)
+
+so intra- and inter-agent edges contribute residuals of identical shape. To remove the global Sim(3)
+gauge freedom, the keyframe at global index 0 (the first keyframe of the anchor agent) is held fixed;
+only the remaining N − 1 poses are updated.
+
+
+                                                  15
+A.4   Closed-Form Gauge Synchronization and Rigid-Snap Fallback
+
+When a verified inter-agent edge first connects two agents that have not yet been gauge-aligned,
+the coordinator transports the entire keyframe chain of the higher-indexed agent into the gauge of
+the lower-indexed one. Let {(xk , yk )}N c
+                                        k=1 denote the matched pairs of canonical points lifted into
+their respective world frames,
+                             P with centroids   x̄, ȳ and centered point sets x
+                                                                               ek , y
+                                                                                    ek . Defining the
+cross-covariance Σxy = N1c k x   ek yek⊤ with SVD Σxy = U ΛV ⊤ and the proper-rotation diagonal
+D = diag(1, 1, det(U V ⊤ )), the optimal similarity transform from agent b’s frame to agent a’s
+frame is given in closed form [55] by
+                                                   tr(DΛ)
+                    R⋆ = U DV ⊤ ,      s⋆ =   1
+                                                    P          ,   t⋆ = x̄ − s⋆ R⋆ ȳ.            (14)
+                                              Nc         yk ∥2
+                                                      k ∥e
+                                  ⋆ ⋆ ⋆
+The resulting similarity T ⋆ =    s R t
+                                    0  1    ∈ Sim(3) is left-multiplied onto every keyframe pose of
+the unsynchronized agent,
+                               TW Ci ← T ⋆ TW Ci ,       ∀i with a(i) = b,                        (15)
+so that the moving agent’s full chain enters the anchor’s gauge in a single transport step. The closed-
+form solver requires a minimum of Nc ≥ 64 high-confidence correspondences; below this threshold
+the SVD is poorly conditioned and the coordinator instead falls back to a rigid snap derived from
+                                                −1
+the two edge endpoints, setting T ⋆ = TW Ci TW    Cj and applying it via Eq. (15) to every keyframe of
+the moving agent. Equivalently, the moving endpoint TW Cj is snapped to coincide with the anchor
+endpoint TW Ci , while the rest of the moving chain is rigidly transported by the same similarity
+so the chain remains internally consistent; the subsequent global Sim(3) bundle adjustment then
+absorbs the remaining residual misalignment. By always anchoring the lower-indexed agent in each
+newly-connected pair, with agent 0 as the root, all chains are transitively transported into a single
+common gauge, providing a well-conditioned initialization for the optimization of Sec. B.2.
+
+A.5   Known Calibration
+
+The method above assumes no camera intrinsics, where every residual, association, and optimization
+operates purely on the rays and ranges predicted by the learned prior. When a per-agent calibration
+       fx 0 cx 
+K = 0 fy cy is available, CoMo3R-SLAM exploits it through two localized changes that leave
+        0   0 1
+the architecture, the factor graph, and the solvers untouched. First, before a keyframe’s canonical
+pointmap enters tracking, the global bundle adjustment, or the depth refinement, it is constrained to
+the rays defined by K: only the predicted range zp is retained, while each pixel’s bearing is locked
+to the calibrated pixel grid,
+                                                up
+                                               " #
+                                            −1
+                                                              
+                                X̂p ← zp K       vp , zp = X̂p 3 ,                               (16)
+                                                 1
+so the pointmap collapses to a per-pixel depth living on the calibrated ray bundle. Second, the unit-
+ray and range components of emn in Eq. (6) are replaced by a pixel-reprojection error and a log-depth
+                                                                                             ⊤
+error, both evaluated at the calibrated projection ΠK (x) = (fx x + cx z)/z, (fy y + cy z)/z :
+                                      "                              #
+                                                     j 
+                                            ΠK T Xj,n    − pi,m
+                           cal
+                          emn (T ) =            j          i  ∈ R3 ,                         (17)
+                                        log T Xj,n  3
+                                                      − log  X̂i,m 3
+where pi,m is the observed pixel coordinate in image i. The Mahalanobis weighting becomes
+                           2     2
+Σcal
+  mn = (1/qmn )diag(σp I2 , σz ) with a per-pixel reprojection noise σp and a per-log-depth noise
+σz ; the component-wise Huber kernel and IRLS reweighting carry over verbatim. Writing x =
+     j
+T Xj,n  = (x, y, z)⊤ , the calibrated pixel Jacobian needed by the solver is
+                                                                   
+                                  ∂ΠK (x)      1 fx 0 −fx x/z
+                                            =                         ,                      (18)
+                                     ∂x        z 0 fy −fy y/z
+
+                                                    16
+composed with Dx/Dτ of Eq. (9) to obtain the 2×7 contribution to the block Hessian; the log-depth
+row ∂ log z/∂x = (0, 0, 1/z) is composed with the same Dx/Dτ to give the remaining 1×7 contri-
+bution. However, the segment-level depth refinement of Sec. A.6 is left unchanged: its per-segment
+Gauss-Newton residual and Jacobians are the same expressions in either mode, because calibration
+only alters the ray basis on which the per-segment log-scales act through Eq. (16). Because the
+learned prior already supplies metric pointmaps, known intrinsics serve merely to sharpen this ray
+basis rather than to enable the system, so the uncalibrated and calibrated variants share a single
+optimization pipeline.
+
+A.6   Segment-Level Depth Refinement
+
+Segments from geometry. Once the pose solve has converged, the coordinator refines the dense
+geometry of every keyframe; this refinement is then alternated with short pose passes as detailed in
+Sec. A.7, and each call proceeds as follows. Each canonical pointmap is oversegmented into com-
+pact patches whose pixels share a single depth degree of freedom. The segmentation is computed
+by SLIC [56], but the input channels are not RGB; instead they are the per-pixel surface normals
+estimated from central differences of the canonical pointmap and the canonical log-range linearly
+normalised to [0, 1], so segment boundaries align with 3D structure rather than appearance. SLIC it-
+self runs on the full normal-and-log-range feature image and is not masked by confidence; after clus-
+tering, pixels whose accumulated MASt3R confidence falls below a dedicated threshold cseg have
+their labels overwritten with −1 so that low-confidence regions never enter the per-segment solver.
+Segment boundaries may therefore still span low-confidence regions, which we allow deliberately
+to avoid fragmenting the segmentation under spatially noisy confidence; only the low-confidence
+pixels themselves are excluded from the solve. Segments containing fewer than 16 valid pixels are
+subsequently dropped into the same invalid mask to avoid ill-conditioned per-segment Newton steps.
+After relabelling, the k-th keyframe is associated with Mk dense, contiguous segment labels indexed
+by g ∈ {0, . . . , Mk −1}.
+
+Per-segment log-scale parameterisation. For every valid pixel p in segment g of keyframe k, the
+refined point is constrained to lie along the prior’s ray with a single multiplicative correction,
+                               k              k                     k
+                                                                            
+                             X̂k,p (sg ) = X̂k,p,init  exp(sg )ψ X̂k,p,init   ,                    (19)
+          k
+where X̂k,p,init is the pristine, frozen MASt3R canonical pointmap snapshot taken at the moment the
+keyframe was first inserted, and sg ∈ R is the lone unknown for the entire segment. In the calibrated
+variant of Sec. A.5, the snapshot has already been constrained to the K-rays via Eq. (16) before
+                                                   k
+the keyframe enters depth refinement, so ψ(X̂k,p,init    ) coincides with the calibrated pixel ray and
+Eq. (19) is unchanged in either mode. P    Stacking all log-scales over all keyframes yields the global
+parameter vector s ∈ RM with M = k Mk , typically two to three orders of magnitude smaller
+than the per-pixel depth space. Log-space keeps the boundary and prior residuals (Eqs. (22) to (23))
+linear in s; the data residual of Eq. (21) remains non-linear in s via exp(sg ) and is linearised at each
+Gauss-Newton step, but the log parameterisation keeps both halves immune to exp(·) overflow.
+
+Per-segment Energy.      The refinement minimises a sum of three terms,
+                            Edepth (s) = Edata + λsmooth Ebnd + λprior Eprior ,                    (20)
+each computed at frozen poses. Because Tij is held fixed during depth refinement, the ray com-
+ponent of Eq. (6) contributes only a constant offset; we therefore replace the ray-and-range factor
+by a 3D-point residual in the source camera frame, evaluated under the parametrisation of Eq. (19),
+whitened by an isotropic per-component noise σpoint modulated by the same per-match confidence
+qmn of Eq. (7), and summed component-wise under Huber over the same intra- and inter-agent
+edges E that the pose solve uses (matches with qmn ≤ qmin are dropped by the same Q-gate as in
+the pose solve, while low-confidence endpoint pixels have already been removed upstream by the
+SLIC-stage pre-filter via the −1 label, so the data residual is evaluated only on valid-label pairs),
+                                            3     √             j              i
+                                                                                      !
+                          X         X     X          qmn Tij X̂j,n  (s) − X̂i,m   (s) c
+               Edata =                         ρ                                         ,         (21)
+                                           c=1
+                                                                  σpoint
+                        (i,j)∈E (m,n)∈Mij
+
+
+                                                   17
+so cross-agent correspondences constrain structure directly through the per-segment scalars rather
+than through pose updates. The boundary term operates on the unique unordered 4-adjacent seg-
+                                                                                                init
+ment pairs (a, b) of every keyframe, with a representative log-depth ratio ∆ab = log dinit
+                                                                                      a − log db
+averaged across the shared boundary pixels,
+                                         X                      2
+                                Ebnd =          (sa − sb ) + ∆ab ,                            (22)
+                                         (a,b)∈B
+
+which drives the refined log-depths log da = log dinit                         init
+                                                     a + sa and log db = log db + sb to agree at
+the shared boundary; the log-space form makes this residual linear in s, scale-invariant, and exp-
+overflow-free. Finally, the prior term anchors each segment to the learned geometry,
+                                                       M
+                                                       X
+                                            Eprior =         s2g ,                                   (23)
+                                                       g=1
+
+so that in the absence of cross-edge evidence the segment depth defaults to the MASt3R prediction
+sg = 0 ⇒ dp = dinit p . With both λsmooth and λprior set to 1.0, the boundary and prior contributions
+are commensurate with the data term under the configured σpoint .
+
+Per-segment Newton step. Following the standard Gauss-Newton convention used throughout the
+paper, the three energies of Eqs. (21) to (23) are written without the conventional 12 prefactor and
+the prefactor is absorbed into the solver, so that the prior contributes λprior I to the segment Hessian.
+The data and boundary terms apply the same Jacobi-style decoupling at the Hessian level: whenever
+a residual couples two distinct segments a, b, only the diagonal entries Ja⊤ W Ja and Jb⊤ W Jb of
+the true 2×2 Gauss-Newton block are accumulated into Hseg [a] and Hseg [b], while the off-diagonal
+cross-segment entry Ja⊤ W Jb is dropped. For the data residual of Eq. (21), the chain-ruled segment
+Jacobians are Ja = −di rayi and Jb = dj (sij Rij rayj ) at a match (m, n) ∈ Mij whose endpoints
+lie in segments a (pixel m of keyframe i) and b (pixel n of keyframe j), so the per-match Hessian
+splits into the diagonal contributions d2i ray⊤                   2               ⊤
+                                                   i W rayi and dj (sij Rij rayj ) W (sij Rij rayj ) while
+                             ⊤
+the cross block −di dj rayi W (sij Rij rayj ) is discarded. For the boundary residual rab = (sa −
+sb ) + ∆ab the constant Jacobians (+1, −1) make the diagonal contributions equal to λsmooth at each
+of segments a and b, and the dropped off-diagonals equal to −λsmooth . In both cases the cross-
+segment information is retained in the gradient through the shared residual: the data term adds
+Ja⊤ W r to gseg [a] and Jb⊤ W r to gseg [b], and the boundary term adds ±λsmooth rab at the two endpoints.
+This Jacobi-style decoupling at the Hessian level reduces the per-iteration solve to independent per-
+segment 1×1 damped-Newton steps (Eq. (24)) that map trivially onto a single GPU pass. The exact
+gradient is preserved, so the iteration targets the same first-order optimality condition gseg = 0 as a
+coupled solver, where only the curvature model used to choose the step direction is approximated;
+in practice this costs a handful of additional Gauss-Newton iterations against the coupled alternative
+while removing all inter-segment fill-in from the linear system. After accumulating Hdata , Hbnd
+and Hprior ≜ λprior I in parallel on the GPU (the prior likewise contributing λprior sg to gseg [g]), the
+segment-wise normal equation
+                                                             
+                                      Hdata + Hbnd + Hprior ∆s = −g                                   (24)
+is solved through the same LM-IRLS pipeline as the pose solve of Sec. B.2, with depth-specific
+LM damping λlm = 0.05 on the per-segment 1×1 Hessian and a per-iteration step clip ∆sg ≤
+smax where smax = 0.5 keeps cumulative |sg | bounded so that exp(sg ) cannot overflow. Pinned
+keyframes (e.g. the global anchor) have their segments held fixed; all other segments are updated
+each iteration. The solver runs for at most 10 inner iterations per call.
+
+A.7   Alternating Pose-Depth Optimisation at Cleanup
+
+Pose and structure are coupled only through the data term: the boundary and prior terms in Eq. (20)
+are independent of {TW Ci }, and the global energy of Eq. (5) is independent of s. After all agents
+have terminated, the coordinator therefore exploits this block-coordinate structure with the following
+schedule:
+
+
+                                                   18
+  1. Run global pose LM-IRLS over Eq. (5) (depths frozen) for at most 100 iterations; repeat
+     up to 5 passes until maxi ∥∆tW Ci ∥2 < 5mm.
+  2. For r = 1, . . . , R with R = 100:
+       (a) build segments from each keyframe’s current canonical pointmap via Eq. (19);
+       (b) refine s by Eq. (24) (poses frozen, 10 inner iterations);
+       (c) write the updated X̂ back into the canonical pointmaps;
+       (d) run a short pose pass (Eq. (5), 50 iterations) so the poses absorb the depth change;
+       (e) broadcast the new global poses to all agents.
+The alternation is the smallest schedule that lets each side react to the other while reusing both LM-
+IRLS solvers verbatim. Each sub-problem is a damped LM step on its own block of variables, and
+the shared data term keeps the two energies tightly coupled. We do not enforce strict monotonicity
+in Eglobal + Edepth across the alternation, where the pose Gauss-Newton loop applies each computed
+update without a cost evaluation or rollback, and the per-segment step clip |∆sg | ≤ smax admits
+inner sub-steps that do not strictly decrease Edepth , however, in practice the schedule converges
+within a handful of rounds across all of our experiments.
+
+A.8   Global-to-Local Pose Propagation
+
+The global pose solve is triggered once the number of newly admitted inter-agent edges reaches
+a configurable interval, and the depth refinement runs in the terminal cleanup together with the
+pose-depth alternation of Sec. A.7. After each solve, including every round of the terminal pose-
+depth alternation, the coordinator pushes a lightweight pose update message onto the per-agent
+multiprocessing queue; each agent then overwrites the world poses of its keyframes from the shared
+global pose buffer through the local-to-global index map of Sec. A.3 (the gauge anchor is pinned
+during the global solve, so the corresponding write is a no-op), so subsequent front-end tracking is
+expressed directly in the shared global frame. Each non-keyframe is recorded by its front-end as
+a tuple (frame id, kanchor , T rel ), where kanchor is the global index of the most recent local keyframe,
+which is the keyframe the front-end tracked the frame against, and T rel ∈ Sim(3) is the relative
+pose computed at tracking time. At trajectory save time the non-keyframe poses are reconstructed
+     frame                   rel
+as TW   C = TW Ckanchor · T , so any pose update absorbed by an anchor keyframe is automatically
+inherited by all of its child frames without a separate broadcast. The result is a set of globally
+aligned camera trajectories at the full input frame rate over all successfully tracked frames, and a
+single consistent dense reconstruction for the whole robot team, obtained without any depth sensor.
+
+B     Additional Implementation Details
+
+B.1   Experimental Setup
+
+CoMo3R-SLAM is implemented in PyTorch with custom CUDA extensions for the GPU-
+accelerated Sim(3) bundle adjustment, the dense pointmap projective matching, and the segment-
+level depth refinement. Each agent runs as an independent process and communicates with the
+coordinator only via lightweight keyframe messages over a pair of inter-process queues, where one
+carrying new-keyframe payloads from each agent to the coordinator, and one carrying pose-update
+and termination signals from the coordinator back to the agents, therefore, the two agents in our ex-
+periments are fully decoupled at runtime and the pipeline scales transparently to additional agents.
+All experiments are conducted with NVIDIA RTX 3080ti GPUs; the full collaborative system, in-
+cluding both agent front-ends and the coordinator’s retrieval, verification, gauge synchronization,
+and global Sim(3) bundle adjustment, sustains around 8 FPS per agent end-to-end. Unless oth-
+erwise noted, the headline numbers in Tables 1 and 2 are produced in the uncalibrated regime, in
+which the known-calibration switch is disabled; the calibrated ablation of Table 6 enables the same
+switch without any other change to the pipeline. Hyperparameters used throughout the paper follow
+the released configuration (Table 3).
+
+
+                                                   19
+B.2   GPU-Accelerated LM-IRLS Solver
+
+Every Sim(3) optimization in CoMo3R-SLAM, where the per-frame tracker (Eq. (2)), the per-agent
+local solve (Sec. 3.3), and the global bundle adjustment over Eq. (5), which is performed by the same
+GPU-accelerated Levenberg-Marquardt within IRLS (LM-IRLS) routine. For N = |V| keyframes,
+the per-edge residuals, Huber reweights, and analytic Jacobians of Sec. A.2 are accumulated in
+parallel on the GPU into a sparse block Hessian H ∈ R7N ×7N and gradient g ∈ R7N . Partitioned
+per-keyframe tangent vectors τi ∈ sim(3) then satisfy the damped normal equations
+                                           
+                      H + λdiag(H) + ϵr I τ = −g, TW Ci ← Exp(τi )TW Ci ,                         (25)
+
+with λ the LM damping coefficient and ϵr a Tikhonov regulariser, and the left-perturbation retraction
+of Sec. 3.2. The local-per-agent and global bundle-adjustment paths run inside a CUDA backend
+that pins λ ≡ 0 at all call sites and uses a Tikhonov-only escalation starting at ϵ0 = 10−6 , so Eq. (25)
+reduces to a Tikhonov-regularised Gauss-Newton step in those two solvers. The pose of the single
+anchor keyframe at global index 0 is held fixed to remove the global Sim(3) gauge freedom, and
+only the remaining N − 1 poses are updated.
+
+Huber-IRLS reweighting. The robust outer loop is a standard iteratively reweighted least squares.
+At every LM iteration, each residual contributes to H and g a multiplicative weight w(r) =
+min 1, k/|r| with the Huber breakpoint k = 1.345, recomputed from the residuals of the previous
+iterate. This is the same robust kernel used inside the tracking energy of Eq. (2), and it produces
+a smooth bounded influence function that down-weights residuals incurred by outliers without dis-
+carding them outright.
+
+Sparse Cholesky and Tikhonov escalation. The damped system in Eq. (25) is solved by a sim-
+plicial sparse Cholesky factorisation of the assembled 7N × 7N Hessian. Multi-agent loop-closure
+graphs frequently produce ill-conditioned Hessians for which a plain factorisation fails; we there-
+fore escalate the Tikhonov term geometrically, ϵr = ϵ0 · 100r with ϵ0 = 10−6 , for up to R = 6
+retries (ϵ ∈ {10−6 , 10−4 , 10−2 , 100 , 102 , 104 }) until the factorisation succeeds. This regularisation
+is a numerical safeguard only; on a well-conditioned system the very first attempt (r = 0) is used
+and the step is a near-pure Gauss-Newton update. If all six attempts fail, and the solver returns a
+zero step.
+
+Convergence criterion. The per-frame tracker, which evaluates the joint cost each outer iteration,
+terminates when either the relative cost decrease falls below 10−3 or the global step norm ∥τ ∥2 falls
+below 10−3 . The per-agent local solve and the global bundle adjustment skip the cost evaluation
+and terminate solely on the step-norm criterion ∥τ ∥2 < 10−8 . The per-frame tracker uses up to 50
+outer iterations; the per-agent local solve uses up to 10; the in-stream global solve uses up to 50; the
+terminal cleanup passes use up to 100 each, as detailed in the alternation schedule of Sec. A.7.
+
+B.3   Cross-Agent Retrieval Backend
+
+The cross-agent retrieval step of Sec. 3.4 is built directly on top of the MASt3R retrieval head.
+Concretely, each keyframe’s MASt3R encoder tokens are passed through the HOW-style projection
+branch of [53]. That branch chains an input pre-whitening, a low-rank projector, a per-token atten-
+tion map, and an output post-whitening, and emits one ℓ2 -whitened local descriptor and one attention
+score per spatial token. The top-Nloc tokens by attention are kept as the keyframe’s local descriptors.
+The descriptors are aggregated by binary ASMK [54]. The resulting per-keyframe ASMK record is
+appended to a single shared inverted-file (IVF) database that is owned by the coordinator and tagged
+by agent identity; nearest-centroid search inside the IVF runs on a Faiss L2 index. For each new
+keyframe we issue one query against this shared IVF, keep only the top kNN = 3 retrieved keyframes
+that belong to a different agent than the query, and reject any candidate whose ASMK similarity
+falls below the threshold 5×10−3 of Table 3; survivors enter the dense geometric-verification stage
+of Sec. 3.4. The hyperparameter values are reported in Table 3.
+
+
+                                                    20
+B.4   Datasets and Per-Agent Stream Construction
+
+We evaluate on two outdoor benchmarks. Tanks and Temples (T&T) [1] contributes four outdoor
+scenes; Waymo Open [59] contributes four driving sequences. For each sequence, we manually
+pre-split the original monocular RGB stream into two small-overlapping sub-sequences and stage
+them as two separate frame directories, simulating a pair of robots traversing the same scene inde-
+pendently and meeting only at the trajectory’s overlap regions; the two directories are then handed
+to the system at launch as the input streams of the two agents, one directory per agent. Images are
+resized so that the longer side is 512 pixels before being fed to the MASt3R prior; in the calibrated
+regime, the per-sequence intrinsic matrix is rescaled to the same resolution and the principal point
+is recentred so the calibrated rays of Eq. (16) stay consistent across resolutions.
+
+B.5   Evaluation Protocol and Metrics
+
+Tracking accuracy is reported as the Absolute Trajectory Error (ATE) RMSE in metres, computed
+per agent with the standard EVO evaluation toolkit, which aligns the estimated trajectory to ground
+truth with a closed-form Sim(3) Umeyama alignment. We deliberately align in Sim(3) rather than
+SE(3) because our front-end and back-end optimize on Sim(3) throughout: any residual gauge or
+scale drift inherited from the monocular prior is absorbed into the alignment. Per-scene results in
+Tables 1, 2, and 6 are the means of the two per-agent ATE values for the scene.
+For reconstruction, each keyframe’s globally-optimized canonical pointmap is thresholded by
+MASt3R confidence (C > Cconf ), coloured from the original RGB frame, and concatenated across
+all keyframes of all agents into a single fused, coloured point cloud.
+
+B.6   Hyperparameters
+
+Table 3 lists every hyperparameter used in the reported experiments, grouped by subsystem. All
+values match the released configuration; the only ablation knob we vary between Tables 1-2 and
+Table 6 is the boolean known-calibration switch, which substitutes the residual of Eq. (6) with that
+of Eq. (17).
+
+C     Additional Experimental Results
+C.1   Ablation Studies
+
+This subsection isolates the contribution of two design choices that the main paper folds into the
+headline configuration: the cross-agent loop closure that fires inside the global Sim(3) bundle ad-
+justment of Eq. (5), and the per-segment log-scale parameterisation of the terminal depth refinement
+of Eqs. (19)-(23). All numbers are produced in the uncalibrated regime, so they are directly com-
+parable to the headline T&T column of Table 1, and follow the same per-agent ATE RMSE [m]
+protocol of Sec. B.5.
+Loop closure. Table 4 reports per-agent and per-scene ATE on the four T&T sequences with and
+without cross-agent loop closure, while keeping every other component of the system unchanged.
+With loop closure, the average ATE drops from 0.099 m to 0.051 m on Barn and from 0.091 m
+to 0.053 m on Truck, a relative improvement of 48.5% and 41.8% respectively. The mechanism
+is the one detailed in Sec. A.3-Sec. A.4: once two agents have been geometrically verified, the
+closed-form Umeyama gauge synchronisation of Eq. (14) transports the moving chain into the an-
+chor’s gauge with a metric-consistent scale, and the subsequent global Sim(3) solve redistributes the
+cross-agent residual through both agents’ trajectories rather than letting it accumulate at the meeting
+point. The Ignatius sequence is the one case where the average ATE is slightly worse with loop
+closure (0.144 m vs. 0.115 m); inspecting the per-agent breakdown, this is driven by a single agent’s
+chain (0.218 m), where the locally-symmetric statue surface yields a small number of borderline-
+confidence cross-agent matches that survive the verification gate of τinter =0.1 and pull the gauge
+in a direction that the per-agent retrieval cannot self-correct, so the gauge-aligned solve trades a
+
+
+                                                  21
+                                   Table 3: Hyperparameter settings used throughout the paper.
+ Subsystem                                    Symbol      Value                            Meaning
+ Front-end input                              H ×W        512 (long side)                  MASt3R input resolution
+ Front-end input                              -           30 Hz                            Nominal frame rate
+ Front-end input                              -           subsample 2                      Multi-agent frame stride
+ Tracking (Eq. (2))                           σr          3×10−3                           Unit-ray noise
+ Tracking (Eq. (2))                           σd          10                               Range noise
+ Tracking, calibrated (Eq. (17))              σp          1                                Pixel-reprojection noise
+ Tracking, calibrated (Eq. (17))              σz          10                               Log-depth noise
+ Tracking (Eq. (2))                           k           1.345                            Huber breakpoint
+ Tracking (Eq. (2))                           -           50 / 10−3 / 10−3                 max iters / rel-cost tol / step tol
+ Keyframing                                   -           0.333                            min(ν, νuniq ) threshold for new KF
+ Keyframing                                   Qmin        1.5                              Min descriptor confidence
+ LM solver, tracker (Eq. (25))                λ0          10−6                             Initial LM damping (tracker only)
+ LM solver, tracker (Eq. (25))                λmax        103                              Max LM damping (tracker only)
+ LM solver, tracker (Eq. (25))                ϵmin
+                                                r         10−9                             Tikhonov floor (tracker only)
+ LM solver, local/global (Eq. (25))           λ           0                                LM damping pinned to zero in CUDA backend
+ LM solver, local/global (Eq. (25))           ϵ0          10−6                             Tikhonov base (CUDA backend)
+ LM solver, local/global (Eq. (25))           R           6 (up to ϵ = 104 )               Tikhonov retries on Cholesky failure
+ Local per-agent solve                        -           10 iters, pin 1                  Max iters; # fixed keyframes
+ Local per-agent solve                        -           10−8                             Step-norm tolerance ∥τ ∥2
+ Cross-agent retrieval                        -           64k                              ASMK codebook size (released, frozen)
+ Cross-agent retrieval                        -           binary, no IDF, α=3              ASMK kernel / weighting / selectivity
+ Cross-agent retrieval                        -           1/5                              Multiple assignment (build / query)
+ Cross-agent retrieval                        kNN         3                                ASMK top-k per query
+ Cross-agent retrieval                        -           5×10−3                           ASMK similarity threshold
+ Inter-agent verification                     τinter      0.1                              Min cross-agent match fraction
+ Gauge sync (Eq. (14))                        Ncmin       64                               Min correspondences for Umeyama
+ Global BA                                    -           1 edge                           Trigger interval
+ Global BA (in-stream)                        -           50 iters                         Max LM-IRLS iterations
+ Global BA (cleanup)                          -           100 iters ×5 passes              Max iters / max passes
+ Global BA (cleanup)                          -           5 mm                             Early-stop max∥∆t∥
+ Depth refinement (Eq. (19))                  Mk          ≈ 200                            SLIC target seed count per KF
+ Depth refinement (SLIC)                      -           compactness 8.0, σ = 1.0         SLIC trade-off and pre-blur
+                                                  SLIC
+ Depth refinement (SLIC)                      Cmin        1.5                              Pixel-mask confidence threshold
+ Depth refinement (Eq. (21))                  σpoint      0.05                             Point measurement noise
+ Depth refinement (Eq. (20))                  λsmooth     1.0                              Boundary weight
+ Depth refinement (Eq. (20))                  λprior      1.0                              Prior weight
+ Depth refinement (Eq. (24))                  λlm         0.05                             Multiplicative LM damping
+ Depth refinement (Eq. (24))                  smax        0.5                              Per-iter |∆sg | clip
+ Depth refinement                             -           10 inner iters                   Per-call segment Newton iterations
+ Alternation (Sec. A.7)                       R           100                              Max alternation rounds
+ Mesh visualisation                           τslant      0.1                              Grazing-angle cull in viewer geometry shader
+                                                  viz
+ Mesh visualisation                           Cconf       GUI slider                       Per-pixel confidence threshold for quad emission
+
+Table 4: Ablation of cross-agent loop closure on Tanks and Temples [1]. ATE RMSE [m] is reported per agent
+and as the per-scene average, with all other components (front-end, gauge synchronisation, depth refinement)
+held fixed. The “w/ Loop Closure” columns reproduce the default configuration; “w/o Loop Closure” disables
+the cross-agent retrieval and verification of Eq. (12).
+                    w/ Loop Closure                 w/o Loop Closure                         w/ Loop Closure               w/o Loop Closure
+ Scene                                                                       Scene
+               Agent 1   Agent 2    Average    Agent 1   Agent 2   Average              Agent 1   Agent 2   Average   Agent 1   Agent 2   Average
+ Barn           0.057     0.045      0.051      0.094     0.103     0.099    Ignatius    0.070     0.218     0.144     0.131     0.098     0.115
+ Caterpillar    0.092     0.112      0.102      0.097     0.124     0.111    Truck       0.060     0.046     0.053     0.096     0.086     0.091
+
+
+
+small amount of accuracy on the noisier agent against a tighter inter-agent constraint. Loop closure
+remains a net positive on the dataset average and is the default in all reported numbers.
+Depth parameterisation. Table 5 compares three variants of the alternating depth-pose refinement
+of Sec. A.7 on Barn and Truck scenes, with the rest of the pipeline held fixed. The per-pixel variant
+exposes one log-scale per pixel and drops the segment boundary term, so the data residual of Eq. (21)
+drives every pixel independently with only the per-pixel prior of Eq. (23) acting as regulariser. The
+per-pixel + Laplacian variant adds a 4-neighbourhood Laplacian smoothness penalty on log-depth,
+which is the natural per-pixel analogue of the segment boundary term of Eq. (22) but lives in the
+full pixel-resolution unknown space. The per-segment (SLIC) variant is the configuration of Sec.
+A.6, in which SLIC on per-pixel normals and log-range groups each keyframe into roughly 200
+compact segments and the per-segment boundary term of Eq. (22) couples adjacent log-scales. On
+
+
+                                                                        22
+Table 5: Ablation of the depth parameterisation used inside the alternating pose-depth refinement of Sec. A.7
+on Tanks and Temples [1] with ATE RMSE [m]. “Per-pixel” exposes one log-scale per pixel with only the prior
+of Eq. (23); “Per-pixel + Laplacian” adds a 4-neighbourhood log-depth Laplacian smoothness penalty; “Per-
+segment (SLIC)” is the configuration of Sec. A.6, in which SLIC on geometry channels groups each keyframe
+into compact segments coupled by the boundary term of Eq. (22). All other components are held fixed.
+                                Per-pixel                Per-pixel + Laplacian          Per-segment (SLIC)
+              Scene
+                      Agent 1   Agent 2     Average   Agent 1   Agent 2   Average   Agent 1   Agent 2   Average
+              Barn     0.086     0.051       0.068     0.085     0.054     0.070     0.057     0.045     0.051
+              Truck    0.069     0.052       0.061     0.064     0.051     0.058     0.060     0.046     0.053
+
+                Per-pixel                             Per-pixel + Laplacian                       Per-segment (SLIC)
+Barn
+Truck
+
+
+
+
+Figure 6: Qualitative comparison of the three depth parameterisations of Table 5 on the Barn and Truck scenes.
+Per-segment (SLIC): geometry-aware segments cut the parameter count from H×W to ∼Mk per keyframe,
+so the joint pose-depth alternation of Sec. A.7 stays well-conditioned and recovers crisper boundaries that
+follow the underlying MASt3R prior.
+
+Barn, the per-segment parameterisation reduces ATE from 0.068 m (per-pixel) and 0.070 m (per-
+pixel + Laplacian) to 0.051 m. Two effects combine to produce this gap: the SLIC segments cut
+the depth degrees of freedom by two to three orders of magnitude (from H×W pixels per keyframe
+to Mk ≈200 scalars), so the joint pose-depth alternation of Sec. A.7 stays well-conditioned even
+when the cross-agent data term is sparse, and grouping by surface-normal and log-range respects
+3D discontinuities, so the boundary residual penalises only depth jumps that the prior itself does
+not predict. Figure 6 visualises the three depth refinement variants on a Barn and Truck scenes:
+the per-pixel and per-pixel + Laplacian reconstructions are noisier on weakly-textured regions and
+ragged along silhouette boundaries, while the per-segment refinement recovers crisp ground-plane
+and façade structure that aligns with the underlying MASt3R prior without the per-pixel speckle.
+
+C.2     Known vs. Unknown Calibration
+
+The headline numbers of Tables 1 and 2 are produced in the uncalibrated regime, where every resid-
+ual, association, and optimisation operates purely on the rays and ranges predicted by the learned
+MASt3R prior (Eq. (6)). This subsection isolates the contribution of the known-calibration switch
+of Sec. A.5, which is the only boolean we toggle between the two modes, leaving the front-end, the
+cross-agent association, the gauge synchronisation, and the depth refinement otherwise untouched.
+When calibration is enabled, each canonical pointmap is locked to the K-rays via Eq. (16) before
+it enters tracking, the global Sim(3) bundle adjustment, or the depth refinement, and the per-match
+residual of Eq. (6) is replaced with the pixel-reprojection plus log-depth residual of Eq. (17).
+Table 6 reports the resulting per-scene ATE on the four T&T sequences. On the dataset average,
+calibration tightens ATE from 0.094 m to 0.044 m, more than a 2× improvement, and the gain
+is consistent across scenes: 0.051 → 0.043 m on Barn, 0.102 → 0.089 m on Caterpillar, 0.144 →
+0.021 m on Ignatius, and 0.053 → 0.023 m on Truck. The takeaway is that CoMo3R-SLAM remains
+the best-in-class uncalibrated multi-agent system on these benchmarks (Table 1), and that the same
+system can additionally consume calibration when it is available, reaching accuracy that we are not
+aware of being matched by any prior monocular collaborative SLAM at this trajectory length.
+
+
+                                                                23
+Table 6: Quantitative comparison of tracking accuracy (ATE RMSE [m]) across different modes of CoMo3R-
+SLAM and scenes on the Tanks and Temples dataset [1]. § indicates our system with known calibration: each
+pointmap is constrained to the calibrated ray bundle via Eq. (16) and the per-match residual is replaced by the
+pixel-reprojection plus log-depth residual of Eq. (17). ‡ indicates the default uncalibrated regime of Eq. (6),
+identical to the configuration that produces the headline numbers of Table 1.
+
+                      Method                 Input   Barn    Caterpillar   Ignatius   Truck   Avg.
+                      §                      RGB     0.043     0.089        0.021     0.023   0.044
+                        CoMo3R-SLAM (Ours)
+                      ‡                      RGB     0.051     0.102        0.144     0.053   0.094
+                        CoMo3R-SLAM (Ours)
+
+
+           w/ Calib                                            w/o Calib
+Truck
+Ignatius
+
+
+
+
+Figure 7: Qualitative comparison of the calibrated and uncalibrated variants of CoMo3R-SLAM on the same
+Tanks and Temples [1] run. Both variants share a single SLAM pipeline; the only difference is the boolean
+switch of Sec. A.5 that locks the canonical pointmap to the calibrated ray bundle (Eq. (16)) and substitutes
+the pixel-reprojection plus log-depth residual of Eq. (17) for the ray-and-range residual of Eq. (6). Calibration
+sharpens the recovered complex structure and the silhouette of the object.
+
+
+C.3        Day-Night Robustness on In-the-Wild Handheld Captures
+
+A practical outdoor multi-agent SLAM system must also operate after dark, where exposure noise,
+sparse active light sources, and the collapse of low-frequency texture all degrade the appearance
+signal that a feature-based front-end would normally rely on. This subsection demonstrates that
+CoMo3R-SLAM is robust across the full illumination range by running the system, end-to-end, on
+two in-the-wild iPhone captures: a daytime two-agent traversal of one street and a separate night-
+time two-agent traversal of a second street, each acquired in the wild without any preparation.
+Capture protocol. We collected two independent two-agent sequences with a handheld iPhone. For
+the daytime experiment, the same street was walked twice under natural daylight; the two recordings
+serve as the two agent streams of a single multi-agent run. For the night-time experiment, the same
+protocol was repeated on a different street after dark, when the only illumination came from street-
+lamps and ambient light. Each pair of recordings is fed to CoMo3R-SLAM through the launcher
+used everywhere else in the paper, with no per-sequence tuning and with identical hyperparameters
+across the two regimes. The iPhone intrinsics are not provided to either run: both experiments exe-
+cute in the uncalibrated regime of Sec. 3.2, where every residual is the ray-and-range form of Eq. (6)
+and no K-matrix ever enters the optimisation.
+Why the system is expected to cope. CoMo3R-SLAM is well-suited to this regime by construc-
+tion. The cross-agent association of Sec. A.3 retrieves candidates by ASMK over MASt3R descrip-
+tors that were trained on broad outdoor distributions, and the verification gate of Sec. A.4 accepts a
+candidate only when the geometrically-consistent match fraction τinter =0.1 is reached in both direc-
+tions, so a candidate must survive a structural test before it can ever affect a pose. The per-match
+confidence qmn of Eq. (7) additionally re-weights every residual by the geometric mean of the two
+endpoint descriptor confidences, so matches whose endpoint is uncertain, which is the regime that
+dominates at night, are automatically attenuated in both the global Sim(3) solve and the depth refine-
+ment without ever needing a lighting-specific heuristic. Once an inter-agent edge passes verification,
+the closed-form Umeyama synchronisation of Eq. (14) is purely geometric and does not depend on
+the photometric appearance of the matched pixels, so the gauge transfer behaves identically whether
+the two agents observe a bright daytime façade or a streetlamp-lit night-time scene.
+
+
+                                                        24
+                                                  Agent 1                                                Agent 2
+
+
+                                                   5m
+
+
+
+
+                                           3D Reconstruction                                      3D Reconstruction
+Day (Light)                               with CoMo3R-SLAM                                                (Normal)
+
+
+
+                                                  Agent 1                                                Agent 2
+
+
+
+
+Night (Dark)
+
+
+
+
+                                           3D Reconstruction                                      3D Reconstruction
+                                          with CoMo3R-SLAM                                                (Normal)
+
+
+Figure 8: All-time robustness on in-the-wild handheld iPhone captures. We run CoMo3R-SLAM as two inde-
+pendent agents on two separate streets, each traversed twice with a handheld iPhone. Top: the daytime street,
+where both agents are recorded under natural illumination. Bottom: the night-time street, where both agents
+are recorded after dark with only streetlamps and ambient light. No camera calibration is supplied to either
+agent; both runs use the uncalibrated regime of Eq. (6) with identical hyperparameters. The same pipeline that
+succeeds in daylight also closes the loop between the two night-time agents, demonstrating that the system
+operates across the full day-night illumination range.
+
+Result. Figure 8 shows the two iPhone experiments side by side. In the daytime experiment (top),
+the two agents recorded along the same street are tied together by verified inter-agent edges and
+carried into a common metric frame by the global solve, producing a clean fused reconstruction
+of the façade and ground plane. In the night-time experiment (bottom), the same pipeline closes
+the loop between the two agents on a different street despite the sparser, lower-contrast appearance
+signal; the streetlamp- and headlight-lit foreground is recovered consistently across both agents.
+Critically, neither run receives any camera calibration or any lighting-specific tuning, to handheld
+iPhone footage captured both at noon and after dark. Together, the two captures demonstrate that
+CoMo3R-SLAM is robust across the full day-night illumination range in unprepared environments.
+
+C.4      Scalability to Three and Four Agents
+
+The main paper evaluates CoMo3R-SLAM in the two-agent regime to match every available multi-
+agent baseline at the same agent count. The system itself, however, is structurally agnostic to the
+number of agents: every component, where the per-agent front-end of Sec. 3.3, the union-find com-
+ponent tracker of Sec. A.4, the unified factor graph of Sec. A.3, the global Sim(3) bundle adjustment
+of Eq. (5), and the segment-level depth refinement of Sec. A.6, which is defined on the flat global
+keyframe index space {0, 1, . . . , N −1} rather than on a fixed agent count, and the implementation
+spawns one process per agent and one coordinator with no per-agent specialisation. This subsection
+verifies that the same pipeline scales transparently to three and four agents.
+Per-agent stream construction. For each Tanks and Temples scene [1], we partition the original
+monocular RGB stream into N ∈ {3, 4} small-overlapping sub-sequences using the same overlap-
+at-the-meeting-points protocol of Sec. B.4: every adjacent pair of sub-sequences retains a short
+shared traversal segment so that the cross-agent retrieval has a chance to fire an inter-agent edge
+between them. Each sub-sequence becomes one agent’s input directory at launch, so it works with
+no other change to the pipeline.
+Component formation. The gauge synchronisation of Sec. A.4 is driven by a union-find component
+tracker rather than by a static agent-index ordering: every accepted inter-agent edge either merges
+two existing components or attaches a new agent to an existing one, and only the chain of the
+
+
+                                                            25
+component that is not yet connected to the anchor (i.e., agent 0) is transported into the anchor’s
+gauge. In the three-agent configuration, the first accepted inter-agent edge merges two agents into
+a single component, and the next edge that connects this component to the third agent pulls that
+agent’s entire chain into the same gauge in one Umeyama transport; the same logic extends to
+four agents, with at most three sequential gauge transports bringing all four chains into a single
+component. The same rigid-snap fallback of Sec. A.4 guards against the rare case in which the
+first verified edge between two not-yet-connected components is supported by fewer than Ncmin =64
+correspondences, so the multi-agent gauge alignment never depends on a single noisy match. The
+result is that, throughout the three- and four-agent runs, the global factor graph remains a single
+connected component once the agents have met, and the global Sim(3) solve of Eq. (5) acts on
+every keyframe of every agent simultaneously.
+Reconstruction. Figure 9 shows the fused dense reconstruction obtained by CoMo3R-SLAM under
+the three- and four-agent partitions, with each agent’s keyframes colour-coded by agent identity. The
+reconstruction is a single coherent geometry: every agent’s pointmap contribution lands in the same
+metric frame and overlaps cleanly with the other agents’ contributions in the meeting regions. The
+coordinator’s 7N ×7N Hessian grows with the total keyframe count, not with the agent count, and
+the sparse Cholesky path of Sec. B.2 absorbs the additional cross-agent edges at constant per-edge
+cost.
+
+
+
+
+                                                 26
+                                                   Agent 1                                             Agent 2
+
+
+
+                                                   Agent 3
+
+
+
+Ignatius (3 Agents)
+
+
+
+
+                                                   Agent 1                                             Agent 2
+
+
+
+                                                   Agent 3
+
+
+
+
+Caterpillar (3 Agents)
+
+
+
+                                                   Agent 1                                             Agent 2
+
+
+
+                                                   Agent 3                                             Agent 4
+
+
+
+
+Barn (4 Agents)
+
+                                                   Agent 1                                             Agent 2
+
+
+
+                                                   Agent 3                                             Agent 4
+
+
+
+
+                                          3D Reconstruction                                   3D Reconstruction
+Truck (4 Agents)                        with CoMo3R-SLAM                                              (Normal)
+
+
+Figure 9: Multi-agent reconstruction with three and four agents on Tanks and Temples [1]. The union-find
+gauge-transport schedule of Sec. A.4 brings every agent’s chain into a single common Sim(3) frame, so the
+overlap regions between any pair of agents fuse seamlessly without any post-hoc registration step.
+
+
+
+
+                                                             27
+

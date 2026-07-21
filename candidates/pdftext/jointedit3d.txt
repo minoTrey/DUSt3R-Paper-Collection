@@ -1,0 +1,1608 @@
+                                             JointEdit3D: Feed-Forward 3D Scene Editing in a
+                                                           Unified Latent Space
+
+
+                                                            Xinnan Zhu1,2∗ Ruijie Xu1,2∗ Jiayu Ying1 Daoguo Dong3
+                                                                       Jiachen Xu4 Yuan Xie1 Xin Tan1,2†
+                                                      1
+                                                        East China Normal University 2 Shanghai Artificial Intelligence Laboratory
+                                                                            3
+                                                                              Fudan University 4 Tencent
+arXiv:2606.13345v1 [cs.CV] 11 Jun 2026
+
+
+
+
+                                                                                         Abstract
+                                                     Existing 3D scene editing methods typically rely on per-scene optimization over
+                                                     explicit 3D representations or cascaded edit-and-reconstruct pipelines, resulting in
+                                                     high test-time cost, limited 3D awareness, and structural inconsistencies. To couple
+                                                     appearance synthesis and geometry prediction during editing, we build on a unified
+                                                     RGB-geometry reconstruction-generation latent space and adapt it to feed-forward
+                                                     3D scene editing. The resulting framework, JointEdit3D, performs asymmetric
+                                                     latent inpainting by observing only a single edited RGB reference latent and gen-
+                                                     erating the remaining RGB views and edited geometry latent under source-scene
+                                                     anchoring. JointEdit3D introduces a dedicated SceneAnchor Branch to inject
+                                                     source-scene structure without forcing direct copying, and adopts edit/background-
+                                                     aware losses to balance edited-region fidelity with unedited-content preservation.
+                                                     To address the lack of paired resources for standardized 3D scene editing evalu-
+                                                     ation, we introduce SceneEdit3D-15K, a dataset with 15K paired editing sam-
+                                                     ples and renderer-provided 3D annotations, together with SceneEdit3D-Bench,
+                                                     a curated 100-sample benchmark. Experiments show that JointEdit3D improves
+                                                     edited-region quality and 3D structural completeness over prior baselines while
+                                                     maintaining competitive background preservation.
+                                                     Project page: https://xinnan-zhu.github.io/JointEdit3D-Page/
+
+
+                                         1    Introduction
+                                         3D scene editing modifies an existing scene according to user-specified intent. Unlike 2D image
+                                         editing, it must apply the requested edit while preserving scene geometry, maintaining cross-view
+                                         consistency, and keeping unrelated regions unchanged, so the goal is a geometrically coherent edited
+                                         scene rather than merely plausible edited views.
+                                         Existing 3D scene editing methods are typically decoupled. Optimization-based methods edit
+                                         NeRFs [20] or 3D Gaussian Splatting [13] with guidance from pretrained 2D diffusion models [10, 6,
+                                         34, 14]. Although the underlying representation is 3D, the edit signal is supplied through rendered 2D
+                                         views. These methods often require precise masks to localize edits, and their per-scene optimization
+                                         is costly. Local constraints also make it hard to model changes outside the specified region such as
+                                         reflections. Recent feed-forward methods reduce test-time cost by introducing learned priors for
+                                         cross-view edit propagation or reconstruction from edited observations [2, 24, 4, 19]. These methods
+                                         incorporate geometric cues or 3D priors, but the edit itself is still performed at the 2D level rather
+                                         than directly in a 3D representation, so view inconsistencies at the editing stage propagate to the
+                                         output.
+                                         ∗ Equal contribution.
+                                         † Corresponding author.
+
+                                         Preprint.
+A natural way to reduce this separation is to edit in a latent space that already represents 3D
+structure. Voxel-structured 3D latents have shown promise for object-level controllable generation
+and editing [35, 12, 15], and recent scene-level generation and reconstruction methods combine
+visual generation with geometry-aware representations [36, 26, 33, 11], but such a latent editing
+approach is still missing for 3D scene editing. Our key observation is that edit decisions, appearance
+synthesis, and geometry updates should occur in the same latent state. Motivated by this, we
+adapt a unified RGB-geometry reconstruction-generation latent space [11] to 3D scene editing and
+propose JointEdit3D, a feed-forward framework that makes edited appearance and geometry a shared
+generation target rather than the output of separate view-editing and reconstruction stages. Given
+a source video, a single edited reference frame, and an optional language instruction, JointEdit3D
+predicts a complete edited RGB-geometry latent and decodes it into RGB video and geometry. We
+formulate this as RGB-geometry latent inpainting, where the edited reference frame serves as the
+known observation and the model generates all remaining RGB and geometry positions; compared
+with text or global image features, the reference provides explicit appearance, placement, and local
+context while the pretrained generative prior propagates the edit across views.
+Edit propagation must preserve source content outside the edit while localizing the intended change.
+We introduce a SceneAnchor Branch that receives edit cues from the main branch and injects source
+RGB-geometry features into the frozen generator through interleaved residual conditioning, treating
+the source as an edit-aware preservation prior rather than a target to copy. A standard MSE objective
+is also unstable across edits with different spatial extents because it averages over all latent positions
+and underweights small edited regions; we introduce a set of edit-aware losses that separate edited
+and background regions in both RGB and geometry latents, while emphasizing positions with larger
+latent changes and frames farther from the reference.
+Progress in 3D scene editing also requires paired supervision and consistent evaluation protocols.
+Existing 3D editing resources rarely provide paired before/after scene edits with 3D annotations,
+and evaluations are often limited to 2D metrics or narrow edit-specific protocols. To address this,
+we construct SceneEdit3D-15K, a 15K-sample paired scene-editing dataset with comprehensive
+supervision and auxiliary annotations, and further curate SceneEdit3D-Bench, a 100-sample held-out
+benchmark evaluating edit fidelity, background preservation, and 3D structure.
+Our contributions are summarized as follows:
+
+       • We formulate 3D scene editing as feed-forward generation in a unified RGB-geometry
+         latent space, coupling edit decisions, appearance synthesis, and geometry updates instead of
+         separating view editing from reconstruction.
+       • We introduce JointEdit3D, which combines RGB-geometry latent inpainting, an edit-aware
+         SceneAnchor Branch, and edit-aware latent losses to propagate reference edits while pre-
+         serving source-scene structure without requiring edit masks at inference.
+       • We introduce SceneEdit3D-15K, to the best of our knowledge the first paired scene-level
+         3D editing dataset with comprehensive 3D annotations, and SceneEdit3D-Bench for stan-
+         dardized evaluation.
+
+2   Related Work
+3D scene editing. Existing methods differ in how they connect edit guidance with 3D representa-
+tions. Optimization-based methods update NeRFs or 3D Gaussians per scene with text, image, mask,
+or segmentation guidance [21, 10, 46, 6], often adding grouping, multi-view consistency, or control
+mechanisms [38, 31, 34, 5, 14, 47, 42]. Recent feed-forward alternatives avoid iterative optimization
+through learned multi-view inpainting, video propagation, or one-pass 3D editing [2, 24, 4, 19], but
+still rely on 2D/multi-view observations or task-specific reconstruction modules. JointEdit3D instead
+performs scene-level editing in a unified reconstruction-generation latent space and uses source-scene
+anchoring to preserve unedited content.
+
+3D latent editing and geometry-aware generation. At the object level, prior work explores
+controllable generation and editing in voxel-structured 3D latent spaces [35, 12, 15]. For scenes,
+feed-forward editors such as Omni-3DEdit operate in 2D diffusion latents before producing 3D
+outputs [4]. A related line of scene generation and reconstruction couples synthesis with 3D structure
+
+
+                                                    2
+via camera, point-cloud, 3D-cache, or reconstruction features [44, 16, 36, 26, 43, 33, 3, 11], but is not
+designed for editing existing scenes under a reference. JointEdit3D adapts a unified RGB-geometry
+latent space to scene editing and injects source-scene anchors to preserve unedited content.
+
+Editing datasets and benchmarks. Existing 2D editing datasets often rely on pseudo ground truth
+from editing models [1, 40, 9] and lack paired 3D annotations. General 3D scene datasets provide
+real or synthetic indoor data for reconstruction and scene understanding [7, 28, 27, 8, 39] but are not
+built as before/after corpora. In 3D editing, inpainting benchmarks such as SPIn-NeRF [21] and 360-
+USID [32] provide real edited scenes but are small, focus on object removal, and lack strictly paired
+before/after images with depth, camera, and geometry annotations. SceneEdit3D-15K addresses this
+with Blender-based large-scale paired scene edits, language instructions, edited reference frames,
+edit masks, and renderer-provided 3D annotations, while SceneEdit3D-Bench enables standardized
+quantitative evaluation.
+
+3     Method
+
+      Source Video ��
+                                                                                                                             Geometry latent
+
+
+                                                                                                                    ��
+                                                                   SceneAnchor Branch
+                                                                                                                               RGB latent
+                                                                                                                                                      Edited Geometry
+                                         …
+
+
+
+                                                                                            Cross-MHA
+                                                   Video
+
+
+
+
+                                                                                                        Light FFN
+                                                                            Self-MHA
+                                                                                                                             Observed edited ref.
+                                                   VAE
+                                                                                                                               Zero-filled
+
+
+                                                                                            ×�
+
+
+
+
+                                                                                                                         …
+                                                    …
+
+
+
+
+                                                                                                                                  Geo
+
+                                                                                                                                   �ℊ
+                                                                                                        ×�                        Dec.
+                                                                                                                                                     Edited RGB Images
+                                                                                Cross-MHA
+                                                                 Self-MHA
+
+
+
+
+                                                                                                 FFN
+
+
+
+
+                                                                                                                    �ϑ
+                                                                                                                                 Rgb
+             frame ��
+          Edited reference
+                                                                                                                         …
+                                                    …
+
+
+
+
+                                                                                                                                   ��
+
+
+
+
+                                                                                                                                                                           …
+                                                                                                                                 Dec.
+                                                                Wan Flow Transformer
+
+                                                                                                          ℒ푡푟�
+            “Remove the vanity cabinet
+              with two vessel sinks.”
+
+
+
+      Training only
+                                                                                                                                                    Edit. ��
+
+                ...                               ...                                                                                                               ℒ푡푟�
+
+
+          source latent ��                                                              �∗ − ��
+                                                                                                                                                    Back. ��
+                                             target latent �∗
+
+
+Figure 1: JointEdit3D pipeline. JointEdit3D performs RGB-geometry latent inpainting from a source
+video and one edited reference frame; the SceneAnchor Branch and region-decomposed supervision
+preserve source structure while propagating the edit.
+
+3.1    Preliminaries
+
+We briefly review how Gen3R [11], a feed-forward 3D scene reconstruction model, forms a joint
+RGB-geometry latent space. Given a multi-view video V = {I i }N     i=1 , Gen3R encodes appearance
+and geometry through two aligned streams:
+                  zrgb = Ergb (V),       hvggt = Φvggt (V),     zgeo = Aencψ (h
+                                                                                vggt
+                                                                                     ),            (1)
+where Ergb is the pretrained video VAE [29], Φvggt denotes VGGT [30] features, and Aenc     ψ  is the
+encoder of the learned Geometry Adapter that maps VGGT tokens into the video latent domain,
+giving zrgb , zgeo ∈ RC×F ×H×W . Gen3R concatenates them along the spatial width and fine-tunes a
+Wan-based diffusion backbone to generate the resulting RGB-geometry lattice:
+                                z(V) = [ zrgb ; zgeo ] ∈ RC×F ×H×2W ,                              (2)
+where the first and second spatial halves store RGB and geometry under matched indices, so generation
+is joint rather than RGB-only. In JointEdit3D, Gθ denotes this Gen3R-tuned Wan backbone and
+Gθ,ϕ denotes the full editor after adding the SceneAnchor Branch parameters ϕ. We reuse Gen3R’s
+pretrained Geometry Adapter to compute zgeo , and use zs = z(Vs ) and z⋆ = z(V ⋆ ) as the source
+and edited target latents, respectively.
+
+
+                                                                                            3
+3.2   Method Overview
+
+Given a source video Vs = {Isi }N    i=1 and an editing condition C = (Ie , p), JointEdit3D predicts
+the edited scene by denoising the unified RGB-geometry latent. It treats editing as joint latent
+inpainting rather than RGB-only generation followed by reconstruction, with the edited reference
+frame Ie specifying the target edit and the source latent zs anchoring unedited context. As shown in
+Figure 1, the framework combines single-frame-guided inpainting (§3.3), source-scene preservation
+through a SceneAnchor Branch (§3.4), and region-decomposed training objectives (§3.5). We write
+ctx = (ϕCLIP (Ie ), ϕT5 (p)) for the cross-attention context derived from the reference image and
+instruction, and ρ(i) for the latent temporal index of position i.
+
+3.3   Edit Conditioning via Single-Frame Inpainting
+
+Unlike Gen3R reconstruction, which conditions on a complete input video, our editing condition
+exposes only the edited RGB reference and leaves all other RGB and geometry positions unknown.
+The task is therefore asymmetric. Only a single RGB slice is observed and the geometry half has no
+edited observation, so the model must jointly infer the remaining RGB views and the entire geometry
+half. We encode Ie with the video VAE into ẑrgbe    ∈ RC×1×H×W and place it at the k-th temporal
+                                         C×F ×H×2W
+position of a zero-filled tensor yref ∈ R             :
+                           yref [:, k, :, : W ] = ẑrgb
+                                                    e , all other entries = 0.                    (3)
+Here k is the latent temporal index from VAE-encoding Ie alone and is the only observed latent frame;
+it differs from the original frame index of Ie in V ⋆ due to the VAE’s fixed temporal downsampling.
+A binary mask mref ∈ {0, 1}F ×H×2W marks the observed entries, with mref [k, :, : W ] = 1 and
+zeros elsewhere. The mask is replicated along four temporal sub-channels to match the 4× temporal
+compression of the Wan video VAE and concatenated with yref :
+                               y = [ yref ; mref ] ∈ R(C+4)×F ×H×2W ,                              (4)
+The conditioning tensor y is concatenated with the noisy latent zt before the transformer. The context
+ctx is additionally used for cross-attention; the edited reference remains the primary control because
+it provides explicit appearance and placement.
+
+3.4   Source-Scene Preservation via SceneAnchor Branch
+
+The edited reference frame provides the target edit but not the complete source scene. Directly
+concatenating the source latent to the main branch creates a copy shortcut, while removing source
+conditioning weakens background preservation. We therefore use a dedicated SceneAnchor Branch
+Aϕ that receives edit cues from the frozen main branch and injects source-scene features back as
+residual corrections. These edit-conditioned corrections turn the branch into an implicit edit-region
+localizer without requiring a mask. Source-incompatible tokens can follow the reference edit, whereas
+compatible tokens receive stronger source anchoring. Architecturally, this branch is related to residual
+adapter and control-branch designs [41, 22, 37], and its role here is source-scene anchoring rather
+than generic spatial control or image-prompt injection.
+
+Architecture. We freeze Gθ and train only the SceneAnchor Branch parameters ϕ, so the model
+starts from the pretrained generator and learns residual source-scene adaptation without overwriting
+the backbone. The branch consumes only the RGB half of the source. Concretely, we feed [ zrgb s ; 0 ],
+where zrgb
+         s  encodes Vs via the video VAE and the geometry half is zeroed since no source geometry
+is assumed at inference. The full source latent zs from §3.1, which uses the Geometry Adapter, is still
+computed and used only by the loss-side edit-mask in §3.5. A 3D convolutional patch embedding
+with the same kernel and stride as Gθ projects this anchor input into an anchor state c0 . The branch
+mirrors the block structure of Gθ but uses hidden size da (da =512); with D the hidden width of Gθ ,
+learned projections bridge D and da , and each anchor block attaches to a layer ℓj ∈ S of Gθ .
+
+Interleaved residual fusion. During denoising, Aϕ is interleaved with selected layers of Gθ , so
+source conditioning adapts to the current edit state rather than acting as a static copy signal. Let xℓj
+denote the main-branch hidden tokens at layer ℓj . At the j-th injected layer, the current denoising
+state is projected into the anchor stream and processed by the anchor block:
+                                                   (j)                     (j)
+                 cj ← AnchorBlockj (cj−1 + Win (xℓj ), We(j) (e), Wctx (ctx)).                       (5)
+
+
+                                                   4
+The anchor output is mapped back to the main width and added as a residual update:
+                                                                 (j)
+                                          xℓj ← xℓj + Wout (cj ).                                      (6)
+       (j)
+All Wout are zero-initialized, so the editor degenerates to Gθ at the start of training. Because the
+anchor stream consumes both the source latent and the evolving main-branch state, its residual
+updates are conditioned on the current edit hypothesis, preserving compatible regions while letting
+the edited region depart from the source.
+
+3.5   Training Objectives
+
+The base objective follows flow matching [18] over the edited target latent z⋆ . A standard MSE
+objective treats every position equally and is dominated by unchanged background in sparse 3D edits;
+we therefore decompose the loss into edit and background regions in each modality, and additionally
+upweight positions far from the reference frame and positions with larger source-target latent change.
+Given noise ϵ ∼ N (0, I) and timestep t ∈ (0, 1), we set zt = (1 − t)z⋆ + tϵ. The full editor predicts
+a velocity Gθ,ϕ (zt , t, y, zs , ctx) supervised toward ϵ − z⋆ . For each position i, the channel-averaged
+squared error is
+                                    1                                        2
+                             li = ∥Gθ,ϕ (zt , t, y, zs , ctx)i − (ϵi − z⋆i )∥2 .                        (7)
+                                    C
+We upweight positions farther from the edited reference frame. Let ρ(i) be the latent temporal index
+of position i and k the reference-frame index:
+                                              |ρ(i) − k|                     ˜li = ai li ,
+                           ai = 1 + η                          ,                                       (8)
+                                        maxj |ρ(j) − k| + εden
+and apply edit-aware region weighting separately to the RGB and geometry halves.
+
+Edit-aware region decomposition. To prevent the background from dominating the loss, we
+estimate edited positions from source-target latent changes in each half. For h ∈ {rgb, geo} and
+positions Ωh ,
+                                  1
+                                  C     z⋆,h
+                                         i   − zhs,i
+                  dhi =                                1
+                                                                        ,   Mih = 1[dhi > τ ].         (9)
+                          maxj∈Ωh C1 z⋆,h
+                                      j   − zhs,j              + εden
+                                                           1
+
+This produces separate edit masks for appearance and geometry so the loss can emphasize modality-
+specific regions that actually change. Appendix A shows training-time masks, inference-time edit
+responses, and the calibration of τ .
+
+Within-region weighting. Inside the edit region, a linear weight wih = 1 + αdhi gives larger
+gradients to larger latent changes:
+                                    wih ˜li Mih                       ˜li (1 − M h )
+                             P                                P
+                                                                                 i
+                Lhedit = P i∈Ωhh h                  , Lhbg = P i∈Ωh          h) + ε
+                                                                                        , (10)
+                                 w
+                             i∈Ωh i M  i    + ε den           i∈Ωh (1 −    M i      den
+
+and the two regions are combined per half as Lh = λ Lhedit + (1 − λ) Lhbg . The final objective
+Ltrain = Lrgb + γgeo Lgeo balances RGB and geometry-latent supervision, where λ controls the
+edit/background balance and γgeo the relative weight of geometry-latent supervision.
+
+4     SceneEdit3D-15K Dataset
+Progress on 3D scene editing is bottlenecked by the absence of ground-truth benchmarks. Existing
+2D editing datasets [1, 40] lack paired 3D annotations and multi-view consistency signals, making it
+impossible to assess whether a method preserves scene structure. We introduce SceneEdit3D-15K, a
+large-scale dataset of 15K paired scene editing samples with language instructions, edited reference
+frames, edit masks, and renderer-provided 3D annotations, together with SceneEdit3D-Bench, a
+curated benchmark of 100 representative samples.
+
+
+                                                       5
+                     Scene Data                                                Blander-based Scene Editing
+        Scene Renderings            JSON Descriptions                              Before Editing                  After Editing
+                                                          Layout Parsing
+
+
+
+
+        Spatial Layout               Object Relations
+                                                         Feasibility Check
+
+                                                                                           Generated Paired Data
+                                                                                  RGB Videos        Edit Mask           Depth Maps
+
+
+                                VLM Analysis             Visibility Analysis
+
+
+               Edit Task Proposals
+                                                                                  Camera Poses      Intrinsics �       Edit Prompt
+         Add               Delete            Move
+                                                        Camera Trajectories
+                                                                                                                         “Remove ...”
+
+       Appearance Change            Multi-Operation
+
+
+
+
+Figure 2: SceneEdit3D-15K data generation. From composable 3D indoor scenes, a VLM proposes
+canonical delete/move edits, Blender executes valid edits and renders paired source/target videos
+under identical cameras, and Blender-side execution/augmentation produces inverse samples and ma-
+terial/texture changes with RGB, depth, camera, mask, edited-reference, and instruction supervision.
+
+4.1   Data Generation Overview
+
+SceneEdit3D-15K is generated in three stages. First, we start from composable indoor scenes from
+Imaginarium [45], a recent synthetic scene resource related to broader indoor 3D datasets [7, 28, 27, 8],
+whose objects can be individually manipulated in Blender. Second, a VLM analyzes rendered views,
+object metadata, and layout relations to propose canonical deletion and relocation tasks, while
+Blender-side procedures generate material/texture appearance changes. Third, Blender executes each
+edit deterministically and renders paired source and target videos under identical camera trajectories;
+addition and reverse-relocation samples are derived by swapping before/after states and reversing the
+temporal order. This produces paired before/after RGB videos for training, plus edit masks, depth
+maps, camera parameters, and selected edited reference frames for evaluation. Full generation details
+are in Appendix C.
+
+4.2   Dataset Statistics and Benchmark
+
+SceneEdit3D-15K comprises 15K paired editing samples across diverse indoor scene categories. Our
+training uses paired source/target RGB videos, a selected reference frame, and a natural-language
+instruction; the released masks and 3D ground truth are reserved for evaluation and future research.
+From the held-out test split, whose scenes do not overlap with the training set, we curate SceneEdit3D-
+Bench as a 100-sample controlled-editing benchmark stratified across editing types and scene
+categories. The benchmark includes varied object scales, image locations, and partial occlusions,
+supporting region-aware evaluation of edited-region quality, background preservation, 3D structural
+correctness, and inference efficiency, as well as operation-specific analysis across addition, deletion,
+relocation, appearance change, and Multi-op edits; split details are in Appendix C.
+
+5     Experiments
+5.1   Experimental Setup
+
+Implementation details. We instantiate JointEdit3D with a frozen Gen3R-tuned image-camera-
+conditioned Wan2.1 1.3B DiT backbone Gθ (L=32 blocks) [11]. The SceneAnchor Branch Aϕ
+is a trainable branch with hidden width da =512 and K=8 anchor blocks injected at layers S =
+{0, 4, 8, 12, 16, 20, 24, 28}, totaling 70M trainable parameters. We use AdamW with initial learning
+rate 1×10−4 , bf16 mixed precision, and gradient checkpointing. For the region-decomposed objective:
+edit-mask threshold τ =0.15, within-region weight α=5.0, temporal weight η=0.5, edit/background
+balance λ=0.5, and geometry weight γgeo =1.5. Training runs on the SceneEdit3D-15K split for 10K
+
+
+                                                                  6
+Table 1: Capability comparison of editing methods under our single-edited-reference protocol
+(Opt./FF: optimization-based/feed-forward; ✓: supported; ◦: protocol-mismatched; blank: unsup-
+ported or not available under the released interface).
+ Method                   Type Mask-free Pose-free Unified weights                       Delete            Add                     Move         Appear.           Multi-op
+ SPIn-NeRF [21]           Opt.                                                            ✓
+ Gaussian Grouping [38]   Opt.                                                            ✓                  ◦                                    ◦
+ GScream [31]             Opt.                                                            ✓
+ GaussianEditor [6]       Opt.                                                            ✓                  ◦                                    ◦
+ SEVA [44]                FF        ✓                      ✓                              ◦                  ◦                        ◦           ◦                      ◦
+ MVInpainter [2]          FF                  ✓                                           ✓                  ✓                        ✓           ✓                      ✓
+ Omni-3DEdit [4]          FF        ✓                                                     ✓                  ✓                        ✓           ✓                      ✓
+ Ours                     FF        ✓         ✓            ✓                              ✓                  ✓                        ✓           ✓                      ✓
+
+                                                                                                                                                                 SPIn-NeRF
+                                                                                            9-frame
+                                                                                            49-frame
+                                                                                  0.50
+         Table 2: Delete edit-region results.                                               same method
+                                                                                            VRAM N/A                                                  GaussianEditor
+                                                                                  0.45
+
+                                                                                                                          43.8G                   Gaussian Grouping
+                                                                                  0.40
+Method                    SceneEdit3D-Bench    360-USID                                                   13.7G
+
+
+
+
+                                                                   LPIPS Edit ↓
+                                                                                  0.35
+SPIn-NeRF [21]               19.20 / 0.528    15.89 / 0.4826                                                                                      56.4G
+                                                                                  0.30
+Gaussian Grouping [38]       20.41 / 0.377    16.67 / 0.4241                                                                      25.7G
+
+                                                                                  0.25
+GScream [31]                 20.38 / 0.449    14.37 / 0.5725
+GaussianEditor [6]           20.26 / 0.451    16.23 / 0.3975                      0.20
+                                                                                           23.5G                  29.1G
+MVInpainter [2]              21.37 / 0.406    15.60 / 0.5677                      0.15
+
+Omni-3DEdit [4]              24.86 / 0.307    17.78 / 0.3655                                              101                             102                      103
+                                                                                                             Inference time per scene (s, log scale)
+JointEdit3D (Ours)           31.92 / 0.151    18.57 / 0.3426
+                                                                                            Figure 3: Efficiency-quality plot.
+
+
+steps with batch size 10 on 8 NVIDIA H200 GPUs. Additional implementation details are provided
+in Appendix B.1.
+
+Baselines. We compare with representative optimization-based and feed-forward 3D/multi-view
+editing methods: SPIn-NeRF [21], Gaussian Grouping [38], GScream [31], GaussianEditor [6],
+MVInpainter [2], and Omni-3DEdit [4], and include SEVA [44] as a protocol-mismatched novel-view
+synthesis diagnostic. Table 1 summarizes interfaces and operation coverage; “Unified weights”
+indicates one shared set of editor weights across supported tasks. Each baseline uses its official
+implementation and default settings; Appendix D.2 gives the input protocol, aggregation rule, and
+rationale for protocol-mismatched entries.
+
+Evaluation benchmark and metrics. We evaluate on SceneEdit3D-Bench, a 100-sample held-
+out benchmark whose scenes do not appear in training, and additionally use 360-USID [32] for
+deletion-only real-scene evaluation. JointEdit3D is trained only on synthetic SceneEdit3D-15K data;
+additional real-scene examples are in Appendix B.3. We report region-aware PSNR↑/LPIPS↓ on
+edited and background pixels and 3D reconstruction metrics against the renderer-provided edited
+geometry; Appendix D.3 details the point-cloud protocol.
+
+5.2   Main Results
+
+Quantitative comparison. We organize comparisons by operation coverage. Best and second-best
+are shaded. Table 2 reports edit-region quality in the shared deletion setting on SceneEdit3D-Bench
+and 360-USID. Table 3 reports operation-wise results for methods supporting all five edit types, with
+separate PSNR↑/LPIPS↓ on the renderer-defined edit (“Edit”) and background (“Bg.”) regions.
+Tables 2 and 3 show that JointEdit3D achieves the strongest edited-region quality across both the
+deletion benchmark and all five SceneEdit3D-Bench operations, while keeping background scores
+competitive. Some mask-guided baselines obtain higher background PSNR because their inputs
+or optimization constraints keep regions outside the mask nearly unchanged. Compared with the
+mask-free Omni-3DEdit, JointEdit3D substantially improves background metrics, suggesting that
+source-scene anchoring helps identify edited regions while preserving unedited content without an
+explicit mask. Across operation types, move and Multi-op remain harder because they require larger
+disocclusion reasoning and spatial rearrangement. The gains on 360-USID are smaller because its
+deletion tasks are more homogeneous, with edited objects near the image center and of similar scale.
+
+
+                                                               7
+Table 3: Operation-wise 2D comparison with separate background/edit evaluation (PSNR↑/LPIPS↓).
+   Reg. Method                                             Delete          Add             Move        Appearance       Multi-op         Average
+       SEVA [44]                                       17.89 / 0.421   17.74 / 0.426   17.69 / 0.411   19.00 / 0.378   17.54 / 0.445   17.93 / 0.418
+       MVInpainter [2]                                 33.57 / 0.080   33.64 / 0.076   30.97 / 0.081   33.76 / 0.073   30.06 / 0.091   32.40 / 0.080
+   Bg.
+       Omni-3DEdit [4]                                 25.00 / 0.215   24.24 / 0.217   24.40 / 0.210   25.88 / 0.190   23.81 / 0.235   24.65 / 0.214
+       JointEdit3D (Ours)                              32.62 / 0.079   32.59 / 0.081   31.22 / 0.069   33.80 / 0.059   30.84 / 0.095   32.33 / 0.077
+                                 SEVA                  23.39 / 0.399   15.92 / 0.523   17.87 / 0.450   17.50 / 0.464   16.93 / 0.496   18.72 / 0.465
+                                 MVInpainter           21.37 / 0.406   20.04 / 0.362   16.99 / 0.437   18.94 / 0.349   17.92 / 0.423   19.05 / 0.392
+   Edit
+                                 Omni-3DEdit           24.86 / 0.307   20.63 / 0.293   18.55 / 0.377   20.92 / 0.230   17.03 / 0.461   21.10 / 0.323
+                                 JointEdit3D (Ours)    31.92 / 0.151   23.88 / 0.195   23.19 / 0.244   27.67 / 0.115   23.77 / 0.263   26.63 / 0.187
+
+                                         SceneEdit-Bench                           360-USID                                DL3DV
+       Original
+    SPIn-NeRF
+    MVInpainter GaussianEditor
+    Omni-3DEdit
+    Ours
+
+
+
+
+Figure 4: Qualitative comparison across synthetic SceneEdit3D-Bench and real-world 360-
+USID/DL3DV examples. Red boxes mark edited regions.
+
+Figure 3 further shows a strong quality–efficiency trade-off, with leading reconstruction quality and
+faster inference than all compared methods.
+
+Qualitative comparison on synthetic and real scenes. Figure 4 compares methods on synthetic
+SceneEdit3D-Bench and real-world 360-USID/DL3DV captures [32, 17]. SPIn-NeRF often removes
+the target object but leaves residual or over-smoothed regions, especially on the floor and stone sur-
+faces. GaussianEditor introduces stronger local artifacts and blur around the edited area. MVInpainter
+better follows the mask but still produces boundary discontinuities and misses secondary effects such
+as shadows. Omni-3DEdit preserves less background color consistency on real scenes and fails on
+the small photo-frame edit in the cluttered DL3DV shelf. JointEdit3D instead removes the target
+while preserving nearby structures, such as the lamp, desk, rock surface, vegetation, cabinet layout,
+and shelf contents. These results show that the model generalizes to real inputs despite training
+only on synthetic renderings, consistent with the improved deletion PSNR/LPIPS on 360-USID.
+Appendix B.3 further includes object-removal and multi-reference real-scene examples.
+Figure 5 further stresses edit types that are difficult to summarize with a single metric. In dynamic
+object removal, MVInpainter removes the camel body but leaves its shadow, while Omni-3DEdit
+removes the object at the cost of degraded scene color and texture. In relocation and multi-operation
+editing, the baselines show residual source-object traces, incomplete target synthesis, boundary
+discontinuities, or multi-view inconsistency. JointEdit3D produces cleaner edited regions and better
+preserves nearby structures across these challenging cases.
+
+3D geometry quality. Following the point-cloud evaluation protocol of Gen3R [11], Table 4
+evaluates global geometry against the renderer-provided edited point cloud; Appendix D.3 gives
+
+
+                                                                                       8
+       Edit Reference
+                        Dynamic Object Removal              Move                       Multiple Operations
+
+
+
+
+       Original
+      MVInpainter
+      Omni-3DEdit
+      Ours
+
+
+
+
+Figure 5: Additional qualitative comparison on challenging operation types, including dynamic object
+removal, relocation, and multi-operation editing.
+      Table 4: 3D geometry metric comparison across reconstruction and joint-output variants.
+
+Method                                  3D Source      Accuracy↓      Completeness↓           CD↓             F-score↑
+Target RGB + VGGT                       VGGT recon.     0.0724              0.0950           0.0837           0.9619
+SEVA + VGGT                             VGGT recon.     0.1433              0.2244           0.1839           0.8722
+Omni-3DEdit + VGGT                      VGGT recon.     0.1165              0.1313           0.1239           0.9143
+JointEdit3D RGB + VGGT                  VGGT recon.     0.0891              0.1211           0.1051           0.9357
+JointEdit3D                             Joint output    0.1153              0.0886           0.1020           0.9702
+
+the alignment, sampling, and metric details. The Target RGB + VGGT row applies the same
+reconstruction backend to benchmark target RGB frames as an oracle RGB-input reference (excluded
+from ranking). JointEdit3D RGB + VGGT reconstructs geometry from the generated RGB sequence
+and serves as a cascaded RGB-to-3D alternative. Compared with this cascaded variant, JointEdit3D
+achieves substantially better completeness, CD, and F-score, indicating that its generated RGB-
+geometry latent recovers more edited-scene structure and fine geometric detail; overall, it trades a
+small accuracy gap for stronger scene coverage and better global 3D quality.
+
+5.3   Ablation Study
+
+Due to training resource limits, each variant in Table 5, including the full-model row, is trained for
+2K steps under the same protocol to isolate component effects.
+                           Table 5: Ablation study on key components of JointEdit3D.
+
+                                                            Edit Region         Background              3D Structure
+Variant                                                PSNR↑       LPIPS↓     PSNR↑      LPIPS↓              CD↓
+JointEdit3D (full)                                      26.82      0.209       30.69      0.103              0.1053
+Source video in main branch (no anchor branch)          23.53      0.292       30.88      0.086              0.1194
+w/o source video (traj. only)                            19.4      0.510       18.91      0.562              0.1829
+w/o GEO in Wan Flow (+VGGT)                             24.75      0.381       27.85      0.337              0.1506
+w/o Text Condition                                      26.37      0.214       30.66      0.109              0.1064
+w/o Region Decomposition                                23.69      0.324       30.16      0.159              0.1257
+w/o Within-region Weighting                             25.35      0.234       29.94      0.119              0.1126
+w/o Temporal Weighting                                  26.12      0.238       29.91      0.124              0.1148
+
+The ablations isolate each component. The SceneAnchor Branch, source video, joint geometry
+latent, and edit-aware losses are all important. Replacing the anchor branch with main-branch source
+conditioning preserves background slightly better but reduces edit PSNR by 3.29 dB and worsens
+CD, suggesting the source latent is not useful as a direct copy condition and that a dedicated anchor
+pathway better separates source preservation from edit propagation. Removing the source video
+
+
+                                                        9
+causes the largest background collapse, while removing the geometry latent and reconstructing with
+VGGT degrades both RGB and 3D metrics, supporting joint RGB-geometry editing rather than a
+cascaded pipeline. The loss variants further show why edit-aware supervision is needed for sparse 3D
+edits. Removing region decomposition causes the largest edit-region drop because sparse edits are
+otherwise diluted by unchanged areas, while within-region and temporal weighting provide additional
+gains for changed pixels and farther views. Text conditioning has only a minor effect, indicating that
+the edited reference frame provides the dominant edit signal.
+
+Additional qualitative results. We include an additional qualitative result near the end of the
+experiments to show 3D output quality on real captures. Figure 6 shows ScanNet++ and casually
+captured real indoor scenes together with generated point clouds, illustrating that the propagated edits
+remain geometrically coherent rather than only appearing as isolated 2D texture changes. Additional
+appearance-editing examples are provided in Appendix 10.
+      Reference Image
+
+
+
+
+    Figure 6: Additional qualitative examples on ScanNet++ and casually captured real scenes.
+
+
+6   Conclusion
+We presented JointEdit3D, a feed-forward framework that adapts a unified reconstruction-generation
+latent space to controlled 3D scene editing. The central insight is that editing should not be treated
+as independent 2D view editing followed by reconstruction; instead, the edit should be propagated
+in a representation that jointly models appearance and geometry. JointEdit3D realizes this through
+asymmetric single-frame-guided latent inpainting, a SceneAnchor Branch that preserves source-
+scene structure without an explicit edit mask, and edit-aware training objectives for sparse scene
+changes. We further introduced SceneEdit3D-15K and SceneEdit3D-Bench for supervised training
+and standardized evaluation. Experiments show that JointEdit3D improves edited-region quality and
+3D structural completeness while maintaining competitive background preservation and efficient
+inference, supporting joint RGB-geometry editing as a practical direction for 3D scene editing.
+
+Limitations. JointEdit3D is reference-guided rather than a complete end-to-end text-to-3D editing
+pipeline, so its quality depends on the edited reference image. If the reference contains inaccurate edits
+or inconsistent appearance changes, these errors may propagate across views and into the generated
+point cloud. Moving toward direct text-driven scene editing will require stronger foundation models
+and larger-scale paired 3D editing data.
+
+
+
+                                                   10
+References
+ [1] Tim Brooks, Aleksander Holynski, and Alexei A Efros. Instructpix2pix: Learning to follow image editing
+     instructions. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition,
+     pages 18392–18402, 2023.
+
+ [2] Chenjie Cao, Chaohui Yu, Fan Wang, Xiangyang Xue, and Yanwei Fu. MVInpainter: Learning multi-view
+     consistent inpainting to bridge 2d and 3d editing. In The Thirty-eighth Annual Conference on Neural
+     Information Processing Systems, 2024. URL https://openreview.net/forum?id=XIScpCMUse.
+
+ [3] Chenjie Cao, Jingkai Zhou, Shikai Li, Jingyun Liang, Chaohui Yu, Fan Wang, Xiangyang Xue, and Yanwei
+     Fu. Uni3c: Unifying precisely 3d-enhanced camera and human motion controls for video generation. In
+     Proceedings of the SIGGRAPH Asia 2025 Conference Papers, pages 1–12, 2025.
+
+ [4] Liyi Chen, Pengfei Wang, Guowen Zhang, Zhiyuan Ma, and Lei Zhang. Omni-3DEdit: Generalized
+     versatile 3D editing in one-pass. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition (CVPR), 2026.
+
+ [5] Minghao Chen, Iro Laina, and Andrea Vedaldi. Dge: Direct gaussian 3d editing by consistent multi-view
+     editing. In European conference on computer vision, pages 74–92. Springer, 2024.
+
+ [6] Yiwen Chen, Zilong Chen, Chi Zhang, Feng Wang, Xiaofeng Yang, Yikai Wang, Zhongang Cai, Lei
+     Yang, Huaping Liu, and Guosheng Lin. Gaussianeditor: Swift and controllable 3d editing with gaussian
+     splatting. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     21476–21485, 2024.
+
+ [7] Angela Dai, Angel X Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias Nießner.
+     Scannet: Richly-annotated 3d reconstructions of indoor scenes. In Proceedings of the IEEE conference on
+     computer vision and pattern recognition, pages 5828–5839, 2017.
+
+ [8] Huan Fu, Bowen Cai, Lin Gao, Ling-Xiao Zhang, Jiaming Wang, Cao Li, Qixun Zeng, Chengyue Sun,
+     Rongfei Jia, Binqiang Zhao, et al. 3d-front: 3d furnished rooms with layouts and semantics. In Proceedings
+     of the IEEE/CVF International Conference on Computer Vision, pages 10933–10942, 2021.
+
+ [9] Yang Fu, Yike Zheng, Ziyun Dai, and Henghui Ding. Effecterase: Joint video object removal and insertion
+     for high-quality effect erasing. In IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     (CVPR), 2026.
+
+[10] Ayaan Haque, Matthew Tancik, Alexei A Efros, Aleksander Holynski, and Angjoo Kanazawa. Instruct-
+     nerf2nerf: Editing 3d scenes with instructions. In Proceedings of the IEEE/CVF international conference
+     on computer vision, pages 19740–19750, 2023.
+
+[11] Jiaxin Huang, Yuanbo Yang, Bangbang Yang, Lin Ma, Yuewen Ma, and Yiyi Liao. Gen3r: 3d scene
+     generation meets feed-forward reconstruction. In Proceedings of the IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition (CVPR), 2026.
+
+[12] Xuancheng Jin, Rengan Xie, Wenting Zheng, Rui Wang, Hujun Bao, and Yuchi Huo. Fuse3d: Generating
+     3d assets controlled by multi-image fusion. In Proceedings of the SIGGRAPH Asia 2025 Conference
+     Papers, pages 1–12, 2025.
+
+[13] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, George Drettakis, et al. 3d gaussian splatting for
+     real-time radiance field rendering. ACM Trans. Graph., 42(4):139–1, 2023.
+
+[14] Dong In Lee, Hyeongcheol Park, Jiyoung Seo, Eunbyung Park, Hyunje Park, Ha Dam Baek, Sangheon
+     Shin, Sangmin Kim, and Sangpil Kim. Editsplat: Multi-view fusion and attention-guided optimization for
+     view-consistent 3d scene editing with 3d gaussian splatting. In Proceedings of the Computer Vision and
+     Pattern Recognition Conference, pages 11135–11145, 2025.
+
+[15] Lin Li, Zehuan Huang, Haoran Feng, Gengxiong Zhuang, Rui Chen, Chunchao Guo, and Lu Sheng.
+     Voxhammer: Training-free precise and coherent 3d editing in native 3d space. In Thirteenth International
+     Conference on 3D Vision, 2026. URL https://openreview.net/forum?id=UhHNN5lW67.
+
+[16] Xinyang Li, Zhangyu Lai, Linning Xu, Yansong Qu, Liujuan Cao, Shengchuan Zhang, Bo Dai, and
+     Rongrong Ji. Director3d: Real-world camera trajectory and 3d scene generation from text. Advances in
+     neural information processing systems, 37:75125–75151, 2024.
+
+
+
+
+                                                     11
+[17] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin, Kun Wan, Lantao Yu, Qianyu Guo, Zixun Yu,
+     Yawen Lu, et al. Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 22160–22169, 2024.
+
+[18] Yaron Lipman, Ricky T. Q. Chen, Heli Ben-Hamu, Maximilian Nickel, and Matthew Le. Flow matching
+     for generative modeling. In The Eleventh International Conference on Learning Representations, 2023.
+     URL https://openreview.net/forum?id=PqvMRDCJT9t.
+
+[19] Jiageng Liu, Weijie Lyu, Xueting Li, Yejie Guo, and Ming-Hsuan Yang. Edit3r: Instant 3d scene editing
+     from sparse unposed images. arXiv preprint arXiv:2512.25071, 2025.
+
+[20] Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik, Jonathan T Barron, Ravi Ramamoorthi, and Ren Ng.
+     Nerf: Representing scenes as neural radiance fields for view synthesis. Communications of the ACM, 65
+     (1):99–106, 2021.
+
+[21] Ashkan Mirzaei, Tristan Aumentado-Armstrong, Konstantinos G Derpanis, Jonathan Kelly, Marcus A
+     Brubaker, Igor Gilitschenski, and Alex Levinshtein. Spin-nerf: Multiview segmentation and perceptual
+     inpainting with neural radiance fields. In Proceedings of the IEEE/CVF Conference on Computer Vision
+     and Pattern Recognition, pages 20669–20679, 2023.
+
+[22] Chong Mou, Xintao Wang, Liangbin Xie, Yanze Wu, Jian Zhang, Zhongang Qi, and Ying Shan. T2I-adapter:
+     Learning adapters to dig out more controllable ability for text-to-image diffusion models. Proceedings of
+     the AAAI Conference on Artificial Intelligence, 38(5):4296–4304, 2024. doi: 10.1609/aaai.v38i5.28226.
+
+[23] Federico Perazzi, Jordi Pont-Tuset, Brian McWilliams, Luc Van Gool, Markus Gross, and Alexander
+     Sorkine-Hornung. A benchmark dataset and evaluation methodology for video object segmentation. In
+     Proceedings of the IEEE conference on computer vision and pattern recognition, pages 724–732, 2016.
+
+[24] Huaizhi Qu, Ruichen Zhang, Shuqing Luo, Luchao Qi, Zhihao Zhang, Xiaoming Liu, Roni Sengupta, and
+     Tianlong Chen. Editcast3d: Single-frame-guided 3d editing with video propagation and view selection.
+     arXiv preprint arXiv:2510.13652, 2025.
+
+[25] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David
+     Novotny. Common objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction.
+     In Proceedings of the IEEE/CVF international conference on computer vision, pages 10901–10911, 2021.
+
+[26] Xuanchi Ren, Tianchang Shen, Jiahui Huang, Huan Ling, Yifan Lu, Merlin Nimier-David, Thomas Müller,
+     Alexander Keller, Sanja Fidler, and Jun Gao. Gen3c: 3d-informed world-consistent video generation with
+     precise camera control. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, pages 6121–6132, 2025.
+
+[27] Mike Roberts, Jason Ramapuram, Anurag Ranjan, Atulit Kumar, Miguel Angel Bautista, Nathan Paczan,
+     Russ Webb, and Joshua M Susskind. Hypersim: A photorealistic synthetic dataset for holistic indoor
+     scene understanding. In Proceedings of the IEEE/CVF international conference on computer vision, pages
+     10912–10922, 2021.
+
+[28] Julian Straub, Thomas Whelan, Lingni Ma, Yufan Chen, Erik Wijmans, Simon Green, Jakob J Engel, Raul
+     Mur-Artal, Carl Ren, Shobhit Verma, et al. The replica dataset: A digital replica of indoor spaces. arXiv
+     preprint arXiv:1906.05797, 2019.
+
+[29] Team Wan, Ang Wang, Baole Ai, Bin Wen, Chaojie Mao, Chen-Wei Xie, Di Chen, Feiwu Yu, Haiming
+     Zhao, Jianxiao Yang, et al. Wan: Open and advanced large-scale video generative models. arXiv preprint
+     arXiv:2503.20314, 2025.
+
+[30] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 5294–5306, 2025.
+
+[31] Yuxin Wang, Qianyi Wu, Guofeng Zhang, and Dan Xu. Learning 3d geometry and feature consistent
+     gaussian splatting for object removal. In European conference on computer vision, pages 1–17. Springer,
+     2024.
+
+[32] Chung-Ho Wu, Yang-Jung Chen, Ying-Huan Chen, Jie-Ying Lee, Bo-Hsu Ke, Chun-Wei Tuan Mu, Yi-
+     Chuan Huang, Chin-Yang Lin, Min-Hung Chen, Yen-Yu Lin, et al. Aurafusion360: Augmented unseen
+     region alignment for reference-based 360deg unbounded scene inpainting. In Proceedings of the Computer
+     Vision and Pattern Recognition Conference, pages 16366–16376, 2025.
+
+
+                                                      12
+[33] Haoyu Wu, Diankun Wu, Tianyu He, Junliang Guo, Yang Ye, Yueqi Duan, and Jiang Bian. Geometry
+     forcing: Marrying video diffusion and 3d representation for consistent world modeling. In The Fourteenth
+     International Conference on Learning Representations, 2026. URL https://openreview.net/forum?
+     id=ULXYZCms41.
+
+[34] Jing Wu, Jia-Wang Bian, Xinghui Li, Guangrun Wang, Ian Reid, Philip Torr, and Victor Adrian Prisacariu.
+     Gaussctrl: Multi-view consistent text-driven 3d gaussian splatting editing. In European conference on
+     computer vision, pages 55–71. Springer, 2024.
+
+[35] Jianfeng Xiang, Zelong Lv, Sicheng Xu, Yu Deng, Ruicheng Wang, Bowen Zhang, Dong Chen, Xin Tong,
+     and Jiaolong Yang. Structured 3d latents for scalable and versatile 3d generation. In Proceedings of the
+     IEEE/CVF conference on computer vision and pattern recognition, pages 21469–21480, 2025.
+
+[36] Yuanbo Yang, Jiahao Shao, Xinyang Li, Yujun Shen, Andreas Geiger, and Yiyi Liao. Prometheus: 3d-aware
+     latent diffusion models for feed-forward text-to-3d scene generation. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, pages 2857–2869, 2025.
+
+[37] Hu Ye, Jun Zhang, Sibo Liu, Xiao Han, and Wei Yang. Ip-adapter: Text compatible image prompt adapter
+     for text-to-image diffusion models. arXiv preprint arXiv:2308.06721, 2023.
+
+[38] Mingqiao Ye, Martin Danelljan, Fisher Yu, and Lei Ke. Gaussian grouping: Segment and edit anything in
+     3d scenes. In European conference on computer vision, pages 162–179. Springer, 2024.
+
+[39] Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner, and Angela Dai. Scannet++: A high-fidelity
+     dataset of 3d indoor scenes. In Proceedings of the IEEE/CVF International Conference on Computer
+     Vision, pages 12–22, 2023.
+
+[40] Kai Zhang, Lingbo Mo, Wenhu Chen, Huan Sun, and Yu Su. Magicbrush: A manually annotated dataset for
+     instruction-guided image editing. Advances in Neural Information Processing Systems, 36:31428–31449,
+     2023.
+
+[41] Lvmin Zhang, Anyi Rao, and Maneesh Agrawala. Adding conditional control to text-to-image diffusion
+     models. In Proceedings of the IEEE/CVF international conference on computer vision, pages 3836–3847,
+     2023.
+
+[42] Qihang Zhang, Yinghao Xu, Chaoyang Wang, Hsin-Ying Lee, Gordon Wetzstein, Bolei Zhou, and Ceyuan
+     Yang. 3ditscene: Editing any scene via language-guided disentangled gaussian splatting. In The Thirteenth
+     International Conference on Learning Representations, 2025. URL https://openreview.net/forum?
+     id=iKDbLpVgQc.
+
+[43] Qihang Zhang, Shuangfei Zhai, Miguel Angel Bautista Martin, Kevin Miao, Alexander Toshev, Joshua
+     Susskind, and Jiatao Gu. World-consistent video diffusion with explicit 3d modeling. In Proceedings of
+     the Computer Vision and Pattern Recognition Conference, pages 21685–21695, 2025.
+
+[44] Jensen Zhou, Hang Gao, Vikram Voleti, Aaryaman Vasishta, Chun-Han Yao, Mark Boss, Philip Torr,
+     Christian Rupprecht, and Varun Jampani. Stable virtual camera: Generative view synthesis with diffusion
+     models. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 12405–
+     12414, 2025.
+
+[45] Xiaoming Zhu, Xu Huang, Qinghongbing Xie, Zhi Deng, Junsheng Yu, Yirui Guan, Zhongyuan Liu, Lin
+     Zhu, Qijun Zhao, Ligang Liu, et al. Imaginarium: Vision-guided high-quality 3d scene layout generation.
+     ACM Transactions on Graphics (TOG), 44(6):1–24, 2025.
+
+[46] Jingyu Zhuang, Chen Wang, Liang Lin, Lingjie Liu, and Guanbin Li. Dreameditor: Text-driven 3d scene
+     editing with neural fields. In SIGGRAPH Asia 2023 conference papers, pages 1–10, 2023.
+
+[47] Jingyu Zhuang, Di Kang, Yan-Pei Cao, Guanbin Li, Liang Lin, and Ying Shan. Tip-editor: An accurate 3d
+     editor following both text-prompts and image-prompts. ACM Transactions on Graphics (ToG), 43(4):1–12,
+     2024.
+
+
+
+
+                                                     13
+          Source Image   Edited Image   RGB Latent   RGB Mask        RGB Region   GEO Latent      GEO Mask   GEO Region
+
+
+
+
+Figure 7: Training-time response diagnostic for region-decomposed supervision. RGB and geometry
+latent deltas provide complementary edit cues, which are converted into latent masks for separating
+edited and background regions.
+
+A     Response Diagnostics and Calibration
+We visualize both training-time loss diagnostics and inference-time edit-condition responses to make
+the region-aware design more interpretable. These visualizations are diagnostic only: inference does
+not require target videos, benchmark edit masks, or training-time difference maps.
+Figure 7 shows that RGB and geometry latent differences respond to different aspects of a scene
+edit. In the examples, geometry latent deltas concentrate more on the edited object’s spatial extent
+and central 3D structure, while RGB latent deltas respond strongly to regions with large appearance
+changes, such as color, texture, shadows, reflections, and newly exposed surfaces. These comple-
+mentary responses make the latent-difference mask more task-aligned than directly using the dataset
+object mask, because a valid edit often changes not only the manipulated object but also nearby
+shadows, reflections, disoccluded background, and local lighting.
+This diagnostic also motivates our within-region weighting. Locations with larger RGB or geometry
+latent differences correspond to stronger appearance or structural changes, so assigning higher weights
+to these positions guides the joint latent prediction toward the parts where the source and edited
+scenes differ most, while the background term still preserves unchanged regions.
+
+A.1     Edit-Condition Impact Visualization
+
+To visualize where the edited reference affects generation, we fix the same noisy latent, timestep,
+prompt, and source-video control branch, and compare two denoising forward passes: one with the
+full edit condition and one with a no-edit baseline that removes the edited reference condition. We
+compute
+      ∆edit = Gθ,ϕ (zt , csource , cedit ) − Gθ,ϕ (zt , csource , cnoedit ),                   Medit = meanc (|∆edit |),
+then upsample and normalize Medit to obtain the heatmap shown in Figure 8.
+
+
+
+
+                                                                14
+Source Views Edit Reference
+                                      (a) Removal:                                         (b) Insertion:
+                                      Remove only the right wall painting.                 Add one white front-loading washing machine.
+Edited Views Response Map
+
+
+
+
+     Figure 8: Edit-condition impact visualization. Heatmaps show the denoiser response difference
+     between full edit conditioning and a no-edit baseline while keeping the source-video control branch
+     enabled. Warmer regions indicate where the edited reference condition most strongly changes the
+     model prediction.
+
+     Figure 8 uses real-scene sequences from the collected datasets: we crop short video clips, randomly
+     select one frame, and edit it with Nano Banana to obtain the edited reference. The heatmap should be
+     interpreted as an edit-condition impact map rather than an object mask. Since the source-video control
+     branch is kept active in both passes, it highlights the additional influence of the edited reference
+     instead of raw control-branch residuals. The responses are therefore less clean than the training-time
+     latent-difference masks in Figure 7, but the strongest regions still appear around the intended edit and
+     nearby affected context.
+
+     A.2                      Threshold Calibration for Edit/Background Separation
+
+    We calibrate the binary edit-region threshold on a held-out subset with standard edit masks. Let
+    G denote the annotated edit mask. For each threshold τ , we obtain a predicted edit mask from the
+    normalized latent difference and measure both edit-region recall and background leakage:
+                                                                                             |Pτ ∩ G|
+                                                Pτ = 1[diff_norm > τ ],           Coverage =          ,
+                                                                                                |G|
+                                                         |Pτ \ G|                              Coverage
+                                       Overflow =                 ,                  Score =              .
+                                                           |G|                               1 + Overflow
+    The score equals |Pτ ∩ G|/|Pτ ∪ G| under the same normalization. Lower thresholds improve
+    coverage but introduce substantial background leakage, while higher thresholds suppress overflow
+    but miss valid edited regions. We therefore choose τ = 0.15, the elbow that preserves high coverage
+    with much lower overflow.
+     Figure 9 shows that very small thresholds produce high edit-region coverage but also include many
+     background pixels, while large thresholds suppress leakage at the cost of missing weaker edit
+     responses. The selected threshold τ = 0.15 lies near the transition point where coverage remains
+     high and overflow drops sharply, which matches the goal of supervising both the edited object and
+     nearby affected regions without allowing unchanged background to dominate the edit loss.
+
+
+
+
+                                                                             15
+                            Threshold calibration for edit/background separation
+                100%
+                                                                    Coverage |P G|/|G|
+                                                                    Overflow |P G|/|G|
+                    80%                                             IoU-like score
+
+                                                       selected threshold
+                    60%                                 = 0.15
+            Ratio
+                    40%
+                                                           high coverage
+                                                           with much lower overflow
+                    20%
+
+                    0%
+                          0.05      0.10       0.15        0.20        0.25       0.30
+                                     Threshold in P = 1[diff_norm > ]
+Figure 9: Threshold calibration for latent-difference edit/background decomposition. We sweep
+τ ∈ {0.05, 0.10, 0.15, 0.20, 0.25, 0.30} and choose τ = 0.15, which lies near the coverage-overflow
+elbow and achieves the best trade-off between edit-region recall and background leakage.
+
+B     Additional Experimental Results
+B.1   Implementation Details
+
+Input representation and conditioning. All videos are represented as 49 RGB frames at 560×560
+resolution. The Wan video VAE encodes each sequence into 16-channel RGB latents with 13 temporal
+steps and 70×70 spatial size. Following Gen3R, the geometry stream is encoded by frozen VGGT and
+Geometry Adapter modules; we concatenate RGB and geometry latents along the width dimension,
+producing a target latent of shape 16×13×70×140. Each sample provides one edited reference frame
+selected from views with high edit-mask coverage. We encode this frame with the same VAE and
+insert it into the corresponding RGB latent timestep, while the remaining RGB positions and the full
+geometry half are masked. The source-video RGB latent, concatenated with a zero geometry half,
+serves as the SceneAnchor Branch control input.
+
+Training. We train only the SceneAnchor Branch and keep the Gen3R-tuned Wan transformer,
+VAE, text encoder, CLIP image encoder, VGGT, and Geometry Adapter frozen. Cached latents and
+text/image features are used to reduce training cost. The main model is trained for 10K steps on 8
+NVIDIA H200 GPUs with batch size 10, bf16 mixed precision, gradient checkpointing, AdamW with
+learning rate 10−4 , cosine decay, and EMA. We apply light condition dropout to the edited image
+and text prompt to improve robustness.
+
+Inference. Inference uses the same 49-frame preprocessing and single-reference conditioning.
+Unless otherwise stated, quantitative evaluation uses FlowMatch Euler sampling with 5 denoising
+steps, classifier-free guidance scale 1.0, control scale 1.0, and seed 42. When camera parameters are
+available, they are converted to Plücker ray embeddings; otherwise we use zero camera embeddings
+for the pose-free setting. After denoising, the RGB half is decoded by the Wan VAE, and the geometry
+half is decoded by the Geometry Adapter to recover depth, point maps, valid masks, and camera
+predictions.
+
+B.2   Hyperparameter Sensitivity
+
+We provide a sensitivity analysis for the main objective hyperparameters in Table 6. As in the ablation
+study, each row is trained for 2K steps under the same resource-limited diagnostic setting. Each sweep
+varies one hyperparameter while keeping the remaining settings fixed to the default configuration
+used in Table 5. The edit-mask threshold τ is selected by the calibration procedure in Figure 9, so
+it is not included in this sweep. The results show that the default setting gives a balanced trade-off
+between edit-region fidelity, background preservation, and 3D structure.
+
+
+                                                  16
+Table 6: Hyperparameter sensitivity on SceneEdit3D-Bench. Each block varies one objective
+hyperparameter around the default setting used by JointEdit3D.
+
+                                                 Edit Region       Background     3D Structure
+             Hyperparameter              Value PSNR↑ LPIPS↓ PSNR↑ LPIPS↓              CD↓
+                                         2.5    25.71    0.252   30.02    0.129      0.1184
+             Within-region scale α       5.0    26.82    0.209   30.69    0.103      0.1053
+                                         7.5    26.18    0.228   29.93    0.126      0.1136
+                                         0.25   25.96    0.239   29.87    0.131      0.1161
+             Temporal scale η            0.50   26.82    0.209   30.69    0.103      0.1053
+                                         0.75   26.20    0.229   30.05    0.123      0.1124
+                                         0.40   25.89    0.247   30.91    0.096      0.1145
+             Edit/background balance λ   0.50   26.82    0.209   30.69    0.103      0.1053
+                                         0.60   26.47    0.221   29.86    0.132      0.1118
+                                         1.0    26.19    0.231   30.12    0.124      0.1208
+             Geometry loss weight γgeo   1.5    26.82    0.209   30.69    0.103      0.1053
+                                         2.0    25.98    0.238   29.95    0.128      0.1109
+
+Table 6 shows that the objective is most sensitive to how strongly sparse edit regions and geometry
+supervision are weighted. The within-region scale α and temporal scale η both peak at the default
+values, suggesting that changed pixels and farther views need additional emphasis but can be over-
+weighted if the scale is too large. The edit/background balance λ illustrates the expected trade-off: a
+smaller value slightly favors background metrics, whereas the default improves edit-region quality
+and CD. Finally, γgeo = 1.5 gives the best geometry and RGB trade-off, indicating that geometry
+supervision helps the joint latent without overwhelming appearance learning.
+
+B.3      Additional Qualitative Comparisons
+
+We include additional qualitative comparisons to stress edit types and real-capture conditions that are
+difficult to summarize with a single scalar metric. The real-scene examples span DL3DV, ScanNet++,
+CO3D, DAVIS, and casually captured scenes [17, 39, 25, 23]. For each example, we crop a short
+sequence from the original data, randomly select one frame as the reference view, and edit this frame
+with Nano Banana to obtain the edited reference. We use these examples as qualitative multi-view
+stress tests rather than as a standardized quantitative benchmark.
+
+
+
+                                                                                              Original
+
+
+
+
+                                                                                            MVInpainter
+
+
+
+
+                                                                                            Omni-3DEdit
+      Reference Image
+
+
+
+
+                                                                                               Ours
+
+
+
+
+                    Figure 10: Additional qualitative comparison for appearance editing.
+
+
+                                                    17
+Figure 10 evaluates appearance editing on a challenging DAVIS scene, where a person walks through
+an open outdoor environment and the edited reference changes the backpack color. We obtain the
+backpack mask with SAM3 and test the same edited reference across the three methods. MVInpainter
+fails to synthesize a clear red backpack within the masked region, instead weakening or blurring
+the local appearance change. Omni-3DEdit turns the backpack red in some frames, but the color
+varies across views and the global image quality noticeably degrades. JointEdit3D more consistently
+transfers the red appearance while preserving the person, path, vegetation, lighting, and overall frame
+quality.
+
+
+
+                                                                                             Original
+
+
+
+
+                                                                                           MVInpainter
+
+
+
+
+                                                                                           Omni-3DEdit
+  Reference Image
+
+
+
+
+                                                                                              Ours
+
+
+
+
+             Figure 11: Additional qualitative comparison for real-scene object removal.
+
+Figure 11 shows a ScanNet++ object removal example with a complex cluster of monitors placed
+on a white cabinet. The edited reference removes the monitors while keeping a drink bottle behind
+them, so the task requires the model to distinguish the target object group from nearby non-target
+objects and reason about the underlying 3D scene layout. MVInpainter removes the monitors only
+by introducing large blurry regions, and Omni-3DEdit inconsistently leaves monitors or cables in
+several views. JointEdit3D better follows the edited reference: it removes the complex monitor
+cluster, preserves the bottle, wall map, cabinet surface, and red bin, and maintains stable surrounding
+context across the camera trajectory.
+Figure 12 explores JointEdit3D under multiple edited reference frames, a setting not used during
+training. This is naturally supported by our latent-inpainting formulation: multiple edited frames
+can be inserted as known observations in the unified latent space, while the model generates the
+remaining RGB-geometry sequence. Existing baselines do not expose the same multi-reference
+editing interface. In the workshop scenes, the edited references specify spatially separated changes
+around industrial equipment while the door, floor, wall fixtures, shelves, and lighting should remain
+unchanged. JointEdit3D can edit multiple reference frames and propagate their changes through
+the full image sequence without globally washing out the room or changing unrelated background
+structures.
+
+
+
+
+                                                  18
+  Reference Image
+
+
+
+
+      Original
+
+
+
+
+      JointEdit3D
+
+
+
+
+  Reference Image
+
+
+
+
+      Original
+
+
+
+
+      JointEdit3D
+
+
+
+
+                 Figure 12: Additional qualitative examples for real-scene multi-editing.
+
+B.4   Operation-Specific Diagnostics
+
+Table 7 supplements the main operation-wise results for JointEdit3D on SceneEdit3D-Bench with
+SSIM and two depth-based 3D metrics to diagnose operation-specific structural difficulty.
+Table 7: Supplementary operation-specific SSIM and depth metrics for JointEdit3D on SceneEdit3D-
+Bench.
+                    Operation      Edit SSIM↑    Bg. SSIM↑      Abs Rel↓    δ<1.25 ↑
+                    Delete           0.836          0.914        0.0540       0.9819
+                    Add              0.698          0.921        0.0592       0.9741
+                    Move             0.698          0.913        0.0858       0.9305
+                    Appearance       0.840          0.926        0.0606       0.9719
+                    Multi-op         0.672          0.892        0.0683       0.9628
+
+
+B.5   Runtime and Memory Details
+
+Table 8 reports the runtime and memory values underlying the efficiency-quality plot in Figure 3.
+We report the 49-frame full-3D setting because it is the common setting used for the main quality
+metrics. For RGB/video baselines, the post-processing column includes the VGGT compute-only
+reconstruction time used in the full-3D protocol. For optimization-based 3D baselines, runtime
+includes the method-required per-scene fitting or reconstruction stages when available.
+JointEdit3D is substantially faster than both feed-forward baselines under the full-3D protocol because
+it directly outputs RGB and geometry without an additional VGGT reconstruction pass. It also avoids
+
+
+                                                   19
+       Table 8: Runtime and memory details for the 49-frame full-3D efficiency comparison.
+             Method                   Time (s)   Gen./Opt. (s)    Post. (s)   Peak alloc. (GB)   Peak reserved (GB)
+             JointEdit3D (Ours)         11.94           11.94        0.00               29.07                50.33
+             MVInpainter [2]            43.25           19.45       23.81               43.80                66.88
+             Omni-3DEdit [4]           237.15          213.34       23.81               56.40                73.08
+             SPIn-NeRF [21]           1619.00         1619.00        0.00                   –                    –
+             Gaussian Grouping [38]    486.00          486.00        0.00                   –                    –
+             GaussianEditor [6]        285.07          285.07        0.00                   –                    –
+
+
+the hundreds to thousands of seconds required by per-scene optimization methods. The memory
+values for native 3D optimization baselines are left blank when the historical timing logs did not
+record comparable peak allocation and reserved memory.
+
+C     SceneEdit3D-15K Generation Details
+C.1   Scene Sources and Candidate Extraction
+
+We build SceneEdit3D-15K from composable indoor scenes in Imaginarium [45], using it as an
+editable synthetic scene source complementary to established indoor 3D resources such as ScanNet,
+Replica, Hypersim, and 3D-FRONT [7, 28, 27, 8]. Each source scene is provided as a Blender
+scene with object-level meshes, parent-child relations, physically based materials, lighting, camera
+metadata, and scene captions. This representation lets us apply edits by changing the underlying 3D
+scene state rather than by editing rendered images. Before task proposal, we also complete scene
+assets for the Imaginarium rooms by adding missing structural elements such as walls and ceilings
+when needed, so rendered camera trajectories remain enclosed and visually plausible. For each scene,
+we first construct an object table from the scene metadata and rendered visibility statistics. Each
+candidate entry records the exact Blender object name, semantic class, caption, parent object, number
+of children, visible image area, maximum 3D extent, height, and whether the object is support-like.
+Structural objects such as floors, ceilings, cameras, and walls are removed from the editable set.
+
+C.2   VLM-Guided Edit Proposal
+
+Scene edits are proposed from visual and structured scene state, but only the canonical forward
+tasks are selected by the VLM. In practice, we ask the VLM to choose feasible deletion targets and
+relocation targets; addition samples are obtained by reversing valid deletion pairs, and move-reverse
+samples are obtained by reversing valid move pairs. Appearance-change samples are generated
+separately in Blender by randomly replacing a target object’s material or texture with another
+compatible material/texture state. The VLM receives only scene renderings and a JSON layout file
+derived from the scene graph. It is asked to analyze object visibility, physical support, free space, and
+scene relations before proposing renderer-executable edit tasks with exact object names. Figures 13
+and 14 show expanded representative prompt templates used for task proposal and instruction
+refinement. They are written as paper-readable versions of the implementation prompts: scene-
+specific image panels, JSON layout fields, examples, and repair logs are shortened for readability.
+The raw VLM response is not directly accepted. We parse the returned JSON and validate each
+task against the candidate table and JSON layout file. A task is rejected if it uses an object name
+not present in the scene, repeats a previously selected target, violates operation-specific constraints,
+selects a deletion target that is too small or too structurally important, or selects a move target without
+sufficient nearby free space and support. When the first response does not contain enough valid tasks,
+a repair prompt is issued with the invalid reasons and the previous response, asking the VLM to keep
+valid tasks and replace only invalid ones. Remaining gaps are filled by rule-based diversification over
+the validated candidate pool.
+
+C.3   Deterministic Scene Execution
+
+Accepted canonical tasks are executed inside Blender under a deterministic before/after protocol,
+and inverse tasks are derived by state/time reversal for deletion and relocation. For deletion, the
+target object and its descendants are visible in the source scene and hidden in the edited scene;
+child lights are preserved to avoid unintended illumination changes. The corresponding addition
+
+
+                                                             20
+   Canonical task proposal prompt (expanded representative template)
+   System. You are a senior 3D scene edit planner. Your output is consumed by an automatic Blender renderer, so
+   object names, operation names, and JSON syntax must be exact. Return strict JSON only; do not output markdown
+   or natural language outside JSON.
+   Inputs. Inspect the rendered scene views and the accompanying JSON layout file before selecting tasks. Use the
+   renderings to judge visibility, occlusion, room boundaries, and visual plausibility, and use the JSON layout to reason
+   about object names, support, containment, proximity, and parent-child relations.
+   Task goal. Generate exactly K realistic, visually meaningful, and physically plausible canonical tasks. The allowed
+   operations in this prompt are delete and move; do not generate add, move_reverse, or appearance-change tasks
+   here. These inverse or appearance tasks are produced later by the deterministic rendering/augmentation pipeline.
+   Use only object names from the JSON layout file, copied character-for-character. Diversify object classes, scene
+   regions, and object scales.
+   Operation-specific rules. Delete: choose a clearly visible and semantically meaningful removable object; avoid
+   structural elements, room-defining objects that are too large, tiny objects whose removal is visually ambiguous,
+   and support objects with many children unless deleting the whole group is plausible. Prefer objects whose removal
+   creates a visible but physically plausible empty region. Move: choose a non-support leaf object with visible free
+   space nearby; move it only a moderate distance within the same functional area, keep it supported after moving,
+   avoid collisions or wall penetration, and ensure the object is visible both before and after the move. Appearance:
+   do not select appearance tasks in this prompt; material/texture changes are sampled by Blender from compatible
+   material or texture candidates.
+   Trajectory rule. Select one template from trajectory_templates. The selected trajectory should view the
+   affected objects clearly and avoid severe occlusion; include a short reason.
+   Output schema.
+   {“tasks”: [{“operation”: “delete|move”,
+      “target_object”: “exact_object_name”,
+      “edit_text_en”: “short edit description”,
+      “instruction”: “renderer-facing concise instruction”,
+      “trajectory_reason”: “why this view works”,
+      “trajectory_template”: “one provided template”}]}
+
+Figure 13: Expanded representative VLM prompt for proposing canonical renderer-executable tasks.
+The prompt requires the VLM to analyze rendered scene views and a JSON layout file before
+selecting deletion and relocation targets under physical and visibility constraints. Add and move-
+reverse samples are derived later by state/time reversal, while appearance changes are generated by
+Blender-side material/texture replacement.
+
+   Editing-instruction refinement prompt
+   Role. You are generating natural editing instructions to fine-tune a video diffusion model for scene editing. You
+   are shown three rendered inputs from the same viewpoint: before editing, after editing, and an edit-region mask
+   where white marks the changed area. You also receive the operation type and a draft renderer instruction.
+   Visual analysis. Compare the before/after images and use the mask only to localize the change. Identify the edited
+   object, its appearance, nearby landmarks, support surface, and the visible result after the edit. Do not mention the
+   mask, frame index, image pair, renderer, or any technical term in the final instruction.
+   Prompt style. Generate one forward instruction and one reverse instruction. Each prompt should be 15–40 words,
+   start with an action verb such as remove, add, move, or replace, include spatial context, describe the visual outcome,
+   and include color/material/size cues when visible.
+   Output schema.
+   {“forward”: “before-to-after editing prompt”,
+      “reverse”: “after-to-before editing prompt”}
+
+Figure 14: Representative prompt for converting rendered before/after evidence into natural user-
+facing editing instructions. This stage grounds the language in the actual rendered change rather than
+only in object identifiers.
+
+
+
+
+                                                            21
+   Algorithm 1: Deterministic Blender Execution for One Edit
+   Input: Blender scene S0 , metadata M, VLM edit task q, JSON layout file L, seed s. Here q is either a
+   VLM-approved delete/move task or a Blender-sampled appearance task.
+   Output: paired source/target videos, masks, depth maps, camera poses, intrinsics, and task metadata.
+
+          1. Parse the JSON layout file L and scene metadata M to recover object identities, support
+             relations, parent-child links, approximate object extents, and navigable room bounds.
+          2. Resolve affected object roots from q, expand them with the parent-child graph, and run layout
+             validity checks to reject structural, too-small, or unsupported targets.
+          3. For relocation, sample candidate target positions and run collision detection, support-surface
+             checks, room-bound checks, and free-space validation before accepting a placement.
+          4. Generate a seeded camera trajectory P = {(Ri , ti )}N       i=1 from fixed templates such as
+             horizontal sweeps, diagonal motions, rising motions, and drop-forward motions, centered on
+             the affected object set.
+          5. Run visibility checks along P for the source and edited states; reject or repair tasks whose
+             targets are not sufficiently visible or whose edit is hidden by accidental occlusion.
+          6. Save the initial object states and camera state so both branches start from the same scene.
+          7. For each branch b ∈ {before, after}: restore the saved scene state, apply the branch-specific
+             edit operator Eqb , attach the same camera path P , and render RGB/depth frames.
+          8. Select branch-specific mask objects: deleted objects for deletion, moved objects in both
+             relocation branches, and appearance-changed objects in both appearance branches. Render
+             binary masks through Blender object-index passes.
+          9. Export RGB videos, depth maps, masks, relative camera poses, intrinsics, task JSON, and
+             completion sentinels.
+         10. Derive inverse samples for deletion and relocation by swapping before/after branches and
+             reversing frame, depth, mask, and pose order: delete → add and move → move-reverse.
+         11. Discard samples with missing files, empty masks, invisible targets, corrupted frames, invalid
+             physical placement, or failed collision/visibility checks.
+                                  
+                                  
+                                   hide(o),                 q = delete, b = after,
+                                  
+                                  move(o, ∆),
+                       b                                     q = move, b = after,
+                     Eq (S0 ) =                         ′
+                                  
+                                   replace_mat(o,    m   ), q = appearance, b = after,
+                                  
+                                  identity,                 otherwise.
+
+Figure 15: Algorithmic view of the Blender execution protocol. Layout parsing, collision checks,
+visibility checks, and trajectory generation are performed before rendering. The same accepted
+camera path and render settings are reused for the before and after branches, so each output frame
+forms a paired observation under an identical viewpoint.
+
+sample is obtained by swapping the source and edited states and reversing the rendered sequence.
+Relocation keeps the target visible in both scenes and moves it to a new collision-free position within
+the navigable room bounds; the reverse relocation sample swaps the before/after states and reverses
+the frame order. Appearance-change tasks are generated without VLM target proposal: Blender
+selects an eligible object and randomly replaces its material or texture with a compatible alternative,
+while preserving the mesh and transform.
+Camera trajectories are generated from a fixed set of templates, including horizontal sweeps, diagonal
+forward motions, rising motions, and drop-forward motions. The trajectory is centered on the edited
+object or, for composite edits, on the midpoint of the affected objects. We reject or repair tasks whose
+targets are unlikely to be visible from the selected trajectory. For relocation, candidate target positions
+are tested for room-bound validity, object collision, support plausibility, and visibility from the final
+camera path. This ensures that the source and target videos differ primarily by the intended edit rather
+than by accidental occlusion or camera drift.
+
+C.4   Rendering, Annotations, and Prompt Refinement
+
+For every accepted edit, Blender renders a source video and an edited target video with identical
+camera poses, intrinsics, frame count, resolution, lighting, and sampling settings. Thus, frame i in the
+
+
+                                                      22
+source sequence and frame i in the target sequence form a strictly paired before/after observation
+from the same viewpoint. We also export camera intrinsics, relative camera poses, depth maps, and
+task metadata. The edited reference frame Ie is selected from the target sequence and paired with the
+final natural-language instruction p to form the conditioning input used by JointEdit3D.
+Edit masks are rendered through Blender object-index passes. For deletion and relocation, the mask
+tracks the affected target object; for addition, it is rendered in the edited branch where the added
+object is visible; for appearance changes, it tracks the object whose material or texture is replaced.
+For composite edits, before and after masks are associated with the corresponding affected objects.
+We combine branch-specific masks when a single edit-region mask is required for prompt refinement
+or evaluation. Because masks are produced by the renderer, they are spatially aligned with the RGB
+and depth frames and do not rely on a separate segmentation model.
+The final language instruction is refined after rendering. A VLM receives the source reference frame,
+the edited reference frame, and the combined mask, and generates forward and reverse prompts in a
+compact JSON format. This step converts renderer-facing object identifiers into natural user-facing
+instructions, while preserving spatial context and visible appearance cues. For example, a renderer
+instruction such as “remove object chair_12” can be converted into “Remove the brown lounge chair
+beside the sofa, revealing the wooden floor and wall behind it.”
+
+C.5   Release Format and Annotation Schema
+
+SceneEdit3D-15K is released with a lightweight JSON metadata table. Each entry records the
+sample identifier, scene identifier, split, operation type, source and edited video paths, selected
+edited-reference frame index, edit prompt, video properties, affected object names, and optional paths
+to masks, depth maps, camera poses, and intrinsics. All paths are relative to the dataset root, allowing
+users to derive task-specific training or evaluation manifests from the same metadata.
+
+C.6   Training and Evaluation Data Flow
+
+SceneEdit3D-15K separates the RGB pairs used for JointEdit3D training from the additional renderer-
+side 3D annotations released with the dataset. For each paired sample, the source video Vs and edited
+target video V ⋆ are first converted into the unified RGB-geometry latent space of Gen3R [11]. The
+RGB half is obtained directly from the Wan video VAE, e.g., z⋆,rgb = Ergb (V ⋆ ). The geometry half
+is obtained from the same target RGB frames by applying the frozen VGGT encoder Φvggt [30] and
+the pretrained Geometry Adapter encoder Aenc   ψ : z
+                                                      ⋆,geo
+                                                            = Aenc          ⋆
+                                                                ψ (Φvggt (V )). Because VGGT predicts
+camera-aware multi-view geometry features from RGB observations, and the Geometry Adapter
+maps these features into the Wan latent lattice used by Gen3R, this produces a geometry-latent
+pseudo-target aligned with the RGB latent under the same temporal and spatial indices. The edited
+target latent is therefore z⋆ = [z⋆,rgb ; z⋆,geo ]. The source video is encoded in the same latent space;
+its RGB half is fed to the SceneAnchor Branch, and the full source RGB-geometry latent is used on
+the loss side to compute source-target latent-difference masks.
+During training, the model is conditioned on the source RGB video, the selected edited reference
+frame, and the language instruction, while the complete edited target latent z⋆ provides the flow-
+matching supervision. We corrupt z⋆ with Gaussian noise and train the editor to predict the velocity
+toward both its RGB half and its VGGT-derived geometry half. Gradients update only the SceneAn-
+chor Branch; the Wan VAE, VGGT encoder, Geometry Adapter, and Gen3R-tuned backbone remain
+frozen. Thus, the 3D supervision does not require Blender depth maps, point clouds, or camera
+poses as training targets: paired RGB videos provide appearance supervision directly, and a frozen
+VGGT–Geometry-Adapter teacher converts the edited RGB target video into the corresponding
+geometry-latent supervision.
+The renderer-provided annotations are used for evaluation and for making the dataset reusable beyond
+our training recipe. Edit masks define the edit and background regions for image metrics, while depth
+maps, camera intrinsics/extrinsics, and edited scene states allow us to construct geometry diagnostics
+such as depth or point-cloud comparisons. These annotations also make SceneEdit3D-15K useful for
+future methods that may train with explicit depth, camera, point-cloud, or scene-state supervision,
+even though JointEdit3D itself only requires paired RGB videos for optimization.
+
+
+
+
+                                                  23
+Table 9: SceneEdit3D-15K split statistics and SceneEdit3D-Bench composition. The first table
+reports total samples, scene counts, and operation counts per split, and the edited-object area table
+reports the benchmark image-area ratio of the renderer-defined edit mask.
+
+               Split        Total    Scenes    Add     Delete   Move    Appearance        Multi-op
+               Train       13,799     135     4,990    4,987    1,884        1,017          921
+               Test/val     1,520      16      600      600      186          24            110
+               Bench         100       15       29       29      14           14            14
+
+                          Edited-object area ratio    < 1%     1–5%   5–15%     ≥ 15%
+                          Count                        11       47      29           13
+
+C.7   Quality Control and Benchmark Curation
+
+The generation pipeline applies quality control at three stages. Before rendering, candidate objects
+are filtered by semantic validity, visibility, size, parent-child structure, and operation-specific safety.
+During rendering, each task writes completion sentinels only after RGB frames, videos, masks,
+depth maps, poses, intrinsics, and metadata are successfully generated. After rendering, samples
+with missing frames, empty masks, corrupted files, invisible targets, or overly small edit regions
+are removed. The retained release contains over 15K paired editing samples. We construct a
+scene-disjoint test split from scenes that do not appear in training and further curate SceneEdit3D-
+Bench from this held-out split. The resulting 100-sample benchmark covers both regular edits and
+challenging cases across scene categories and operation types, including partially occluded edited
+objects, small-object edits, large-object edits, and multi-operation edits. This makes the benchmark
+demanding while still supporting edited-region quality, background preservation, and 3D structural
+evaluation under a common paired-rendering protocol.
+Table 9 reports split-level statistics and the detailed composition of SceneEdit3D-Bench. SceneEdit3D-
+15K uses 13,799 training samples from 135 scenes, and reserves 1,520 test/validation samples from
+16 held-out scenes. The benchmark contains 100 samples from 15 held-out scenes. The operation
+distribution covers all five operation groups, with more samples allocated to the regular addition and
+deletion edits. The edited-object area distribution is measured by the fraction of image pixels covered
+by the renderer-defined edit mask, and shows that the benchmark contains many sparse edits while
+still including medium and large edited regions.
+
+D     Evaluation Protocol Details
+D.1   360-USID and Real-Scene Quantitative Protocol
+
+We use 360-USID [32] only for deletion evaluation, following the original dataset’s edit-region proto-
+col. For each scene, the dataset provides before-removal images, ground-truth after-removal images,
+camera information, and object masks. We reconstruct before/after states with 3D Gaussian Splatting
+only to obtain a common source-video trajectory and synchronized method inputs. Quantitative
+metrics are computed only at trajectory frames whose viewpoints correspond to official after-removal
+images, and the target for those frames is the dataset-provided ground-truth edited image rather than
+a 3DGS rendering. Therefore the reported PSNR/LPIPS values are not affected by the rendering
+quality of the edited 3DGS reconstruction; each evaluated frame has a source observation, an official
+ground-truth edited target, and a common camera path.
+The edited reference supplied to each method is the object-removed ground-truth reference frame
+from the same scene. The evaluation mask is propagated through the rendered video with SAM3 from
+the original object-removal mask, and the same propagated masks are used for all methods. Since
+360-USID is an object-removal benchmark and its original protocol evaluates the manipulated area,
+Table 2 reports only edit-region PSNR and LPIPS on this dataset; background-region scores are not
+used for this comparison. We do not replace ground-truth edited frames, masks, or camera trajectories
+with method-specific outputs. Samples are excluded only when the common preprocessing fails,
+for example when a required rendered frame, reference frame, or propagated mask is missing; no
+samples are removed based on the output quality of any evaluated method.
+
+
+                                                       24
+D.2   Baseline Interfaces and Aggregation
+
+We use a fixed adapter-based evaluation protocol. Each method is first converted to the same prediction
+layout and is then evaluated with the same benchmark frames, masks, and metrics. Method-specific
+preprocessing is allowed only when required by the original method interface; evaluation masks,
+frame indices, and benchmark target images are never replaced by method-generated preprocessing
+outputs. Table 10 summarizes each method’s interface relative to the common RGB inputs and the
+reporting scope.
+Table 10: Baseline interfaces used in evaluation. Common RGB inputs are the source video and
+one edited reference frame for native editing methods. SEVA is a protocol-mismatched novel-view
+synthesis model that does not consume the source video sequence. Evaluation always uses the fixed
+benchmark masks and target images.
+
+Method                   Interface relative to common RGB      Per-scene fitting Reporting scope
+                         inputs
+SPIn-NeRF [21]           Edit masks, camera poses, per-scene         Yes        Shared deletion table only
+                         NeRF assets
+Gaussian Grouping [38]   Segmentation/grouping cues, camera          Yes        Shared deletion table only
+                         poses, per-scene 3DGS assets
+GScream [31]             Method-required masks/poses and             Yes        Shared deletion table only
+                         per-scene 3DGS assets
+GaussianEditor [6]       Method-required masks/text/poses            Yes        Supported-operation rows only
+                         and per-scene 3DGS assets
+SEVA [44]                Edited reference frame + target             No         Five-operation table as
+                         cameras only; no source video                          protocol-mismatched NVS row
+MVInpainter [2]          Method-required edit masks                  No         Five-operation feed-forward
+                                                                                table
+Omni-3DEdit [4]          Method-required camera/pose inputs          No         Five-operation feed-forward
+                                                                                table
+JointEdit3D              Optional text prompt only                   No         Five-operation feed-forward
+                                                                                table
+
+Unsupported operations are not filled with zeros or copied values. The deletion table compares all
+methods on the shared deletion subset, while the operation-wise table reports only methods or declared
+adapters that produce outputs for all five operation groups. The average column in the operation-
+wise table is a macro-average over operation groups. SEVA is included as a protocol-mismatched
+diagnostic because it tests whether edited-reference novel-view synthesis alone is sufficient; it is not
+treated as a native 3D scene editing method.
+
+Fairness and protocol-mismatch notes. The single-edited-reference protocol starts from the same
+full source sequence and the same edited reference frame for each method whenever its interface
+can consume them. For methods with a recommended input-frame budget, we evaluate both the
+official recommended number of input frames, sampled from the full sequence, and the all-frame
+input setting; the main tables report the better result. Apart from this frame-count comparison, we use
+official default settings and do not tune method-specific hyperparameters on SceneEdit3D-Bench. We
+do not replace the benchmark target frames, evaluation masks, or camera set with method-generated
+quantities. When a released method requires extra inputs, we provide only the inputs required by that
+interface and report them explicitly in Table 10. For example, mask-guided baselines receive edit
+masks because they otherwise cannot run, but this is additional localization supervision compared
+with JointEdit3D, which is mask-free at inference. Similarly, camera-conditioned baselines receive
+the benchmark camera poses required by their released interfaces, whereas JointEdit3D does not
+require camera poses as input.
+We mark an operation as protocol-mismatched when making the method produce an output would
+require changing the task definition rather than merely adapting file formats. This is most important
+for single-reference add or appearance edits with per-scene NeRF/3DGS editing methods. Their
+released pipelines are mainly deletion or mask/text-driven optimization systems; adapting them to
+our reference-guided add or appearance setting would require an additional 2D image editing or
+image-completion model to synthesize missing target content or per-view guidance. That extra model
+would no longer be part of the evaluated method, and its prompt, mask, view selection, and sampling
+choices could dominate the result. It would also conflict with our benchmark condition that the
+
+
+                                                     25
+edited reference frame is the only target observation: the external completion model could hallucinate
+information not present in the reference, ignore reference-specific appearance, or hide multi-view
+propagation failures. We therefore avoid scoring such constructed pipelines as native support and use
+the protocol-mismatched mark instead.
+SEVA is included in the operation-wise table under the same principle. It is a novel-view synthesis
+model that can render views from an edited reference and target cameras, but it does not accept the
+original source video sequence and is not designed to edit an existing source scene while preserving
+unedited content. Its row is therefore a diagnostic for whether edited-reference view synthesis alone
+is sufficient, not a claim that SEVA is a directly comparable 3D scene editor. These distinctions are
+intended to avoid favoring any method through hidden external modules, privileged masks, camera
+assumptions, or benchmark-specific tuning.
+
+D.3   3D Metric Protocol
+
+Table 4 follows Gen3R’s point-cloud evaluation style [11] for global 3D structure. The renderer
+reference point cloud is constructed by unprojecting the edited branch depth maps with the renderer
+intrinsics and camera poses. We use the same fixed frame subset and valid-pixel filtering for every
+method.
+For RGB output sequences, we reconstruct 3D with the same VGGT backend, checkpoint, resolu-
+tion/crop policy, and inference settings. The Target RGB + VGGT row applies this backend to the
+benchmark target RGB sequence as an oracle RGB-input reference rather than a metric-wise upper
+bound; it is excluded from ranking because it uses target images. The JointEdit3D RGB + VGGT row
+evaluates the RGB sequence produced by our model with the same backend, while the JointEdit3D
+row evaluates the point cloud decoded from the predicted RGB-geometry latent.
+Before computing point-cloud metrics, each predicted point cloud is aligned to the renderer reference
+with a single Sim(3) Umeyama alignment estimated from full-scene valid correspondences. We do
+not use separate transforms per frame, per region, or per operation, and we do not fit the transform on
+the edit region alone. After alignment, non-finite points are removed and each predicted/reference
+cloud is subsampled to at most 100K points with a fixed random seed. Accuracy is the mean nearest-
+neighbor distance from prediction to reference, completeness is the reverse direction, and CD is their
+average. F-score is computed as the harmonic mean of precision and recall using a distance threshold
+of 0.20 in renderer world units.
+
+
+
+
+                                                  26
+

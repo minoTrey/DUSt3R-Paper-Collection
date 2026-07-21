@@ -1,0 +1,486 @@
+                                           HyVGGT-VO: Tightly Coupled Hybrid Dense Visual Odometry with
+                                                              Feed-Forward Models
+                                                                                 Junxiang Pang1 , Lipu Zhou∗1 , Baojie Chen1
+
+
+                                           Abstract— Dense visual odometry (VO), which provides pose
+                                        estimation and dense 3D reconstruction, serves as the cor-
+                                        nerstone for applications ranging from robotics to augmented
+                                        reality. Recently, feed-forward models have demonstrated re-
+                                        markable capabilities in dense mapping. However, when these
+                                        models are used in dense visual SLAM systems, their heavy
+                                        computational burden restricts them to yielding sparse pose
+arXiv:2604.02107v1 [cs.RO] 2 Apr 2026
+
+
+
+
+                                        outputs at keyframes while still failing to achieve real-time pose
+                                        estimation. In contrast, traditional sparse methods provide high
+                                        computational efficiency and high-frequency pose outputs, but
+                                        lack the capability for dense reconstruction. To address these
+                                        limitations, we propose HyVGGT-VO, a novel framework that
+                                        combines the computational efficiency of sparse VO with the
+                                        dense reconstruction capabilities of feed-forward models. To
+                                        the best of our knowledge, this is the first work to tightly
+                                        couple a traditional VO framework with VGGT, a state-of-
+                                        the-art feed-forward model. Specifically, we design an adaptive
+                                        hybrid tracking frontend that dynamically switches between
+                                        traditional optical flow and the VGGT tracking head to ensure
+                                        robustness. Furthermore, we introduce a hierarchical optimiza-       Fig. 1. Motivation and qualitative comparison of dense 3D reconstructions
+                                        tion framework that jointly refines VO poses and the scale           on the EuRoC dataset. Due to its reliance on heavy sub-graph inference,
+                                        of VGGT predictions to ensure global scale consistency. Our          VGGT-SLAM 2.0 [7] yields sparse, delayed poses at 3.3 FPS and exhibits
+                                        approach achieves an approximately 5× processing speedup             severe global scale drift, as seen in the MH01 (b) and V101 (d) sequences.
+                                        compared to existing VGGT-based methods, while reducing              In contrast, our HyVGGT-VO achieves real-time execution at 16.1 FPS,
+                                        the average trajectory error by 85% on the indoor EuRoC              producing globally consistent dense maps for both MH01 (a) and V101 (c)
+                                        dataset and 12% on the outdoor KITTI benchmark. Our                  while delivering continuous, high-frequency poses and smoother trajectories.
+                                        code will be publicly available upon acceptance. Project page:       approaches, such as DeepV2D [10] and DROID-SLAM [11],
+                                        https://geneta2580.github.io/HyVGGT-VO.io.
+                                                                                                             reformulate the tracking and optimization pipeline using
+                                                              I. I NTRODUCTION                               deep iterative architectures to enhance robustness. However,
+                                                                                                             their core optimization heavily relies on alternating updates
+                                           Dense visual odometry (VO), which simultaneously pro-             or dense bundle adjustment (DBA) layers, which consume
+                                        vides pose estimation and dense scene representation, serves         excessive computational resources.
+                                        as the cornerstone for modern spatial perception [1], [2]. This         To simplify the 3D reconstruction pipeline, feed-forward
+                                        dense representation is crucial for various downstream tasks:        models have emerged [12]–[17]. These models can directly
+                                        it provides rich texture and 3D structural information for           regress camera poses and dense geometry from images
+                                        Vision-Language Models (VLMs) [3], [4], while providing              via a single forward inference. This significantly reduces
+                                        essential localization and mapping data for motion planning          system complexity and has recently become a promising new
+                                        and obstacle avoidance in robotics [5], [6], and enabling            paradigm [18]. As a significant advancement in this domain,
+                                        robust spatial anchoring for augmented reality (AR) and              the recent VGGT model [19] employs an architecture that
+                                        virtual reality (VR).                                                directly predicts comprehensive 3D attributes, delivering
+                                           Traditional sparse visual simultaneous localization and           high accuracy for camera poses and 3D geometry at high
+                                        mapping (SLAM) methods provide high computational effi-              inference speeds.
+                                        ciency and high-frequency pose outputs, but lack dense scene            Given these advantages, VGGT has recently been in-
+                                        representation. Meanwhile, existing traditional dense visual         tegrated into dense visual SLAM systems. For instance,
+                                        SLAM methods [8], [9] struggle with robustness, failing in           methods such as VGGT-SLAM [7], VGGT-Long [20], and
+                                        environments with dynamic illumination or regions lacking            VGGT-Motion [21] alleviate high GPU memory usage by
+                                        texture. To overcome these fragility issues, deep learning           partitioning long trajectories into sub-graphs and aligning
+                                                                                                             point clouds from overlapping frames. Although this strategy
+                                          *Corresponding author                                              effectively reduces memory usage on long sequences, its
+                                          1 The  authors are with the School of Instrument Science
+                                        and Opto-electronics Engineering, Beihang University, Beijing        reliance on keyframe selection yields sparse pose outputs
+                                        100191,   China     (e-mail: pangjunxiang@buaa.edu.cn,               and precludes real-time performance. More critically, prop-
+                                        zhoulipu@buaa.edu.cn, 21376176@buaa.edu.cn)                          agating the global scale by aligning the noisy point clouds
+predicted by the network triggers an accumulation of errors,      DROID-SLAM [11] has achieved notable robustness through
+resulting in severe scale drift over extended image sequences,    a recurrent iterative update module based on dense optical
+as illustrated in Fig. 1.                                         flow. However, DROID-SLAM relies on a complex recurrent
+   Taken together, there is a strong complementarity between      network architecture. This substantial computational demand
+feed-forward models and traditional sparse VO. While the          limits its applicability to resource-constrained platforms.
+former excels at dense reconstruction despite computational
+latency, the latter excels at high-frequency pose estimation      C. Feed-forward Dense Mapping
+and computational efficiency. Motivated by this, we propose          In the realm of 3D dense reconstruction, feed-forward
+HyVGGT-VO, a hybrid framework designed to exploit the             models have emerged as a promising paradigm to simplify
+strengths of both paradigms via asynchronous fusion.              the intricate pipelines of traditional algorithms. These models
+   Our main contributions can be summarized as follows:           can directly regress 3D geometric parameters and camera
+• A Novel Hybrid VO Architecture: We propose                      poses via a single forward inference. DUSt3R [12] is a pio-
+   HyVGGT-VO, a tightly coupled framework that combines           neering work in this domain, reformulating multi-view stereo
+   the high-frequency pose estimation of feature-based VO         as a point map regression problem to enable reconstruction
+   with the dense mapping capabilities of VGGT models.            without prior camera calibration. Based on this, MASt3R
+• Adaptive Uncertainty-Aware Frontend: We design                  [13] incorporates a matching-based strategy to improve the
+   an adaptive hybrid tracking frontend that dynamically          alignment of local features. Meanwhile, Spann3R [29] and
+   switches between traditional optical flow and the VGGT         Fast3R [30] extend these concepts to sequential image pro-
+   tracking head to ensure robustness, incorporating an edge-     cessing. Subsequently, VGGT [19] has presented an archi-
+   aware uncertainty model to adjust measurement noise            tecture that directly predicts comprehensive 3D attributes. It
+   based on network confidence.                                   treats multi-view localization and dense reconstruction as a
+• Trajectory-Based Scale Alignment and Hierarchical               joint prediction problem, simultaneously regressing camera
+   Backend: To overcome the scale drift of feed-forward           intrinsics, extrinsics, depth maps, and dense point clouds
+   models, we introduce a trajectory-based Sim(3) alignment       from an input image set.
+   strategy. Furthermore, we design a hierarchical optimiza-         To leverage the robust dense reconstruction capabilities
+   tion backend that integrates local bundle adjustment (BA)      of feed-forward models, recent works have integrated them
+   and local pose graph optimization (PGO), where the scale       into visual SLAM frameworks. For example, MASt3R-
+   is explicitly parameterized as an optimization variable.       SLAM [31] extends the MASt3R architecture to handle
+   This formulation ensures dense mapping consistency and         long sequences. Following this trend, subsequent works have
+   achieves high global trajectory accuracy.                      integrated the more advanced VGGT model into SLAM
+• Open Source Implementation: We will make the com-               systems. These VGGT-based methods typically partition
+   plete source code publicly available to facilitate further     continuous sequences into sub-graphs. For instance, VGGT-
+   research and community development.                            Long [20] and VGGT-Motion [21] perform local registration
+                                                                  by estimating Sim(3) transformations between overlapping
+                    II. R ELATED W ORK                            point clouds. To further address structural distortions caused
+A. Traditional Visual SLAM                                        by feed-forward predictions, VGGT-SLAM [32] adopts a
+   Traditional visual SLAM frameworks are generally catego-       more flexible SL(4) alignment scheme, while its extension
+rized into indirect, semi-direct, and direct approaches. Promi-   [7] refines keyframe poses within each sub-graph to improve
+nent indirect feature-based methods include ORB-SLAM              local accuracy.
+[22]–[24] and OV2 SLAM [25]. Semi-direct approaches are              While these sub-graphs merging strategies extend the
+exemplified by SVO [26], whereas direct methods, operating        operational range, propagating the global scale through the
+on raw pixel intensities, are represented by DSO [9]. While       alignment of inferred point clouds remains susceptible to
+providing high-frequency pose estimation, traditional meth-       accumulated scale drift. Furthermore, due to the computa-
+ods suffer from degraded robustness in challenging scenarios,     tional cost of VGGT, these methods typically process sparse
+such as textureless regions or severe illumination changes.       keyframes, limiting their ability to provide high-frequency
+                                                                  pose estimation for real-time control. To address these limi-
+B. Learning-based Visual SLAM                                     tations, our work integrates the computational efficiency and
+   To address the robustness limitations of traditional visual    local covisibility constraints of traditional VO into the VGGT
+SLAM, learning-based approaches have been introduced.             framework, mitigating scale ambiguity while maintaining
+Early works like DeepFactors [27] integrate learned com-          high-frequency pose estimation.
+pact depth codes into a probabilistic factor graph, while
+                                                                                      III. M ETHODOLOGY
+DeepV2D [10] employs differentiable motion stereo blocks
+to alternate between depth estimation and pose refinement.        A. System Overview
+Differing from optimization-based schemes, TartanVO [28]             The overall architecture of the proposed HyVGGT-VO is
+demonstrates the generalization potential of pure end-to-         illustrated in Fig. 2. Our system is built upon a traditional
+end learning by directly regressing odometry from optical         VO framework, comprising a hybrid tracking frontend and a
+flow trained on massive synthetic datasets. More recently,        hierarchical optimization backend. The frontend integrates
+Fig. 2. Overall architecture of the proposed HyVGGT-VO framework. Taking a monocular image stream as input, the system features a hybrid tracking
+frontend and an asynchronous hierarchical optimization backend. The frontend adaptively couples efficient KLT optical flow with a robust VGGT tracking
+head to handle visual degradation. In the backend, the first stage performs covisibility-based local BA for metric precision, while the second stage executes
+an asynchronous local PGO incorporating VGGT-predicted relative poses and an explicitly optimized scale factor to ensure consistency.
+
+Kanade-Lucas-Tomasi (KLT) optical flow with a VGGT                              strates better robustness against environmental variations.
+tracking head. While KLT serves as the primary tracker                          However, due to its high computational inference cost, the
+for efficiency, the VGGT head is activated when KLT de-                         VGGT tracker is triggered only when the number of tracked
+grades, ensuring system robustness. The backend employs a                       map points N falls below a threshold τ.
+hierarchical optimization structure: the first stage performs                      Outlier Rejection and Uncertainty Integration: Since
+local BA based on the covisibility graph to refine active                       the feed-forward predictions of the VGGT model do not
+keyframes, while the second stage implements a local PGO                        strictly satisfy geometric constraints, rigorous verification is
+that incorporates wide-baseline constraints from the relative                   crucial. We first enforce geometric consistency through a
+poses predicted by VGGT. This design effectively mitigates                      RANSAC-based epipolar check, followed by P3P-RANSAC
+local drift by fusing the deep geometric priors of VGGT with                    and PnP optimization to eliminate outliers.
+the metric consistency of the traditional backend.                                 Furthermore, we introduce a dynamic noise adjustment
+                                                                                strategy that integrates the confidence score u ∈ (0, 1] pre-
+B. Adaptive Hybrid Tracking Frontend
+                                                                                dicted by the VGGT model with an edge penalty mechanism.
+   Primary Tracking with Priors: Our system primarily                           This edge-aware design is driven by our observation: the
+employs a KLT-based sparse optical flow tracker, inspired by                    VGGT tracking head often forcefully tracks features that
+the design of OV2 SLAM [25]. To enhance tracking robust-                        have already moved out of the camera’s field of view.
+ness in environments with uneven exposure or low contrast,                      Such erroneous predictions tend to accumulate near the
+we utilize CLAHE [33] for image pre-processing. Tracking                        image boundaries, severely degrading the overall tracking
+is performed in a coarse-to-fine manner using image pyra-                       quality. To mitigate this issue, our strategy suppresses the
+mids. We maintain two types of ORB [34] features during                         optimization weights of these boundary features. Ultimately,
+tracking: triangulated 3D map points and un-triangulated 2D                     we model the uncertainty of the reprojection error by dy-
+features. The latter comprises both newly initialized points                    namically scaling the measurement noise covariance across
+and previously tracked ones awaiting sufficient parallax. For                   both the frontend pose estimation and backend optimization.
+triangulated 3D map points, we utilize a constant velocity                      For a feature k, its adaptive noise scale σk is defined as:
+model to project their positions from the previous frame to
+the current frame as priors. These points are first tracked at
+lower pyramid levels; if tracking fails, the search expands to                                                  1
+                                                                                                         σk =      · σb · ηe (pk ),                      (1)
+higher levels. This strategy ensures sub-pixel accuracy while                                                   uk
+fully leveraging the priors provided by the motion model.
+   VGGT Robust Tracking: Despite its computational ef-                          where σb denotes the baseline measurement noise. The term
+ficiency, the KLT method is highly vulnerable to dynamic                        ηe (pk ) serves as a spatial penalty function designed to
+illumination, motion blur, and texture-less regions, frequently                 mitigate the impact of unstable tracking results generated by
+leading to tracking loss. To mitigate this, we integrate the                    the VGGT tracking head near the image boundary. It applies
+tracking head of the VGGT model. This module demon-                             a substantial penalty factor k p to points within a margin δ
+of the image boundary:
+                       (
+                        kp    if dist(pk , B) < δ
+            ηe (pk ) =                            ,         (2)
+                        1     otherwise
+where dist(·, B) represents the pixel distance to the image
+boundary. In our implementation, we employ a large penalty
+factor k p to effectively down-weight edge observations. This
+adaptive noise model is utilized to construct the covariance
+matrix Σ k = diag(σk2 , σk2 ) for the cost functions in both
+frontend pose estimation and backend local BA optimization.
+   Pose Estimation: We employ a constant velocity model
+to predict the initial pose Twc . Subsequently, a PnP problem      Fig. 3. Structure of our local PGO. The first frame of the first sub-graph
+is formulated using the verified 2D-3D correspondences to          is fixed as the world reference frame.
+optimize the current camera pose. This optimization mini-
+mizes the weighted reprojection error by incorporating the         where tkvo and tkvggt are the translation vectors of the corre-
+adaptive covariance σk defined in (1) and employing a Huber        sponding poses. The optimization yields the relative scale
+robust kernel to effectively mitigate the impact of outliers.      factor s, the rotation R, and the translation t. In our hybrid
+                                                                   framework, we primarily utilize the computed scale s f = s · γ
+C. Scale Alignment Strategy                                        to correct the depth and translation of the current VGGT sub-
+   Existing VGGT-based methods [20], [32] partition se-            graph, ensuring it acts as a consistent geometric prior for the
+quences into overlapping sub-graphs to mitigate prohibitive        subsequent factor graph optimization.
+memory overhead, relying on point cloud registration to
+propagate scale across these independent segments. We argue        D. Hierarchical Backend Optimization
+this approach is suboptimal: point clouds generated by feed-
+forward models inherently suffer from geometric distortions           In a traditional monocular VO framework, continuous
+and depth outliers, and propagating scale based on such            local BA based on the covisibility graph is essential for
+degraded data inevitably leads to severe scale drift over time.    optimizing historical keyframes and map points, ensuring
+   To address this, we leverage the geometric stability of tra-    high precision and local metric consistency. This establishes
+ditional VO. Although monocular feature-based methods also         the entire traditional VO framework as a reliable geometric
+suffer from scale drift, they maintain local scale consistency     and scale baseline in our system. However, directly leverag-
+more effectively through map point triangulation and cov-          ing this traditional VO trajectory to scale the feed-forward
+isibility constraints, resulting in a significantly slower scale   VGGT sub-graphs via Sim(3) alignment can be numerically
+drift of the estimated trajectory compared to unconstrained        unstable due to the inherent scale ambiguity and gradual
+network predictions. Therefore, we employ a trajectory-            drift of monocular systems. Consequently, it is imperative
+based scale alignment method. Instead of relying on noisy          to design an optimization mechanism to jointly refine and
+point clouds, we align the trajectory segment predicted by         stabilize the scale factor.
+VGGT directly to the traditional sparse VO trajectory. This           To this end, we propose a tightly coupled hierarchical
+approach exploits the metric consistency of traditional VO         optimization backend implemented using GTSAM [36]. The
+to rectify the scale of the neural network outputs.                primary stage performs traditional local BA to establish a
+   Specifically, let Ki denote the set of keyframes in the i-      robust metric foundation and ensure consistency over the
+th VGGT inference sub-graph. We extract the corresponding          local window. The secondary stage introduces a local PGO
+poses computed by the traditional VO, denoted as To = {Tko |       mechanism. In this stage, the wide-baseline deep learning
+k ∈ Ki }, and the raw poses predicted by VGGT, denoted as          priors provided by VGGT act as structural constraints to
+Tv = {Tkv | k ∈ Ki }. It is worth noting that the raw trans-       locally smooth the VO poses and suppress accumulated
+lations predicted by VGGT are typically scale-normalized           tracking drift. Together, these two stages tightly couple the
+and exhibit small magnitudes, which can lead to numerical          traditional VO backend framework with the geometric priors
+instability during optimization. To mitigate this, we introduce    of VGGT, enhancing the accuracy of pose estimation and
+a pre-scaling factor γ to normalize the magnitude of the           guaranteeing the scale consistency of dense mapping.
+network predictions before alignment.                                 Covisibility-based Local Bundle Adjustment: The first
+   We formulate the alignment problem as finding the optimal       stage optimization performs local BA to refine the active
+similarity transformation S ∈ Sim(3) that aligns the pre-          keyframes and map points. We construct a covisibility graph
+scaled network trajectory to the VO trajectory. This is solved     and select historical keyframes whose covisibility score with
+efficiently using the Umeyama algorithm [35] by minimizing         the current keyframe exceeds a predefined threshold. The
+the least-squares error of the translation components:             local BA minimizes the standard visual reprojection error:
+                                                   2                                                                             
+                                                                                                                         2
+            min ∑ tkvo − s · R · (γ · tkvggt ) + t     ,     (3)                 min ∑ ∑ ρ           zi, j − π(Ti , p j ) Σ             ,   (4)
+           s,R,t                                                                 T,p i∈K j∈P                                 i, j
+                   k∈Ki                                                                      i
+where Ti ∈ SE(3) is the pose of keyframe i, p j is the 3D                  MASt3R-SLAM, and DROID-SLAM are executed on a
+position of map point j, zi, j is the 2D observation, π(·)                 server equipped with an Intel Xeon Gold 6342 CPU and
+is the camera projection function and ρ(·) is the Huber                    an NVIDIA RTX 4090 GPU (24GB VRAM). Experiments
+robust kernel function. The covariance matrix Σ i, j employs               are conducted on the EuRoC MAV dataset [37] for indoor
+the adaptive noise scale defined in Section III-B.                         environments and the KITTI odometry benchmark [38] for
+   To ensure stability, the poses of keyframes with low cov-               large-scale outdoor scenarios. We benchmark our approach
+isibility scores are fixed as priors. The local BA optimization            against mainstream dense and learning-based methods. For
+is executed in two stages: the first stage employs a Huber                 quantitative evaluation, we utilize the Absolute Trajectory
+kernel to down-weight outliers, followed by a Chi-square                   Error (ATE). Due to the scale ambiguity of monocular
+test. Observations exceeding the χ 2 threshold are discarded.              visual odometry, all reported ATE metrics are computed after
+Subsequently, a second stage of fine-grained optimization is               performing a 7-DoF Sim(3) alignment with the ground truth
+performed without the robust kernel to achieve maximum                     trajectories.
+metric accuracy.
+   Local Pose Graph Optimization: As illustrated in Fig. 3,                B. Dataset Evaluation
+our local PGO framework integrates two primary types                          Indoor Evaluation on EuRoC Dataset: We evaluate the
+of constraints: (i) scale-aware keyframe constraints derived               trajectory accuracy across all 11 sequences of the EuRoC
+from VGGT pose predictions, and (ii) keyframe relative pose                dataset, with the ATE results summarized in Tab. I. In the
+constraints provided by the traditional VO.                                tables, “high-freq” denotes the high-frequency, per-frame
+   To properly address the inherent scale ambiguity of the                 pose estimates directly generated by the tracking frontend,
+VGGT predictions, we explicitly model the scale factor s ∈                 whereas “optimized” refers to the refined keyframe poses
+R+ as a distinct state variable. Let Ti , T j ∈ SE(3) denote the           yielded by the optimization backend.
+global poses of two keyframes. The initial keyframe poses                     The results for most baseline methods are directly ref-
+are provided by the traditional VO, while the initial scale s              erenced from DROID-SLAM [11], while the results of
+is computed via a rapid Sim(3) alignment.                                  VGGT-SLAM, VGGT-SLAM 2.0 and MASt3R-SLAM were
+   To formulate the VGGT pose constraint as a scale-aware                  evaluated locally. For VGGT-SLAM, both of its provided
+relative pose factor, we first define the raw relative pose                alignment strategies (SL(4) and Sim(3)) were tested. To
+predicted by the VGGT network as ∆T̃v = [∆R̃, ∆t̃]. By                     ensure a fair comparison with our odometry-only approach,
+explicitly incorporating the scale variable s, this raw predic-            we disabled the loop closure modules for both VGGT-SLAM
+tion is scaled directly into the camera frame as [∆R̃, s · ∆t̃].           and VGGT-SLAM 2.0, and deactivated both the relocal-
+Meanwhile, the relative pose derived from the current state                ization and loop closure modules for MASt3R-SLAM. As
+estimates is defined as ∆T p = T−1       i T j = [R p , t p ]. Thus, the
+                                                                           summarized in Tab. I, our proposed HyVGGT-VO achieves
+6-DoF residual vector rv = [rTθ , rtT ]T ∈ R6 , which decouples            the highest accuracy in 7 of the 11 sequences and ranks sec-
+rotation and translation, is formulated as:                                ond in 2 others. It delivers highly competitive performance
+                                                                           among mainstream dense visual methods, demonstrating
+                                     Log ∆R̃T R p
+                                                    
+                rv (Ti , T j , s) =                     ,            (5)   substantial improvements over other VGGT-based methods,
+                                       t p − s · ∆t̃                       namely VGGT-SLAM and VGGT-SLAM 2.0. Additionally,
+                                                                           the dense mapping result of the V101 sequence is illustrated
+where Log : SO(3) → R3 maps the rotation error to the
+                                                                           in Fig. 4.
+tangent space. The Jacobian with respect to the scale state
+                                                                              Outdoor Evaluation on KITTI Dataset: The KITTI
+variable s can be analytically derived as:
+                                                                           odometry benchmark features high-speed vehicular motion
+                                                                           and rapid field-of-view (FOV) changes, which impose strin-
+                                   
+                ∂ rv          03×1
+                     = Js =           ∈ R6×1 .          (6)                gent requirements on the scale consistency of monocular
+                 ∂s            −∆t̃
+                                                                           VO. The quantitative ATE results across all 11 sequences
+   Importantly, to enforce scale consistency and prevent scale             are presented in Tab. II. Note that the baseline results
+drift between independent network inferences, each local                   for DROID-SLAM are referenced from the VGGT-Long
+PGO update incorporates two consecutive VGGT sub-graphs                    literature [20].
+that share an overlapping keyframe. This structural design                    It is important to acknowledge an inherent limitation of
+inherently binds the scale factor across continuous batches,               pure monocular VO frameworks: without the aid of global
+ensuring a smooth scale trajectory within the local map.                   loop closures, scale unobservability inevitably leads to severe
+                        IV. E XPERIMENTS                                   drift accumulation over exceptionally long driving trajecto-
+                                                                           ries (e.g., Sequences 00, 02, 05, and 08). As reflected in
+A. Experimental Setup                                                      the table, all evaluated monocular baselines suffer signif-
+   We evaluate our proposed HyVGGT-VO on a mobile                          icant scale degradation on these specific extended routes.
+laptop equipped with an AMD Ryzen 9 7940HX CPU, 32GB                       However, on the remaining short to medium sequences, our
+of RAM, and an NVIDIA RTX 4060 Laptop GPU (8GB                             proposed HyVGGT-VO demonstrates remarkable accuracy.
+VRAM). Conversely, due to their substantial GPU mem-                       Specifically, it achieves the best performance in 6 out of the
+ory consumption, the baselines including VGGT-SLAM,                        11 sequences, consistently outperforming other VGGT-based
+                                                                       TABLE I
+                                                         E UROC DATASET E VALUATION (ATE[M]↓)
+
+                                                                                            Sequence
+  Method                                                                                                                                                 Avg
+                                           MH01        MH02      MH03       MH04       MH05      V101     V102     V103     V201      V202     V203
+
+  DeepFactors                               1.587      1.479      3.139     5.331       4.002    1.520    0.679    0.900    0.876     1.905    1.021    2.040
+  DeepV2D                                   0.739      1.144      0.752     1.492       1.567    0.981    0.801    1.570    0.290     2.202    2.743    1.298
+  TartanVO                                  0.639      0.325      0.550     1.153       1.021    0.447    0.389    0.622    0.433     0.749    1.152    0.680
+  DROID-SLAM (odometry only)                0.163      0.121      0.242     0.399       0.270    0.103    0.165    0.158    0.102     0.115    0.204    0.186
+  MASt3R-SLAM (odometry only)               0.237      0.558      0.341     2.043       0.776    0.126    0.147    0.136    0.117     0.353    0.644    0.498
+  VGGT-SLAM (Sim3 odometry only)            1.346      0.986      2.299     4.428       3.536    1.077    1.635    1.177    0.946     1.757    1.764    1.905
+  VGGT-SLAM (SL4 odometry only)             4.849      3.378      2.788     6.169       4.523    1.309    1.481    1.110    2.346     1.871    1.957    2.889
+  VGGT-SLAM 2.0 (odometry only)             1.610      1.008      2.273     4.508       3.641    0.991    1.602    1.209    1.112     1.732    1.785    1.952
+  Ours (high-freq)                          0.105      0.051      0.223     0.281       0.182    0.104    0.156    0.269    0.072     0.292    1.574    0.301
+  Ours (optimized)                          0.102      0.041      0.239     0.237       0.163    0.103    0.159    0.222    0.072     0.291    1.514    0.286
+    * The dark green (     ) and light green (      ) cells highlight the best and second-best results, respectively.
+
+
+
+
+Fig. 4. Qualitative comparison of dense 3D indoor reconstructions on the            Fig. 5. The reconstructed global map encompasses approximately 20.1
+EuRoC V101 sequence. Prominently, (b) VGGT-SLAM exhibits severe scale               million 3D points over a 920 meter trajectory (visualized after voxel
+drift and structural distortion due to the propagation of Sim(3) alignment          downsampling). As shown in the zoomed-in views, fine details of colorful
+errors, while (d) DROID-SLAM yields a highly sparse map caused by                   architectural structures and vegetation are preserved well, demonstrating the
+its aggressive confidence filtering and down-sample strategy. In contrast,          capability of our approach to maintain high-fidelity mapping performance
+both (a) MASt3R-SLAM and our proposed method (c) maintain global                    in large-scale outdoor environments.
+structural integrity. However, as highlighted in the enlarged detailed views,
+our method preserves significantly richer structural details and superior
+geometric consistency compared to (a).
+
+baselines. Overall, our method delivers highly competitive
+trajectory accuracy that is on par with the computationally
+heavy DROID-SLAM odometry.
+   Furthermore, we qualitatively evaluate the dense street re-
+construction capabilities on KITTI Sequence 10, as shown in                         Fig. 6. Qualitative trajectory comparison with ATE heatmaps on the KITTI
+Fig. 5. Despite the inherent challenges of outdoor monocular                        01 sequence. Left: Result using the proposed adaptive hybrid frontend.
+scaling, our hierarchical optimization effectively bounds the                       Right: Result relying solely on the KLT baseline.
+local scale drift, yielding a dense, structurally accurate, and
+visually consistent 3D scene reconstruction.                                        motion blur (EuRoC V203). In contrast, our adaptive hybrid
+                                                                                    frontend handles these environments enabling stable track-
+C. Ablation Study                                                                   ing. Specifically, the qualitative trajectory comparison on the
+   Adaptive Hybrid Fronted Ablation: To validate the                                KITTI 01 sequence is illustrated in Fig. 6.
+effectiveness of our adaptive hybrid frontend, we evaluate                             Local PGO Ablation: To validate the effectiveness of
+our system on the EuRoC and KITTI datasets using a KLT-                             the proposed local PGO module, we evaluate our system
+only baseline, where the VGGT tracking head is explicitly                           on the “difficult” sequences of the EuRoC dataset. We
+disabled. As shown in Tab. III, the KLT-only tracker com-                           establish a baseline by explicitly disabling this module (w/o
+pletely fails on several difficult sequences when confronted                        local PGO). As presented in Tab. IV, the system with local
+with drastic illumination changes (EuRoC V103), rapid FOV                           PGO consistently achieves higher accuracy than the baseline,
+shifts (KITTI 01), repetitive textures (KITTI 00), and severe                       demonstrating that it provides effective geometric constraints
+                                                                         TABLE II
+                                                            KITTI DATASET E VALUATION (ATE[M]↓)
+
+                                                                                                Sequence
+Method                                                                                                                                                      Avg
+                                         00            01            02            03    04        05       06       07          08      09        10
+
+DROID-SLAM (odometry only)              98.430     84.200       108.800        2.580    0.930    59.270    64.400   24.200     64.550   71.800   16.910    54.188
+MASt3R-SLAM (odometry only)               ×*         ×            ×              ×        ×        ×         ×        ×          ×        ×        ×         ×
+VGGT-SLAM (Sim3)                       120.844    144.136       132.728       8.431     3.977    38.376    73.745   29.691    203.832   94.950   22.280    79.363
+VGGT-SLAM 2.0 (odometry only)          122.820    155.546       127.870       12.020    4.136    57.155    77.368   26.302     69.657   68.727   23.321    67.720
+Ours (high-freq)                       114.905     49.097       140.522       2.247     0.691    69.012    62.387   14.799    112.541   80.393   20.558    60.650
+Ours (optimized)                       114.290     47.220       142.007       2.192     0.604    68.137    61.205   13.363    115.135   76.263   15.650    59.642
+  * × indicate tracking failure for the specific sequence.
+
+
+                                TABLE III                                                                         TABLE V
+   A BLATION S TUDY OF A DAPTIVE H YBRID F RONTEND (ATE[M]↓)                              S YSTEM S PEED AND GPU M EMORY C ONSUMPTION C OMPARISON
+                                                                                                        (RTX 4060 L APTOP, 8GB VRAM)
+                                       KITTI                    EuRoC
+Method
+                                  00             01           V103          V203                                        Average                 GPU Memory
+                                                                                        Method
+                                                                                                                     Processing FPS           Consumption (GB)
+KLT Only                          ×             ×              ×              ×
+Adaptive Hybrid Frontend        114.29         47.22         0.222          1.514       DROID-SLAM                           OOM                    OOM
+                                                                                        MASt3R-SLAM                          OOM                    OOM
+                            TABLE IV                                                    VGGT-SLAM                            OOM                    OOM
+            A BLATION S TUDY OF L OCAL PGO (ATE[M]↓)                                    VGGT-SLAM2                           3.301                  6.59
+                                                                                        Ours (HyVGGT-VO)                     16.07                  6.51
+Method               MH04        MH05         V103          V203          Average
+
+w/o Local PGO        0.247       0.170        0.289         1.539          0.561        This demonstrates that our method effectively bridges the
+w Local PGO          0.237       0.163        0.222         1.514          0.534        gap between utilizing deep geometric priors and maintaining
+                                                                                        high-frequency pose estimation.
+                                                                                           While methods like VGGT-SLAM process multiple frames
+                                                                                        simultaneously via sub-graph inference, this approach re-
+                                                                                        quires a prolonged single-inference execution time. This
+                                                                                        computational delay, combined with a strict restriction to
+                                                                                        keyframes, inherently yields poses that are sparse, delayed,
+                                                                                        and unevenly distributed in time. Such high-latency and
+                                                                                        temporally inconsistent state updates are fundamentally inad-
+                                                                                        equate for real-time downstream tasks like robotics control.
+Fig. 7.    Qualitative trajectory ATE comparison on the EuRoC V103                         To address the real-time bottlenecks of VGGT-based meth-
+sequence. Left: w/ local PGO. Right: w/o local PGO.
+                                                                                        ods, HyVGGT-VO introduces a decoupled architecture. As
+to smooth and optimize the trajectory. Furthermore, a qual-                             shown in Tab. VI, we isolate the computationally heavy
+itative comparison of the V103 sequence in Fig. 7 visually                              VGGT inference into an independent asynchronous thread.
+highlights the error reduction achieved by our method.                                  This design ensures that the traditional VO frontend remains
+                                                                                        entirely unblocked, thereby guaranteeing continuous, high-
+D. Real-time Performance and Efficiency                                                 frequency pose estimation for every incoming frame.
+   To evaluate computational efficiency, we conduct a run-
+time analysis across the EuRoC MH01–MH05 sequences                                                                 TABLE VI
+on an NVIDIA RTX 4060 Laptop GPU (8GB VRAM).                                                     AVERAGE E XECUTION T IME OF I NDIVIDUAL M ODULES
+Tab. V presents a comprehensive comparison of real-time                                 Thread                       Module                             Time (ms)
+processing speed (FPS) and GPU memory consumption.
+                                                                                                                     Tracking                             54.11
+As shown in the table, baselines including DROID-SLAM,                                  Frontend                     Keyframe Creation                     2.33
+MASt3R-SLAM, and VGGT-SLAM quickly encounter Out-                                                                    Total Latency                        56.44
+of-Memory (OOM) failures under their default parameters                                                              First Stage Opt.                     32.70
+due to the strict 8GB memory constraint. In contrast, our                               Backend
+                                                                                                                     Second Stage Opt.                     9.98
+proposed HyVGGT-VO framework consumes the least GPU
+                                                                                                                     VGGT Inference*                     2807.56
+memory among all evaluated methods, ensuring efficient                                  Async. VGGT
+                                                                                                                     Pose Graph Opt.                       5.14
+operation.                                                                               * Denotes the execution time for a single inference pass, which processes
+   Our hybrid architecture runs at 16 FPS, delivering ap-                                 a batch of 10 keyframes.
+proximately a 5x speedup compared to VGGT-SLAM 2.0.
+                           V. C ONCLUSION                                       [15] X. R. Chenjie Cao and Y. Fu, “Mvsformer++: Revealing the devil
+                                                                                     in transformer’s details for multi-view stereo,” in Int. Conf. Learn.
+   In this paper, we propose HyVGGT-VO, a novel hybrid                               Represent. (ICLR), 2024.
+framework that combines the efficiency of sparse VO with                        [16] J. Zhang, C. Herrmann, J. Hur, V. Jampani, T. Darrell, F. Cole,
+                                                                                     D. Sun, and M.-H. Yang, “Monst3r: A simple approach for estimating
+the dense mapping capability of feed-forward models. By                              geometry in the presence of motion,” arXiv preprint, 2024.
+decoupling high-frequency tracking from asynchronous net-                       [17] M. Liu, C. Zeng, X. Wei, R. Shi, L. Chen, C. Xu, M. Zhang, Z. Wang,
+work inference, our system simultaneously achieves high-                             X. Zhang, I. Liu, H. Wu, and H. Su, “Meshformer : High-quality
+                                                                                     mesh generation with 3d-guided reconstruction model,” in Proc. of the
+frequency pose estimation and high-quality dense 3D map-                             Advances in Neural Information Processing Systems (NIPS), vol. 37,
+ping on mobile platforms. Our hierarchical optimization sig-                         2024, pp. 59 314–59 341.
+nificantly surpasses current VGGT-based methods in global                       [18] J. Zhang, Y. Li, A. Chen, M. Xu, K. Liu, J. Wang, X.-X. Long,
+                                                                                     H. Liang, Z. Xu, H. Su, C. Theobalt, C. Rupprecht, A. Vedaldi,
+scale consistency and structural fidelity. In particular, running                    K. Zhou, H. Pfister, P. P. Liang, S. Lu, and F. Zhan, “Advances in
+on a mobile laptop, our framework achieves an approxi-                               feed-forward 3d reconstruction and view synthesis: A survey,” arXiv
+mately 5× processing speedup and an 85% average reduction                            preprint, 2025.
+in trajectory error compared to VGGT-SLAM 2.0 on the Eu-                        [19] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and
+                                                                                     D. Novotny, “Vggt: Visual geometry grounded transformer,” in
+RoC dataset. Furthermore, it achieves a 12% error reduction                          Proc. of the IEEE Conf. on Computer Vision and Pattern Recognition
+in outdoor scenarios on the KITTI benchmark. This highly                             (CVPR), 2025, pp. 5294–5306.
+extensible design also serves as a universal pipeline that can                  [20] K. Deng, Z. Ti, J. Xu, J. Yang, and J. Xie, “Vggt-long: Chunk it,
+                                                                                     loop it, align it–pushing vggt’s limits on kilometer-scale long rgb
+seamlessly integrate with any feed-forward reconstruction                            sequences,” arXiv preprint, 2025.
+models similar to VGGT.                                                         [21] Z. Xiong, C. Zhang, Q. Xu, and W. Tao, “Vggt-motion: Motion-aware
+                                                                                     calibration-free monocular slam for long-range consistency,” arXiv
+                             R EFERENCES                                             preprint, 2026.
+                                                                                [22] R. Mur-Artal, J. M. M. Montiel, and J. D. Tardós, “Orb-slam: A
+ [1] C. Cadena, L. Carlone, H. Carrillo, Y. Latif, D. Scaramuzza, J. Neira,          versatile and accurate monocular slam system,” IEEE Trans. on
+     I. Reid, and J. J. Leonard, “Past, present, and future of simultaneous          Robotics (TRO), vol. 31, no. 5, pp. 1147–1163, 2015.
+     localization and mapping: Toward the robust-perception age,” IEEE          [23] R. Mur-Artal and J. D. Tardós, “Orb-slam2: An open-source slam
+     Trans. on Robotics (TRO), vol. 32, no. 6, pp. 1309–1332, 2016.                  system for monocular, stereo, and rgb-d cameras,” IEEE Trans. on
+ [2] C. Chen, B. Wang, C. X. Lu, N. Trigoni, and A. Markham, “Deep                   Robotics (TRO), vol. 33, no. 5, pp. 1255–1262, 2017.
+     learning for visual localization and mapping: A survey,” IEEE Trans-       [24] C. Campos, R. Elvira, J. J. G. Rodrı́guez, J. M. M. Montiel, and
+     actions on Neural Networks and Learning Systems, vol. 35, no. 12,               J. D. Tardós, “Orb-slam3: An accurate open-source library for visual,
+     pp. 17 000–17 020, 2024.                                                        visual–inertial, and multimap slam,” IEEE Trans. on Robotics (TRO),
+ [3] S. Chen, S. Ji, L. Zhu, X. Zhou, H. Zhang, W. Chen, and Y. Guan, “X-            vol. 37, no. 6, pp. 1874–1890, 2021.
+     repslam: Vlm-driven adaptive cross-representation visual slam,” IEEE       [25] M. Ferrera, A. Eudes, J. Moras, M. Sanfourche, and G. Le Besnerais,
+     Trans. Autom. Sci. Eng., vol. 22, pp. 20 000–20 018, 2025.                      “Ov2 slam: A fully online and versatile visual slam for real-time
+ [4] X. Huo, S. Chen, L. Zhu, H. Zhu, Y. Guan, H. Zhang, and W. Chen,                applications,” IEEE Robotics and Automation Letters (RA-L), vol. 6,
+     “Reducing redundancy in vslam: Vlms-driven keyframe selection us-               no. 2, pp. 1399–1406, 2021.
+     ing multi-dimensional semantic information,” in Proc. of the IEEE/RSJ      [26] C. Forster, M. Pizzoli, and D. Scaramuzza, “Svo: Fast semi-direct
+     Intl. Conf. on Intelligent Robots and Systems (IROS), 2025, pp. 9051–           monocular visual odometry,” in Proc. of the IEEE Intl. Conf. on
+     9058.                                                                           Robotics & Automation (ICRA), 2014, pp. 15–22.
+ [5] M. Blösch, S. Weiss, D. Scaramuzza, and R. Siegwart, “Vision              [27] J. Czarnowski, T. Laidlow, R. Clark, and A. J. Davison, “Deepfactors:
+     based mav navigation in unknown and unstructured environments,”                 Real-time probabilistic dense monocular slam,” IEEE Robotics and
+     in Proc. of the IEEE Intl. Conf. on Robotics & Automation (ICRA),               Automation Letters (RA-L), vol. 5, no. 2, pp. 721–728, 2020.
+     2010, pp. 21–28.                                                           [28] W. Wang, Y. Hu, and S. Scherer, “Tartanvo: A generalizable learning-
+ [6] S. Milz, G. Arbeiter, C. Witt, B. Abdallah, and S. Yogamani, “Vi-               based vo,” in Proceedings of the 2020 Conference on Robot Learning,
+     sual slam for automated driving: Exploring the applications of deep             2021, pp. 1761–1772.
+     learning,” in Proc. of the IEEE Conf. on Computer Vision and Pattern       [29] H. Wang and L. Agapito, “3d reconstruction with spatial memory,” in
+     Recognition (CVPR), 2018, pp. 360–36 010.                                       2025 International Conference on 3D Vision (3DV), 2025, pp. 78–89.
+ [7] D. Maggio and L. Carlone, “Vggt-slam 2.0: Real-time dense feed-            [30] J. Yang, A. Sax, K. J. Liang, M. Henaff, H. Tang, A. Cao, J. Chai,
+     forward scene reconstruction,” arXiv preprint, 2026.                            F. Meier, and M. Feiszli, “Fast3r: Towards 3d reconstruction of 1000+
+ [8] R. A. Newcombe, S. J. Lovegrove, and A. J. Davison, “Dtam: Dense                images in one forward pass,” in Proc. of the IEEE Conf. on Computer
+     tracking and mapping in real-time,” in Proc. of the IEEE Intl. Conf. on         Vision and Pattern Recognition (CVPR), June 2025, pp. 21 924–21 935.
+     Computer Vision (ICCV), 2011, pp. 2320–2327.                               [31] R. Murai, E. Dexheimer, and A. J. Davison, “MASt3R-SLAM: Real-
+ [9] J. Engel, V. Koltun, and D. Cremers, “Direct sparse odometry,”                  time dense SLAM with 3D reconstruction priors,” in Proc. of the IEEE
+     IEEE Trans. on Pattern Analalysis and Machine Intelligence (TPAMI),             Conf. on Computer Vision and Pattern Recognition (CVPR), 2025.
+     vol. 40, no. 3, pp. 611–625, 2018.                                         [32] D. Maggio, H. Lim, and L. Carlone, “Vggt-slam: Dense rgb slam
+[10] Z. Teed and J. Deng, “Deepv2d: Video to depth with differentiable               optimized on the sl (4) manifold,” Proc. of the Advances in Neural
+     structure from motion,” in International Conference on Learning                 Information Processing Systems (NIPS), vol. 39, 2025.
+     Representations, 2020.                                                     [33] K. J. Zuiderveld, “Contrast limited adaptive histogram equalization,”
+[11] Z. Teed and J. Deng, “Droid-slam: deep visual slam for monocular,               in Graphics gems, 1994.
+     stereo, and rgb-d cameras,” in Proc. of the Advances in Neural             [34] E. Rublee, V. Rabaud, K. Konolige, and G. Bradski, “Orb: An efficient
+     Information Processing Systems (NIPS), Red Hook, NY, USA, 2021.                 alternative to sift or surf,” in Proc. of the IEEE Intl. Conf. on Computer
+[12] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud, “Dust3r:            Vision (ICCV), 2011, pp. 2564–2571.
+     Geometric 3d vision made easy,” in Proc. of the IEEE Conf. on              [35] S. Umeyama, “Least-squares estimation of transformation parameters
+     Computer Vision and Pattern Recognition (CVPR), 2024, pp. 20 697–               between two point patterns,” IEEE Trans. on Pattern Analalysis and
+     20 709.                                                                         Machine Intelligence (TPAMI), vol. 13, no. 4, pp. 376–380, 1991.
+[13] V. Leroy, Y. Cabon, and J. Revaud, “Grounding image matching in            [36] F. Dellaert, “Factor graphs and gtsam: A hands-on introduction,”
+     3d with mast3r,” in Proc. of the Europ. Conf. on Computer Vision                Georgia Institute of Technology, Tech. Rep, vol. 2, no. 4, 2012.
+     (ECCV), 2024, p. 71–91.                                                    [37] M. Burri, J. Nikolic, P. Gohl, T. Schneider, J. Rehder, S. Omari, M. W.
+[14] Y. Hong, K. Zhang, J. Gu, S. Bi, Y. Zhou, D. Liu, F. Liu, K. Sunkavalli,        Achtelik, and R. Siegwart, “The euroc micro aerial vehicle datasets,”
+     T. Bui, and H. Tan, “Lrm: Large reconstruction model for single image           Intl. Journal of Robotics Research (IJRR), vol. 35, no. 10, pp. 1157–
+     to 3d,” arXiv preprint, 2023.                                                   1163, 2016.
+[38] A. Geiger, P. Lenz, C. Stiller, and R. Urtasun, “Vision meets robotics:   The kitti dataset,” Intl. Journal of Robotics Research (IJRR), 2013.
+

@@ -1,0 +1,1429 @@
+                                         G LOB 3R: G LOBAL S TRUCTURE - FROM -M OTION WITH
+                                         3D F OUNDATION M ODELS
+                                                  Junyuan Deng1,2∗ Heng Li1∗ Kejie Qiu2∗ Lingteng Qiu2 Rui Peng2
+                                                 Weichao Shen2 Weihao Yuan3 Siyu Zhu4 Zilong Dong2 Ping Tan1†
+                                          1
+                                            The Hong Kong University of Science and Technology 2 Tongyi Lab, Alibaba Group
+                                                              3
+                                                                Nanjing University 4 Fudan University
+
+
+
+                                                                                        A BSTRACT
+
+                                                     Recent 3D geometric foundation models, such as VGGT, provide robust feed-
+                                                     forward 3D reconstruction by directly predicting camera poses and 3D scene points
+                                                     from input images. However, their results remain inaccurate, and scaling them
+                                                     to long sequences or large unordered image sets typically requires chunk-wise
+                                                     processing, which can introduce drift and inconsistency. We present Glob3R, a
+arXiv:2607.09225v1 [cs.CV] 10 Jul 2026
+
+
+
+
+                                                     global SfM-style reconstruction built on 3D foundation models. Our key idea is to
+                                                     explicitly optimize feed-forward geometric predictions. To this end, we augment
+                                                     a frozen Pi3X backbone with a lightweight dense matching head that predicts
+                                                     image warps between selected reference frames and neighboring views. These
+                                                     dense warps are converted into sparse but reliable multi-view feature tracks, which
+                                                     provide correspondence constraints for global optimization. We further introduce a
+                                                     keyframe-based sliding-window association strategy that propagates tracks and rel-
+                                                     ative poses across overlapping windows, enabling scalable reconstruction. Finally,
+                                                     we perform global motion averaging and bundle adjustment to refine camera poses,
+                                                     reduce scale inconsistencies, and recover dense scene geometry. Extensive exper-
+                                                     iments on indoor, outdoor, large-scale driving, and unordered SfM benchmarks
+                                                     demonstrate that Glob3R achieves robust and accurate reconstruction. It consis-
+                                                     tently improves over feed-forward foundation-model baselines and recent scalable
+                                                     reconstruction methods, while being more robust than classical SfM pipelines. The
+                                                     refined poses also lead to higher-quality neural rendering, validating the benefit of
+                                                     combining foundation-model priors with global geometric optimization. Project
+                                                     page: https://junyuandeng.github.io/Glob3r/
+
+
+
+                                         1       I NTRODUCTION
+
+                                         Reconstructing 3D scenes from image collections remains a fundamental challenge in computer vi-
+                                         sion, serving as a cornerstone for applications such as augmented reality (AR), robotics, autonomous
+                                         navigation, and neural rendering. Recently, learning-based 3D geometric foundation models, in-
+                                         cluding DUSt3R [59], VGGT [57], Pi3X [61], and other recent methods [8, 11, 16, 23, 45, 68],
+                                         have emerged as a new reconstruction paradigm. Departing from traditional pipelines, these models
+                                         directly predict camera poses and dense per-pixel geometry, namely depth or scene coordinates,
+                                         from arbitrary image sets in a feed-forward manner. This capability offers a robust and highly
+                                         efficient initialization for 3D reconstruction from both ordered image sequences and unordered image
+                                         collections. Despite these advances, existing 3D geometric foundation models still suffer from
+                                         limited accuracy and scalability. Their feed-forward predictions provide strong global priors, but
+                                         the estimated camera poses and scales are often only approximately correct, which limits their use
+                                         in high-fidelity applications such as Neural Radiance Fields (NeRF) [35] and other view-synthesis
+                                         pipelines. A key reason is that many models are trained with Structure from Motion (SfM)-derived
+                                             ∗
+                                                 Equal contribution.
+                                             †
+                                                 Corresponding authors.
+                                                 E-mail: pingtan@ust.hk
+
+
+                                                                                              1
+supervision, where poses and geometry are generated by tools such as COLMAP [42] rather than
+measured ground truth, thereby transferring the noise and bias of the reconstruction pipeline to the
+learned predictions. Meanwhile, GPU memory constraints make it difficult to process long sequences
+or large image collections in a single forward pass. Recent VGGT-based methods [10, 32, 33, 67]
+address this by splitting input into chunks and aligning chunk-level predictions with simple SE(3) or
+Sim(3) transformations, but this stitching strategy provides limited cross-chunk constraints and can
+accumulate pose and scale errors. Other approaches based on test-time training, recurrent memory,
+or sequence-specific architectures [7, 58, 66, 72] improve scalability, but often require backbone
+retraining or assume sequential inputs, reducing their flexibility in unordered image collections.
+
+Compared with learning-based feed-forward predictions, classical SfM pipelines can often achieve
+higher pose accuracy by explicitly establishing correspondences and refining geometry with opti-
+mization. Their accuracy mainly comes from explicit geometric constraints, such as triangulation and
+bundle adjustment (BA). Existing SfM pipelines are commonly divided into incremental and global
+paradigms. Incremental SfM, such as COLMAP [42], registers images one by one and repeatedly
+applies BA, making it robust to noisy pairwise geometry but computationally expensive and sensitive
+to registration order. Global SfM, such as GLOMAP [37], instead builds a pose graph from pairwise
+relative motions and estimates all camera poses jointly through rotation and translation averaging
+followed by BA, making it substantially faster than incremental reconstruction. However, its per-
+formance still depends on the quality of the pose graph, and unreliable correspondences or outlier
+relative poses can make the reconstruction brittle in challenging scenarios.
+
+These observations suggest a natural direction: using 3D foundation models to predict multi-view
+correspondences together with relative motion and dense geometry, and then adopting global SfM
+principles to optimize the reconstruction. This combination is well-suited to the limitations of both
+paradigms. The foundation model provides robust geometric initialization, including camera poses,
+point maps, and confidence estimates, which enables the construction of a reliable pose graph. More
+importantly, its intermediate features encode cross-view geometric and structural cues, making them
+effective for correspondence prediction and reducing outlier matches. Given these correspondences
+and the resulting pose graph, global pose estimation and bundle adjustment can jointly refine camera
+poses and scene structure, substantially improving reconstruction accuracy.
+
+Specifically, we build our framework on top of Pi3X [61] and introduce a dense matching head that
+predicts image warps and confidence between selected frames and other views. The dense warps are
+converted into sparse but reliable multi-view tracks, providing explicit correspondence constraints
+for global optimization. To efficiently select keyframes and associate long sequences, we further
+propose a keyframe-based sliding-window strategy that leverages the predicted local point maps,
+camera poses, and confidence maps. Instead of merely stitching independent chunks, our method
+uses overlapping windows to propagate tracks and relative poses across the full sequence, while
+performing subsequent optimization at the frame level. These local predictions and track associations
+are first converted into an initial global pose graph. We then perform motion averaging (including
+rotation and translation averaging) followed by bundle adjustment to reduce scale inconsistencies,
+refine camera poses, and recover dense geometry from the optimized reconstruction. Extensive
+experiments across various benchmarks demonstrate the effectiveness of our pipeline. Our method
+improves novel-view synthesis by 2–3 dB PSNR over feed-forward baselines and about 1 dB over
+COLMAP-based poses. On KITTI, it reduces trajectory RMSE by 10%–50% compared with recent
+streaming methods [4, 66, 72]. On ETH3D, it substantially improves rotation accuracy and nearly
+doubles translation accuracy over the latest learning-based SfM baseline [55].
+
+Our main contributions are summarized as follows:
+• We propose a foundation-model-guided framework that turns feed-forward 3D predictions into
+  optimizable geometric constraints, combining robust learned priors with global SfM refinement.
+
+• We introduce a dense warping module and a keyframe-based sliding-window association strategy
+  to extract reliable feature tracks across long sequences and unordered image collections.
+
+• Extensive experiments on indoor, outdoor, large-scale driving, and unordered SfM benchmarks
+  demonstrate that our method significantly improves geometric accuracy over previous methods.
+
+                                                 2
+ Input Sequence                          Sliding-Window Association                                         Initialization & Optimization
+                                         Example: Window 2 (4 Frames)                           3       Windows 1 frames            Overlapping frames
+                                                                                                5       Windows 2 frames
+                                                                                                                                    Maximum Connected
+                                                                                                7       Windows 3 frames
+
+                                                                                                        1         4                                7
+                                                                                    Camera                                      5
+                                                                                     Poses
+                        Pi3X                                                          Local
+                      Geometric                                                       Points
+                      Prediction                                                   Confidence       2              3            6             8
+                                                                                     Map
+
+                                                                                                                  Rotation Averaging
+                   Keyframe Selection                      Dense Matching Head
+                                                                         Dense Warp & Conf
+                      Reprojection +
+                                                Keyframe
+                     Valid pixel count
+                                                               Coarse
+                                                                                                                 Translation Averaging
+                                                               Warping
+
+
+                                                               Refine
+                                                                                                                   Bundle Adjustment
+                                                               Warping
+
+                                                                                                    Optimized Camera            Sparse 3D Points
+
+
+                                             Tracking Generation
+      …
+
+
+
+
+Figure 1: Overview of the proposed reconstruction framework. Given an ordered image sequence
+or a retrieval-based pseudo-sequence, we first predict geometric priors and dense warps within
+windows. Keyframes are selected according to reprojection coverage, and dense warps are converted
+into sparse multi-view tracks. These tracks are then merged into a global association graph for
+rotation averaging, translation averaging, bundle adjustment, and dense reconstruction.
+
+2     R ELATED W ORKS
+2.1    S TRUCTURE - FROM -M OTION AND G EOMETRIC O PTIMIZATION
+Structure-from-Motion (SfM) is a fundamental problem in computer vision. Incremental SfM,
+such as COLMAP [43], progressively registers images starting from an initial image pair. In
+contrast, global SfM methods, such as GLOMAP [37], estimate pairwise relative poses and jointly
+recover all camera poses via rotation averaging [19, 25, 34], translation averaging [18, 63], or global
+positioning [37], followed by bundle adjustment [54]. Despite their high reconstruction accuracy,
+these optimization-based methods remain limited by the cost and reliability of feature matching,
+especially in large-scale scenes, weakly textured regions, repetitive structures, or forward-moving
+trajectories. Recent differentiable SfM [2, 46, 50–52, 56, 62] methods further explore learnable
+reconstruction by enforcing geometric constraints and minimizing reprojection or photometric errors.
+
+2.2    3D F OUNDATION M ODELS
+3D foundation models have recently emerged as a feed-forward paradigm for 3D reconstruction.
+DUSt3R [59] predicts dense scene coordinate maps for a pair of input views, while VGGT [57],
+Pi3 [61], and DA3 [29] predict camera, depth, and other 3D attributes with a single transformer
+network. These models are efficient and robust, and can solve many 3D vision tasks in an end-to-end
+manner with minimal hand-crafted assumptions. However, their geometric accuracy is often bounded
+by SfM-derived supervision such as COLMAP poses, and scaling them to large image collections
+remains challenging. Recent methods such as VGGT-Long [10] and VGGT-SLAM [33] process long
+sequences by splitting them into chunks and estimating transformations between chunks, but such
+strategies underuse intra-chunk geometric relations and can accumulate errors across chunk. Some
+methods [5, 28, 58, 64, 67] maintain a memory bank to extend reconstruction to larger scenes, but
+the accumulated memory updates can still lead to substantial drift as the scene scale increases. Other
+approaches improve scalability through test-time training, recurrent memory, or sequence-specific
+architectures [4, 66, 72], but often require backbone retraining or assume sequential inputs.
+
+2.3    F EATURE M ATCHING AND D ENSE C ORRESPONDENCE
+Feature matching is crucial for both SfM and SLAM. Classical sparse pipelines detect keypoints
+and then establish correspondences by matching local descriptors, while learned matchers such as
+SuperGlue [41] and LightGlue [30] improve matching quality through attention-based reasoning.
+Detector-free methods, including LoFTR [48], DKM [13], and RoMa [14], move toward semi-dense
+
+
+                                                                         3
+or dense correspondence estimation and are more robust in weakly textured regions. Recently, RoMa
+v2 [15] further formulates two-view dense matching as image warping, achieving strong matching
+accuracy. Feature matching has also been explored in 3D foundation models: MASt3R [36] predicts
+dense descriptors on top of DUSt3R, and VGGT [57] tracks query points across views. Inspired by
+these works, we construct multi-view correspondences through dense warping and derive accurate
+feature tracks for subsequent global pose optimization.
+
+3     M ETHOD
+Fig. 1 illustrates the pipeline of our method. Given an image collection, our goal is to estimate
+globally consistent camera poses and recover scene geometry.
+Sec. 3.1 introduces our network architecture based on Pi3X: images are processed by a frozen 3D
+foundation model to obtain coarse geometric priors, including camera poses, local point maps, and
+confidence maps. For predicting multi-view feature matching, we further introduce a dense matching
+head that predicts image warps and confidence between selected keyframes and other frames. Sec. 3.2
+describes the sliding-window association strategy, which selects keyframes, converts dense warps
+into sparse multi-view tracks, and connects local windows into a pose graph. Sec. 3.3 presents the
+global optimization stage, including motion averaging, bundle adjustment, and dense reconstruction.
+
+3.1   A RCHITECTURE
+
+We build our model on top of Pi3X [61], which adopts a unified transformer backbone with multiple
+                                                                                        N
+prediction heads f to infer geometric information from an image set I = Ii ∈ R3×H×W i=1 :
+                                         N
+                                 f ({Ii }i=1 ) = {Ti , Xi , Ci , mi }                         (1)
+where for input image Ii , Ti ∈ SE(3) ⊂ R4×4 denotes the camera pose, Xi ∈ R3×H×W is the 3D
+point map in the coordinate system of image Ii , Ci ∈ RH×W is the corresponding confidence map,
+and mi denotes the approximate metric scale.
+We follow the permutation-equivariant design of Pi3X, which removes the need for a designated
+reference view and enables more flexible multi-view inputs.
+To equip the model with dense matching capability, VGGT [57] takes a query point in a reference
+image as input and employs a tracking head to predict its corresponding points across all other
+images. Despite its effectiveness, the memory cost grows rapidly with the number of query points,
+and the resulting point-wise correspondences are less spatially connected than dense matching. Other
+methods, such as MASt3R [36], predict dense feature descriptors and confidence maps for every
+pixel, followed by nearest-neighbor search for correspondence estimation. However, dense descriptor
+prediction is computationally expensive and can be less accurate. Inspired by RoMa V2 [15], we
+formulate dense matching as image warping, which maps 2D pixels from one image to another
+through a two-stage process consisting of coarse matching and subsequent refinement.
+Visualizations of the warping results are available in the supplementary material. Specifically, let
+H ∈ RN ×L×C denote the output feature of the Pi3X backbone, where N is the number of input
+images, L is the token length, and C is the feature dimension. Given a reference image Ia , we treat the
+remaining images as target views B = {1, · · · , N } \ {a}. The coarse matching results are predicted
+by a transformer decoder (Decmatch ) followed by a Dense Prediction Transformer (DPTmatch ):
+                          Wa→B , pa→B = DPTmatch (Decmatch (H), a) ,
+                                          
+                                                                                                     (2)
+                              H   W
+where Wa→B ∈ R(N −1)×2× 4 × 4 maps pixels from the reference image to each target image, and
+                    H   W
+pa→B ∈ R(N −1)× 4 × 4 denotes the corresponding confidence. Both outputs are predicted at a stride
+of 4 and then refined to full resolution. A refinement module takes the coarse matching results and
+the original image as input, and progressively predicts residual warps ∆W and confidence residuals
+∆p at strides {4, 2, 1}. More details are provided in the supplementary material.
+Loss Function and Training. We freeze the encoder, decoder, and existing prediction heads, and
+fine-tune only the matching head. Since Pi3X is permutation-equivariant, the reference view can be
+chosen flexibly during inference, which is important for our subsequence-based pipeline. During
+training, we simply use the first image as the reference view and supervise its matches to the remaining
+
+
+                                                   4
+target images with ground-truth 2D–2D warp. The ground-truth warp is generated by projecting
+the ground-truth 3D point map with known camera poses, and the confidence supervision is derived
+from depth consistency. The total loss is the weighted sum of the negative log-likelihood of the best
+matching patch, the warping loss, and the confidence loss:
+                                      N
+                                      X
+                                 L=         λ1 LkNLL + λ2 Lkwarp + λ3 Lkconf                           (3)
+                                      k=2
+
+where LkNLL encourages high cosine similarity between the features of matching patches. Please refer
+to the supplementary material for more details.
+
+3.2   S LIDING - WINDOW S EQUENCE A SSOCIATION
+
+Eq. 1 provides a robust geometric prior such as camera pose and point map, while Eq. 2 gives image
+warps between frames. They can connect a pose graph through sparse but reliable multi-view tracks.
+Sequence and Window Construction. Our method operates on an image sequence S = {Ii }M            i=1 .
+For data with explicit temporal order, we use the original order. For unordered image sets, we build
+a pseudo-sequence with an image retrieval model such as SALAD [22]. This fits our framework
+because the network does not require strictly ordered frames. Any frame in the window with sufficient
+visual overlap can be the reference view. We process the sequence with sliding windows, where
+each window contains N frames and is shifted by N/2 frames along the sequence. The resulting
+half-window overlap provides shared frames between adjacent windows, enabling correspondences
+and relative poses to be propagated progressively across the full sequence.
+Keyframe Selection. Following the principle of classical SLAM systems, we use a small number
+of keyframes to establish local mappings, while the remaining frames are associated through the
+matches to the keyframes. For each window, we initialize its first frame as a keyframe if there is no
+keyframe. We then run Eq. 1 to obtain the camera pose Tt , the point map Xt applying the predicted
+metric scale, and the confidence map Ct for every frame. For a candidate frame It , we reproject its
+point map onto each existing keyframe Ir ∈ K and count the number of valid projected pixels:
+                             X                                             
+               nt = max       1 π Tt→r X̄t (u) ∈ D, zt→r (u) > 0, Ct (u) > τc ,                        (4)
+                     Ir ∈K
+                             u
+
+where K is the current keyframe set, X̄t (u) denotes the homogeneous 3D point at pixel u, Tt→r is
+the relative transform from It to Ir , π(·) is the projection function, D is the image domain, zt→r (u) is
+the projected depth, and τc is the depth confidence threshold. If nt < τproj , we add It to the keyframe
+set. This process is repeated until all frames in the window have been visited. We additionally ensure
+that at least one keyframe lies in the overlapping half of the window to maintain connectivity between
+consecutive windows.
+Track-based Global Initialization. After keyframe selection, we use the matching head to predict
+dense warps from each keyframe to all frames in the same window.
+This step only requires a single forward pass of the frozen backbone to extract features, after which the
+backbone features are reused and kept fixed for keyframe-to-frame matching, resulting in moderate
+memory overhead. We sample K high confidence pixels from the keyframe point map, and pick the
+corresponding pixel on the dense warp map of other frames to build the track. The tracking confidence
+is obtained by combining the keyframe point confidence and the predicted warp confidence. This
+produces sparse yet reliable multi-view tracks anchored at keyframes.
+The local tracks from the overlapping windows are merged into a pose graph. Each frame is treated
+as a node, and an edge is added between two frames if they share valid tracking correspondences.
+The edge weight is defined by the number of valid tracks between the two frames. Since the matching
+results and local geometry predictions are produced jointly within each window, each valid edge is
+associated with a relative pose. For edges from different windows, we temporarily use the metric
+scale predicted by Pi3X [61] to bring their relative transformation into global space. We then compute
+a maximum spanning tree over the graph and initialize the camera pose with relative poses on the
+spanning tree. The initialized poses and the associated sparse tracks are then passed to the subsequent
+optimization stage, where remaining scale inconsistencies and coarse poses are further refined.
+
+
+                                                      5
+This design differs from window-stitching pipelines [10, 33], which mainly merge independent
+chunk-level predictions. By using frames as the basic association and optimization unit, our method
+not only connects different windows through overlapping keyframes, but also enables pose refinement
+of all input images, leading to more accurate and globally consistent results.
+
+3.3   O PTIMIZATION
+
+The global initialization provides each frame with a reasonable pose estimate, while its scale, inherited
+from the foundation model, remains approximate and may vary across windows. Moreover, each
+frame can be connected to multiple keyframes from overlapping windows, resulting in redundant
+but not always consistent relative pose constraints. We therefore perform global optimization to
+consolidate local predictions into a coherent reconstruction.
+Motion Averaging. We first estimate globally consistent camera poses from the pose graph. Inspired
+by GLOMAP [37], we decompose this step into rotation averaging followed by translation averaging.
+Given the relative rotations associated with the graph edges, we perform robust rotation averaging [19]
+to obtain a globally consistent rotation Ri for each frame. With rotations fixed, we estimate camera
+centers and sparse 3D points using multi-view ray consistency. For a track observation uij of point j
+in frame i, we convert it into a normalized camera ray vij . Instead of optimizing pairwise translation
+scales, we require the 3D point to lie on the corresponding world-frame viewing ray:
+                                       X                                     2
+                           min               ωij ρ Xj − ci + dij R⊤    i vij   2
+                                                                                  ,                  (5)
+                     {ci },{Xj },{dij }
+                                          (i,j)∈O
+
+where O is the set of valid track observations, ci is the camera center, Xj is the 3D point, dij is
+the depth of point j along the viewing ray of frame i, ωij is the tracking confidence, and ρ(·) is a
+robust loss. This formulation is robust to inconsistent local translation scales and recovers globally
+compatible camera centers and sparse points from multi-view tracks. The resulting poses provide a
+stable initialization for the subsequent bundle adjustment.
+Bundle Adjustment. Starting from the global initialization, we further refine camera poses, sparse
+points, and camera intrinsics by minimizing reprojection errors over all valid track observations:
+                                      X                                            
+                                                                                  2
+                         min                ωij ρ ∥π (Ki , δ i , Ti , Xj ) − uij ∥2 ,              (6)
+                  {Ti },{Xj },{Ki },{δ i }
+                                             (i,j)∈O
+
+where Ti is the camera pose, Ki is the camera intrinsic matrix, δ i denotes the distortion parameters,
+and π(·) is the projection function with distortion. When camera calibration is available, we keep
+Ki and δ i fixed; otherwise, they are jointly optimized with poses and points. The confidence ωij
+down-weights uncertain matches, while the robust loss suppresses outliers from incorrect tracks and
+occlusions. This two-stage optimization first resolves large-scale inconsistencies and then performs
+accurate reprojection-based refinement, allowing poses to be optimized at the frame level rather than
+merely stitched at window boundaries.
+Dense Reconstruction. During initialization, we also store the predicted depth and confidence
+map of each frame. After optimization, the sparse 3D tracks provide reliable depth samples at their
+corresponding pixels. For each keyframe, we estimate a scale factor between the predicted dense
+depth and the optimized sparse depths using RANSAC, and rescale the dense depth accordingly. The
+rescaled depth is then back-projected with the optimized intrinsics and distortion parameters to obtain
+a dense point map in the camera coordinate system. Finally, all dense point maps are transformed by
+the optimized poses and fused into a globally aligned dense point cloud.
+
+4     E XPERIMENTS
+4.1   E XPERIMENTAL S ETUP
+
+Datasets. We evaluate our method on diverse indoor, outdoor, unordered SfM, and large-scale driving
+scenes, including 19 Tanks and Temples (T&T) scenes [24], 9 TUM RGB-D sequences [47], 13
+ETH3D scenes [44], and 11 KITTI driving sequences [17]. T&T, TUM RGB-D, and KITTI are
+evaluated as streaming or sequential inputs, while ETH3D is treated as an unordered SfM-style image
+collection. These datasets cover diverse scene scales, camera motions, and visual conditions.
+
+
+                                                       6
+Barn
+Temple
+Playground
+
+
+
+
+               GroudTruth               Ours                   COLMAP                     DA3                  LingBot-Map
+
+Figure 2: Qualitative comparison of novel-view synthesis on Tanks and Temples. Our method
+produces cleaner renderings with fewer pose-induced artifacts.
+
+             Table 1: PSNR comparison on selected Tanks and Temples scenes. Best results are in bold.
+   Scene             Barn   Cat. Chur. Court. C.room Family Franc. Horse Light. M.room Museum Play. Temple Train Avg.
+   COLMAP [42] 24.09 17.04 18.14       18.04   18.25   19.40   21.80   19.47   16.65   18.59   16.87   19.07   18.10   16.70 18.73
+   GLOMAP [37] 24.26 16.97 18.20       21.08   18.20   13.08   22.00   14.85   17.76   19.56   11.81   15.72   18.23   12.35 17.43
+   AMB3R [55] 20.08 15.45 15.98        15.64   15.58   19.50   19.19   19.08   15.00   16.63   15.97   18.04   15.74   15.66 16.97
+   Scal3R [66] 20.00 14.86 15.08       18.20   13.28   17.21   16.08   16.58   12.09   14.74   13.01   16.79   17.09   13.04 15.58
+   DA3 [29]    21.78 15.73 16.51       OOM     16.34   18.93   20.38   18.60   17.43   17.78   15.60   19.01   17.21   15.88 17.78
+   Pi3X [61]   21.22 16.04 17.01       16.74   17.23   18.89   20.27   18.19   17.34   17.63   15.56   18.20   16.83   15.57 17.62
+   SAIL-R. [9] 23.50 16.80 17.00       15.09   17.40   20.60   21.80   20.10   18.20   19.50   15.40   20.30   17.80   16.20 18.55
+   LingBot [4] 18.54 14.51 15.44       14.43   15.65   17.60   19.01   17.17   15.29   16.08   14.62   17.18   15.28   14.77 16.11
+   Ours        24.50 17.25 18.01       20.72   18.31   20.27   22.01   19.79   18.76   19.68   17.43   21.68   18.82   16.60 19.56
+
+
+
+Evaluation Metrics and Inference Settings. We mainly evaluate the camera pose accuracy. For
+T&T, accurate ground-truth poses are not available, and using COLMAP poses as ground truth
+would be inappropriate since they are also estimated results [2]. We therefore follow the previous
+works [2, 9] to evaluate pose quality through novel-view synthesis. For each method, we split the
+estimated camera pose into training/testing splits, and then train a Nerfacto model [49] on training
+views and report PSNR on rendered testing views as an indirect measure of pose precision. For TUM
+RGB-D and KITTI, ground-truth trajectories are available, so we align the estimated trajectories to
+the ground truth and report pose RMSE. For ETH3D, following common relative-pose evaluation
+protocols, we report RRA@5 and RTA@5, i.e., the proportion of camera pairs whose relative rotation
+and translation errors are below 5◦ . By default, we use a sliding window size of N = 20 with a stride
+of 10 frames.
+We use N = 120 for T&T Auditorium and Courtroom, and N = 200 for the KITTI sequence 02 to
+stabilize Pi3X predictions while leaving the rest of the pipeline unchanged.
+Please refer to the supplementary for more details.
+
+4.2           C OMPARISON WITH S TATE - OF - THE - ART M ETHODS
+
+We compare our method with a broad set of reconstruction and SLAM baselines, including classical
+SfM methods COLMAP [42], GLOMAP [37], feed-forward 3D foundation models such as DA3 [29]
+and Pi3X [61], streaming SLAM systems such as DROID-SLAM [52], and recent long-sequence
+or SfM-style learning-based methods, including VGGT-Long [10], VGGT-SLAM [33], LingBot-
+Map [4], LoGeR [72], SCAL3R [66], SAILRecon [9], MASt3R-SLAM [36], and AMB3R [55].
+Please refer to the supplementary for more baseline details and additional comparisons.
+Tanks and Temples. Table 1 reports novel-view synthesis results on T&T, where higher PSNR
+indicates more accurate and consistent camera poses. Our method achieves the best average PSNR,
+outperforming both the classical SfM systems COLMAP [42] and GLOMAP [37] and the learning-
+based reconstruction methods on average. Although GLOMAP obtains strong results on several
+scenes, its performance is less stable due to inaccurate edges and outliers in the pose graph. In
+contrast, our method benefits from the geometric priors of the foundation model, which provide
+robust initial poses, point maps for subsequent optimization. Compared with feed-forward methods
+
+
+                                                                 7
+4542 frames, 3742 m
+KITTI Odometry 00
+1591 frames, 1705 m
+KITTI Odometry 09
+
+
+
+
+                           Ours                        Scal3R                    VGGT-Long                               LoGeR                          LingBot-Map
+
+Figure 3: Camera trajectory comparison on KITTI Odometry. Our method better preserves the global
+trajectory shape and reduces drift on long driving sequences.
+
+such as DA3 [29] and Pi3X [61], our method achieves better reconstruction quality, suggesting
+that feed-forward global reasoning alone is insufficient for high-precision pose estimation. Recent
+streaming or post-optimization pipelines, including LingBot-Map [4], LoGeR [72], Scal3R [66], and
+SAIL-Recon [9], also remain inferior on this benchmark. This reveals our motivation: 3D foundation
+models provide robust but coarse pose initialization and geometry-aware features, while classical
+global SfM can refine geometry but is sensitive to unreliable pose graphs. By converting dense
+warps into reliable multi-view tracks, our method bridges these two sides and enables stable global
+SfM-style optimization for high-fidelity reconstruction. The qualitative results in Fig. 2 confirm this
+observation, where our rendered views are visually closer to the ground-truth images.
+
+      Table 2: Pose estimation results on TUM RGB-D sequences. We report trajectory RMSE (cm) ↓.
+             Method                                 360          desk         desk2              floor         plant         room          rpy          teddy         xyz          Avg.
+             DROID-SLAM [52]                        20.2          3.2          9.1                6.4           4.5           91.8         5.6           4.5          1.2          15.8
+             MASt3R-SLAM [36]                        7.0          3.5          5.5                5.6           3.5           11.8         4.1           11.4         2.0           6.0
+             VGGT-SLAM [33]                          7.1          2.5          4.0               14.1           2.3           10.2         3.0           3.4          1.4           5.3
+             AMB3R [55]                              4.6          1.9          2.8                3.2           2.9            5.8         2.3           3.7          1.1           3.2
+             LoGeR [72]                             10.6          3.2          4.6               10.3           4.6            9.8         3.0           8.4          2.2           6.3
+             Scal3R [66]                             6.6          5.5          2.9               18.9           4.5           11.0         3.2           9.5          5.0           7.4
+             VGGT-SLAM 2.0 [32]                      5.0          2.5          2.9               10.2           2.6            6.3         2.6           3.8          1.4           4.1
+             SAILRecon [9]                           7.0          2.4          4.2               10.7           3.1           11.3         2.0           3.7          1.2           5.1
+             LingBot-Map [4]                         6.3          2.8          4.4                5.9           4.4            9.2         2.4           3.6          1.1           4.4
+             Ours                                    8.1          1.8          2.6                3.0           1.8            5.0         2.2           3.7          0.9           3.2
+
+TUM RGB-D. Table 2 evaluates pose accuracy in small-scale RGB-D indoor sequences. Our method
+achieves the best average RMSE among these uncalibrated methods and remains competitive with
+recent SLAM and reconstruction systems. This benchmark contains short indoor trajectories with
+frequent rotations, limited baselines, and appearance variations, posing challenges for feature match-
+ing followed by geometric optimization. Although our method requires explicit feature matching, it
+remains stable under these difficult motion settings. These results show that our approach is effective
+for compact indoor sequences where accurate local pose refinement is required.
+
+                      Table 3: Pose estimation results on KITTI sequences. We report trajectory RMSE (m) ↓.
+       Method                        00           01           02           03          04           05            06            07           08            09           10          Avg.
+       Frames / km                4542 / 3.7   1101 / 2.5   4661 / 5.1   801 / 0.6   271 / 0.4    2761 / 2.2    1101 / 1.2    1101 / 0.7   4071 / 3.2    1591 / 1.7   1201 / 0.9
+       DROID-SLAM [52]              92.10       344.60       107.61        2.38        1.00        118.50        62.47         21.78        161.60         72.32       118.70       100.28
+       VGGT-Long [10]                8.64        61.21        52.72        8.78        4.20          9.88         4.67          2.66         72.98         31.84        27.71        25.94
+       VGGT-SLAM 2.0 [32]             TL        163.65         TL         50.04       19.38        159.58        46.35         57.80          TL          167.96        76.99        92.72
+       MASt3R-SLAM [36]            OOM          530.37       OOM          18.87       88.99        159.43        92.00         OOM          263.75           TL        153.07       186.64
+       AMB3R [55]                  167.38       276.12       157.07       22.06        6.91        149.11        55.94         37.25        85.68         134.73        52.15       104.04
+       LingBot-Map [4]              27.17        70.94       112.02        2.02        1.36         26.14        16.61         10.48         23.82         17.84         6.48        28.63
+       LoGeR [72]                   30.47        47.91        36.32        5.38        1.95         26.34         6.60          5.55         24.41         10.12        10.11        18.65
+       Scal3R [66]                   4.30        45.29        42.06        3.36        1.74          3.30         2.49          2.03         36.69         12.32         6.46        14.55
+       Ours                         2.77         53.12        30.10        1.53        0.75          2.80         2.67          1.77         32.76          5.51        11.51        13.21
+
+
+KITTI. Table 3 evaluates long-sequence driving scenarios. Our method achieves the best average
+RMSE across all KITTI sequences. This benchmark is challenging because forward-facing vehicle
+motion often produces small parallax, weak triangulation, and unstable feature matching. Classical
+
+
+                                                                                              8
+Table 4: Pose estimation accuracy comparison on ETH3D. Baselines are evaluated at loose thresholds
+(5◦ ). We report strict accuracy (1◦ ) for AMB3R and our method, and also provide our method’s
+performance at loose thresholds (5◦ ) for comprehensive comparison. Best results are in bold.
+                                                                Threshold @5                                                           Threshold @1
+ Scenes
+              COLMAP [42]      GLOMAP [37]      VGGSfM [56]     DF-SfM [20]    MASt3R-SfM [12]   AMB3R [55]        Ours         AMB3R [55]        Ours
+              R@5     T@5      R@5     T@5      R@5     T@5     R@5     T@5    R@5     T@5       R@5     T@5    R@5     T@5     R@1    T@1     R@1     T@1
+ courtyard     56.3    60.0    30.33   26.52     50.5   51.2     80.7   74.8    89.8    64.4     100.0   96.5   100.0   97.0   86.57   50.28   100.0   73.89
+ deli. area    34.0    28.1    17.77    8.37     22.0   19.6     82.5   82.0    83.1    81.8      91.0   76.6   100.0   81.9   69.63   15.70   83.37   66.48
+ electro       53.3    48.5    57.23   50.12     79.9   58.6     82.8   81.2   100.0    95.5      95.6   81.2   100.0   85.3   80.05   36.74   72.05   55.95
+ facade        92.2    90.0    55.06   49.26     57.5   48.7     80.9   82.6    74.3    75.3     100.0   95.4   100.0   96.8   86.81   50.12   94.25   81.86
+ kicker        87.3    86.2    80.65   49.74    100.0   97.8     93.5   91.0   100.0   100.0     100.0   99.2   100.0   95.7   95.42   80.54   94.38   86.47
+ meadow         0.9    0.9     28.00    7.11    100.0   96.2     56.2   58.1    58.1    58.1     100.0   95.2   100.0   92.0   80.44   40.00   78.67   68.44
+ office        36.9    32.3    34.91   31.07     64.9   42.1     71.1   54.5   100.0    98.5     100.0   53.9   100.0   63.9   92.31   18.79   77.81   33.43
+ pipes         30.8    28.6    74.49   65.31    100.0   97.8     72.5   61.5   100.0   100.0     100.0   87.9   100.0   92.9   67.35   30.61   100.0   73.47
+ p.ground      17.2    18.1    75.90   28.12     37.3   40.8     70.5   70.1   100.0    93.6      98.7   62.2   100.0   95.4   69.94   19.74   90.03   68.01
+ relief        16.8    16.8    81.89   78.98     59.6   57.9     32.9   32.9    34.2    40.2     100.0   90.1   100.0   96.6   68.16   30.70   100.0   86.47
+ relief 2      11.8    11.8    50.26   47.35     69.9   70.3     40.9   39.1    57.4    76.1     100.0   75.7   100.0   95.9   45.47    8.64   100.0   73.47
+ terrace      100.0   100.0    83.74   79.02    38.7    29.6    100.0   99.6   100.0   100.0     100.0   97.2   100.0   95.6   90.17   61.44   100.0   92.82
+ terrains     100.0    99.5    55.90   50.17    70.4    54.9    100.0   91.9    58.2    52.5      91.6   53.8   100.0   97.3   37.64    9.35   100.0   90.53
+ Average      49.0    47.8     58.40   47.70    65.4    58.9    74.2    70.7   81.2     79.7      98.2   81.9   100.0   91.3   77.69   35.55   91.58   73.27
+
+
+
+
+                              Table 5: Ablation study of different components in our method.
+  Method                      Init      Motion Avg.            Ours      Coarse Track.           VGGT-Track. [57]              RomaV2-Track. [15]
+  RRA@1 (↑)                   69.70            70.20           90.80           67.11                     59.29                          57.12
+  RTA@1 (↑)                   33.64            34.75           73.27           48.56                     29.35                          44.78
+  Speed (FPS) (↑)              3.34             2.77            2.06            2.54                     1.14                            0.82
+
+
+SfM methods [37, 42] are therefore prone to failure or high computational cost in such settings.
+Recent scalable or streaming reconstruction methods, including VGGT-Long [10], Scal3R [66],
+LoGeR [72], and LingBot-Map [4], alleviate the memory issue with chunk-wise processing, test-time
+optimization, or streaming updates, but still accumulate trajectory errors over long driving sequences.
+In contrast, our sliding-window association converts dense warps into sparse tracks and propagates
+them across overlapping windows, enabling frame-level pose optimization over the full sequence.
+The qualitative trajectories in Fig. 3 show the same trend: our method closely follows the ground
+truth on KITTI Odometry 00 and 09, while competing methods exhibit more visible drift or trajectory
+deformation.
+ETH3D. Table 4 reports results on unordered SfM-style image collections. We first compare with
+GLOMAP [37] using the same view graph connectivity. Although our optimization follows a similar
+global SfM formulation, GLOMAP drops noticeably in this setting because erroneous edges in the
+view graph can strongly affect rotation and translation averaging. In contrast, our method benefits
+from geometric foundation model priors and confidence-aware dense matching, which provide more
+reliable tracks for global optimization. Our method also significantly outperforms strong learning-
+based baselines such as AMB3R-SfM [55]. Under the loose threshold of 5◦ , our method reaches
+saturated or near-saturated RRA@5 and RTA@5 on most scenes; under the stricter 1◦ threshold,
+it still achieves substantially higher RRA@1 and RTA@1 than AMB3R, indicating more accurate
+relative poses for high-precision SfM evaluation.
+
+4.3        A BLATION S TUDY
+
+We perform ablation studies on ETH3D with accurate ground-truth poses. Table 5 compares different
+variants using RRA@1 and RTA@1. The initialization achieves reasonable accuracy, showing that
+the system can connect different frames to a meaningful global structure. Motion Averaging further
+brings a modest improvement by making the initial poses more globally consistent. After complete
+optimization, our method improves both rotation and translation accuracy, confirming the importance
+of geometric bundle adjustment.
+We further analyze the matching component. Using the coarse matching gives limited improvement
+over initialization, indicating that the refinement is important for accurate correspondence. Replacing
+our matching with the VGGT [57] tracking head or RoMaV2 [15] leads to poorer accuracy and lower
+efficiency.
+This is because VGGT tracks points from a single reference view, so multiple keyframes require
+repeated inference; moreover, the resulting tracks are less reliable than the points obtained from
+global dense warping. RoMaV2 only operates as a two-view matcher and does not exploit the shared
+
+
+                                                                               9
+multi-view geometric context provided by the foundation model. These results show that our dense
+matching head provides more accurate and efficient tracks for global pose optimization.
+
+5    C ONCLUSION
+We present a foundation-model-guided global SfM framework that transforms feed-forward 3D
+predictions into optimizable geometric constraints. Our method leverages the predicted geometry
+and cross-view features of a frozen foundation model to build reliable correspondences and an initial
+pose graph. With a keyframe-based sliding window strategy, these constraints are propagated across
+long sequences and unordered image collections. Global pose estimation and bundle adjustment then
+refine the poses, reduce scale inconsistencies, and recover dense geometry. Experiments on diverse
+benchmarks demonstrate that our framework combines the robustness of 3D foundation models with
+global SfM-style optimization, achieving efficient and high-fidelity reconstruction.
+Future Work. Our current sliding-window strategy adopts a fixed window size. Adapting the
+window size according to motion type, visual overlap, and matching confidence may further improve
+efficiency and robustness. In addition, the matching head still depends on the geometric predictions of
+the underlying foundation model. Reducing this dependence and improving robustness to imperfect
+initial geometry remain important directions for future research.
+
+R EFERENCES
+ [1] Gilad Baruch, Zhuoyuan Chen, Afshin Dehghan, Tal Dimry, Yuri Feigin, Peter Fu, Thomas Gebauer,
+     Brandon Joffe, Daniel Kurz, Arik Schwartz, et al. Arkitscenes: A diverse real-world dataset for 3d indoor
+     scene understanding using mobile rgb-d data. arXiv preprint arXiv:2111.08897, 2021.
+
+ [2] Eric Brachmann, Jamie Wynn, Shuai Chen, Tommaso Cavallari, Áron Monszpart, Daniyar Turmukham-
+     betov, and Victor Adrian Prisacariu. Scene coordinate reconstruction: Posing of image collections via
+     incremental learning of a relocalizer. In ECCV, 2024.
+
+ [3] Yohann Cabon, Naila Murray, and Martin Humenberger. Virtual kitti 2. arXiv preprint arXiv:2001.10773,
+     2020.
+
+ [4] Lin-Zhuo Chen, Jian Gao, Yihang Chen, Ka Leong Cheng, Yipengjing Sun, Liangxiao Hu, Nan Xue,
+     Xing Zhu, Yujun Shen, Yao Yao, and Yinghao Xu. Geometric context transformer for streaming 3d
+     reconstruction. arXiv preprint arXiv:2604.14141, 2026.
+
+ [5] Chong Cheng, Xianda Chen, Tao Xie, Wei Yin, Weiqiang Ren, Qian Zhang, Xiaoyang Guo, and Hao Wang.
+     Longstream: Long-sequence streaming autoregressive visual geometry. arXiv preprint arXiv:2602.13172,
+     2026.
+
+ [6] Angela Dai, Angel X Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias Nießner.
+     Scannet: Richly-annotated 3d reconstructions of indoor scenes. In Proceedings of the IEEE conference on
+     computer vision and pattern recognition, pages 5828–5839, 2017.
+
+ [7] Junyuan Deng, Qi Wu, Xieyuanli Chen, Songpengcheng Xia, Zhen Sun, Guoqing Liu, Wenxian Yu,
+     and Ling Pei. Nerf-loam: Neural implicit representation for large-scale incremental lidar odometry
+     and mapping. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages
+     8218–8227, 2023.
+
+ [8] Junyuan Deng, Wei Yin, Xiaoyang Guo, Qian Zhang, Xiaotao Hu, Weiqiang Ren, Xiao-Xiao Long, and
+     Ping Tan. Boost 3d reconstruction using diffusion-based monocular camera calibration. In Proceedings of
+     the IEEE/CVF International Conference on Computer Vision, pages 7110–7121, 2025.
+
+ [9] Junyuan Deng, Heng Li, Tao Xie, Weiqiang Ren, Qian Zhang, Ping Tan, and Xiaoyang Guo. Sail-recon:
+     Large sfm by augmenting scene regression with localization. 2026 International Conference on 3D Vision
+     (3DV)., 2026.
+
+[10] Kai Deng, Zexin Ti, Jiawei Xu, Jian Yang, and Jin Xie. Vggt-long: Chunk it, loop it, align it – pushing vggt’s
+     limits on kilometer-scale long rgb sequences, 2025. URL https://arxiv.org/abs/2507.16443.
+
+[11] Tianchen Deng, Wenhua Wu, Kunzhen Wu, Guangming Wang, Siting Zhu, Shenghai Yuan, Xun Chen,
+     Guole Shen, Zhe Liu, and Hesheng Wang. Reloc-vggt: Visual re-localization with geometry grounded
+     transformer. arXiv preprint arXiv:2512.21883, 2025.
+
+
+                                                       10
+[12] Bardienus Duisterhof, Lojze Zust, Philippe Weinzaepfel, Vincent Leroy, Yohann Cabon, and Jerome
+     Revaud. Mast3r-sfm: a fully-integrated solution for unconstrained structure-from-motion. arXiv preprint
+     arXiv:2409.19152, 2024.
+
+[13] Johan Edstedt, Ioannis Athanasiadis, Mårten Wadenbäck, and Michael Felsberg. Dkm: Dense kernelized
+     feature matching for geometry estimation. In Proceedings of the IEEE/CVF conference on computer vision
+     and pattern recognition, pages 17765–17775, 2023.
+
+[14] Johan Edstedt, Qiyu Sun, Georg Bökman, Mårten Wadenbäck, and Michael Felsberg. Roma: Robust dense
+     feature matching. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition,
+     pages 19790–19800, 2024.
+
+[15] Johan Edstedt, David Nordström, Yushan Zhang, Georg Bökman, Jonathan Astermark, Viktor Larsson,
+     Anders Heyden, Fredrik Kahl, Mårten Wadenbäck, and Michael Felsberg. Roma v2: Harder better faster
+     denser feature matching. arXiv preprint arXiv:2511.15706, 2025.
+
+[16] Jingnan Gao, Zhe Wang, Xianze Fang, Xingyu Ren, Zhuo Chen, Shengqi Liu, Yuhao Cheng, Jiangjing
+     Lyu, Xiaokang Yang, and Yichao Yan. More: 3d visual geometry reconstruction meets mixture-of-experts.
+     arXiv preprint arXiv:2510.27234, 2025.
+
+[17] Andreas Geiger, Philip Lenz, and Raquel Urtasun. Are we ready for autonomous driving? The KITTI
+     vision benchmark suite. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition (CVPR), 2012.
+
+[18] Venu Madhav Govindu. Combining two-view constraints for motion estimation. In Proceedings of the 2001
+     IEEE computer society conference on computer vision and pattern recognition. CVPR 2001, volume 2,
+     pages II–II. IEEE, 2001.
+
+[19] Richard Hartley, Jochen Trumpf, Yuchao Dai, and Hongdong Li. Rotation averaging. International journal
+     of computer vision, 103(3):267–305, 2013.
+
+[20] Xingyi He, Jiaming Sun, Yifan Wang, Sida Peng, Qixing Huang, Hujun Bao, and Xiaowei Zhou. Detector-
+     free structure from motion. In Proceedings of the IEEE/CVF conference on computer vision and pattern
+     recognition, pages 21594–21603, 2024.
+
+[21] Po-Han Huang, Kevin Matzen, Johannes Kopf, Narendra Ahuja, and Jia-Bin Huang. Deepmvs: Learning
+     multi-view stereopsis. In IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2018.
+
+[22] Sergio Izquierdo and Javier Civera. Optimal transport aggregation for visual place recognition. In
+     Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), June
+     2024.
+
+[23] Nikhil Keetha, Norman Müller, Johannes Schönberger, Lorenzo Porzi, Yuchen Zhang, Tobias Fischer,
+     Arno Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes, et al. Mapanything: Universal feed-forward
+     metric 3d reconstruction. arXiv preprint arXiv:2509.13414, 2025.
+
+[24] Arno Knapitsch, Jaesik Park, Qian-Yi Zhou, and Vladlen Koltun. Tanks and temples: Benchmarking
+     large-scale scene reconstruction. ACM Transactions on Graphics (ToG), 36(4):1–13, 2017.
+
+[25] Heng Li, Zhaopeng Cui, Shuaicheng Liu, and Ping Tan. Rago: Recurrent graph optimizer for multiple rota-
+     tion averaging. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 15787–15796, 2022.
+
+[26] Yixuan Li, Lihan Jiang, Linning Xu, Yuanbo Xiangli, Zhenzhi Wang, Dahua Lin, and Bo Dai. Matrixcity:
+     A large-scale city dataset for city-scale neural rendering and beyond. In Proceedings of the IEEE/CVF
+     International Conference on Computer Vision, pages 3205–3215, 2023.
+
+[27] Zhengqi Li and Noah Snavely. Megadepth: Learning single-view depth prediction from internet photos. In
+     Proceedings of the IEEE conference on computer vision and pattern recognition, pages 2041–2050, 2018.
+
+[28] Zizun Li, Jianjun Zhou, Yifan Wang, Haoyu Guo, Wenzheng Chang, Yang Zhou, Haoyi Zhu, Junyi Chen,
+     Chunhua Shen, and Tong He. Wint3r: Window-based streaming reconstruction with camera token pool.
+     arXiv preprint arXiv:2509.05296, 2025.
+
+[29] Haotong Lin, Sili Chen, Jun Hao Liew, Donny Y. Chen, Zhenyu Li, Guang Shi, Jiashi Feng, and Bingyi
+     Kang. Depth anything 3: Recovering the visual space from any views. arXiv preprint arXiv:2511.10647,
+     2025.
+
+
+                                                    11
+[30] Philipp Lindenberger, Paul-Edouard Sarlin, and Marc Pollefeys. Lightglue: Local feature matching at light
+     speed. arXiv preprint arXiv:2306.13643, 2023.
+[31] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin, Kun Wan, Lantao Yu, Qianyu Guo, Zixun Yu,
+     Yawen Lu, et al. Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 22160–22169, 2024.
+[32] Dominic Maggio and Luca Carlone. Vggt-slam 2.0: Real-time dense feed-forward scene reconstruction.
+     arXiv preprint arXiv:2601.19887, 2026.
+[33] Dominic Maggio, Hyungtae Lim, and Luca Carlone. Vggt-slam: Dense rgb slam optimized on the sl (4)
+     manifold. arXiv preprint arXiv:2505.12549, 2025.
+[34] Daniel Martinec and Tomas Pajdla. Robust rotation and translation estimation in multiview reconstruction.
+     In 2007 IEEE conference on computer vision and pattern recognition, pages 1–8. IEEE, 2007.
+[35] Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik, Jonathan T Barron, Ravi Ramamoorthi, and Ren Ng.
+     Nerf: Representing scenes as neural radiance fields for view synthesis. Communications of the ACM, 65
+     (1):99–106, 2021.
+[36] Riku Murai, Eric Dexheimer, and Andrew J Davison. Mast3r-slam: Real-time dense slam with 3d
+     reconstruction priors. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages
+     16695–16705, 2025.
+[37] Linfei Pan, Daniel Barath, Marc Pollefeys, and Johannes Lutz Schönberger. Global Structure-from-Motion
+     Revisited. In European Conference on Computer Vision (ECCV), 2024.
+[38] Xiaqing Pan, Nicholas Charron, Yongqian Yang, Scott Peters, Thomas Whelan, Chen Kong, Omkar Parkhi,
+     Richard Newcombe, and Yuheng Carl Ren. Aria digital twin: A new benchmark dataset for egocentric
+     3d machine perception. In Proceedings of the IEEE/CVF International Conference on Computer Vision,
+     pages 20133–20143, 2023.
+[39] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David
+     Novotny. Common objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction.
+     In International Conference on Computer Vision, 2021.
+[40] Mike Roberts, Jason Ramapuram, Anurag Ranjan, Atulit Kumar, Miguel Angel Bautista, Nathan Paczan,
+     Russ Webb, and Joshua M Susskind. Hypersim: A photorealistic synthetic dataset for holistic indoor
+     scene understanding. In Proceedings of the IEEE/CVF international conference on computer vision, pages
+     10912–10922, 2021.
+[41] Paul-Edouard Sarlin, Daniel DeTone, Tomasz Malisiewicz, and Andrew Rabinovich. Superglue: Learning
+     feature matching with graph neural networks. In Proceedings of the IEEE/CVF conference on computer
+     vision and pattern recognition, pages 4938–4947, 2020.
+[42] Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings of the
+     IEEE conference on computer vision and pattern recognition, pages 4104–4113, 2016.
+[43] Johannes Lutz Schönberger and Jan-Michael Frahm. Structure-from-motion revisited. In Conference on
+     Computer Vision and Pattern Recognition (CVPR), 2016.
+[44] Thomas Schöps, Johannes L. Schönberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc
+     Pollefeys, and Andreas Geiger. A multi-view stereo benchmark with high-resolution images and multi-
+     camera videos. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     (CVPR), 2017.
+[45] You Shen, Zhipeng Zhang, Yansong Qu, Xiawu Zheng, Jiayi Ji, Shengchuan Zhang, and Liujuan Cao.
+     Fastvggt: Training-free acceleration of visual geometry transformer. arXiv preprint arXiv:2509.02560,
+     2025.
+[46] Cameron Smith, David Charatan, Ayush Tewari, and Vincent Sitzmann. Flowmap: High-quality camera
+     poses, intrinsics, and depth via gradient descent. arXiv preprint arXiv:2404.15259, 2024.
+[47] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers. A benchmark for the evaluation of rgb-d
+     slam systems. In Proc. of the International Conference on Intelligent Robot Systems (IROS), Oct. 2012.
+[48] Jiaming Sun, Zehong Shen, Yuang Wang, Hujun Bao, and Xiaowei Zhou. Loftr: Detector-free local feature
+     matching with transformers. In Proceedings of the IEEE/CVF conference on computer vision and pattern
+     recognition, pages 8922–8931, 2021.
+
+
+                                                      12
+[49] Matthew Tancik, Ethan Weber, Evonne Ng, Ruilong Li, Brent Yi, Justin Kerr, Terrance Wang, Alexander
+     Kristoffersen, Jake Austin, Kamyar Salahi, Abhik Ahuja, David McAllister, and Angjoo Kanazawa.
+     Nerfstudio: A modular framework for neural radiance field development. In ACM SIGGRAPH 2023
+     Conference Proceedings, SIGGRAPH ’23, 2023.
+
+[50] Chengzhou Tang and Ping Tan.          Ba-net: Dense bundle adjustment network.          arXiv preprint
+     arXiv:1806.04807, 2018.
+
+[51] Zachary Teed and Jia Deng. Deepv2d: Video to depth with differentiable structure from motion. arXiv
+     preprint arXiv:1812.04605, 2018.
+
+[52] Zachary Teed and Jia Deng. DROID-SLAM: Deep Visual SLAM for Monocular, Stereo, and RGB-D
+     Cameras. Advances in neural information processing systems, 2021.
+
+[53] Fabio Tosi, Yiyi Liao, Carolin Schmitt, and Andreas Geiger. Smd-nets: Stereo mixture density networks.
+     In Conference on Computer Vision and Pattern Recognition (CVPR), 2021.
+
+[54] Bill Triggs, Philip F McLauchlan, Richard I Hartley, and Andrew W Fitzgibbon. Bundle adjustment—a
+     modern synthesis. In International workshop on vision algorithms, pages 298–372. Springer, 1999.
+
+[55] Hengyi Wang and Lourdes Agapito. Amb3r: Accurate feed-forward metric-scale 3d reconstruction with
+     backend. arXiv preprint arXiv:2511.20343, 2025.
+
+[56] Jianyuan Wang, Nikita Karaev, Christian Rupprecht, and David Novotny. Vggsfm: Visual geometry
+     grounded deep structure from motion. In Proceedings of the IEEE/CVF conference on computer vision
+     and pattern recognition, pages 21686–21697, 2024.
+
+[57] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 5294–5306, 2025.
+
+[58] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous
+     3d perception model with persistent state. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 10510–10522, 2025.
+
+[59] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric
+     3d vision made easy. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, pages 20697–20709, 2024.
+
+[60] Wenshan Wang, Delong Zhu, Xiangwei Wang, Yaoyu Hu, Yuheng Qiu, Chen Wang, Yafei Hu, Ashish
+     Kapoor, and Sebastian Scherer. Tartanair: A dataset to push the limits of visual slam. In 2020 IEEE/RSJ
+     International Conference on Intelligent Robots and Systems (IROS), pages 4909–4916. IEEE, 2020.
+
+[61] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao
+     Pang, Chunhua Shen, and Tong He. π 3 : Scalable permutation-equivariant visual geometry learning, 2025.
+     URL https://arxiv.org/abs/2507.13347.
+
+[62] Xingkui Wei, Yinda Zhang, Zhuwen Li, Yanwei Fu, and Xiangyang Xue. Deepsfm: Structure from motion
+     via deep bundle adjustment. In Computer Vision–ECCV 2020: 16th European Conference, Glasgow, UK,
+     August 23–28, 2020, Proceedings, Part I 16, pages 230–247. Springer, 2020.
+
+[63] Kyle Wilson and Noah Snavely. Robust global translations with 1dsfm. In European conference on
+     computer vision, pages 61–75. Springer, 2014.
+
+[64] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r: Streaming 3d reconstruction with explicit
+     spatial pointer memory. arXiv preprint arXiv:2507.02863, 2025.
+
+[65] Hongchi Xia, Yang Fu, Sifei Liu, and Xiaolong Wang. Rgbd objects in the wild: Scaling real-world 3d
+     object learning from rgb-d videos. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition, pages 22378–22389, 2024.
+
+[66] Tao Xie, Peishan Yang, Yudong Jin, Yingfeng Cai, Wei Yin, Weiqiang Ren, Qian Zhang, Wei Hua,
+     Sida Peng, Xiaoyang Guo, and Xiaowei Zhou. Scal3r: Scalable test-time training for large-scale 3d
+     reconstruction, 2026. URL https://arxiv.org/abs/2604.08542.
+
+[67] Zhuang Xiong, Chen Zhang, Qingshan Xu, and Wenbing Tao. Vggt-motion: Motion-aware calibration-free
+     monocular slam for long-range consistency. arXiv preprint arXiv:2602.05508, 2026.
+
+
+                                                     13
+[68] Zhongmiao Yan, Qi Wu, Songpengcheng Xia, Junyuan Deng, Xiang Mu, Renbiao Jin, Changchun Ye, and
+     Ling Pei. 360recon: An accurate reconstruction method based on depth fusion from 360 images. In 2025
+     IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), pages 17556–17563. IEEE,
+     2025.
+
+[69] Yao Yao, Zixin Luo, Shiwei Li, Jingyang Zhang, Yufan Ren, Lei Zhou, Tian Fang, and Long Quan.
+     Blendedmvs: A large-scale dataset for generalized multi-view stereo networks. Computer Vision and
+     Pattern Recognition (CVPR), 2020.
+
+[70] Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner, and Angela Dai. Scannet++: A high-fidelity
+     dataset of 3d indoor scenes. In Proceedings of the IEEE/CVF International Conference on Computer
+     Vision, pages 12–22, 2023.
+
+[71] Zitong Zhan, Huan Xu, Zihang Fang, Xinpeng Wei, Yaoyu Hu, and Chen Wang. Bundle adjustment in the
+     eager mode. IEEE Transactions on Robotics, 2026. URL https://arxiv.org/abs/2409.12190.
+
+[72] Junyi Zhang, Charles Herrmann, Junhwa Hur, Chen Sun, Ming-Hsuan Yang, Forrester Cole, Trevor Darrell,
+     and Deqing Sun. Loger: Long-context geometric reconstruction with hybrid memory. arXiv preprint
+     arXiv:2603.03269, 2026.
+
+[73] Jiankun Zhong, Zitong Zhan, Quankai Gao, Ziyu Chen, Haozhe Lou, Jiageng Mao, Ulrich Neumann,
+     Chen Wang, and Yue Wang. Instantsfm: Towards gpu-native sfm for the deep learning era. arXiv preprint
+     arXiv:2510.13310, 2025. URL https://arxiv.org/abs/2510.13310.
+
+[74] Yang Zhou, Yifan Wang, Jianjun Zhou, Wenzheng Chang, Haoyu Guo, Zizun Li, Kaijing Ma, Xinyue
+     Li, Yating Wang, Haoyi Zhu, et al. Omniworld: A multi-domain and multi-modal dataset for 4d world
+     modeling. arXiv preprint arXiv:2509.12201, 2025.
+
+
+
+
+                                                   14
+In this appendix, we provide additional details and results to complement the main paper. Sec. A
+describes the network architecture, including the Pi3X backbone, matching network, and refinement
+module. Sec. B presents the loss functions and training protocol. Sec. C provides further experimental
+details, including inference settings, baseline configurations, additional quantitative and qualitative
+results, and failure case analysis.
+
+A    N ETWORK A RCHITECTURE D ETAILS
+Pi3X Backbone. Given an input image set I = {Ii }N
+                                                 i=1 with resolution H × W , our network takes
+images of shape N × H × W × 3 as input. We first feed the images into the frozen Pi3X [61]
+backbone. Following Pi3X, each image is encoded by a DINOv2 encoder, producing encoder tokens
+                                       ′     ′           H            W
+                           E ∈ RN ×H ×W ×C ,        H′ =    , W′ =       .                       (7)
+                                                         14           14
+The encoder processed by alternating frame-wise and global-wise attention blocks [57]. The decoder
+contains 18 attention blocks in total. The outputs of the last frame-wise and global-wise attention
+layers are concatenated, yielding the final geometry token
+                                                     ′    ′
+                                           H ∈ RN ×H ×W ×2C .                                       (8)
+The geometry token is further decoded by the original Pi3X prediction heads, including the point
+decoder, camera decoder, and metric decoder, to predict local point maps, camera poses, and metric
+scales, respectively. We refer readers to Pi3X [61] for more details of the backbone architecture.
+Matching Decoder. Our coarse dense matching branch operates on the geometry token H produced
+by the Pi3X decoder. We introduce a lightweight matching decoder, denoted as Decmatch , which
+consists of 5 attention layers. It transforms the 2C-dimensional geometry token into a compact
+matching token:
+                                                                 ′    ′
+                               Z = Decmatch (H), Z ∈ RN ×H ×W ×C .                                  (9)
+In our experiments, we find this matching decoder to be important. Directly reducing the channel
+dimension with a linear projection leads to significantly worse matching quality, suggesting that addi-
+tional attention layers are needed to adapt the frozen geometry representation to dense correspondence
+prediction.
+During training, we use the first image as the reference image and predict dense warps from it to all
+other images. During inference, thanks to the permutation-equivariant property of Pi3X, any image
+can be selected as the reference. Multiple reference images can also be handled by expanding the
+batch dimension.
+Multi-view Match Embedding. We next construct multi-view match embeddings for dense warping.
+Let M = H ′ W ′ , and flatten the spatial dimensions of the matching tokens. During training, we use
+the image Ia as the reference image. Its matching token is denoted as
+                                    Za = {zan }M
+                                               n=1 ,     zan ∈ RC .                               (10)
+For each target image Ib , b ∈ {1, · · · , N } \ {a}, we denote its matching token as
+                                    Zb = {zbm }M
+                                               m=1 ,      zbm ∈ RC .                              (11)
+
+For each target-reference pair (a, b), we compute a patch-level similarity matrix from target patches
+to reference patches:
+                                                        
+                                       1
+                        a→b
+                                         cosim zm , zn , Sa→b ∈ RM ×M ,
+                                                a    b
+                                                       
+                      Smn = exp                                                                  (12)
+                                       τ
+where τ = 1/10 is the temperature following RoMa, and cosim(x, y) denotes cosine similarity:
+                                                          x⊤ y
+                                      cosim(x, y) =             .                                 (13)
+                                                         ∥x∥∥y∥
+Computing this similarity for all target images yields
+               Sa→B = Sa→b b∈B ∈ R(N −1)×M ×M ,
+                         
+                                                              B = {1, · · · , N } \ {a}.          (14)
+
+
+                                                  15
+Following RoMa, we convert the similarity matrix into match embeddings using Fourier positional
+embeddings of the reference image coordinates. For each reference patch coordinate xan ∈ R2 , we
+define
+                          χan = cos(2πωWxan ) ⊕ sin(2πωWxan ) ∈ RC ,                            (15)
+where ⊕ denotes concatenation, ω = 1, and W is a fixed non-learnable Gaussian matrix with a
+compatible output dimension. The match embedding for the target patch m in the image Ib is then
+calculated by aggregating the Fourier embeddings of the reference patches according to the similarity
+scores:
+                                        M
+                                        X
+                               χa→b
+                                m    =     Sa→b   a
+                                            mn χn ,     χa→b
+                                                          m    ∈ RC .                           (16)
+                                          n=1
+Therefore, the multi-view match embeddings for all target images are
+                                                              ′   ′
+                          χa→B = χa→b b∈B ∈ R(N −1)×H ×W ×C .
+                                   
+                                                                                                    (17)
+This formulation extends the two-view match embedding of RoMa to the multi-view setting by
+computing reference-to-target dense correspondence embeddings for all images in the local window.
+DPT Matching Head. Given the reference-to-target match embeddings χa→B , we build pair-
+wise matching features for each target image Ib by combining the target matching token with its
+corresponding match embedding:
+                                                                ′    ′
+                     Fa→b = Proj Zb ⊕ χa→b , Fa→b ∈ RH ×W ×C ,
+                                                
+                                                                                          (18)
+where ⊕ denotes channel-wise concatenation and Proj(·) is a linear projection. Intuitively, Zb pro-
+vides the local image representation of the target frame, while χa→b encodes the soft correspondence
+distribution from the reference image coordinates patch to each target.
+For all target images in the local window, the pair-wise features are stacked as
+                                                                 ′    ′
+                            Fa→B = Fa→b b∈B ∈ R(N −1)×H ×W ×C .
+                                      
+                                                                                                    (19)
+We feed these features, together with the multi-scale encoder features from the Pi3X backbone, into a
+Dense Prediction Transformer head:
+                             Wa→B , pa→B = DPTmatch Fa→B , E .
+                                                                       
+                                                                                                 (20)
+The output is a dense warp from each target image to the reference image and its confidence:
+                                            H   W                            H   W
+                    Wa→B ∈ R(N −1)×2× 4 × 4 ,            pa→B ∈ R(N −1)×1× 4 × 4 .                  (21)
+
+We set the finest resolution of the DPT head to one quarter of the input image resolution. Fol-
+lowing the standard DPT design, we use a scratch dimension of 256 and output dimensions
+[256, 512, 1024, 1024] for feature strides [4, 8, 16, 32], respectively. The final coarse warp and confi-
+dence are predicted at stride 4, and are then passed to the refinement module to recover full-resolution
+correspondences.
+Refinement Module. The coarse matching head predicts warps at stride 4. To recover full-resolution
+correspondences, we further employ a lightweight refinement module following the coarse-to-fine
+design of RoMaV2 [15]. Since our coarse prediction is already produced at stride 4, we only keep
+refinement stages at strides {4, 2, 1}, which avoids unnecessary high-level refinement and reduces
+both feature extraction and inference cost.
+We extract fine image features at three resolutions:
+                            H   W                   H     W
+                    ϕ4 ∈ R 4 × 4 ×192 ,    ϕ2 ∈ R 2 × 2 ×48 ,     ϕ1 ∈ RH×W ×12 .                   (22)
+These features are linearly projected before being passed to the corresponding refinement blocks. At
+each stride s ∈ {4, 2, 1}, the refiner takes the current warp estimate Wa→b and predicts a residual
+update. Its input is constructed by concatenating the fine features from the reference and target
+images, a positional displacement embedding, and a local correlation feature around the current
+matched location:
+                                                                                     
+            Fa→b  = ϕas ⊕ ϕbs (Wa→b ) ⊕ gs Wa→b − xa ⊕ Corrs ϕas , ϕbs , Wa→b ,
+                                                            
+              s                                                                                 (23)
+
+
+                                                    16
+where ⊕ denotes channel-wise concatenation, ϕbs (Wa→b ) denotes target features sampled at the
+warped coordinates, xa is the reference pixel coordinate, and gs (·) is a linear projection of the current
+displacement. The local correlation term computes a small neighborhood correlation in the target
+feature map centered at the current warp location, providing fine-grained matching evidence for
+residual correction.
+Each refinement block predicts a residual warp and confidence update:
+                             (∆Wsa→b , ∆pa→b    ) = Refines Fa→b
+                                                                   
+                                           s                     s   ,                               (24)
+and the warp is progressively updated from stride 4 to stride 1:
+                            Wsa→b ← upsample W2s      a→b
+                                                             + ∆Wsa→b .
+                                                           
+                                                                                                     (25)
+For local correlation, we use window sizes [k4 , k2 , k1 ] = [7, 3, 0], where k1 = 0 means that no
+local correlation is used at full resolution. The internal structure of each refinement block follows a
+compact convolutional design with depthwise convolution, normalization, non-linearity, and pointwise
+projection. This refinement stage substantially improves the localization accuracy of the dense warp
+while keeping the additional computation moderate.
+
+B    L OSS F UNCTION AND T RAINING D ETAILS
+We train the matching branch using three losses: an auxiliary patch-level negative log-likelihood
+loss on the coarse similarity matrix, a dense warp regression loss, and a confidence supervision loss.
+During training, we use the first image Ia in each local window as the reference image, and treat the
+remaining images {Ib }b∈B as target images, where B = {1, . . . , N } \ {a}.
+Ground-truth Warp and Validity. For each reference-target pair (a, b), we generate the ground-truth
+warp from the reference image Ia to the target image Ib using the ground-truth depth and camera
+poses. For a reference pixel xa with depth z a (xa ), its corresponding point is first back-projected to
+the camera coordinate system of Ia and then transformed to the target view:
+                                                                         
+                                                     −1
+                         x̃a→b = Kb Ra→b (Ka ) x̃a z a (xa ) + ta→b ,                               (26)
+where x̃a denotes the homogeneous pixel coordinate, and (Ra→b , ta→b ) is the relative pose from Ia
+to Ib . The projected pixel and its corresponding depth in Ib are
+                                                h                                i
+                                                              −1
+                xa→b = π x̃a→b , z a→b = Ra→b (Ka ) x̃a z a (xa ) + ta→b ,
+                                   
+                                                                                               (27)
+                                                                                       3
+where π(·) denotes the projection from homogeneous coordinates to image coordinates, and [·]3
+extracts the depth component. The ground-truth warp is therefore defined as
+                                        W∗ a→b (xa ) = xa→b .                                        (28)
+
+We define the confidence label according to target-view depth consistency. A correspondence is
+assigned positive confidence if the projected pixel lies inside the target image, both the projected
+depth and the sampled target depth are positive, and their relative depth difference is smaller than a
+threshold:                 "                                                           #
+                                                                       
+              a→b a           a→b       b     a→b           z b xa→b − z a→b
+            y     (x ) = 1 x       ∈D , z          > 0,                           < τz ,          (29)
+                                                                 z b (xa→b )
+where Db is the image domain of Ib , z b (xa→b ) is the target-view depth sampled at the projected
+location, and τz = 0.05 in our training.
+We further define a training mask to specify where the confidence loss and warp loss is applied. The
+mask is valid when the reference depth is positive and either the projected point falls inside the target
+image with positive projected and sampled depths, or the projected point falls outside the target
+image. The latter case is included to explicitly supervise out-of-bound correspondences with zero
+confidence. Formally,
+                  h                     
+  ma→b (xa ) = 1 z a (xa ) > 0 and        (xa→b ∈ Db and z a→b > 0 and z b xa→b > 0)
+                                                                                                
+                                      i
+                      or xa→b ∈  / Db .
+                                                                                                     (30)
+
+
+                                                   17
+The warp regression loss is evaluated only on pixels with positive confidence label and positive mask
+label, while the confidence loss is evaluated on pixels selected by this mask. We visualize the original
+images, warped results, masks, and confidence maps in Fig. 4.
+Auxiliary NLL Loss. To stabilize training of the coarse matching head, we add an auxiliary negative
+log-likelihood loss on the similarity matrix. Recall that for each target-reference pair (b, a), the coarse
+matching decoder produces a similarity matrix Sa→b ∈ RM ×M , where M = H ′ W ′ . For each target
+patch m, we determine the nearest reference patch index n∗m according to the ground-truth warp. We
+then apply a row-wise Softmax to Sa→b and minimize
+                                      1       X                              
+                      La→b
+                        NLL = −                       log   Softmax    Sa→b
+                                                                        m:    n∗
+                                                                                   ,                   (31)
+                                  |Ωa→b
+                                     patch |    a→b
+                                                                                m
+                                            m∈Ωpatch
+
+where Ωa→b
+         patch denotes the set of valid target patches. This loss encourages the coarse similarity matrix
+to assign high probability to the correct reference patch before dense refinement.
+Warp Loss. Given the predicted dense warp Ŵa→b , we supervise it with a generalized Charbonnier
+loss. Let
+                               ra→b (x) = Ŵa→b (x) − W∗ a→b (x)                            (32)
+denote the warp residual at pixel x. The warp loss is defined as
+                                      1     X                         α/2
+                        La→b
+                          warp =                    ∥ra→b (x)∥22 + ϵ2      ,                (33)
+                                   |Ωa→b |    a→b
+                                             x∈Ω
+         a→b            a→b
+where Ω      = {x | y      (x) = 1} is the set of valid pixels, ϵ is a small constant, and α controls
+the robustness of the penalty. We apply this loss to the coarse prediction as well as to all refinement
+stages.
+Confidence Loss. In addition to the warp, the network predicts a confidence map p̂a→b ∈ [0, 1]. We
+supervise it using the validity mask defined above. Specifically, we use a binary cross-entropy loss
+                      1 X  a→b
+        La→b                        (x) log p̂a→b (x) + 1 − y a→b (x) log 1 − p̂a→b (x) .
+                                                                                        
+          conf = −             y                                                                 (34)
+                     |D|
+                         x∈D
+
+This loss encourages the predicted confidence to reflect whether a correspondence is geometrically
+valid and depth-consistent.
+Total Loss. The final training objective sums the three terms over all target images in the local
+window:                      X
+                        L=      λNLL La→b             a→b          a→b
+                                        NLL + λwarp Lwarp + λconf Lconf ,                    (35)
+                               b∈B
+where λNLL , λwarp , and λconf balance the three losses.
+Training Details. To preserve the geometric prior of the foundation model, we freeze the DINOv2
+encoder and the original Pi3X geometry heads, and train only the matching decoder, the DPT
+matching head, and the refinement modules. We train the model on 16 NVIDIA H20 GPUs with
+gradient accumulation of 2 steps, resulting in an effective batch size equivalent to 32 GPUs. The
+coarse matching stage and the refinement stage are trained separately, each for 32K iterations. The
+overall training takes about 4–5 days.
+For the coarse stage, we randomly sample 2 to 48 frames from each training sequence. The input
+frames are resized such that the longer image side is at most 518 pixels, and the aspect ratio is
+randomly sampled between 0.33 and 1.0. We apply standard data augmentation, including color
+jittering, Gaussian blur, and random grayscale conversion. The model is optimized with a cosine
+learning-rate schedule, using a peak learning rate of 1 × 10−4 and 2K warm-up iterations.
+The refinement stage follows a similar training protocol, except that we sample 2 to 24 frames from
+each sequence. We initialize the refinement module from the RoMa v2 refinement checkpoint and
+train it with a cosine learning-rate schedule using a peak learning rate of 5 × 10−5 and 2K warm-up
+iterations.
+Training Data. We train the matching branch on a diverse mixture of synthetic and real-world
+multi-view datasets, including Aria Synthetic Environments, Aria Digital Twin [38], DL3DV [31],
+
+
+                                                    18
+Images
+Warp
+Conf
+Mask
+Mask Conf Warp Img
+Images
+Warp
+Conf
+Mask
+Images
+Warp
+Conf
+Mask
+
+
+
+
+Figure 4: Qualitative results on various datasets. We visualize the original images, warped results,
+confidence maps, and masks. The rows from top to bottom correspond to the Hypersim [40],
+WildRGBD [65], BlendedMVS [69], and OmniWorld [74] datasets, respectively.
+
+
+
+
+                                                19
+                     Table 6: Full PSNR comparison on all 19 Tanks and Temples scenes. Best results are in bold.
+  Scene                   Auditorium   Ballroom   Barn    Caterpillar   Church   Courthouse   Courtroom   Family   Francis   Horse   Ignatius   Lighthouse   Meetingroom   Museum   Palace   Playground   Temple   Train   Truck   Avg.
+  DA3 [29]                  19.40       13.41     21.78     15.73       16.51      OOM          16.34     18.93    20.38     18.60    18.48       17.43         17.78       15.60   12.86      19.01       17.21   15.88   18.17   17.42
+  COLMAP [42]               19.60       16.34     24.09     17.04       18.14      18.04        18.25     19.40    21.80     19.47    20.07       16.65         18.59       16.87   13.56      19.07       18.10   16.70   21.08   18.57
+  GLOMAP [37]               11.67       20.52     24.26     16.97       18.20      21.08        18.20     13.08    22.00     14.85    20.12       17.76         19.56       11.81   13.35      15.72       18.23   12.35   21.12   17.41
+  SAILRecon [9]             20.30       14.80     23.50     16.80       17.00      15.09        17.40     20.60    21.80     20.10    19.50       18.20         19.50       15.40   14.30      20.30       17.80   16.20   20.90   18.39
+  Scal3R [66]               16.55       13.56     20.00     14.86       15.08      18.20        13.28     17.21    16.08     16.58    14.82       12.09         14.74       13.01   13.14      16.79       17.09   13.04   14.70   15.31
+  Pi3X [61]                 19.05       13.46     21.22     16.04       17.01      16.74        17.23     18.89    20.27     18.19    18.16       17.34         17.63       15.56   12.47      18.20       16.83   15.57   18.67   17.29
+  LingBot-Map [4]           18.30       12.90     18.54     14.51       15.44      14.43        15.65     17.60    19.01     17.17    16.59       15.29         16.08       14.62   12.23      17.18       15.28   14.77   16.01   15.87
+  AMB3R [55]                18.05       12.68     20.08     15.45       15.98      15.64        15.58     19.50    19.19     19.08    18.07       15.00         16.63       15.97   11.77      18.04       15.74   15.66   18.97   16.69
+  Ours                      20.13       17.81     24.50     17.25       18.01      20.72        18.31     20.27    22.01     19.79    20.43       18.76         19.68       17.43   14.42      21.68       18.82   16.60   21.13   19.36
+Courthouse Caterpillar
+
+
+
+
+                                                                                                                                                             OOM
+Family
+Horse
+Temple
+Train
+Truck
+Museum LightHouse
+
+
+
+
+                           GroudTruth                                            Ours                              COLMAP                                           DA3                                   LingBot-Map
+
+Figure 5: Additional qualitative comparisons on Tanks and Temples. Our method produces sharper
+and more faithful rendered views with fewer pose-induced artifacts.
+
+
+
+
+Co3Dv2 [39], ARKitScenes [1], BlendMVS [69], HyperSim [40], MegaDepth [27], MVS-Synth [21],
+ScanNet [6], ScanNet++ [70], TartanAir [60], Virtual KITTI [3], Unreal4K [53], WildRGB-D [65],
+MatrixCity [26], and OmniWorld [74]. These datasets cover indoor and outdoor scenes, object-centric
+captures, synthetic environments, driving scenarios, and large-scale urban scenes, providing diverse
+camera motions, appearance variations, and geometric layouts for robust correspondence learning.
+
+
+                                                                                                                     20
+      KITTI Odometry 03
+      801 frames, 561 m
+      KITTI Odometry 04
+      271 frames, 361 m
+   2761 frames, 2206 m
+   KITTI Odometry 05
+11011 frames, 1233m
+KITTI Odometry 06
+
+
+
+
+                          Ours   Scal3R    VGGT-Long          LoGeR           LingBot-Map
+
+
+Figure 6: Additional KITTI trajectory visualizations. Our method better preserves global trajectory
+shape under long forward-driving motion.
+
+
+
+
+                                                21
+                   ETH3D-Playground           ETH3D-Meadow                 ETH3D-Pipes
+
+
+
+
+      ETH3D-Delivery area                    ETH3D-Courtyard
+                                                                            ETH3D-Kicker
+
+
+
+
+   ETH3D-Terrace             ETH3D-Terrains              ETH3D-Office            ETH3D-Relief
+
+
+
+
+      T&T - Barn             T&T - Caterpillar       T&T - Family        T&T - Family    T&T - Museum
+
+
+
+
+     T&T - Truck            T&T - Ignatius         T&T – M60            T&T – Temple     T&T – Francis
+
+
+Figure 7: Dense point cloud reconstructions produced by our optimized poses and recovered dense
+depths.
+
+
+
+
+                                                    22
+C     E XPERIMENTS
+
+
+C.1   I NFERENCE D ETAILS
+
+Most experiments are conducted on a single NVIDIA L20 GPU with 48GB memory. Unless otherwise
+specified, we use a sliding window size of N = 20 and shift the window by 10 frames. For each
+keyframe, we sample 512 tracking points by default. For large-scale KITTI sequences, we reduce the
+number of sampled points to 256 to lower memory consumption. We use a warp confidence threshold
+of 0.6 and a depth confidence threshold of 0.1 for filtering reliable correspondences.
+Sliding-window association. During inference, each window is processed as described in the main
+paper. We select keyframes according to the valid reprojection ratio. Specifically, if the ratio of valid
+projected pixels from the current frame to all existing keyframes in the window is below 0.2, the
+current frame is selected as a new keyframe. In other words, a frame is promoted to a keyframe
+when fewer than 20% of its pixels can be reliably projected to the current keyframe set. Due to the
+half-window overlap, most keyframes participate in two neighboring windows. Except for keyframes
+near the beginning and the end of the sequence, each keyframe can be associated with approximately
+20 + 20 − 10 = 30 frames. For frames appearing in the overlap, we use the matching results from
+their first inference to avoid duplicate tracks.
+Track sampling. After obtaining dense image warps, we sample tracking points from each keyframe.
+We first filter pixels using the depth confidence threshold, and then randomly sample the required
+number of pixels from the remaining reliable regions. These points are propagated to other frames
+using the predicted dense warp, and matches with warp confidence lower than 0.6 are discarded. This
+produces sparse but reliable tracks for subsequent pose initialization and optimization.
+Retrieval-based loop association. In addition to local sliding-window associations, we perform
+image retrieval-based loop candidate discovery over all keyframes. We extract SALAD [22] image
+features for each keyframe and compute pairwise cosine similarities. Two keyframes are considered
+to have potential visual overlap if their similarity is larger than 0.5. For each keyframe, we collect all
+retrieved keyframes whose similarity exceeds this threshold to form an additional matching window,
+and use the first image in this window as the tracking reference. The resulting long-range matches
+are added to the optimization graph as loop constraints. This retrieval step is not only useful for
+explicit loop closure; it can also connect temporally distant but spatially close keyframes, especially
+in slow-motion regions where adjacent sliding windows may have limited viewpoint change.
+Optimization settings. In the optimization stage, we support both shared and per-frame camera
+intrinsics. By default, we assume that all frames in a sequence share the same intrinsic parameters,
+while per-frame intrinsics can be enabled when necessary. For large-scale KITTI sequences, after
+retrieval-based loop detection, we first run pose graph optimization using relative poses from loop
+keyframe pairs and adjacent-frame constraints from the initialization. The optimized poses are then
+used to initialize the final global refinement.
+Window size adjustment. As discussed in Sec. 5, our current implementation uses a fixed window
+size by default, and the matching quality can be affected by the geometric predictions of the underlying
+foundation model. In most scenes, the default setting of N = 20 works well. However, for a few
+challenging sequences, small local windows may provide insufficient context for Pi3X, leading to
+ambiguous geometric predictions such as inaccurate scale or unstable point maps. In such cases,
+using a larger window provides more multi-view context and improves the stability of the initial
+geometry. Therefore, we slightly adjust the window size for several difficult sequences. Specifically,
+we use N = 120 for the T&T Auditorium and Courtroom scenes, and N = 200 for KITTI sequence
+02. This adjustment is only applied to ensure stable inference on these challenging cases, and does
+not change the overall pipeline or optimization procedure.
+GPU-based optimization. The global positioning and bundle adjustment stages can become a
+computational bottleneck if implemented with conventional CPU-based solvers, especially for long
+sequences with many tracks. Following recent GPU-accelerated SfM and bundle adjustment sys-
+tems [71, 73], we implement the optimization stage in a PyTorch-compatible GPU framework. In
+particular, the residuals and Jacobians for both global positioning and BA are constructed on GPU,
+and the sparse normal-equation structure is solved with batched parallel operations. This GPU-based
+
+
+                                                   23
+implementation allows our optimization module to better match the efficiency of the feed-forward
+foundation model inference while preserving the accuracy of global geometric refinement.
+
+C.2   BASELINE D ETAILS
+
+Unless otherwise specified, we run all baselines using their publicly released code and default
+configurations.
+DA3. For Depth Anything 3 (DA3), we use its strongest released model, GIANT-LARGE1.1, for all
+evaluations.
+COLMAP. For the T&T PSNR evaluation, we use the COLMAP poses precomputed by ACE0 [2]
+while for ETH3D evalution, we use the poses from AMB3R [55] and MASt3R-SfM [36].
+GLOMAP. We use the default configuration of GLOMAP [37]. For a fair comparison, the image
+matching stage uses the same image pairs as our pipeline. In a few cases, GLOMAP produces outlier
+poses with extremely large translations; for these frames, we replace the pose with the last valid
+estimate.
+SAIL-Recon. Following the original SAIL-Recon protocol [9], we refine the estimated poses with
+photometric bundle adjustment before evaluating PSNR on T&T.
+LingBot-Map. For LingBot-Map [4], we use the author-recommended lingbot-map-long
+checkpoint with a keyframe interval of 1 by default. On the Courthouse scene, the default setting
+fails, so we rerun it with a keyframe interval of 2. For TUM RGB-D, since sequence lengths vary
+substantially, we evaluate keyframe intervals of 1, 2, and 3, and report the best result for each
+sequence.
+LoGeR. For LoGeR [72], we use LoGeR∗ , the variant that adds a purely feed-forward alignment
+step to align raw predictions into a consistent global coordinate system. This setting also includes the
+chunk-alignment procedure used for long-sequence reconstruction.
+VGGT-SLAM 2.0. For VGGT-SLAM 2.0 [32], we do not skip frames during evaluation; all frames
+are kept and participate in the subsequent optimization.
+
+C.3   A DDITIONAL R ESULTS
+
+Additional T&T qualitative results. Fig. 5 provides additional novel-view synthesis comparisons on
+Tanks and Temples. Our rendered images are consistently closer to the ground-truth views, preserving
+sharper object boundaries and more stable scene structures. In contrast, COLMAP [42], DA3 [29],
+and LingBot-Map [4] often produce visible artifacts, blur, or distorted geometry. These qualitative
+results further support the PSNR comparison in Table 6, showing that our estimated poses lead to
+more accurate neural rendering.
+Additional KITTI trajectory visualizations. Fig. 6 shows trajectory visualizations on additional
+KITTI [17] sequences. Our method remains close to the ground-truth trajectories across both short
+and long driving sequences, while competing methods exhibit larger drift or unstable trajectory
+shapes. This further validates the robustness of our sliding-window association and track propagation
+strategy under forward-driving motion, where limited parallax makes long-range pose estimation
+challenging.
+Dense reconstruction results. Fig. 7 visualizes dense point clouds recovered by our method on both
+ETH3D [44] and Tanks and Temples [24] scenes. The reconstructions preserve coherent scene layouts
+across indoor, outdoor, and object-centric environments, demonstrating that the optimized poses and
+recovered dense depths can be fused into globally aligned dense geometry. These results also show
+that our framework is not limited to sparse pose estimation, but can provide dense reconstruction
+suitable for downstream 3D applications.
+Full T&T quantitative results. Table 6 reports the full PSNR results on all 19 Tanks and Temples
+scenes. Our method achieves the best average PSNR and obtains the highest score on most scenes.
+Compared with feed-forward models and streaming reconstruction methods, the consistent improve-
+ment across diverse scenes indicates that explicit multi-view tracks and global geometric refinement
+are important for high-fidelity pose estimation and rendering quality.
+
+
+                                                  24
+          Pi3X Result                   Our Result                                                   Our Matching Result
+
+Figure 8: Failure case on the T&T Ballroom [24] scene. Ambiguous foundation-model geometry
+leads to incorrect matching and degraded reconstruction.
+
+Runtime Analyse Table 7 compares the processing speed of different methods on an 800-frame
+
+
+Table 7: Comparison of processing speed across different methods on an 800-frame sequence. We
+report FPS, where higher values indicate faster performance.
+                Traditional SfM                   Feed-forward                                        Streaming / Chunk + Optimization                                   Ours
+ Metric
+          COLMAP [42]   GLOMAP [37]   Pi3X [61]   DA3 [29]   FastVGGT [45]   VGGT-Long [10]   VGGT-SLAM [33]   MASt3R-SLAM [36]          LingBot-Map [4]   Scal3R [66]   Ours
+ FPS ↑       0.14            0.67       1.64        8.10         15.10            4.00            16.87                6.06                   6.80            2.20       2.06
+
+
+
+sequence. Our method achieves 2.06 FPS, which remains practical despite including dense matching,
+sliding-window association, and global optimization. This indicates that the additional optimization
+stage does not make the pipeline prohibitively expensive. In contrast, traditional SfM pipelines
+such as COLMAP [42] and GLOMAP [37] are significantly slower, mainly due to feature matching,
+geometric verification, and CPU-based optimization. Although some feed-forward or streaming
+methods achieve higher FPS, they generally sacrifice pose accuracy or global consistency. Overall,
+our method provides a favorable balance between efficiency and reconstruction accuracy.
+
+C.4        FAILURE C ASE A NALYSIS .
+
+Fig. 8 shows a typical failure case on the T&T Ballroom [24] scene. The initial Pi3X [61] prediction
+already contains strong geometric ambiguity: although the input images observe a single room, the
+predicted structure is separated into several inconsistent room-like fragments. Since our matching
+head is built upon the tokens produced by the Pi3X backbone, such ambiguous geometry can also
+affect the predicted correspondences. As shown in the matching visualization, visually repetitive
+structures, such as ceiling lamps, are incorrectly matched to different locations. Although our
+optimization can partially reduce the inconsistency, it cannot fully recover from severely incorrect
+initial geometry and corrupted matches. Similar failures are also observed in a few other T&T scenes,
+such as Palace. This limitation suggests that future work should reduce the dependence of dense
+matching on imperfect foundation-model geometry and make the correspondence estimation more
+robust under ambiguous scene layouts.
+
+
+
+
+                                                                                 25
+

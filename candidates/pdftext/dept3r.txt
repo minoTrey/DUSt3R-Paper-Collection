@@ -1,0 +1,601 @@
+                                        DePT3R: Joint Dense Point Tracking and 3D Reconstruction of Dynamic Scenes
+                                                                 in a Single Forward Pass
+
+                                                                                 Vivek Alumootil        Tuan-Anh Vu
+                                                                                University of California, Los Angeles
+arXiv:2512.13122v2 [cs.CV] 2 Apr 2026
+
+
+
+
+                                        Figure 1. DePT3R achieves robust dense point tracking and reconstruction accuracy across unposed sequences while requiring less
+                                        memory usage, highlighting the effectiveness of our approach for long-range, dynamic scenes.
+
+                                                                Abstract                                    ward pass. This multi-task learning is achieved by extract-
+                                                                                                            ing deep spatio-temporal features with a powerful back-
+                                        Current methods for dense 3D point tracking in dynamic              bone and regressing pixel-wise maps with dense prediction
+                                        scenes typically rely on pairwise processing, require known         heads. Crucially, DePT3R operates without requiring cam-
+                                        camera poses, or assume temporal ordering of input frames,          era poses, substantially enhancing its adaptability and effi-
+                                        thereby constraining their flexibility and applicability. Ad-       ciency—especially important in dynamic environments with
+                                        ditionally, recent advances have successfully enabled ef-           rapid changes. We validate DePT3R on several challeng-
+                                        ficient 3D reconstruction from large-scale, unposed im-             ing benchmarks involving dynamic scenes, demonstrating
+                                        age collections, underscoring opportunities for unified ap-         strong performance and significant improvements in mem-
+                                        proaches to dynamic scene understanding. Motivated by               ory efficiency over existing state-of-the-art methods. Data
+                                        this, we propose DePT3R, a novel framework that simulta-            and codes are available via the open repository: https:
+                                        neously performs dense point tracking and 3D reconstruc-            //github.com/StructuresComp/DePT3R
+                                        tion of dynamic scenes from multiple images in a single for-
+
+                                                                                                        1
+1. Introduction                                                      frame composition, while retaining the simplicity and effi-
+                                                                     ciency of a feed-forward pipeline.
+Understanding 3D scenes from images remains a foun-                      Empirically, we evaluate DePT3R on multiple dynamic-
+dational challenge in computer vision, with wide-ranging             scene benchmarks using the metrics and protocols de-
+implications in autonomous navigation, augmented reality,            scribed in Section 4. Under this evaluation, DePT3R im-
+and robotics. The ability to accurately track points and re-         proves 3D point tracking accuracy over prior learning-based
+construct 3D structures within complex and dynamic en-               baselines on PointOdyssey, DynamicReplica, and Panop-
+vironments is vital for enabling intelligent systems to per-         tic Studio, and yields comparable reconstruction quality on
+ceive and interact effectively with the real world [30, 31].         PointOdyssey and TUM RGB-D (Table 1). We further ob-
+Traditional methods typically rely on extensive processing           serve that models trained on short clips generalize to longer
+pipelines and auxiliary inputs, including depth maps and             test sequences in our setting, and we report memory mea-
+precise camera parameters, none of which are explicitly re-          surements indicating improved feasibility for dense track-
+quired for human visual perception. Moreover, these con-             ing compared to query-based tracking in the same resolu-
+ventional approaches often fall short when handling dy-              tion regime (Table 1).
+namic scenes, which constitute a substantial portion of                  In summary, we make the following contributions:
+real-world environments, highlighting a significant gap be-          • We introduce DePT3R, a framework that jointly per-
+tween computational perception capabilities and human vi-               forms dense point tracking and 3D reconstruction from
+sual competence [26].                                                   unposed monocular image sequences without requiring
+    Recent advances, notably DUSt3R [36], have signifi-                 auxiliary depth or external pose inputs.
+cantly pushed the boundaries of pose-free 3D reconstruc-             • We propose a frame-to-query formulation that predicts a
+tion. DUSt3R employs an extensively trained asymmetric                  motion field mapping points from each observation time
+transformer that implicitly aligns image features via cross-            to a specified query time, enabling tracking without ex-
+attention, enabling strong performance in static-scene re-              plicit frame-to-frame chaining.
+construction and downstream tasks such as point correspon-           • We extend a globally aggregated transformer backbone
+dence and scene flow estimation. While originally designed              with a dedicated motion head, query conditioning, and an
+for static environments, DUSt3R also exhibits promising                 intrinsic embedding to incorporate camera intrinsics.
+behavior on dynamic content, motivating further investi-             • We validate DePT3R using PointOdyssey, Dynami-
+gation into unified reconstruction and tracking. However,               cReplica, and Panoptic Studio for 3D point tracking. We
+DUSt3R relies on pairwise image processing, which limits                use PointOdyssey and TUM RGB-D for reconstruction
+scalability and efficiency when applied to longer sequences             and provide memory measurements for dense tracking,
+and dynamic scenes. Subsequent work has therefore ex-                   compared with a query-based tracker operating at a simi-
+plored globally aggregated attention for multi-view recon-              lar resolution.
+struction, achieving improved scalability and accuracy in
+static settings (e.g., Fast3R [40], VGGT [33]).                      2. Related Works
+    Among learning-based global formulations, VGGT [33]
+is a strong baseline that directly predicts camera parameters,       2.1. Tabula Rasa 3D Reconstruction
+pointmaps, depth, and 2D point tracks in a feed-forward              Tabula rasa methods aim to reconstruct 3D scenes solely
+manner, thereby avoiding additional optimization stages.             from raw input observations, without relying on prior scene
+Despite its strong reconstruction capabilities, VGGT ex-             knowledge. Early techniques, such as Structure from Mo-
+hibits two key limitations for dynamic scene understanding:          tion (SfM), relied heavily on matching handcrafted fea-
+(i) it struggles under substantial non-rigid deformations, and       tures across multiple source images to estimate camera
+(ii) its memory footprint constrains dense tracking and lim-         poses and reconstruct scene structure [10]. The advent of
+its efficiency when processing many frames jointly.                  Neural Radiance Fields (NeRF) [20] initiated a paradigm
+    Motivated by these limitations, we introduce DePT3R,             shift by formulating reconstruction as an optimization-
+a feed-forward framework that jointly performs dense point           based novel-view synthesis problem, where scenes are rep-
+tracking and 3D reconstruction of dynamic scenes from un-            resented as continuous neural fields. InstantNGP [21] ac-
+posed monocular image sequences via global image aggre-              celerated this optimization by coupling a compact neural
+gation (Figure 1). Instead of chaining pairwise correspon-           network with a multi-resolution hash table. Further im-
+dences across time, DePT3R adopts a frame-to-query for-              provements in rendering speed were achieved by 3D Gaus-
+mulation: given an observation time t and a query time q,            sian Splatting [16], which explicitly represents scenes as
+the model predicts per-frame geometry (pointmaps/depth)              collections of anisotropic Gaussian functions, efficiently
+and a motion field that directly maps points from t → q in a         rasterized for real-time rendering. Subsequently, Mip-
+single forward pass. This design enables long-range defor-           Splatting [42] reduced rendering aliasing by constraining
+mation reasoning without accumulating drift from frame-to-           Gaussian sizes. Despite impressive results in view synthe-
+
+                                                                 2
+Table 1. Unposed 3D Reconstruction Methods Comparison. We evaluate the key capabilities of prominent 3D reconstruction and
+point-tracking approaches, including support for dynamic scenes, 3D reconstruction, point tracking, and temporal attention. The results are
+tested on the Panoptic Studio dataset and the TUM RGB-D SLAM benchmark. ∗ Note that the VGGT method only has 2D point tracking.
+The best results are bold, and the second-best results are underline.
+
+                             Dynamic                   Dense Point      Temporal        Point Tracking         3D Reconstruction
+     Method                               Unposed
+                              Scene                     Tracking        Attention     APD (↑)     EPE (↓)     APD (↑)      EPE (↓)
+     DUSt3R [36]                 -            ✓              -              -             -           -         72.27        0.29
+     MonST3R [44]                ✓            ✓              ✓              -           51.32       0.46        61.38        0.36
+     MASt3R [18]                 -            ✓              ✓              -             -           -         66.22        0.55
+     St4RTrack [7]               ✓            ✓              ✓              -           69.67       0.26        83.42        0.19
+     SpatialTracker [38]         ✓            -              -              ✓           62.59       0.31          -            -
+     VGGT [33]∗                  ✓            ✓              -              ✓             -           -         89.87        0.09
+     DePT3R (Ours)               ✓            ✓              ✓              ✓           89.36       0.10        92.22        0.10
+
+
+sis, these approaches necessitate per-scene optimization and            tributes, VGGT eliminates the need for post-processing,
+cannot leverage learned data priors.                                    achieving state-of-the-art results in 3D point and camera
+                                                                        pose reconstruction. Despite these advancements, chal-
+2.2. Learning-based 3D Reconstruction                                   lenges remain due to substantial camera and object motion,
+Deep learning has driven rapid progress in 3D reconstruc-               underscoring the need for further exploration in this area.
+tion. Early methods employed multi-stage pipelines with
+                                                                        2.3. 2D Point Tracking
+learned feature extractors or end-to-end models, focusing
+on cost volumes and correlation operations [32]. More re-               Optical flow estimation, traditionally framed as an energy
+cently, transformer-based architectures have gained promi-              minimization problem, was transformed by FlowNet [5], a
+nence, mitigating the limitations of CNNs, restricted recep-            pioneering deep learning-based solution that leverages con-
+tive fields, and weak long-range dependency modeling [47].              volutional neural networks. RAFT [28] introduced an it-
+    One notable breakthrough was DUSt3R [36], which en-                 erative refinement strategy, querying a 4D cost volume for
+abled 3D reconstruction from unposed image pairs using                  flow updates. Flowformer [11] improved upon this by trans-
+asymmetric transformers linked via cross-attention. The                 forming the 4D cost volume into tokenized representations
+predictions from individual image pairs were subsequently               processed by transformer layers.
+globally optimized in a standard coordinate system. Subse-                 Beyond pairwise flow, recent research has advanced
+quent developments included symmetric architectures and                 pixel tracking across multiple frames. Particle Video
+global attention layers, which significantly improved mem-              (PIPs) [9] revisited multi-frame point trajectory estimation,
+ory efficiency for processing larger image sets [40].                   leveraging temporal priors to improve occlusion handling,
+    MASt3R [18] built on DUSt3R’s architecture by adding                but its eight-frame context window limited its applicability.
+additional point-map predictions, allowing for more accu-               TAP-Vid [4] reformulated the tracking problem, established
+rate pixel matching. Furthermore, recent methods have                   a benchmark, and introduced TAP-Net as a simple base-
+combined DUSt3R-inspired reconstruction strategies with                 line. CoTracker [15] recognized statistical interdependen-
+efficient Gaussian splatting-based rendering, facilitating              cies among trajectories, utilizing transformers to estimate
+rapid, feed-forward novel-view synthesis [2, 3, 6, 25].                 large sets of point tracks jointly.
+    Adapting DUSt3R for dynamic scenes, MonST3R [44]
+demonstrated its effectiveness through targeted fine-tuning.
+                                                                        2.4. 3D Point Tracking
+CUT3R [35] further developed this concept by introducing                Estimation of 3D point motion has also advanced signif-
+an online, recurrent reconstruction framework that incre-               icantly. RAFT-3D [29] employed rigid motion embed-
+mentally processes images and updates scene reconstruc-                 dings to estimate scene flow between RGBD pairs. Omn-
+tions. Recent advances in learning-based 3D reconstruction              imotion [34] unified 2D and 3D tracking with a quasi-3D
+have culminated in VGGT [33], which serves as a robust                  canonical representation but still required per-scene opti-
+foundation for 3D reconstruction. This method employs a                 mization. Introduced by Xiao et al. [38], SpatialTracker
+large transformer-based architecture to predict essential 3D            enables feed-forward tracking by creating a triplane scene
+attributes, including camera intrinsics, point maps, depth              encoding with depth estimation. The core mechanism
+maps, and point tracks. By directly predicting these at-                is a transformer that iteratively refines query point tra-
+
+
+                                                                    3
+jectories, producing updated paths using the prior trajec-                 Conversely, in a dynamic scene, most point maps cannot
+tory, the query point’s features, and the features of nearby           be described solely by simple geometric transforms, as they
+points. DELTA [22] efficiently computed dense 3D tra-                  inherently encode scene motion. Note that by leveraging
+                                                                       c a
+jectories, while TAPIP3D [43] leveraged depth to elevate                Xt1 and c Xat2 , we can effectively analyze the motion of
+image features into a global coordinate system for en-                 the scene points visible in frame a from time of frame t1 to
+hanced performance. Building on the DUSt3R architecture,               the time of frame t2 .
+St4RTrack [7] adapted it for 3D point tracking by incor-               Feature Backbone. We leverage Visual Grounded Geome-
+porating an additional prediction head and chaining mo-                try Transformer (VGGT) [33], a robust architecture for un-
+tion predictions for longer trajectories. However, its pair-           posed 3D reconstruction trained on extensive static and dy-
+wise processing limits the exploitation of temporal atten-             namic datasets, as our core backbone.
+tion, thereby restricting its ability to handle significant cam-           In the VGGT method, each input image is first decom-
+era motion effectively. POMATO [45] addressed these lim-               posed into image tokens via DINOv2 [23]. These tokens,
+itations by introducing a temporal attention module, elimi-            along with a learnable camera token and four learnable reg-
+nating scale normalization, and enhancing inter-frame inter-           ister tokens per image, are then input to a global aggre-
+actions. Nonetheless, its fundamentally pairwise processing            gator module. Since predictions are made in the initial
+strategy continued to restrict fully global interactions, indi-        frame’s coordinate system, the camera and register tokens
+cating room for further advancement. Stereo4D [12] at-                 for the first image differ from those for subsequent frames,
+tached a temporal motion head to the DUSt3R architecture               enabling the network to discriminate among frames. The
+used to estimate the position of scene points at any query             aggregator module consists of alternating local and global
+time between the time of the two input frames and intro-               attention layers: local layers facilitate interactions within
+duced a large dataset of internet videos with noisy point tra-         a single image, while global layers promote interactions
+jectories to train the motion head.                                    across images.
+                                                                           Output tokens from the aggregator are processed through
+3. Proposed Method                                                     dedicated Dense Prediction Transformer (DPT) heads [24]
+                                                                       —specifically, a pointmap DPT head and a depth DPT
+DePT3R jointly produces dense point tracks and recon-
+                                                                       head—to regress corresponding pointmaps and depth maps.
+structs dynamic scenes from a sequence of RGB inputs with
+                                                                       These heads also output aleatoric uncertainty maps. Cam-
+a single forward pass. An overview is shown in Figure 2.
+                                                                       era tokens are further processed through four self-attention
+3.1. Preliminary                                                       layers followed by a linear projection to predict normalized
+                                                                       camera extrinsics and intrinsics.
+Pointmap Representation. We adopt the time-dependent
+pointmap representation introduced by St4RTrack [7]. This              3.2. Point Tracking and Dynamic Reconstruction
+representation assumes that every pixel in an image cor-               Our method takes a sequence of N frames, (It )N   t=1 , and a
+responds to a 3D point and maps each pixel to a specific               query time q, and jointly reconstructs the scene and tracks
+3D position. A pointmap c Xat ∈ RH×W ×3 encodes the                    observable points in 3D. To this end, for each frame It ,
+3D positions of scene points visible in frame a, at the time           we predict two pixel-wise maps expressed in the coordi-
+of frame t, expressed within frame c’s coordinate system.                                                    1
+                                                                       nate system of the first frame I1 : X̂tt , capturing point
+Specifically, c Xat (i, j) denotes the 3D position, at the time                                               1        1        1
+of frame t, of the scene point corresponding to pixel (i, j) in        positions at the observation time, and M̂tq = X̂tq − X̂tt ,
+frame a, with this position given in frame c’s coordinate sys-         capturing the motion of points from time of frame t to the
+tem. To illustrate, c Xa1 captures the 3D positions of scene           time of query frame q. By jointly estimating these maps,
+points visible in frame a at the time of frame 1, while c Xa2          our method concurrently reconstructs the 3D structure and
+captures the positions of these same points at the time of             tracks point motion to the query frame. Notably, our track-
+frame 2.                                                               ing approach establishes direct correspondences between
+   In a static scene, the time subscript can be omitted due to         each frame and the query frame, rather than using pairwise
+the absence of point motion. As noted by DUSt3R [36], we               frame-to-frame tracking, enabling efficient capture of over-
+can obtain a Xa by unprojecting the pixels of frame a into             all motion and deformation over extended intervals.
+3D space with the intrinsic matrix Ka and depth map D:                     We integrate an additional DPT head—the motion
+                                                                       head—to the VGGT network architecture to regress the
+      a
+          Xa (i, j) = Ka−1 [iD(i, j), jD(i, j), D(i, j)]T ,            motion map 1 Mtq . This structural integration preserves
+                                                                       VGGT’s pretrained capabilities while enabling motion esti-
+   Subsequently, c Xa can be readily obtained by transform-            mation. Despite sharing identical inputs, the reconstruction
+ing these 3D positions into frame c′ s coordinate system us-           and motion heads produce temporally distinct pointmaps.
+ing the camera poses of frames a and c.                                Prior works [7, 19] proved that shared image tokens can
+
+
+                                                                   4
+Figure 2. Our proposed DePT3R framework. Our model first tokenizes each input frame with DINOv2 and augments every token with
+a global intrinsic embedding. A learnable query embedding is added to the tokens corresponding to the query frame. The alternating
+frame-wise and global self-attention blocks process the tokens. A dedicated camera head predicts both intrinsics and extrinsics, while DPT
+heads produce point maps, depth maps, and motion maps (3D point tracks).
+
+
+effectively encode both reconstruction and motion informa-                 The camera loss Lcamera is computed using Huber loss:
+tion, thus permitting accurate motion prediction without de-                                            N
+grading reconstruction quality.                                                                         X
+                                                                                           Lcamera =      ∥ĝi − gi ∥ϵ                (2)
+                                                                                                        i=1
+3.3. Intrinsic Embedding
+Previous work [41] has identified the importance of pro-                where ĝi denotes the ground-truth camera parameters and
+viding intrinsic information for accurate 3D reconstruction.            gi the ground truth.
+Since camera intrinsic parameters are often readily avail-                 The depth loss (Ldepth ) is a combination of three
+able through calibration, we propose incorporating an in-               key components: regression loss (Lreg ), confidence loss
+trinsic embedding to enable the model to leverage these cru-            (Lconf ), and gradient loss (Lgrad ).
+cial parameters directly. To implement the intrinsic embed-                               Ldepth = Lreg + Lconf + Lgrad               (3)
+ding, we concatenate a subset of the normalized camera in-
+trinsic parameters, specifically the focal lengths fx and fy                The regression loss (Lreg ) quantifies the average error
+and the principal point’s y-coordinate py , and pass this vec-          between predicted (D̂i ) and ground-truth depths (Di ) for
+tor through a linear layer. Note that the principal point’s             all supervised pixels:
+x-coordinate px is excluded from this embedding because
+                                                                                                          N
+all input images are scaled to a fixed width of 514 pixels                                          1     X
+                                                                                       Lreg =                  ∥D̂i − Di ∥            (4)
+[33]. The resulting feature is then added to all image to-                                       Npoints i=1
+kens, providing the model with a direct representation of
+the camera’s intrinsic properties.                                         The confidence loss (Lconf ) weights these errors using a
+                                                                        predicted uncertainty map (ΣD
+                                                                                                    i ):
+3.4. Loss Function
+                                                                                             N 
+                                                                                      1      X                                      
+Following VGGT, our multi-task loss is defined as:                      Lconf =                    ∥ΣD
+                                                                                                     i ⊙ ( D̂i − D i )∥ − α log(ΣD
+                                                                                                                                 i )
+                                                                                  Npoints i=1
+ L = λc Lcamera + λd Ldepth + λp Lpoint + λm Lmotion (1)                                                                              (5)
+
+
+                                                                    5
+   Finally, the gradient loss (Lgrad ) promotes smoothness             truth by scaling them by the median ratio of the norms of
+in the predicted depth map by comparing the gradients of               the estimated and ground-truth positions. That is, we multi-
+the predicted and GT depths, weighted by uncertainty:                  ply the predicted coordinates by the s factor:
+                          N
+                    1     X                                                                    mediani,t (∥Pti ∥)
+       Lgrad =              ∥ΣD
+                              i ⊙ (∇D̂i − ∇Di )∥            (6)                           s=                                     (8)
+                 Npoints i=1                                                                   median (∥Pˆi ∥)
+                                                                                                       i,t   t
+
+   We employ a similar approach for both point loss and                   The EPE metric is defined as the average Euclidean dis-
+motion loss. However, the motion loss does not include the             tance between the ground truth and scaled predicted posi-
+gradient-based loss.                                                   tions for all points:
+
+4. Experiments                                                                                   1
+                                                                                                       ∥sPˆti − Pti ∥
+                                                                                                      X
+                                                                                    EPE =                                        (9)
+                                                                                             Npoints i,t
+4.1. Experimental Setups
+We designed our experimental setup to evaluate the scalabil-           Implementation Details. To generate the ground-truth mo-
+ity and versatility of DePT3R across diverse environments,             tion maps, we project the visible 3D mesh vertices for each
+utilizing large datasets and comprehensive metrics that as-            frame onto the image plane using the known camera extrin-
+sess both tracking accuracy and reconstruction quality.                sics and intrinsics, then round to the nearest integer pixel
+Datasets. Our training was conducted on five syn-                      coordinate. Mesh vertices are excluded if they are not visi-
+thetic datasets. PointOdyssey (PO) [46], DynamicReplica                ble in the query frame.
+(DR) [14], and Kubric Movi-F [8] offer camera and scene                    To effectively utilize VGGT’s extensive pretraining
+motion, as well as ground truth mesh vertex trajectories,              knowledge, we initialize the weights of the alternating at-
+which we use for sparse point tracking supervision during              tention transformer, point head, and depth head with those
+training. Virtual KITTI 2 [1] and TartanAir [37] do not                of VGGT, and the motion head with those of the VGGT
+include point trajectories; therefore, we only use them to             pointmap head.
+supervise camera poses, depth maps, and point maps.                        During training, sequences of 2 to 10 frames are ran-
+    We evaluate our method on PointOdyssey and Dynami-                 domly selected from all available sequences. For Kubric
+cReplica, as well as Panoptic Studio (PS) [13] and the TUM             Movi-F, we use a stride of 1; for all other datasets, we use
+RGB-D SLAM Benchmark [27]. We also include a quali-                    a stride ranging from 1 to 4. TartanAir and Virtual KITTI 2
+tative evaluation on the Stereo4D dataset [12]. We do not              are sampled with half the frequency of the different datasets.
+evaluate on the Aria Digital Twin Benchmark [17] because                   We observe that training with the final tracking objective
+the VGGT method was trained on it.                                     from the start, using model weights initialized with VGGT’s
+Baselines. We selected recent state-of-the-art (SOTA)                  weights, degrades performance. Thus, we perform training
+methods for comparison, including three point track-                   in two phases. In the first phase, we train DePT3R using
+ing methods (SpatialTracker [38], MonST3R [44],                        only the camera, depthmap, and pointmap losses. The in-
+and St4RTrack [7]) and five 3D reconstruction meth-                    trinsic embedding is used in the first phase, but the query
+ods (DUSt3R [36], MASt3R [18], MonST3R [44],                           embedding is not. In the second phase, we integrate the
+St4RTrack [7], and VGGT [33]).                                         query embedding and motion head, along with the tracking
+                                                                       loss. To improve training stability and speed, we do not use
+Metrics. We use two metrics to evaluate the efficacy and
+                                                                       a confidence-based loss in the second phase.
+quality of our method: APD and EPE metrics.
+                                                                           We employ common data augmentation strategies, such
+    The APD metric was originally proposed by TAPVid-
+                                                                       as color jittering, random aspect ratios, and random cen-
+3D [17] for tracking in 3D. Following the methodology of
+                                                                       ter crops [36], applied uniformly to each image in the
+St4RTrack [7], we calculate the APD as the average per-
+                                                                       sequence. We use the Adam optimizer with a warmup
+centage of predicted points whose error falls below a set of
+                                                                       phase, followed by cosine scheduling. Gradient checkpoint-
+thresholds. Specifically, let Pˆti denote the prediction for the       ing and bfloat16 precision are utilized to enhance efficiency
+ith point at time t, let Pti denote the ground truth position.         and reduce GPU memory usage. In the first phase, we
+The APD metric is calculated as below:                                 train on all datasets, using a learning rate of 5 × 10−5 for
+                    1                                                  the intrinsic embedding and a learning rate of 5 × 10−6
+                                      1(∥Pˆti − sPti ∥ < d) (7)
+                           X X
+   APD3D =
+               4Npoints                                                for the other weights. In the second phase, we train only
+                         d∈δ3D    i,t
+                                                                       on PointOdyssey, DynamicReplica, and Kubric, using a
+where δ3D = {0.1m, 0.3m, 0.5m, 1.0m}. Since predictions                learning rate of 1 × 10−5 for the motion head and the
+are made in the coordinate system of the first frame’s cam-            query embedding, and a learning rate of 1 × 10−6 for all
+era, we align the estimated 3D positions with the ground               other weights. Both training phases are run on a single
+
+
+                                                                   6
+Table 2. World Coordinate 3D Point Tracking. Comparison of our DePT3R method with existing point tracking methods on
+PointOdyssey, DynamicReplica, and Panoptic Studio datasets. We report the APD and EPE metrics after global median scaling. The
+best results are bold, and the second-best results are underline.
+
+                                             APD (↑)                                                  EPE (↓)
+ Method
+                        PointOdyssey     DynamicReplica Panoptic Studio         PointOdyssey DynamicReplica Panoptic Studio
+
+ SpatialTracker [38]         38.54            54.85                 62.59           0.7499           0.9274             0.3094
+ MonST3R [44]                33.47            58.06                 51.32           0.9021           0.4387             0.4568
+ St4RTrack [7]               67.95            73.74                 69.67           0.3140           0.2682             0.2637
+ DePT3R (Ours)               91.33            91.12                 89.36           0.0949           0.0925             0.1046
+
+
+Table 3. World Coordinate 3D Reconstruction. Comparison                  most 10 images, it achieves impressive performance on
+of our DePT3R method with existing reconstruction methods on             much longer sequences. Moreover, unlike other approaches
+PO and TUM datasets. We report the APD and EPE metrics after             that require windowing or global optimization to handle
+global median scaling. The best results are bold, and the second-
+                                                                         extended sequences due to memory or architectural con-
+best results are underline.
+                                                                         straints, our method can generate predictions for a large
+                       PointOdyssey      TUM RGB-D SLAM                  number of frames in a single forward pass.
+ Method
+                   APD (↑)     EPE (↓)   APD (↑)      EPE (↓)            3D Reconstruction. Following St4RTrack [7], we diverge
+                                                                         from previous work, directly evaluating the accuracy of our
+ DUSt3R [36]        45.79      0.6386     72.27       0.2891             estimated 3D reconstruction with the APD and EPE met-
+ MASt3R [18]        56.90      0.4644     66.22       0.5510             rics. We use the TUM RGB-D Benchmark, a real-world
+ MonST3R [44]       68.25      0.3044     61.38       0.3646             dataset with significant camera and scene motion, and the
+                                                                         PointOdyssey test set. We report metrics on 50 randomly
+ St4RTrack [7]      78.73      0.2406     83.42       0.1854
+                                                                         chosen sequences of 64 consecutive frames. For the TUM
+ VGGT [33]          97.69      0.0514     89.87       0.0930             RGB-D Benchmark, we filter out points with depths be-
+ DePT3R (Ours)      98.01      0.0406     92.22       0.0968             tween 0.1 and 5 meters, as the depth camera’s accuracy de-
+                                                                         grades at long ranges. On the TUM RGB-D Benchmark
+                                                                         (Table 3), DePT3R achieves an APD of 92.22 and an EPE
+NVIDIA RTX 6000 and take approximately 3 days. We                        of 0.0968, competitive with VGGT and significantly bet-
+use PyTorch 2.3.1 as our machine learning framework. Ex-                 ter than the other baselines. On PointOdyssey, DePT3R
+periments are performed on a machine equipped with an                    achieves an EPE of 0.0406 and an APD of 98.01, noticeably
+AMD Ryzen Threadripper PRO 7975WX 32-core CPU and                        better than all of the baselines. These results demonstrate
+Ubuntu 22.04 installed.                                                  that DePT3R achieves state-of-the-art 3D reconstruction
+                                                                         accuracy on both synthetic and real-world data, including
+4.2. Experimental Results                                                out-of-distribution scenarios, using synthetic training data.
+                                                                             We showed visualization of our method for both 3D
+3D Point Tracking. We first evaluate the 3D point track-
+                                                                         point tracking and 3D reconstruction in Figure 3. Our
+ing task across three datasets: the test sets of the synthetic
+                                                                         method demonstrates strong generalization to large, real-
+datasets PointOdyssey and DynamicReplica, which feature
+                                                                         istic datasets with significant scene motion, despite being
+significant camera and scene motion, and PanopticStudio,
+                                                                         trained on a small collection of unrealistic datasets with
+a real-world dataset with no camera motion. For evalua-
+                                                                         minimal scene motion.
+tion, we followed the same setup of St4RTrack [7] and se-
+lected 64 consecutive frames from 50 randomly selected se-               Ablation Studies. Table 4 evaluates the roles of the intrin-
+quences in each dataset. To compare with previous work,                  sic embedding and random center-crop augmentation on the
+we restrict our evaluation to the trajectories of the points             Panoptic Studio dataset.
+from the first frame, even though our method can track all               • No intrinsic embedding: Without the intrinsic embed-
+points. Following St4RTrack, we exclude PointOdyssey                       ding, the model struggles to deal with the inherent scale
+sequences that contain fog or are generated in the Kubric                  ambiguity in unposed 3D reconstruction and dynamic ob-
+style.                                                                     jects (see Figure 4).
+   As shown in Table 2, our method significantly outper-                 • No center-crop augmentation: Including center-crop
+forms all baselines across all datasets. Remarkably, even                  augmentation improves both tracking metrics, indicating
+though our model was trained only on sequences of at                       that training on diverse camera intrinsics is essential for
+
+
+                                                                     7
+Figure 3. 3D Reconstruction and Point Tracking on the Stereo4D Dataset. Despite supervising point tracking on a small collection of
+unrealistic datasets with mostly minimal scene motion, our method exhibits strong generalization to real-world scenes.
+
+
+Table 4. Ablation study of intrinsic embedding and center-             numbers of query points. We use a 10-frame video, with
+crop augmentation on Panoptic Studio dataset. Our experiments          a resolution of 518 × 518 per frame. SpatialTrackerV2 ex-
+demonstrate that the intrinsic embedding is crucial for overcom-       ceeds 48 GB of memory at 40k query points and ultimately
+ing the inherent scale ambiguity present in monocular video and
+                                                                       fails due to out-of-memory (OOM) errors, and VGGT ex-
+achieving generalizable point tracking.
+                                                                       hausts GPU memory at just 22.5k query points. In con-
+     Variants                        APD (↑)     EPE (↓)               trast, our method successfully performs dense point track-
+                                                                       ing, generating over 268k point tracks (518 × 518 pixels),
+     No intrinsic embedding            78.09      0.1735               while consuming only 12 GB of memory.
+     No center-crop augmentation       82.94      0.1398
+     DePT3R (Ours)                     89.36      0.1046
+                                                                       5. Conclusion and Future Works
+                                                                       Summary. In this paper, we introduce DePT3R, a sim-
+                                                                       ple, novel framework for simultaneously performing dense
+  the model to leverage the intrinsic embedding when pre-              3D reconstruction and point tracking of dynamic scenes
+  dicting point motion.                                                from unposed monocular video. Despite training exclu-
+• In conclusion, the best results are obtained when both are           sively on synthetic datasets, our approach achieves strong
+  used, indicating that the intrinsic embedding, combined              performance on challenging real-world benchmarks, high-
+  with the center crop augmentation, helps the model gen-              lighting the inherent synergy between reconstruction and
+  eralize to out-of-distribution cameras.                              point-tracking tasks. Unlike prior methods, DePT3R lever-
+Computational Comparison. We do not compare with                       ages global temporal attention to enhance both accuracy and
+SpatialTrackerV2 [39], a recent 3D point-tracking method,              computational efficiency, enabling dense tracking of all vis-
+because its training data and computational requirements               ible points in a single forward pass. Additionally, we ef-
+are significantly larger than ours. However, we note that              fectively leverage intrinsic information to significantly im-
+it, along with other state-of-the-art point-tracking methods,          prove reconstruction and motion estimation.
+struggles to scale to large numbers of query points due to             Limitations. First, while DePT3R uses global attention
+substantial memory demands. To highlight this limitation,              over multiple frames, it does not explicitly model the se-
+we evaluate the GPU memory usage of SpatialTrackerV2,                  quential/causal structure of video (e.g., temporal recur-
+VGGT’s 2D point tracker, and our DePT3R for varying                    rence or explicit temporal priors), which may limit ro-
+
+
+                                                                   8
+Figure 4. Qualitative ablation study on the Panoptic Studio dataset. The 3D trajectories of scene points are projected onto the last
+frame. Without the intrinsic embedding, the model can identify the direction of motion but struggles to accurately place it or gauge its
+magnitude, leading to significant errors in point trajectory estimation.
+
+
+
+                                          SpatialTrackerV2                                ited in temporal scope, as described in the paper (i.e., it
+                          5 × 104         VGGT                                            does not yet provide a general mechanism for temporally
+                                          Ours
+                                                                                          continuous trajectories parameterized by arbitrary query
+Peak Memory Usage (MiB)
+
+
+
+
+                          4 × 104
+                                                                                          times). Third, the approach relies on point-tracking anno-
+                                                                                          tations (obtained from synthetic sources in training), which
+                          3 × 104
+                                                                                          are expensive and difficult to scale in real-world settings;
+                                                                                          reducing supervision (e.g., via self-/weak-supervised objec-
+                          2 × 104
+                                                                                          tives or distillation) remains an important direction. Finally,
+                          1 × 104
+                                                                                          the current evaluation protocol emphasizes APD/EPE (with
+                                                                                          global median scaling) and restricts quantitative tracking
+                               0                                                          evaluation to trajectories originating from the first frame;
+                                    102                 103           104       105       more exhaustive evaluation of dense-any-point tracking and
+                                                       Number of Query Points
+                                                                                          absolute-scale behavior would strengthen conclusions about
+                                                                                          real deployment.
+Figure 5. GPU memory usage comparison between Spatial-
+TrackerV2, VGGT and our DePT3R method across varying num-                                 Future Works. Promising extensions include incorporat-
+bers of query points. SpatialTrackerV2 and VGGT exhibit rapid
+                                                                                          ing time-conditioned query mechanisms (to predict tracks
+increases in GPU memory consumption, exceeding the 48 GB
+                                                                                          at arbitrary timestamps), explicit temporal modeling (e.g.,
+limit at just 40k and 22.5k query points, respectively. In con-
+trast, DePT3R efficiently handles 268k query points, requiring                            causal attention or recurrence), and training strategies that
+only 12 GB of memory. All experiments were performed on an                                reduce dependence on dense trajectory labels while preserv-
+RTX A6000 GPU (48 GB). Zoom in for better visualization.                                  ing the feed-forward efficiency of the current framework.
+
+
+                                                                                          Acknowledgements
+bustness under heavy occlusion, motion blur, or very long
+videos where temporal continuity constraints are beneficial.                              This work was supported by Professor M. Khalid Jawed
+Second, the current formulation produces motion estimates                                 and, in part, by the US Department of Agriculture (Grant
+relative to the first-frame coordinate system and is lim-                                 numbers 2024-67021-42528 and 2022-67022-37021).
+
+
+                                                                                      9
+References                                                                     social motion capture. In Proceedings of the IEEE Interna-
+                                                                               tional Conference on Computer Vision, 2015. 6
+ [1] Yohann Cabon, Naila Murray, and Martin Humenberger. Vir-             [14] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia
+     tual kitti 2. arXiv preprint arXiv:2001.10773, 2020. 6                    Neverova, Andrea Vedaldi, and Christian Rupprecht. Dy-
+ [2] Shen Chen, Jiale Zhou, and Lei Li. Dense point clouds                     namicstereo: Consistent dynamic depth from stereo videos.
+     matter: Dust-gs for scene reconstruction from sparse view-                In Proceedings of the IEEE/CVF Conference on Computer
+     points. In ICASSP 2025-2025 IEEE International Confer-                    Vision and Pattern Recognition, 2023. 6
+     ence on Acoustics, Speech and Signal Processing (ICASSP),            [15] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia
+     2025. 3                                                                   Neverova, Andrea Vedaldi, and Christian Rupprecht. Co-
+ [3] Zequn Chen, Jiezhi Yang, and Heng Yang. Pref3r: Pose-                     tracker: It is better to track together. In European Conference
+     free feed-forward 3d gaussian splatting from variable-length              on Computer Vision, 2024. 3
+     image sequence. arXiv preprint arXiv:2411.16877, 2024. 3             [16] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler,
+ [4] Carl Doersch, Ankush Gupta, Larisa Markeeva, Adria Re-                    and George Drettakis. 3d gaussian splatting for real-time
+     casens, Lucas Smaira, Yusuf Aytar, Joao Carreira, Andrew                  radiance field rendering. ACM Transactions on Graphics,
+     Zisserman, and Yi Yang. Tap-vid: A benchmark for track-                   2023. 2
+     ing any point in a video. Advances in Neural Information             [17] Skanda Koppula, Ignacio Rocco, Yi Yang, Joe Heyward,
+     Processing Systems, 2022. 3                                               João Carreira, Andrew Zisserman, Gabriel Brostow, and Carl
+ [5] Alexey Dosovitskiy, Philipp Fischer, Eddy Ilg, Philip                     Doersch. Tapvid-3d: A benchmark for tracking any point in
+     Hausser, Caner Hazirbas, Vladimir Golkov, Patrick Van                     3d. In NeurIPS, 2024. 6
+     Der Smagt, Daniel Cremers, and Thomas Brox. Flownet:                 [18] Vincent Leroy, Yohann Cabon, and Jerome Revaud. Ground-
+     Learning optical flow with convolutional networks. In Pro-                ing image matching in 3d with MASt3R. In European Con-
+     ceedings of the IEEE International Conference on Computer                 ference on Computer Vision (ECCV), 2024. 3, 6, 7
+     Vision, 2015. 3                                                      [19] Yiqing Liang, Abhishek Badki, Hang Su, James Tompkin,
+ [6] Zhiwen Fan, Wenyan Cong, Kairun Wen, Kevin Wang,                          and Orazio Gallo. Zero-shot monocular scene flow estima-
+     Jian Zhang, Xinghao Ding, Danfei Xu, Boris Ivanovic,                      tion in the wild. In Proceedings of the Computer Vision and
+     Marco Pavone, Georgios Pavlakos, et al. Instantsplat: Un-                 Pattern Recognition Conference, 2025. 4
+     bounded sparse-view pose-free gaussian splatting in 40 sec-          [20] Ricardo Martin-Brualla, Noha Radwan, Mehdi S. M. Sajjadi,
+     onds. arXiv preprint arXiv:2403.20309, 2024. 3                            Jonathan T. Barron, Alexey Dosovitskiy, and Daniel Duck-
+ [7] Haiwen Feng, Junyi Zhang, Qianqian Wang, Yufei Ye,                        worth. NeRF in the Wild: Neural Radiance Fields for Uncon-
+     Pengcheng Yu, Michael J. Black, Trevor Darrell, and Angjoo                strained Photo Collections. In Proceedings of the IEEE/CVF
+     Kanazawa. St4rtrack: Simultaneous 4d reconstruction and                   Conference on Computer Vision and Pattern Recognition
+     tracking in the world. In Proceedings of the IEEE/CVF In-                 (CVPR), 2021. 2
+     ternational Conference on Computer Vision, 2025. 3, 4, 6,            [21] Thomas Müller, Alex Evans, Christoph Schied, and Alexan-
+     7                                                                         der Keller. Instant neural graphics primitives with a mul-
+ [8] Klaus Greff, Francois Belletti, Lucas Beyer, Carl Doersch,                tiresolution hash encoding. ACM Transactions on Graphics
+     Yilun Du, Daniel Duckworth, David J Fleet, Dan Gnanapra-                  (TOG), 2022. 2
+     gasam, Florian Golemo, Charles Herrmann, et al. Kubric: A            [22] Tuan Duc Ngo, Peiye Zhuang, Evangelos Kalogerakis,
+     scalable dataset generator. In Proceedings of the IEEE/CVF                Chuang Gan, Sergey Tulyakov, Hsin-Ying Lee, and
+     Conference on Computer Vision and Pattern Recognition,                    Chaoyang Wang. DELTA: DENSE EFFICIENT LONG-
+     2022. 6                                                                   RANGE 3d TRACKING FOR ANY VIDEO. In The Thir-
+ [9] Adam W Harley, Zhaoyuan Fang, and Katerina Fragkiadaki.                   teenth International Conference on Learning Representa-
+     Particle video revisited: Tracking through occlusions using               tions, 2025. 4
+     point trajectories. In European Conference on Computer Vi-           [23] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy V.
+     sion, 2022. 3                                                             Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+[10] Richard Hartley and Andrew Zisserman. Multiple view ge-                   Daniel HAZIZA, Francisco Massa, Alaaeldin El-Nouby,
+     ometry in computer vision. Cambridge university press,                    Mido Assran, Nicolas Ballas, Wojciech Galuba, Russell
+     2003. 2                                                                   Howes, Po-Yao Huang, Shang-Wen Li, Ishan Misra, Michael
+[11] Zhaoyang Huang, Xiaoyu Shi, Chao Zhang, Qiang Wang,                       Rabbat, Vasu Sharma, Gabriel Synnaeve, Hu Xu, Herve Je-
+     Ka Chun Cheung, Hongwei Qin, Jifeng Dai, and Hongsheng                    gou, Julien Mairal, Patrick Labatut, Armand Joulin, and Pi-
+     Li. Flowformer: A transformer architecture for optical flow.              otr Bojanowski. DINOv2: Learning robust visual features
+     In European Conference on Computer Vision, 2022. 3                        without supervision. Transactions on Machine Learning Re-
+[12] Linyi Jin, Richard Tucker, Zhengqi Li, David Fouhey, Noah                 search, 2024. 4
+     Snavely, and Aleksander Holynski. Stereo4d: Learning how             [24] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vi-
+     things move in 3d from internet stereo videos. arXiv preprint             sion transformers for dense prediction. In Proceedings of
+     arXiv:2412.09621, 2024. 4, 6                                              the IEEE/CVF International Conference on Computer Vi-
+[13] Hanbyul Joo, Hao Liu, Lei Tan, Lin Gui, Bart Nabbe,                       sion, 2021. 4
+     Iain Matthews, Takeo Kanade, Shohei Nobuhara, and Yaser              [25] Brandon Smart, Chuanxia Zheng, Iro Laina, and Vic-
+     Sheikh. Panoptic studio: A massively multiview system for                 tor Adrian Prisacariu.           Splatt3r: Zero-shot gaussian
+
+
+                                                                     10
+     splatting from uncalibrated image pairs. arXiv preprint             [38] Yuxi Xiao, Qianqian Wang, Shangzhan Zhang, Nan Xue,
+     arXiv:2408.13912, 2024. 3                                                Sida Peng, Yujun Shen, and Xiaowei Zhou. Spatialtracker:
+[26] Seungwon Song, Hyungtae Lim, Alex Junho Lee, and Hyun                    Tracking any 2d pixels in 3d space. In Proceedings of
+     Myung. Dynavins: A visual-inertial slam for dynamic en-                  the IEEE/CVF Conference on Computer Vision and Pattern
+     vironments. IEEE Robotics and Automation Letters, 2022.                  Recognition, 2024. 3, 6, 7
+     2                                                                   [39] Yuxi Xiao, Jianyuan Wang, Nan Xue, Nikita Karaev, Yuri
+[27] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram                  Makarov, Bingyi Kang, Xing Zhu, Hujun Bao, Yujun Shen,
+     Burgard, and Daniel Cremers. A benchmark for the evalua-                 and Xiaowei Zhou. Spatialtrackerv2: Advancing 3d point
+     tion of rgb-d slam systems. In 2012 IEEE/RSJ International               tracking with explicit camera motion. In Proceedings of the
+     Conference on Intelligent Robots and Systems, 2012. 6                    IEEE/CVF International Conference on Computer Vision,
+[28] Zachary Teed and Jia Deng. Raft: Recurrent all-pairs field               pages 6726–6737, 2025. 8
+     transforms for optical flow. In European Conference on              [40] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff,
+     Computer Vision, 2020. 3                                                 Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and Matt
+[29] Zachary Teed and Jia Deng. Raft-3d: Scene flow using rigid-              Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images
+     motion embeddings. In Proceedings of the IEEE/CVF Con-                   in one forward pass. In Proceedings of the Computer Vision
+     ference on Computer Vision and Pattern Recognition, 2021.                and Pattern Recognition Conference, 2025. 2, 3
+     3                                                                   [41] Botao Ye, Sifei Liu, Haofei Xu, Xueting Li, Marc Pollefeys,
+[30] Tuan-Anh Vu, Duc-Thanh Nguyen, Binh-Son Hua, Quang-                      Ming-Hsuan Yang, and Songyou Peng. No pose, no prob-
+     Hieu Pham, and Sai-Kit Yeung. Rfnet-4d: Joint object re-                 lem: Surprisingly simple 3d gaussian splats from sparse un-
+     construction and flow estimation from 4d point clouds. In                posed images. In The Thirteenth International Conference
+     ECCV, 2022. 2                                                            on Learning Representations, 2025. 5
+[31] Tuan-Anh Vu, Duc-Thanh Nguyen, Binh-Son Hua, Quang-                 [42] Zehao Yu, Anpei Chen, Binbin Huang, Torsten Sattler, and
+     Hieu Pham, and Sai-Kit Yeung. Rfnet-4d++: Joint ob-                      Andreas Geiger. Mip-splatting: Alias-free 3d gaussian splat-
+     ject reconstruction and flow estimation from 4d point clouds             ting. In Proceedings of the IEEE/CVF Conference on Com-
+     with cross-attention spatio-temporal features. In PREPRINT               puter Vision and Pattern Recognition (CVPR), 2024. 2
+     available at Research Square, DOI: 10.21203/rs.3.rs-                [43] Bowei Zhang, Lei Ke, Adam W Harley, and Katerina Fragki-
+     4390361/v1, 2024. 2                                                      adaki. Tapip3d: Tracking any point in persistent 3d geome-
+[32] Chuhua Wang, Md Alimoor Reza, Vibhas Vats, Yingnan Ju,                   try. arXiv preprint arXiv:2504.14717, 2025. 4
+     Nikhil Thakurdesai, Yuchen Wang, David J Crandall, Soon-            [44] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-
+     heung Jung, and Jeongil Seo. Deep learning-based 3d recon-               pani, Trevor Darrell, Forrester Cole, Deqing Sun, and Ming-
+     struction from multiple images: A survey. Neurocomputing,                Hsuan Yang. MonST3r: A simple approach for estimating
+     2024. 3                                                                  geometry in the presence of motion. In The Thirteenth Inter-
+[33] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea                       national Conference on Learning Representations, 2025. 3,
+     Vedaldi, Christian Rupprecht, and David Novotny. Vggt:                   6, 7
+     Visual geometry grounded transformer. In Proceedings of             [45] Songyan Zhang, Yongtao Ge, Jinyuan Tian, Guangkai Xu,
+     the IEEE/CVF Conference on Computer Vision and Pattern                   Hao Chen, Chen Lv, and Chunhua Shen. Pomato: Marrying
+     Recognition (CVPR), 2025. 2, 3, 4, 5, 6, 7                               pointmap matching with temporal motion for dynamic 3d re-
+                                                                              construction. In Proceedings of the IEEE/CVF International
+[34] Qianqian Wang, Yen-Yu Chang, Ruojin Cai, Zhengqi Li,
+                                                                              Conference on Computer Vision, 2025. 4
+     Bharath Hariharan, Aleksander Holynski, and Noah Snavely.
+     Tracking everything everywhere all at once. In Proceedings          [46] Yang Zheng, Adam W Harley, Bokui Shen, Gordon Wet-
+     of the IEEE/CVF International Conference on Computer Vi-                 zstein, and Leonidas J Guibas. Pointodyssey: A large-scale
+     sion, 2023. 3                                                            synthetic dataset for long-term point tracking. In Proceed-
+                                                                              ings of the IEEE/CVF International Conference on Com-
+[35] Qianqian Wang, Yifei Zhang, Aleksander Holynski,
+                                                                              puter Vision, 2023. 6
+     Alexei A Efros, and Angjoo Kanazawa. Continuous 3d per-
+     ception model with persistent state. In Proceedings of the          [47] Jie Zhu, Bo Peng, Wanqing Li, Haifeng Shen, Zhe Zhang,
+     Computer Vision and Pattern Recognition Conference, 2025.                and Jianjun Lei. Multi-view stereo with transformer. arXiv
+     3                                                                        preprint arXiv:2112.00336, 2021. 3
+[36] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris
+     Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-
+     sion made easy. In Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition (CVPR), 2024.
+     2, 3, 4, 6, 7
+[37] Wenshan Wang, Delong Zhu, Xiangwei Wang, Yaoyu Hu,
+     Yuheng Qiu, Chen Wang, Yafei Hu, Ashish Kapoor, and Se-
+     bastian Scherer. Tartanair: A dataset to push the limits of
+     visual slam. In 2020 IEEE/RSJ International Conference on
+     Intelligent Robots and Systems (IROS), 2020. 6
+
+
+                                                                    11
+

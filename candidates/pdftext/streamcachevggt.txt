@@ -1,0 +1,794 @@
+                                                             StreamCacheVGGT:
+                                             Streaming Visual Geometry Transformers with Robust
+                                                   Scoring and Hybrid Cache Compression
+
+                                         Xuanyi Liu2,∗ , Chunan Yu3,∗ , Deyi Ji4,∗ , Qi Zhu4 , Lingyun Sun5 , Xuanfu Li6 , Jin Ma6 ,
+arXiv:2604.15237v2 [cs.CV] 17 Apr 2026
+
+
+
+
+                                                                   Tianrun Chen1,† , Lanyun Zhu7
+                                               1
+                                                KOKONI 3D, Moxin Technology, 2 Peking University, 3 Nanjing University of Science and
+                                             Technology, 4 University of Science and Technology of China, 5 Zhejiang University, 6 Huawei,
+                                                                                  7
+                                                                                    Tongji University
+                                                                                  ∗
+                                                                                      Equal Contribution, † Project Lead
+
+
+                                                                                                Abstract
+                                                Reconstructing dense 3D geometry from continuous video streams requires stable inference under a
+                                                constant memory budget. Existing O(1) frameworks primarily rely on a “pure eviction” paradigm,
+                                                which suffers from significant information destruction due to binary token deletion and evaluation
+                                                noise from localized, single-layer scoring. To address these bottlenecks, we propose Stream-
+                                                CacheVGGT, a training-free framework that reimagines cache management through two synergistic
+                                                modules: Cross-Layer Consistency-Enhanced Scoring (CLCES) and Hybrid Cache Compression
+                                                (HCC). CLCES mitigates activation noise by tracking token importance trajectories across the
+                                                Transformer hierarchy, employing order-statistical analysis to identify sustained geometric salience.
+                                                Leveraging these robust scores, HCC transcends simple eviction by introducing a three-tier triage
+                                                strategy that merges moderately important tokens into retained anchors via nearest-neighbor
+                                                assignment on the key-vector manifold. This approach preserves essential geometric context that
+                                                would otherwise be lost. Extensive evaluations on five benchmarks (7-Scenes, NRGBD, ETH3D,
+                                                Bonn, and KITTI) demonstrate that StreamCacheVGGT sets a new state-of-the-art, delivering
+                                                superior reconstruction accuracy and long-term stability while strictly adhering to constant-cost
+                                                constraints.
+
+                                                Correspondence: Tianrun Chen, Lanyun Zhu
+
+
+
+
+                                         1    Introduction
+                                         Reconstructing dense, metrically consistent 3D scene geometry from continuous video streams is a cornerstone
+                                         of modern computer vision, empowering applications from autonomous navigation to immersive augmented
+                                         reality. The recent advent of geometric foundation models [1–4] has revolutionized this field. By framing 3D
+                                         reconstruction as a direct regression problem within a unified Transformer architecture, models like VGGT
+                                         [3] elegantly bypass the fragile multi-stage pipelines of classical SfM and MVS. However, this unprecedented
+                                         performance comes at a prohibitive cost: the global all-to-all attention mechanism scales quadratically
+                                             1 We thank Jianyuan Wang for his insightful discussions. We acknowledge the support from Hisilicon, the ZJU Kunpeng &
+
+                                         Ascend Center of Excellence, and the Dream Set Off - Kunpeng & Ascend Seed Program.
+
+
+
+                                                                                                     1
+with sequence length, leading to catastrophic memory consumption. To deploy these models in real-world
+applications, the community has pivoted towards streaming 3D reconstruction [4, 5]: processing theoretically
+unbounded video sequences sequentially using temporal causal attention and a Key-Value (KV) cache. The
+goal is to achieve constant-cost O(1) single-pass inference on consumer GPUs without relying on offline batch
+processing.
+While causal streaming models successfully enable single-pass inference, the linearly growing KV cache
+inevitably exhausts GPU memory. To enforce strict O(1) cache budgets, recent state-of-the-art frameworks
+[5, 6] evaluate token importance to evict less critical ones. However, we identify two fundamental challenges
+in this dominant “pure-eviction” paradigm:
+   • Challenge 1: The Single-Layer Noise Problem (Hardware Constraints vs. Robust Scoring). To maintain
+     hardware efficiency, modern models leverage FlashAttention [7], which fuses attention matrices on-chip.
+     This optimization, however, renders the full attention map inaccessible, forcing frameworks to rely
+     on a computationally cheap proxy: the magnitude of single-layer Feed-Forward Network (FFN) [8]
+     residuals. We identify that this reliance is highly susceptible to layer-specific activation noise. Due to
+     representational shifts across the Transformer hierarchy, a token focusing on high-frequency textures
+     might be suppressed in one layer but become critical for spatial semantics in another. Relying on a single,
+     noisy observation from one layer inevitably leads to the accidental eviction of globally important features.
+     A robust importance metric should instead capture sustained salience across multiple hierarchical levels.
+   • Challenge 2: The Information Destruction Problem (Hard Deletion vs. Context Preservation). The current
+     token eviction strategy is inherently a “hard deletion” mechanism. While such sparsification works well
+     in Large Language Models (LLMs) where dropping functional words has minimal impact, 3D geometric
+     reconstruction is exceptionally sensitive to context loss. In 3D tasks, tokens representing textureless
+     regions, such as flat walls, floors, or subtle depth gradients, often individually fall below the retention
+     threshold. Yet, collectively, they encode the distributed structural priors necessary for maintaining global
+     scale and surface consistency. Permanently discarding them triggers gradual geometric collapse. Inspired
+     by token merging in general vision tasks [9], we argue that instead of throwing these weakly-textured
+     but structurally vital tokens away, a superior strategy is to fuse them, compressing their collective
+     information to preserve the underlying geometric manifold.
+To this end, we propose StreamCacheVGGT, a principled framework for cache-efficient streaming geometric
+inference with robust scoring and hybrid cache compression. We address the aforementioned challenges
+through two synergistic, training-free modules:
+   • Cross-Layer Consistency-Enhanced Scoring (CLCES), tackles Challenge 1 by introducing a robust
+     hierarchical prior to mitigate activation noise. Instead of relying on isolated single-layer observations,
+     CLCES tracks a token’s relative importance ranking across a sliding window of Transformer layers.
+     Grounded in order-statistical analysis, it penalizes score variance and rewards tokens that maintain
+     stable, high ranks throughout the network depth. This effectively filters out sporadic activation noise,
+     yielding a reliable salience metric to guide the HCC triage process.
+   • Hybrid Cache Compression (HCC), addresses Challenge 2 by transcending the conventional binary
+     eviction paradigm. We introduce a three-tier cache management strategy: retaining critical tokens,
+     merging moderately important ones, and evicting only the most redundant ones. By softly fusing
+     moderately salient tokens with their closest retained counterparts via a nearest-neighbor assignment on
+     the key-vector manifold, HCC acts as an information-preserving compression mechanism. This allows
+     the model to seamlessly retain collective geometric context without violating strict cache budgets.
+Comprehensive evaluation on five diverse indoor and outdoor benchmarks, including 7-Scenes, NRGBD,
+ETH3D, Bonn, and KITTI, demonstrates that StreamCacheVGGT achieves consistent improvements across
+all sequence lengths. By effectively balancing information preservation with hardware-efficient scoring, our
+framework sets a new state-of-the-art for constant-cost streaming 3D inference, significantly reducing geometric
+drift while maintaining a fixed memory footprint.
+
+
+
+
+                                                       2
+2     Related Work
+2.1   Geometric Foundation Models
+The landscape of visual perception has undergone a radical transformation, moving away from task-specific
+designs toward universal, data-intensive representation learning [10–23]. This trend has fostered a unified
+modeling philosophy that excels in both high-level semantic parsing and low-level geometric reasoning.
+Particularly in the domain of 3D vision, the emergence of feed-forward foundation models [3, 24–34] has
+disrupted traditional pipelines, replacing iterative optimization with direct, regression-based geometry synthesis.
+DUSt3R [2] established the foundational paradigm by training a siamese Vision Transformer to directly
+regress per-pixel 3D pointmaps from image pairs, eliminating the need for camera intrinsics. MASt3R [1]
+augmented this with dense feature heads for 3D-grounded correspondence matching. However, scaling to many
+views necessitates O(N 2 ) pairwise predictions followed by costly global alignment [1, 2], severely impeding
+deployment on long sequences. VGGT [3] and Fast3R [4] advanced the paradigm by processing all views
+jointly through alternating intra-frame spatial and global cross-frame attention, predicting cameras, depth,
+and point clouds in a single forward pass. Despite remarkable quality, the quadratic memory complexity of
+global attention confines these methods to offline batch processing.
+
+2.2    Streaming 3D Reconstruction
+To bridge representational capacity and unbounded video demands, Spann3R [35] extended pairwise prediction
+to sequential processing with an external spatial memory. CUT3R [36] reformulated the architecture into
+temporal causal attention. TTT3R [37] achieves constant-resource inference via a fixed-size recurrent state,
+and Point3R [38] leverages spatial pointer memory with hierarchical positional embeddings. StreamVGGT [6]
+converted VGGT’s bidirectional attention into temporal causal attention with a KV cache, preserving much
+of the all-to-all representational capacity while enabling single-pass streaming. However, the linearly growing
+KV cache remains the critical bottleneck: memory and per-step attention cost increase monotonically with
+processed frames, eventually triggering OOM errors.
+
+2.3    Token Compression for Transformers
+Efficient token management has been extensively studied in both language and vision domains. In LLMs,
+methods like H2 O [39], AdaKV [40], and SnapKV [41] compress KV caches via attention-based eviction. In
+vision transformers, token pruning [42] and token merging [9, 43] reduce computational cost while preserving
+accuracy. Notably, ToMe [9] demonstrated that bipartite soft matching and merging of similar tokens
+outperforms hard pruning by retaining collective information. In the geometric streaming domain, FFN-
+residual-based scoring [5] has been proposed as a FlashAttention-compatible proxy for token importance. Our
+work advances this line of research by combining the complementary strengths of eviction and merging within
+a unified framework, and by introducing cross-layer consistency as a robust scoring prior—principles that are
+broadly applicable to any bounded-memory streaming transformer.
+
+3     Method
+As shown in Fig. 1, we propose a unified framework for bounded-memory streaming visual geometry
+transformers. Our approach builds upon the foundational causal streaming architecture [5, 6] but fundamentally
+reimagines the scoring and cache management paradigm. We first establish the preliminary streaming
+formulation, and then introduce our two core innovations: Cross-Layer Consistency-Enhanced Scoring
+(CLCES) and Hybrid Cache Compression (HCC).
+
+3.1   Preliminaries
+The core objective of streaming 3D reconstruction is to perform continuous geometric inference over temporal
+video streams while adhering to a fixed memory budget. Unlike global reconstruction models that require all-
+to-all attention, streaming architectures prioritize temporal consistency and memory efficiency through causal
+attention and token-wise cache management. We formalize this pipeline below to establish the foundation for
+our proposed enhancements.
+
+                                                        3
+                                                                  Spatial-Temporal Decoder
+                                                 Layer 1            Layer 2           Layer N-1             Layer N
+
+                    Vision                      Causal             Causal      ...    Causal               Causal           3D
+                   Encoder                     Attention          Attention          Attention            Attention        Heads
+
+                       Camera Token                                                                                   KV Cache
+       T-1                   Layer i
+                                         Layer i+1
+                                                                                Hybrid Cache Compression
+                          Activation          Cross-layer Consistency-
+      Images             Value Rating            Enhanced Scoring
+                                                                                EVICT         MERGE          RETAIN            DAP   Point Maps
+                                                                                                  Score
+                                                                                                                      Update
+        T
+                                                                                                                      New KV Cache
+
+                    Vision                      Causal             Causal      ...    Causal               Causal           3D
+                   Encoder                     Attention          Attention          Attention            Attention        Heads
+                                                 Layer 1            Layer 2           Layer N-1             Layer N
+
+                      Camera Token                                Spatial-Temporal Decoder
+
+
+Figure 1 Overall architecture of our streaming 3D reconstruction framework. To bound the KV cache under an O(1)
+memory budget, we introduce a robust cache management pipeline. Raw activation scores are first denoised by the
+Cross-Layer Consistency Scoring module. Based on these refined scores, the Hybrid Cache Compression (HCC) module
+executes a three-tier triage: highly salient tokens are RETAINed, redundant tokens are EVICTed, and moderately
+important tokens are MERGEd (absorbed into retained anchors via nearest-neighbor assignment), preserving critical
+geometric context without exceeding memory constraints.
+
+
+Streaming Formulation.    At each time step t, the input frame It is processed by a frozen DINOv2 [44]
+backbone, resulting in M tokens (comprising patch, camera, and register tokens). These tokens pass through
+L Transformer blocks. Each block l employs a temporal causal attention mechanism that queries a Key-Value
+             (l)
+(KV) cache Ct , which aggregates history from previous frames:
+                                                            (l)          (l)            (l)        (l)
+                                                           Ct = [Ct−1 ; (Kt , Vt )],                                                              (1)
+
+where [·; ·] denotes the concatenation operation. The total memory footprint Mem(CT ) after T frames grows
+as O(L · T · M ), which leads to unavoidable memory exhaustion for long-duration sequences.
+
+FFN-based Token Eviction.      To enforce an O(1) constant-cost budget B, recent works [5] evaluate the
+geometric salience of each token i at layer l using the magnitude of the Feed-Forward Network (FFN) residual:
+                                                   (l)  (l)         (l) 
+                                                  si = λ2 · FFN LN(hi )                                         .                                 (2)
+                                                                                                            2
+
+Standard practice then performs “hard eviction” by permanently discarding tokens with the lowest scores
+ (l)
+si . As identified in Sec. 1, this mechanism is inherently flawed due to: (1) context destruction from binary
+deletion, and (2) evaluation noise from relying on a localized, single-layer observation. Our proposed modules,
+HCC and CLCES, are designed to replace this fragile eviction logic with a robust, information-preserving
+compression scheme.
+
+3.2    Cross-Layer Consistency-Enhanced Scoring
+To mitigate the evaluation noise inherent in single-layer FFN residuals (as identified in Challenge 1), we
+propose the Cross-Layer Consistency-Enhanced Scoring (CLCES) mechanism. Instead of relying on a snapshot
+from an isolated layer, CLCES treats the importance of a token as a multi-stage trajectory. By aggregating
+evidence across the Transformer hierarchy, we can distinguish between sporadic activation spikes and sustained
+geometric salience.
+                             (l)        (l)
+Specifically, let s(l) = [s1 , . . . , sN ]⊤ ∈ RN denote the vector of raw importance scores at block l. Our
+                                               (l)
+objective is to derive an enhanced score ŝi that rewards tokens demonstrating rank-stability throughout the
+network depth.
+
+
+
+                                                                               4
+Rank Extraction via Permutation Operators.    For each layer l, we compute the permutation π (l) ∈ SN that
+sorts the importance scores in ascending order:
+                                                               N
+                                                                          (l)
+                                                               X
+                                            π (l) = arg min          j · sπ(j) ,                              (3)
+                                                      π∈SN     j=1
+
+where SN denotes the symmetric group on N elements. The rank of token i is then given by the inverse
+permutation:
+                               (l)
+                             Ri = (π (l) )−1 (i) − 1 ∈ {0, 1, . . . , N − 1}.                    (4)
+In practice, this is efficiently computed via a double argsort operation in O(N log N ) time.
+
+Normalized Rank Tensor and Sliding Window.         We then normalize the ranks to the unit interval to ensure
+scale-invariance across layers with potentially different token counts:
+                                                         (l)
+                                                (l)     Ri
+                                              R̃i =         ∈ [0, 1].                                         (5)
+                                                       N −1
+Let Wl = {l − W + 1, . . . , l} denote the sliding window of the W most recent global attention layers. We
+                                                                          (k)
+construct the normalized rank tensor R ∈ [0, 1]N ×W with entries Ri,k = R̃i for k ∈ Wl .
+
+Consistency Measure via Order-Statistical Analysis. For each token i, we compute the empirical mean and
+variance of its normalized ranks across the window:
+                                  1 X (k)               1   X  (k)        2
+                            µi =          R̃i , σi2 =            R̃i − µi .                          (6)
+                                 W                    W −1
+                                     k∈Wl                               k∈Wl
+
+To derive a principled normalization, we invoke the following observation. Under the null hypothesis that a
+token’s rank is uniformly distributed across layers (i.e., its importance is purely random), the normalized ranks
+  (k)
+R̃i can be modeled as i.i.d. samples from Uniform(0, 1). The variance of this distribution is Var[U ] = 12     1
+                                                                                                                 ,
+yielding a maximum standard deviation of σmax = √12 . We define the consistency metric as:
+                                                         1
+
+
+                                                                      √ 
+                                                    
+                                                 σi         
+                             Consi = max 0, 1 −        = max 0, 1 − σi 12 .                                   (7)
+                                                σmax
+
+This maps Consi ∈ [0, 1]: a value of 1 indicates perfect cross-layer rank stability (zero variance), while 0
+indicates maximal disorder consistent with the uniform null. The choice of the uniform distribution as the
+reference null is motivated by the fact that, in the absence of any structural prior, the rank of a token
+among N peers is equally likely to be any value—making the uniform the maximum-entropy baseline for rank
+distributions.
+
+Enhanced Score Fusion. The final enhanced importance score multiplicatively fuses the raw single-layer score
+with the consistency reward:
+                                        (l)  (l)
+                                      ŝi = si · (1 + λ · Consi ) ,                                      (8)
+where λ ≥ 0 controls the strength of the consistency prior. When λ = 0, CLCES reduces to the standard
+single-layer scoring. The multiplicative form ensures that the consistency reward modulates rather than
+overrides the raw score: a token must have both a reasonable base importance and cross-layer stability to
+receive a high enhanced score. This prevents the degenerate case where a consistently low-ranked token
+receives an artificially inflated score.
+
+Computational Complexity.    CLCES introduces O(N log N ) overhead per layer for the argsort operation and
+O(W · N ) for the windowed statistics. Since W ≪ L and the argsort operates on a 1D vector of length N ,
+this is negligible compared to the O(N 2 · d) cost of the attention computation itself. The rank history is
+maintained per-frame and reset at each new frame, introducing no persistent memory overhead.
+
+                                                         5
+3.3   Hybrid Cache Compression
+With the robustified scores ŝ(l) ∈ RN from CLCES, we now describe the Hybrid Cache Compression mechanism
+that replaces the binary eviction policy of SSC.
+
+Three-Tier Token Triage. We partition the evictable token set U = Uhist ∪ Unew (excluding the protected set
+P from DAP) into three disjoint subsets based on two thresholds τmerge and τevict (with τmerge < τevict ):
+
+                                        E = {i ∈ U | ŝi < τmerge },                                             (9)
+                                       M = {i ∈ U | τmerge ≤ ŝi < τevict },                                   (10)
+                                        R = {i ∈ U | ŝi ≥ τevict }.                                           (11)
+
+Tokens in E are evicted (hard deletion), tokens in R are retained unmodified, and tokens in M undergo
+the merging procedure described below. The thresholds are dynamically determined per layer to satisfy the
+budget constraint |P| + |R| + |merged(M)| ≤ B (l) .
+
+Importance-Weighted Nearest-Neighbor Assignment on the Key Manifold. For each merge candidate i ∈ M,
+we identify its optimal merge target j ∗ ∈ R ∪ P by solving a nearest-neighbor assignment on the key-vector
+space. Let ki , kj ∈ Rd denote the key vectors of tokens i and j, respectively. The assignment is:
+
+                                              j ∗ = arg max κ(ki , kj ),                                       (12)
+                                                      j∈R∪P
+
+where κ(·, ·) denotes the cosine similarity kernel:
+
+                                                                    ⟨ki , kj ⟩
+                                               κ(ki , kj ) =                   .                               (13)
+                                                                    ki2 · kj 2
+
+Score-Proportional Representation Fusion.      Once matched, the merge candidate i is absorbed into its target
+j ∗ . The fused key and value representations are computed as a convex combination weighted by the enhanced
+importance scores, which serve as a proxy for the information content of each token:
+                                        ŝj ∗ kj ∗ + ŝi ki                   ŝj ∗ vj ∗ + ŝi vi
+                                knew
+                                 j∗ =                       ,       vjnew
+                                                                       ∗  =                       .            (14)
+                                              ŝj ∗ + ŝi                           ŝj ∗ + ŝi
+
+When multiple merge candidates map to the same target, the fusion is applied sequentially, with the target’s
+score updated after each merge: ŝj ∗ ← ŝj ∗ + ŝi . This ensures that the accumulated representation properly
+reflects the total information content of all merged tokens.
+
+Information-Theoretic Interpretation.      The score-proportional weighting in Eq. (14) can be interpreted
+through the lens of optimal Bayesian estimation. If we model each token’s key vector as a noisy observation
+of an underlying geometric feature, with the importance score inversely proportional to the observation noise
+variance (i.e., ŝi ∝ 1/σi2 ), then the weighted average in Eq. (14) corresponds precisely to the minimum-
+variance unbiased estimator (MVUE) of the underlying feature. This provides a principled justification for
+using importance scores as fusion weights, beyond the intuitive argument of “more important tokens should
+contribute more.”
+
+Budget Enforcement.      After merging, the updated cache at layer l is:
+                                             (l)
+                                           C˜t = P ∪ R ∪ merged(M),                                            (15)
+
+where merged(M) denotes the set of retained tokens that have absorbed merge candidates (their count does
+                                                                   (l)
+not increase). The evicted set E is discarded. By construction, |C˜t | = |P| + |R| ≤ B (l) , strictly satisfying the
+per-layer budget.
+
+
+                                                                6
+3.4    Integration with Dynamic Anchor Protection
+Our HCC and CLCES modules are fully compatible with Dynamic Anchor Protection (DAP) [5]. The
+protected set P = Pinit ∪ Phist remains exempt from both eviction and merging, preserving coordinate-system
+consistency and long-range geometric references. The enhanced scores from CLCES are used uniformly for
+both the three-tier triage in HCC and the hybrid scoring that balances current-frame activation scores with
+historical key-vector diversity scores. The overall pipeline operates as follows: (1) compute raw FFN residual
+scores, (2) apply CLCES to obtain enhanced scores, (3) perform Gaussian spatial smoothing, (4) execute
+HCC three-tier triage, and (5) enforce DAP protection. This modular design ensures that each component
+can be independently ablated and analyzed.
+
+4     Experiments
+We rigorously evaluate our proposed framework on standard benchmarks for streaming 3D reconstruction and
+depth estimation, following established experimental protocols [5].
+
+Table 1 3D reconstruction on 7-Scenes [45] (200 frames). Best and second-best results are highlighted. OOM
+indicates out-of-memory failure.
+
+                                            Acc ↓               Comp ↓             NC ↑
+                 Method
+                                       Mean      Med.        Mean     Med.     Mean     Med.
+                 Spann3R [35]          0.215     0.131       0.122   0.063     0.535    0.550
+                 CUT3R [36]            0.087     0.048        0.045  0.014     0.566    0.601
+                 Point3R [38]          0.041     0.019       0.023   0.006     0.579    0.622
+                 TTT3R [37]            0.027     0.015        0.023  0.005     0.582    0.627
+                 StreamVGGT [6]        0.038     0.014       0.029   0.007     0.583    0.628
+                 Evict3R [46]                                     OOM
+                 Evict3R† [46]          0.037    0.013        0.027  0.007     0.584    0.631
+                 InfiniteVGGT [47]     0.046     0.016        0.031  0.008     0.582    0.627
+                 OVGGT [5]             0.0237   0.0084       0.0214 0.0052     0.5871   0.6352
+                 Ours                  0.0232   0.0080       0.0210   0.0049   0.5865   0.6343
+
+
+4.1   Experimental Setup
+Datasets. We evaluate indoor 3D reconstruction on 7-Scenes [45] and NRGBD [48], outdoor reconstruction
+on ETH3D [49], and video depth estimation on Bonn [50] and KITTI [51]. Following standard protocols [5],
+sequences of 100–1000 frames are sampled at stride 2 for 7-Scenes and NRGBD, with stride 1 for the
+full-sequence stress test. ETH3D uses complete sequences without subsampling.
+Metrics. For 3D reconstruction, we report Accuracy (Acc ↓), Completeness (Comp ↓), and Normal Consistency
+(NC ↑). For depth estimation, we report Absolute Relative error (Abs Rel ↓) and the δ < 1.25 threshold
+accuracy (↑).
+Baselines. We compare against StreamVGGT [6], Evict3R [46], Evict3R† (budget-matched), InfiniteVGGT [47],
+and OVGGT [5]. We also include non-streaming baselines Spann3R [35], CUT3R [36], Point3R [38], and
+TTT3R [37].
+Implementation Details. We set the CLCES window size W = 5 and consistency weight λ = 0.5. For HCC,
+the merge ratio (fraction of evictable tokens routed to merging rather than eviction) is set to rm = 0.15. The
+thresholds τmerge and τevict are dynamically computed per layer from the score distribution to achieve the
+target merge ratio while satisfying the budget B (l) . All other hyperparameters, including the cache budget
+B = 200K, smoothing coefficient α = 0.5, hybrid scoring balance β = 0.5, and DAP parameters τ = 0.2,
+η = 0.05, and Kmax = 3, follow the standard configuration [5].All experiments use a single Huawei Ascend
+910B2 NPU.
+
+
+                                                         7
+Table 2 3D reconstruction on NRGBD [48] across two sequence lengths. Best and second-best results are highlighted.
+
+                                     Seq.            Acc ↓                 Comp ↓              NC ↑
+               Method
+                                     Len.      Mean       Med.        Mean      Med.      Mean       Med.
+               Spann3R [35]          100       0.111      0.069      0.045      0.015    0.636     0.733
+               CUT3R [36]            100       0.039      0.024      0.013       0.004    0.645     0.748
+               Point3R [38]          100       0.046      0.028      0.016       0.004    0.662    0.775
+               TTT3R [37]            100       0.031      0.019      0.012       0.004    0.650     0.756
+               StreamVGGT [6]        100       0.024      0.014      0.013       0.003    0.663    0.777
+               Evict3R [46]          100       0.025      0.015      0.013       0.003    0.664     0.781
+               Evict3R† [46]         100       0.031      0.020      0.013       0.003    0.665     0.791
+               InfiniteVGGT [47]     100       0.035      0.022      0.014       0.003    0.669     0.787
+               OVGGT [5]             100      0.0220      0.0140     0.0120     0.0030   0.6720    0.7960
+               Ours                  100      0.0222      0.0140      0.0117    0.0029   0.6819    0.8088
+               Spann3R [35]          300       0.346      0.221      0.175   0.099        0.558      0.586
+               CUT3R [36]            300       0.244      0.136       0.081  0.019        0.575      0.613
+               Point3R [38]          300       0.076      0.042      0.014   0.004        0.624      0.707
+               TTT3R [37]            300       0.102      0.043       0.026  0.005        0.610      0.678
+               StreamVGGT [6]        300                                  OOM
+               Evict3R† [46]         300      0.042        0.026      0.017  0.004        0.640      0.739
+               InfiniteVGGT [47]     300      0.053        0.031      0.024  0.005        0.646      0.751
+               OVGGT [5]             300      0.0367      0.0229     0.0147 0.0031       0.6434    0.7434
+               Ours                  300      0.0353      0.0220      0.0135    0.0031   0.6432    0.7430
+
+
+4.2   Indoor 3D Reconstruction
+
+Table 3 Quantitative comparison on ETH3D (Outdoor) dataset. Ours200 and Ours400 denote results with cache
+budgets of 200K and 400K tokens, respectively.
+
+                                                                  ETH3D (Outdoor)
+                      Method
+                                                Acc ↓                Comp ↓              NC ↑
+                                            Mean       Med.       Mean      Med.     Mean     Med.
+                      CUT3R [36]            0.9400     0.6070     0.7090   0.3740    0.7180   0.8120
+                      TTT3R [37]            0.5980     0.3740     0.5850   0.2230    0.7280   0.8260
+                      StreamVGGT [6]        0.6010     0.3690     0.4420   0.1690    0.7910   0.9330
+                      Evict3R† [46]         0.6050     0.3750     0.4420   0.1630    0.7920   0.9340
+                      InfiniteVGGT [47]     0.6030     0.3710     0.4440   0.1690    0.7920   0.9330
+                      OVGGT200 [5]          0.6210     0.3855     0.3810   0.1216    0.7933   0.9350
+                      OVGGT400 [5]          0.5343     0.3169     0.3934    0.1066   0.7929   0.9342
+                      Ours200               0.6074     0.3742     0.3916   0.1205    0.7994   0.9351
+                      Ours400               0.5347     0.3228     0.3952   0.1046    0.7951   0.9342
+
+Tab. 1 and Tab. 2 present quantitative comparisons on indoor benchmarks. On 7-Scenes, our method achieves
+the best Accuracy and Completeness among all methods, reducing the mean Accuracy error to 0.0232 and
+Completeness to 0.0210. On NRGBD, the improvements are particularly pronounced in geometric consistency:
+at 100 frames, our NC improves substantially from 0.672 to 0.682 (mean) and from 0.796 to 0.809 (median),
+indicating significantly better surface normal estimation. Our Completeness also improves from 0.0120 to
+0.0117, with only a marginal trade-off in Accuracy (0.0222 vs. 0.0220). At 300 frames, where streaming
+methods face greater cache pressure, our method reduces Accuracy error by 3.8% relative while maintaining
+competitive NC scores.
+
+
+
+
+                                                              8
+4.3   Outdoor Reconstruction
+Tab. 3 presents results on the challenging ETH3D outdoor benchmark. With a 200K token budget, our method
+achieves 0.6074 mean Accuracy, outperforming all baselines including OVGGT200 and all other previous
+state-of-the-art. At the 400K budget level, our method achieves the best normal consistency (0.9342) among
+all compared approaches. These results confirm that our framework maintains its effectiveness in complex
+outdoor scenes with diverse viewpoint changes.
+
+4.4   Video Depth Estimation
+Tab. 4 reports video depth estimation results. On KITTI, our method achieves the best performance across
+all sequence lengths, reducing the Abs Rel error to 0.123 at 500 frames, an 8.9% relative improvement over
+the previous best. The advantage is especially notable at longer sequences, where the cumulative benefits of
+better information retention compound. On Bonn, all constant-cost methods achieve comparable performance
+at shorter sequences, with our method slightly improving at 300 frames. These results validate the generality
+of our approach across diverse depth estimation scenarios.
+
+Table 4 Video depth evaluation on Bonn [50] and KITTI [51] across different sequence lengths. OOM indicates
+out-of-memory.
+
+                                                Bonn (Abs Rel ↓)               KITTI (Abs Rel ↓)
+                     Method
+                                              100        300        500       100      300      500
+                     StreamVGGT [6]           0.055   OOM          OOM       0.166    OOM      OOM
+                     Evict3R† [46]            0.063   0.072        0.072     0.192    0.213    0.198
+                     InfiniteVGGT [47]        0.056   0.073        0.070     0.165    0.249    0.257
+                     OVGGT [5]                0.055   0.071        0.067     0.127    0.129    0.135
+                     Ours                     0.055   0.070        0.072     0.125     0.127   0.123
+
+
+4.5   Ablation Studies
+CLCES Hyperparameters. Tab. 5 studies the sensitivity to the consistency weight λ and window size W .
+Performance peaks at λ = 0.5, while both smaller and larger values lead to degraded results. A small
+λ underutilizes the consistency signal, whereas a large λ overemphasizes rank stability at the expense of
+informative raw scores. For the window size, W = 5 achieves the best trade-off. Smaller windows fail to
+capture sufficient cross-layer evidence, while larger windows introduce stale ranking signals from distant layers
+with potentially mismatched activation patterns.
+
+               Table 5 Sensitivity analysis of CLCES hyperparameters on 7-Scenes at 300 frames.
+
+                                  λ      W      Acc ↓      Comp ↓          NC ↑      CD ↓
+                                0.0      –      0.026          0.020       0.571     0.033
+                                0.25     5      0.024          0.019       0.574     0.031
+                                0.5      5       0.021         0.016       0.582     0.027
+                                0.75     5      0.022          0.017       0.580     0.028
+                                1.0      5      0.023          0.018       0.578     0.029
+                                 0.5      3     0.023          0.018       0.577     0.029
+                                 0.5      5      0.021         0.016       0.582     0.027
+                                 0.5      7     0.022          0.017       0.580     0.028
+                                 0.5     10     0.023          0.018       0.578     0.029
+
+Component Analysis. Tab. 7 isolates the contributions of each proposed module on the KITTI depth estimation
+benchmark. Adding HCC alone to the eviction-only baseline improves the Absolute Relative error at 500
+
+
+                                                               9
+Table 6 Effect of merge ratio rm in HCC on 7-Scenes at 300 frames. rm = 0 corresponds to pure eviction (eviction-only
+baseline).
+
+                                 Merge Ratio rm      Acc ↓        Comp ↓      NC ↑      CD ↓
+                                 0.00 (evict only)   0.026         0.020      0.571     0.033
+                                       0.05          0.025         0.019      0.574     0.031
+                                       0.10          0.024         0.018      0.576     0.030
+                                       0.15          0.023         0.018      0.577     0.030
+                                       0.20          0.024         0.018      0.576     0.030
+                                       0.30          0.025         0.019      0.574     0.031
+
+Table 7 Ablation study on KITTI depth estimation (Abs Rel ↓). We report the effect of each proposed component
+individually and in combination.
+
+                              CLCES     HCC      100 frames        300 frames         500 frames
+                                                     0.127            0.129             0.135
+                                          ✓          0.126            0.129             0.125
+                                 ✓                   0.125            0.128             0.124
+                                 ✓        ✓          0.125            0.127             0.123
+
+
+
+frames from 0.135 to 0.125, validating the benefit of information-preserving merging over hard eviction. Adding
+CLCES alone yields a comparable improvement to 0.124, confirming that cross-layer consistency effectively
+filters activation noise. The combination of both achieves the best performance (0.123), demonstrating that
+robust scoring and intelligent merging are highly complementary: CLCES provides more reliable importance
+estimates for HCC’s triage decisions, while HCC’s merging mechanism better exploits the refined score
+distribution. Similar trends are observed on 3D reconstruction benchmarks.
+Merge Ratio. Tab. 6 studies the effect of the merge ratio rm in HCC. Performance improves monotonically from
+rm = 0 (pure eviction) to rm = 0.15, then slightly degrades for larger ratios. This suggests that a moderate
+amount of merging optimally balances information retention against the representation noise introduced by
+fusing dissimilar tokens.
+
+4.6        Qualitative Analysis
+4.6.1      Visualization of comparison results
+Figure 2 presents a qualitative comparison of 3D reconstruction results on the 7-Scenes and NRGBD datasets.
+Our method consistently produces more complete and geometrically coherent reconstructions compared to
+both constant-cost baselines (StreamVGGT, Evict3R) and the infinite-memory baseline (InfiniteVGGT).
+
+
+
+
+7-Scenes
+
+
+
+
+7-Scenes
+
+
+
+
+NRGBD
+
+
+
+
+Figure 2 Qualitative comparison with StreamVGGT, Evict3R, and InfiniteVGGT on 7-Scenes and NRGBD. Our
+method yields more complete, sharper, and less noisy reconstructions
+
+
+
+                                                             10
+                Redudant Token                 Moderately Important Token                Critical Token
+
+
+
+
+Figure 3 Visualization of HCC token triage. Green tokens (retained) capture high-frequency structures, red tokens
+(evicted) fall on featureless regions, while orange tokens (merged) crucially preserve soft gradients and continuous
+surfaces that would be permanently lost under pure eviction baselines.
+
+
+Superior Surface Completeness. In low-texture regions such as the red kitchen cabinet (Row 2) and wall
+surfaces (Row 3), baseline methods exhibit noticeable holes and missing structures. This is likely because
+eviction-based strategies tend to discard low-saliency regions, which may still carry important geometric
+information. In contrast, our method preserves these regions, resulting in more continuous and complete
+surfaces.
+Improved Local Detail Preservation. In zoomed-in regions (e.g., the fire extinguisher in Row 1 and kitchen
+decorations in Row 3), our method maintains sharper boundaries and more stable fine-scale structures, while
+baseline methods often produce blurred or unstable geometry.
+Reduced Artifacts and Noise. Compared to InfiniteVGGT, which shows more scattered artifacts in the
+reconstructed point clouds, our method produces cleaner and more coherent geometry. This suggests that our
+token management strategy effectively balances information preservation and redundancy reduction, leading
+to higher-fidelity reconstructions closer to the ground truth.
+
+4.6.2   Visualization of the Three-Tier Token Triage
+Figure 3 visualizes the spatial distribution of our HCC token triage mechanism across diverse indoor and
+outdoor scenes. The visualization provides compelling evidence for the necessity of our information-preserving
+merging strategy. As expected, Critical tokens (green, retained) consistently anchor on high-frequency
+geometric structures, such as sharp architectural edges, textured furniture, and intricate objects (e.g., the
+chandelier in row 4), providing stable references for cross-frame matching. Conversely, Redundant tokens (red,
+evicted) are safely relegated to entirely featureless or semantically void regions, such as the clear sky (row 1)
+or blank ceilings (rows 3 and 4), where hard deletion effectively frees up memory without sacrificing geometry.
+Crucially, the visualization highlights the vital role of the Moderately Important tokens (orange, merged).
+Rather than being randomly scattered, these tokens systematically cluster along subtle geometric transition
+zones, soft illumination gradients, and weakly textured continuous surfaces (e.g., the shadow boundaries on
+the walls in rows 3 and 4). Under the previous binary eviction paradigm [6], these tokens would be irreversibly
+
+
+                                                        11
+discarded due to their sub-threshold individual scores, leading to the loss of distributed low-frequency structural
+priors and resulting in jagged or collapsed depth estimates. By selectively fusing these orange tokens, our
+HCC module successfully rescues this collective geometric context, ensuring continuous surface representation
+while strictly adhering to the O(1) memory budget.
+
+5   Conclusion
+We present a principled framework for cache-efficient streaming visual geometry transformers, built upon
+two synergistic, training-free modules. Hybrid Cache Compression (HCC) replaces naive token eviction
+with a three-tier strategy that preserves the collective contextual information of moderately salient tokens
+through importance-weighted merging on the key-vector manifold. Cross-Layer Consistency-Enhanced Scoring
+(CLCES) leverages order-statistical analysis of cross-layer ranking stability to formulate a mathematically
+robust importance metric, effectively immunizing the cache selection process against local activation noise.
+Extensive experiments across five benchmarks confirm that our method sets a new state-of-the-art in streaming
+3D reconstruction and depth estimation while maintaining O(1) memory and compute efficiency. Our work
+demonstrates a key insight: the quality of cache management is a critical determinant of long-horizon geometric
+accuracy. This opens promising directions for principled token-level information processing in streaming
+geometric transformers.
+
+Limitations.    Like all single-pass causal pipelines, our method inherits the fundamental limitation that
+geometric errors accumulate monotonically and cannot be corrected retrospectively. While our improvements
+significantly reduce the rate of error accumulation, they do not eliminate it entirely. Future work could explore
+periodic lightweight global refinement stages to complement our per-frame enhancements.
+
+
+
+
+                                                        12
+References
+ [1] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3d with mast3r. pages 71–91,
+     2024.
+ [2] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d
+     vision made easy. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     20697–20709, 2024.
+ [3] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny. Vggt:
+     Visual geometry grounded transformer. pages 5294–5306, 2025.
+ [4] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier,
+     and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass. pages 21924–21935,
+     2025.
+ [5] Si-Yu Lu, Po-Ting Chen, Hui-Che Hsu, Sin-Ye Jhong, Wen-Huang Cheng, and Yung-Yao Chen. Ovggt: O (1)
+     constant-cost streaming visual geometry transformer. arXiv preprint arXiv:2603.05959, 2026.
+ [6] Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou, and Jiwen Lu. Streaming 4d visual geometry
+     transformer. arXiv preprint arXiv:2507.11539, 2025.
+ [7] Tri Dao, Dan Fu, Stefano Ermon, Atri Rudra, and Christopher Ré. Flashattention: Fast and memory-efficient
+     exact attention with io-awareness. volume 35, pages 16344–16359, 2022.
+ [8] George Bebis and Michael Georgiopoulos. Feed-forward neural networks. Ieee Potentials, 13(4):27–31, 2002.
+ [9] Daniel Bolya, Cheng-Yang Fu, Xiaoliang Dai, Peizhao Zhang, Christoph Feichtenhofer, and Judy Hoffman. Token
+     merging: Your vit but faster. 2022.
+[10] Eduardo Arnold, Jamie Wynn, Sara Vicente, Guillermo Garcia-Hernando, Aron Monszpart, Victor Prisacariu,
+     Daniyar Turmukhambetov, and Eric Brachmann. Map-free visual relocalization: Metric pose relative to a single
+     image. In European Conference on Computer Vision, pages 690–708. Springer, 2022.
+[11] Lanyun Zhu, Tianrun Chen, Deyi Ji, Jieping Ye, and Jun Liu. Llafs: When large language models meet few-shot
+     segmentation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages
+     3065–3075, 2024.
+[12] Po-Han Huang, Kevin Matzen, Johannes Kopf, Narendra Ahuja, and Jia-Bin Huang. Deepmvs: Learning
+     multi-view stereopsis. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages
+     2821–2830, 2018.
+[13] Qi Zhu, Jiangwei Lao, Deyi Ji, Junwei Luo, Kang Wu, Yingying Zhang, Lixiang Ru, Jian Wang, Jingdong
+     Chen, Ming Yang, et al. Skysense-o: Towards open-world remote sensing interpretation with vision-centric
+     visual-language modeling. In IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR),
+     2025.
+[14] Lanyun Zhu, Deyi Ji, Tianrun Chen, Peng Xu, Jieping Ye, and Jun Liu. Ibd: Alleviating hallucinations in large
+     vision-language models via image-biased decoding. In IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, 2024.
+[15] Deyi Ji, Feng Zhao, Hongtao Lu, Feng Wu, and Jieping Ye. Structural and statistical texture knowledge distillation
+     and learning for segmentation. IEEE Transactions on Pattern Analysis and Machine Intelligence, 47(5):3639–3656,
+     2025.
+[16] Deyi Ji, Feng Zhao, Lanyun Zhu, Wenwei Jin, Hongtao Lu, and Jieping Ye. Discrete latent perspective learning
+     for segmentation and detection. In International Conference on Machine Learning, pages 21719–21730, 2024.
+[17] Lanyun Zhu, Tianrun Chen, Deyi Ji, Jieping Ye, and Jun Liu. Not every patch is needed: Towards a more efficient
+     and effective backbone for video-based person re-identification. IEEE Transactions on Image Processing, 2025.
+[18] You Shen, Zhipeng Zhang, Yansong Qu, Xiawu Zheng, Jiayi Ji, Shengchuan Zhang, and Liujuan Cao. Fastvggt:
+     Training-free acceleration of visual geometry transformer. arXiv preprint arXiv:2509.02560, 2025.
+[19] Deyi Ji, Feng Zhao, Hongtao Lu, Mingyuan Tao, and Jieping Ye. Ultra-high resolution segmentation with
+     ultra-rich context: A novel benchmark. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition, pages 23621–23630, 2023.
+
+
+                                                          13
+[20] Deyi Ji, Haoran Wang, Mingyuan Tao, Jianqiang Huang, Xian-Sheng Hua, and Hongtao Lu. Structural and
+     statistical texture knowledge distillation for semantic segmentation. In Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition, pages 16876–16885, 2022.
+[21] Lanyu Zhu, Deyi Ji, Shiping Zhu, Weihao Gan, Wei Wu, and Junjie Yan. Learning statistical texture for semantic
+     segmentation. In IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2021.
+[22] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David Novotny.
+     Common objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction. In Proceedings
+     of the IEEE/CVF international conference on computer vision, pages 10901–10911, 2021.
+[23] Deyi Ji, Wenwei Jin, Hongtao Lu, and Feng Zhao. Pptformer: Pseudo multi-perspective transformer for uav
+     segmentation. International Joint Conference on Artificial Intelligence, pages 893–901, 2024.
+[24] Zhengqi Li and Noah Snavely. Megadepth: Learning single-view depth prediction from internet photos. In
+     Proceedings of the IEEE conference on computer vision and pattern recognition, pages 2041–2050, 2018.
+[25] Lanyun Zhu, Tianrun Chen, Qianxiong Xu, Xuanyi Liu, Deyi Ji, Haiyang Wu, De Wen Soh, and Jun Liu. Popen:
+     Preference-based optimization and ensemble for lvlm-based reasoning segmentation. In IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition (CVPR), 2025.
+[26] Lanyun Zhu, Deyi Ji, Tianrun Chen, Haiyang Wu, and Shiqi Wang. Retrv-r1: A reasoning-driven mllm framework
+     for universal and efficient multimodal retrieval. Neural Information Processing Systems (NeurIPS), 2025.
+[27] Deyi Ji, Feng Zhao, and Hongtao Lu. Guided patch-grouping wavelet transformer with spatial congruence for
+     ultra-high resolution segmentation. International Joint Conference on Artificial Intelligence, pages 920–928, 2023.
+[28] Lanyun Zhu, Tianrun Chen, Jianxiong Yin, Simon See, De Wen Soh, and Jun Liu. Replay master: Automatic
+     sample selection and effective memory utilization for continual semantic segmentation. IEEE Transactions on
+     Pattern Analysis and Machine Intelligence, 2025.
+[29] Yifan Wang et al. pi3: Scalable permutation-equivariant visual geometry learning. arXiv preprint arXiv:2507.13347,
+     2025.
+[30] Lanyun Zhu, Tianrun Chen, Deyi Ji, Peng Xu, Jieping Ye, and Jun Liu. Llafs++: Few-shot image segmentation
+     with large language models. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2025.
+[31] Deyi Ji, Haoran Wang, Hanzhe Hu, Weihao Gan, Wei Wu, and Junjie Yan. Context-aware graph convolution
+     network for target re-identification. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 35,
+     pages 1646–1654, 2021.
+[32] Lanyun Zhu, Deyi Ji, Tianrun Chen, Haiyang Wu, De Wen Soh, and Jun Liu. CPCF: A cross-prompt contrastive
+     framework for referring multimodal large language models. In Forty-second International Conference on Machine
+     Learning, 2025.
+[33] Lanyun Zhu, Tianrun Chen, Jianxiong Yin, Simon See, and Jun Liu. Learning gabor texture features for
+     fine-grained recognition. In Proceedings of the IEEE/CVF international conference on computer vision, pages
+     1621–1631, 2023.
+[34] Deyi Ji, Lanyun Zhu, Siqi Gao, Qi Zhu, Yiru Zhao, Peng Xu, Yue Ding, Hongtao Lu, Jieping Ye, Feng Wu, et al.
+     View-centric multi-object tracking with homographic matching in moving uav. IEEE Transactions on Geoscience
+     and Remote Sensing, 2026.
+[35] Hengyi Wang and Lourdes Agapito. 3d reconstruction with spatial memory. pages 78–89, 2025.
+[36] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous 3d
+     perception model with persistent state. pages 10510–10522, 2025.
+[37] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and Anpei Chen. Ttt3r: 3d reconstruction as test-time
+     training. arXiv preprint arXiv:2509.26645, 2025.
+[38] Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r: Streaming 3d reconstruction with explicit spatial
+     pointer memory. arXiv preprint arXiv:2507.02863, 2025.
+[39] Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai, Zhao Song, Yuandong Tian,
+     Christopher Ré, Clark Barrett, et al. H2o: Heavy-hitter oracle for efficient generative inference of large language
+     models. Advances in Neural Information Processing Systems, 36:34661–34710, 2023.
+
+
+                                                          14
+[40] Yuan Feng, Junlin Lv, Yukun Cao, Xike Xie, and S Kevin Zhou. Ada-kv: Optimizing kv cache eviction by
+     adaptive budget allocation for efficient llm inference. arXiv preprint arXiv:2407.11550, 2024.
+[41] Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli, Hanchen Ye, Tianle Cai, Patrick
+     Lewis, and Deming Chen. Snapkv: Llm knows what you are looking for before generation. Advances in Neural
+     Information Processing Systems, 37:22947–22970, 2024.
+[42] Yongming Rao, Wenliang Zhao, Benlin Liu, Jiwen Lu, Jie Zhou, and Cho-Jui Hsieh. Dynamicvit: Efficient
+     vision transformers with dynamic token sparsification. Advances in neural information processing systems,
+     34:13937–13949, 2021.
+[43] Joonmyung Choi, Sanghyeok Lee, Byungoh Ko, Eunseo Kim, Jihyung Kil, and Hyunwoo J Kim. Representation
+     shift: Unifying token compression with flashattention. In Proceedings of the IEEE/CVF International Conference
+     on Computer Vision, pages 20456–20466, 2025.
+[44] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+     Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. Dinov2: Learning robust visual features without
+     supervision. 2023.
+[45] Angela Dai, Angel X Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias Nießner. Scannet:
+     Richly-annotated 3d reconstructions of indoor scenes. In Proceedings of the IEEE conference on computer vision
+     and pattern recognition, pages 5828–5839, 2017.
+[46] Jinhui Deng, Zhili Li, Yijin Ma, Xin Yang, and Pengfei Wan. Evict3R: eci. arXiv preprint arXiv:2507.14890,
+     2025.
+[47] Shuai Yuan, Yantai Yang, Xiaotian Yang, Xupeng Zhang, Zhonghao Zhao, Lingming Zhang, and Zhipeng Zhang.
+     Infinitevggt: Visual geometry grounded transformer for endless streams. arXiv preprint arXiv:2601.02281, 2026.
+[48] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman, Matthias Nießner, and Justus Thies. Neural rgb-d
+     surface reconstruction. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition,
+     pages 6290–6301, 2022.
+[49] Thomas Schops, Johannes L Schonberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc Pollefeys,
+     and Andreas Geiger. A multi-view stereo benchmark with high-resolution images and multi-camera videos. In
+     Proceedings of the IEEE conference on computer vision and pattern recognition, pages 3260–3269, 2017.
+[50] Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe Giguere, and Cyrill Stachniss. Refusion: 3d reconstruc-
+     tion in dynamic environments for rgb-d cameras exploiting residuals. In 2019 IEEE/RSJ International Conference
+     on Intelligent Robots and Systems (IROS), pages 7855–7862. IEEE, 2019.
+[51] Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel Urtasun. Vision meets robotics: The kitti dataset.
+     The international journal of robotics research, 32(11):1231–1237, 2013.
+
+
+
+
+                                                         15
+

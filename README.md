@@ -2,10 +2,10 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Papers](https://img.shields.io/badge/Papers-131-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-264-green.svg)](docs/papers-list.md)
 [![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--07-orange.svg)](log.md)
 
-> A curated survey of **131 papers** on DUSt3R and feed-forward 3D reconstruction, from
+> A curated survey of **264 papers** on DUSt3R and feed-forward 3D reconstruction, from
 > CroCo (2022) through the CVPR/ICLR 2026 generation.
 
 Every paper has its own document with the same seven sections, and **every number in
@@ -54,9 +54,9 @@ excluded from the counts.
 ```text
 2022 █ 1 paper
 2023 █ 1 paper
-2024 ████ 4 papers
-2025 ███████████████████████████████████████████████████████████████ 57 papers
-2026 ████████████████████████████████████████████████████████████████ 58 papers
+2024 █ 4 papers
+2025 ██████████████████████████ 72 papers
+2026 ████████████████████████████████████████████████████████████████ 176 papers
 ```
 
 <!-- /GENERATED -->
@@ -65,7 +65,7 @@ The 2026 count is already comparable to all of 2025 with half the year remaining
 
 ## 🏷️ Research categories
 
-### 🔬 [Foundation Models](docs/foundation/) (5 papers)
+### 🔬 [Foundation Models](docs/foundation/) (24 papers)
 
 The lineage that established the paradigm.
 
@@ -77,7 +77,7 @@ The lineage that established the paradigm.
 | [MASt3R](docs/foundation/mast3r.md)         | ECCV 2024    | Added a dense local-feature matching head          |
 | [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 3DV 2025     | Full SfM pipeline on the MASt3R backbone           |
 
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (64 papers)
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (110 papers)
 
 The main line: static scenes, scale, speed, and the backbones everything else builds on.
 
@@ -115,7 +115,7 @@ The main line: static scenes, scale, speed, and the backbones everything else bu
 
 </details>
 
-### 🎬 [Dynamic Scenes](docs/dynamic/) (22 papers)
+### 🎬 [Dynamic Scenes](docs/dynamic/) (43 papers)
 
 Reconstruction when the scene itself moves.
 
@@ -133,14 +133,14 @@ Reconstruction when the scene itself moves.
 
 </details>
 
-### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (13 papers)
+### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (38 papers)
 
 Feed-forward models that emit 3D Gaussians instead of, or alongside, pointmaps.
 [Splatt3R](docs/gaussian-splatting/splatt3r.md), [YoNoSplat](docs/gaussian-splatting/yonosplat.md),
 [TokenSplat](docs/gaussian-splatting/tokensplat.md), [ARTDECO](docs/gaussian-splatting/artdeco.md),
 [InstantSplat](docs/gaussian-splatting/instantsplat.md), [PreF3R](docs/gaussian-splatting/pref3r.md).
 
-### 🧠 [Scene Understanding](docs/understanding/) (9 papers)
+### 🧠 [Scene Understanding](docs/understanding/) (17 papers)
 
 Geometry plus semantics in one pass. [IGGT](docs/understanding/iggt.md),
 [PanSt3R](docs/understanding/panst3r.md), [EPS3D](docs/understanding/eps3d.md),
@@ -153,14 +153,14 @@ Inferring geometry that was never observed — amodal and occluded structure.
 [Amodal3R](docs/reasoning/amodal3r.md), [NOVA3R](docs/reasoning/nova3r.md),
 [LaRI](docs/reasoning/lari.md), [RaySt3R](docs/reasoning/rayst3r.md).
 
-### 🤖 [Robotics](docs/robotics/) (7 papers)
+### 🤖 [Robotics](docs/robotics/) (13 papers)
 
 Calibration, odometry, and manipulation built on 3D foundation models.
 [Rig3R](docs/robotics/rig3r.md), [Calib3R](docs/robotics/calib3r.md),
 [MASt3R-Fusion](docs/robotics/mast3r-fusion.md), [ViPE](docs/robotics/vipe.md),
 [FVO](docs/robotics/fvo.md), [GraphSeg](docs/robotics/graphseg.md).
 
-### 📚 [Surveys & Analysis](docs/surveys/) (4 papers)
+### 📚 [Surveys & Analysis](docs/surveys/) (5 papers)
 
 Benchmarks and analyses that evaluate many models under one protocol, rather than
 proposing another. [E3D-Bench](docs/surveys/e3d-bench.md),
@@ -168,7 +168,7 @@ proposing another. [E3D-Bench](docs/surveys/e3d-bench.md),
 [Geometric Understanding](docs/surveys/geometric-understanding.md),
 [Survey: DUSt3R→VGGT](docs/surveys/survey-dust3r-to-vggt.md).
 
-### 📍 [Pose Estimation](docs/pose/) (2 papers) · 🏥 [Medical](docs/medical/) (1 paper)
+### 📍 [Pose Estimation](docs/pose/) (9 papers) · 🏥 [Medical](docs/medical/) (1 paper)
 
 [Reloc3r](docs/pose/reloc3r.md), [Pos3R](docs/pose/pos3r.md), [Endo3R](docs/medical/endo3r.md).
 
@@ -260,7 +260,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 131 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 264 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 Licensed [MIT](LICENSE). Paper content belongs to its respective authors.

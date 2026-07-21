@@ -1,0 +1,1074 @@
+                                          Mem3R: Streaming 3D Reconstruction with Hybrid
+                                                 Memory via Test-Time Training
+
+
+                                           Changkun Liu1,2∗ Jiezhi Yang1 Zeman Li1,3∗ Yuan Deng1                             Jiancong Guo1 Luca Ballan1
+                                         1
+                                           Google 2 The Hong Kong University of Science and Technology                       3
+                                                                                                                             University of Southern California
+arXiv:2604.07279v1 [cs.CV] 8 Apr 2026
+
+
+
+
+                                                                        CUT3R
+                                                                             State at time t-1
+
+                                                                                     State Update
+                                                                                     State Readout
+
+
+                                                                       P​arams:
+                                                                        793M State at time t
+                                                                                                                CUT3R (26 fps)        TTT3R (25 fps)
+
+                                                                        Ours
+                                                                                           State at time t-1
+
+
+                                                                                  MLP & State Update
+                                                                                  MLP & State Readout
+
+
+
+                                                                       P​arams:
+                                                                        6​ 44M             State at time t
+                                                    ...
+
+
+
+
+                                              Stream input                                                       Ours (26 fps)     Ours + TTT3R (25 fps)
+
+                                        Figure 1: We present Mem3R, an RNN-based model built on the CUT3R paradigm that achieves
+                                        stronger long-sequence streaming 3D perception. Built on a dual-memory design, Mem3R combines
+                                        (i) an implicit memory, W, for camera pose estimation and (ii) an explicit memory of persistent tokens
+                                        for global geometric context. It is further compatible with plug-and-play state-update strategies
+                                        developed for CUT3R, such as TTT3R, yielding additional gains in reconstruction quality and camera
+                                        pose estimation. Replacing CUT3R’s heavy pose-related state tokens and decoder with a lightweight
+                                        implicit MLP-based memory reduces the parameter count by about 19%, from 793M to 644M.
+
+                                                                                                     Abstract
+                                                    Streaming 3D perception is well suited to robotics and augmented reality, where
+                                                    long visual streams must be processed efficiently and consistently. Recent recurrent
+                                                    models offer a promising solution by maintaining fixed-size states and enabling
+                                                    linear-time inference, but they often suffer from drift accumulation and temporal
+                                                    forgetting over long sequences due to the limited capacity of compressed latent
+                                                    memories. We propose Mem3R, a streaming 3D reconstruction model with a
+                                                    hybrid memory design that decouples camera tracking from geometric mapping
+                                                    to improve temporal consistency over long sequences. For camera tracking,
+                                                    Mem3R employs an implicit fast-weight memory implemented as a lightweight
+                                                    Multi-Layer Perceptron updated via Test-Time Training. For geometric mapping,
+                                                    Mem3R maintains an explicit token-based fixed-size state. Compared with CUT3R,
+                                                    this design not only significantly improves long-sequence performance but also
+                                                    reduces the model size from 793M to 644M parameters. Mem3R supports
+                                             ∗ Work done during a Student Researcher Internship at Google.
+
+
+
+
+                                        Preprint.
+         existing improved plug-and-play state update strategies developed for CUT3R.
+         Specifically, integrating it with TTT3R decreases Absolute Trajectory Error
+         by up to 39% over the base implementation on 500 to 1000 frame sequences.
+         The resulting improvements also extend to other downstream tasks, including
+         video depth estimation and 3D reconstruction, while preserving constant GPU
+         memory usage and comparable inference throughput. Project page: https:
+         //lck666666.github.io/Mem3R/.
+
+
+1   Introduction
+A central challenge in real-time 3D perception is to recover accurate scene geometry and camera
+motion from long visual streams under strict computational and memory budgets. This capability is
+essential for a wide range of mobile applications, including robotic visual localization, navigation, and
+augmented reality. Recent progress in feed-forward multi-view geometry, driven by models such as
+DUSt3R [59] and VGGT [57], has inspired a new wave of Transformer-based architectures [29, 51, 66,
+75, 61, 45] that achieve impressive performance in 3D reconstruction and pose estimation. However,
+these methods typically rely on global pairwise alignment or dense cross-frame attention, leading
+to computational costs that scale quadratically with sequence length and limit their applicability in
+long-horizon streaming scenarios.
+To enable scalable streaming, prior work has mainly evolved along two directions. The first line of
+work leverages causal-attention Key-Value (KV) caches to preserve the full observation history [56, 28,
+72, 80]. While effective, this paradigm incurs memory consumption that grows linearly with sequence
+length, making it increasingly vulnerable to out-of-memory (OOM) failures during long-horizon
+inference. The second direction, exemplified by CUT3R, adopts a Recurrent Neural Network (RNN)-
+based architecture with a fixed-size latent state, enabling constant-memory inference. However,
+this compact state also creates an information bottleneck: once the sequence length exceeds the
+typical training horizon, CUT3R suffers from substantial temporal forgetting and trajectory drift. To
+alleviate these issues, TTT3R [13] reinterprets state updates through the perspective of Test-Time
+Training (TTT) and introduces per-token update weights that emphasize tokens most relevant to the
+current observations. Building on this idea, subsequent works [78, 18] have proposed alternative
+plug-and-play, training-free update strategies to further improve CUT3R.
+In this work, we present Mem3R, an enhanced RNN-based architecture with a dual-memory design
+for long-horizon streaming 3D perception. Our key idea is to improve the representational efficiency
+of the recurrent state by decoupling camera tracking from geometric mapping. Specifically, Mem3R
+replaces CUT3R’s pose-related state tokens and decoder layers with a lightweight implicit MLP-based
+memory for pose estimation via TTT inspired by LaCT [76], while retaining an explicit token-based
+memory to preserve global geometric context. This dual-memory design yields a more compact
+and effective backbone, reducing the parameter count from 793M to 644M (a 19% reduction) while
+achieving stronger performance, as illustrated in Fig. 1. We also introduce a learnable channel-wise
+state update module, inspired by recent advances in finite-state RNN architectures [52, 4], to enable
+finer-grained control over state updates.
+As a result, Mem3R remains fully compatible with training-free per-token state-update strategies
+such as TTT3R [13] and TTSA3R [78], and it delivers further gains when combined with them.
+Across camera pose estimation, video depth estimation, and 3D reconstruction, Mem3R shows clear
+improvements in most evaluated settings while preserving the inference speed and constant-memory
+advantages of RNN-based streaming models. These results prove Mem3R as a stronger and more
+memory-efficient model for long-sequence streaming 3D perception.
+
+2   Related Work
+Offline Feed-forward 3D Reconstruction. DUSt3R [59] proposes an end-to-end, feed-forward
+approach to 3D reconstruction, directly regressing point maps from image pairs. Subsequent
+extensions [29, 25, 34, 19, 12, 73, 65, 14] broadened this formulation to more challenging settings, but
+most remain fundamentally pairwise and therefore require costly global alignment once more than two
+views are involved. To overcome this limitation, recent offline multiview models [75, 66, 57, 61, 45]
+employ large feed-forward Transformers with global attention to jointly process all input views and
+
+
+                                                   2
+predict per-view geometry and camera poses in a single forward pass. Representative examples
+such as VGGT [57] achieve strong reconstruction quality, but their computational and memory costs
+scale quadratically with the number of frames. Moreover, they are inefficient for streaming data, as
+incorporating a newly arrived view typically requires reprocessing the entire sequence. Although
+methods such as FastVGGT [45] reduce inference overhead through token merging, these approaches
+remain better suited to offline reconstruction than to real-time long-sequence streaming settings.
+
+Online 3D Reconstruction. Online 3D reconstruction methods [56, 72, 28, 80, 58, 63, 32, 15]
+process views incrementally and update scene representations on the fly, making them attractive
+for robotics and embodied perception. Existing methods mainly differ in how they retain historical
+context. One line of work uses causal-attention caches to explicitly preserve past features. For
+example, StreamVGGT [80] stores historical keys and values in a causal Transformer, enabling
+long-range temporal conditioning but still incurring memory and computation growth with sequence
+length. Another line adopts fixed-size recurrent states for constant-memory inference. CUT3R [58]
+is a representative example, compressing previous observations into a latent state that is recurrently
+updated and queried for current reconstruction. While efficient, this compact state becomes an
+information bottleneck on long sequences, leading to temporal forgetting and drift. Several follow-up
+works improve this recurrent paradigm through plug-and-play, training-free state-update strategies.
+TTT3R [13] and TTSA3R [78] are plug-and-play, training-free methods for improving CUT3R
+state updates. TTT3R casts the update process from a Test-Time Training (TTT) perspective and
+introduces token-wise update weights, while TTSA3R proposes an alternative update rule for better
+long-horizon adaptation. Point3R [63] instead strengthens memory recall by associating historical
+tokens with explicit 3D points, at the cost of memory growth with the number of points and views.
+In contrast, our method improves the representational efficiency of the CUT3R backbone through a
+dual-memory design while remaining compatible with plug-and-play, training-free update strategies
+such as TTT3R and TTSA3R.
+
+Fast Weight Programs and Memory Architectures. The view of linear layers as associative
+memories dates back to Hopfield networks [22] and was later developed in fast weight programmers,
+where dynamic fast programs are integrated into recurrent neural networks as writable memory
+stores [41–43]. Building upon these foundational concepts, modern sequence modeling has diverged
+into two primary structural paradigms: linear memory modules and deep memory modules. Linear
+memory modules [21, 38, 68, 67, 23, 52] maintain matrix-valued hidden states with linear state
+transitions, while deep memory modules [4, 6, 31, 50, 7, 5, 76] use online-adapted sub-networks
+with dynamically updated parameters to encode contextual information. Our method is particularly
+inspired by this latter line of work, using an online-adapted implicit memory to improve long-horizon
+performance. Concurrent works [55, 74, 26] also incorporate TTT memory layers into 3D perception
+but address different settings: tttLRM [55] targets novel view synthesis with 3D Gaussian Splatting,
+ZipMap [26] focuses on large-chunk offline reconstruction, and LoGeR [74] studies chunk-wise
+reconstruction with sliding-window attention rather than frame-by-frame streaming reconstruction.
+
+3     Method
+In streaming 3D perception, a model processes an image sequence {It }N
+                                                                     t=1 incrementally, estimating
+camera motion and scene geometry online as new observations arrive.
+
+3.1   Overview
+
+We begin by briefly reviewing the recurrent state formulation in CUT3R to highlight the key
+differences in our design:
+                               Xt′ , S̄t = Decoders(Xt , St−1 ),                         (1)
+where St−1 is the state at time t − 1, S̄t is the updated state produced directly by the decoder, and
+Xt = [zt , Ft ] consists of a learnable pose token zt and image tokens Ft extracted from the current
+frame It .
+Our Mem3R is also an RNN-based architecture that maintains a fixed-size recurrent state for online
+3D perception. The key idea is to improve the efficiency of the recurrent memory representation by
+replacing pose-related state tokens and decoder layers with an implicit MLP. To this end, Mem3R
+
+
+                                                  3
+                       ViT               Fast Weight &                     Channel-​wise
+                     Encoder               Decoder                         State Update
+
+
+
+
+                       ViT               Fast Weight &                     Channel-​wise
+                     Encoder               Decoder                         State Update
+
+
+
+                               Fast Weight & Decoder with TTT (Detailed)
+
+
+
+
+                                                                                           ...
+         ...
+
+
+                                                                  Decoder
+
+                               Fast Weight
+                                                                TTT Update
+
+
+
+
+Figure 2: Overview of Mem3R. Top: For each frame It in the streaming image sequence, a ViT
+encoder extracts image features Ft . The MLP-based fast-weight module W performs camera tracking
+with decoder under Test-Time Training (TTT), while the fixed-size state S and decoder preserve and
+update geometric information, producing an intermediate state St′ . St′ is then fused with the previous
+state St−1 through a channel-wise update module (see Sec. 3.3) to obtain the final updated state St
+. By replacing pose-related state token with W, Mem3R maintains a constant-size recurrent state
+while reducing long-term temporal forgetting in streaming 3D reconstruction. Bottom: Illustration
+of the fast-weight and decoder module with TTT (see Sec. 3.2).
+
+
+uses a hybrid memory design: an implicit memory W, implemented as an MLP-based fast-weight
+module for camera tracking, and an explicit memory S, implemented as persistent state tokens for
+geometric mapping, as shown in Fig. 1 and Fig. 2. Unlike CUT3R, which directly writes decoder
+outputs into the recurrent state, our model treats the state output from the decoder as a candidate
+update and integrates it with a learnable channel-wise gate.
+At time t, the current frame is encoded into visual tokens Ft . The implicit memory predicts a
+pose token prior p̂t , which is processed together with Ft and the previous explicit state St−1 by a
+transformer decoder. The decoder produces a posterior pose token pt , updated visual features Ft′ , and
+a candidate state update S̃t . The implicit memory is then updated online by aligning prior p̂t with
+posterior pt , while the explicit memory is updated through channel-wise gated integration of S̃t .
+
+3.2   Implicit Memory via Test-Time Training
+
+To improve long-horizon camera tracking while preserving O(1) inference complexity, we introduce
+an adaptive fast-weight memory implemented as a lightweight SwiGLU MLP [44]:
+                                                                
+                            fW (x) = W2 SiLU(W1 x) ⊙ (W3 x) ,                                 (2)
+where W = {W1 , W2 , W3 } denotes the fast weights updated online during inference.
+Given the current visual tokens Ft , we first compute a L2 -normalized query feature qt and read a
+pose prior from the previous fast weights Wt−1 :
+                                                   p̂t = fWt−1 (qt ).                               (3)
+This prior replaces CUT3R’s learned pose token zt , yielding Xt = [p̂t , Ft ]. The decoder then
+produces
+                                    Xt′ , S̃t = Decoders(Xt , St−1 ),                                (4)
+         ′        ′                                                             ′
+where Xt = [pt , Ft ], with pt defined as the refined posterior pose token and Ft as the state-enriched
+visual features.
+We update the implicit memory by aligning the prior and posterior:
+                                              Lttt (p̂t , pt ) = ⟨p̂t , pt ⟩.                       (5)
+
+
+                                                            4
+To make the update adaptive for different It , we predict a per-step decay factor αt and a per-layer
+learning rates ηt from the current features:
+                     αt = 1 − γ · σ(Wα Ft ),          ηt = Softplus(Wη Ft + cbase ),                   (6)
+where γ = 0.01 is the decay scale, cbase = 0.001 is the base learning rate. σ(·) denotes the sigmoid
+function. The fast weights are then updated by
+                                    Wt = αt Wt−1 + ηt ⊙ ∇W Lttt .                                      (7)
+This update enables the model to estimate accurate pose cues while filtering out transient noise,
+effectively transforming the implicit memory into a compact local map for robust camera tracking.
+We provide more details of this module in Sec. A.2 of the supplementary material.
+
+3.3   Channel-wise Update of Explicit Memory
+
+To represent persistent global geometry, we retain an explicit token-based memory St ∈ RNs ×C ,
+where Ns is the number of state tokens and C is the channel dimension. The decoder output S̃t in
+Eq. (4) is treated as a candidate state update rather than the final new state.
+Directly overwriting the state can lead to temporal forgetting in long sequences. To address this issue,
+we introduce a channel-wise update gate ζt ∈ (0, 1)Ns ×C :
+                                         ζt = σ(fζ (Ft , St−1 )) ,                                     (8)
+where fζ is an MLP. The explicit memory is then updated as
+                                   St = ζt ⊙ S̃t + (1 − ζt ) ⊙ St−1 .                                  (9)
+This channel-wise gating enables finer control over memory evolution, allowing stable geometric
+features to be preserved while selectively integrating new observations. During inference, when
+applying the TTT3R and TTSA3R’s per-token state update mechanism, the state is updated using:
+                             St = Gt ⊙ ζt ⊙ S̃t + Gt ⊙ (1 − ζt ) ⊙ St−1 ,                             (10)
+
+where G ∈ RN ×1 is the per-token gate calculated from TTT3R or TTSA3R. We provide more details
+of this module in Sec. A.2.
+
+3.4   Prediction Heads and Training
+
+We follow CUT3R in using the same prediction heads and supervision.                            Given the
+refined tokens (pt , Ft′ ), Mem3R predicts local-frame pointmaps and confidence scores,
+(Ẑtself , Ctself ) = Headself (Ft′ ), world-frame pointmaps and confidence scores, (Ẑtworld , Ctworld ) =
+Headworld (pt , Ft′ ), and the 6-DoF camera pose P̂t = Headpose (pt ).
+For training, we use the same objectives as CUT3R. The local- and world-frame pointmaps are
+supervised with the confidence-aware 3D regression loss:
+                                                                                      
+               L3D = Lconf Ẑ self , Z self , C self + Lconf Ẑ world , Z world , C world , (11)
+
+where                                                                           
+                                               X               ẑ   z
+                      Lconf (Ẑ, Z, C) =                    c·    −     − β log c .                   (12)
+                                                               ŝ   s 2
+                                           (ẑ,c)∈(Ẑ,C)
+
+Camera pose is supervised by
+                                        N                                   
+                                        X                     τ̂t   τt
+                              Lpose =          ∥q̂t − qt ∥2 +     −              ,                    (13)
+                                        t=1
+                                                               ŝ   s    2
+
+and, when raymap inputs are available, we additionally use the RGB reconstruction loss Lrgb =
+          2
+ Iˆr − Ir . The full objective is L = L3D + Lpose + 1raymap Lrgb , where 1raymap indicates whether
+           2
+the input is a raymap.
+
+
+                                                      5
+To ensure that the gains can be fairly attributed to our architectural design, we train Mem3R using
+the same 26-dataset mixture and training configuration as the final training stage of CUT3R, with
+input sequences ranging from 4 to 64 views. The training data cover diverse real and synthetic
+scenes, including CO3Dv2 [39], ARKitScenes [17], MegaDepth [30], MapFree [1], DL3DV [33],
+and Hypersim [40]. The full dataset list is provided in Sec. A.1 of the supplementary material. We
+initialize the ViT encoder, transformer decoders, and prediction heads from the pre-trained 512-DPT
+CUT3R weights and fine-tune all modules jointly. Optimization is performed with AdamW [35], using
+an initial learning rate of 1 × 10−6 , linear warmup, and cosine decay. Training takes approximately
+10 hours on 32 NVIDIA H100 GPUs with a batch size of 8 per GPU.
+
+
+4           Experiment
+
+We evaluate our Mem3R on a variety of tasks, including camera pose estimation (Sec. 4.1), video
+depth estimation (Sec. 4.2), and 3D reconstruction (Sec. 4.3). We primarily focus on streaming 3D
+reconstruction models, specifically Point3R [63], StreamVGGT [80], and CUT3R [58]. Among
+these, we treat the RNN-based CUT3R as our closest baseline to demonstrate that Mem3R achieves
+superior performance on long sequences (≥ 200 frames). Furthermore, we show that Mem3R is
+fully compatible with existing training-free state update mechanisms developed for CUT3R, such as
+TTT3R [13] and TTSA3R [78].
+All quantitative evaluations are performed on NVIDIA A100 40GB GPUs, and qualitative
+visualizations are generated on a workstation with a single NVIDIA RTX PRO 6000 Blackwell
+Max-Q GPU.
+
+                        Pose Estimation (ATE) - ScanNet                                   Pose Estimation (ATE) - TUM Dynamics
+          0.8      VGGT_offline                                                   0.175
+                   StreamVGGT
+                   Point3R                                                        0.150
+          0.7      CUT3R
+                   TTT3R
+          0.6      TTSA3R                                                         0.125
+                   Ours
+          0.5      Ours + TTT3R                                                   0.100
+                   Ours + TTSA3R
+ATE (m)
+
+
+
+
+                                                                        ATE (m)
+
+
+
+
+          0.4
+                                                                                  0.075
+          0.3
+                                                                                  0.050
+          0.2
+          0.1                                                                     0.025
+          0.0                                                                     0.000
+                       200           400       600         800   1000                       200      400      600         800    1000
+                                   Number of Input Views                                          Number of Input Views
+Figure 3: Quantitative evaluation of camera pose estimation from the ScanNet dataset (left) and the
+TUM Dynamics dataset (right). Mem3R achieves significant improvement compared with CUT3R.
+Moreover, when combined with the training-free, plug-and-play state update strategies TTT3R or
+TTSA3R, Mem3R further yields better results compared to applying these strategies to CUT3R.
+
+
+4.1             Camera Pose Estimation
+
+Following [13, 78], we evaluate camera pose accuracy on the TUM Dynamics [48] and ScanNet [16]
+datasets using sequences ranging from 50 to 1,000 frames. We adopt the standard Absolute Trajectory
+Error (ATE) metric, computed after Sim(3) alignment [54] between the estimated and ground-
+truth trajectories. As illustrated in Fig. 3, Mem3R consistently outperforms CUT3R and Point3R.
+Furthermore, integrating TTT3R and TTSA3R into Mem3R yields significantly lower pose errors,
+particularly on sequences exceeding 400 streaming frames. In contrast, VGGT and StreamVGGT,
+both based on full attention, are prone to memory exhaustion for such long sequences. Qualitative
+comparisons in Fig. 4 demonstrate that Mem3R, when equipped with TTT3R and TTSA3R, achieves
+superior tracking accuracy compared to CUT3R under identical state-update strategies. Notably,
+Mem3R with TTT3R provides a 39% relative reduction in ATE at the 500-frame mark on the TUM
+dynamics dataset compared with the base TTT3R model. More results are provided in Sec. A.4 of
+the supplementary material.
+
+
+                                                                        6
+                 CUT3R vs. Ours                            TTT3R vs. Ours + TTT3R                     TTSA3R vs. Ours + TTSA3R
+
+
+
+
+                 CUT3R vs. Ours                            TTT3R vs. Ours + TTT3R                     TTSA3R vs. Ours + TTSA3R
+
+
+Figure 4: Qualitative visualization of predicted camera trajectories on the TUM Dynamics dataset
+(top row) and the ScanNet dataset (bottom row). Each row is evaluated on the same sequence. Our
+Mem3R achieves significant improvement compared with CUT3R. Moreover, when combined with
+TTT3R or TTSA3R, Mem3R further reduces drift compared to applying these strategies to CUT3R.
+
+
+We further evaluate camera pose accuracy on short sequences using the Sintel [9] dataset, reporting
+ATE, Relative Translation Error (RPEtrans ), and Relative Rotation Error (RPErot ). We evaluate
+Mem3R against a diverse set of 3D vision models [59, 29, 29, 73, 12, 57, 61, 56, 28] in Sec. A.4 of
+the supplementary material.
+
+
+Table 1: Quantitative evaluation of video depth estimation on long sequences from the KITTI dataset.
+Bold indicates the best result per column within each depth category, and green indicates improved
+or maintained performance of our model over its respective base counterpart.
+                       300 frames              350 frames               400 frames           450 frames            500 frames
+ Method
+                   Abs Rel ↓      δ1.25 ↑   Abs Rel ↓    δ1.25 ↑   Abs Rel ↓    δ1.25 ↑   Abs Rel ↓   δ1.25 ↑   Abs Rel ↓   δ1.25 ↑
+                                                            Metric Depth
+ CUT3R                0.13         83.8       0.14        82.7         0.14      82.1       0.15       81.1       0.15       80.4
+ Ours                 0.12         88.4       0.12        87.4         0.13      87.1       0.13       86.8       0.13       86.0
+ TTT3R                0.12         88.5       0.12        87.7         0.13      87.3       0.13       86.6       0.13       86.5
+ Ours + TTT3R         0.11         89.5       0.12        88.9         0.12      88.6       0.12       88.2       0.13       87.5
+ TTSA3R               0.12         88.8       0.12        88.0         0.13      87.5       0.13       86.7       0.13       86.5
+ Ours + TTSA3R        0.12         89.0       0.12        88.5         0.12      88.2       0.13       87.7       0.13       87.0
+                                                        Scale-Invariant Depth
+ CUT3R                0.12         87.4       0.13        87.0         0.13      87.1       0.13       86.7       0.13       86.5
+ Ours                 0.11         90.3       0.11        89.6         0.11      89.4       0.11       89.2       0.11       89.1
+ TTT3R                0.11         90.2       0.11        89.6         0.12      89.5       0.12       89.1       0.12       89.1
+ Ours + TTT3R         0.10         91.3       0.11        90.8         0.11      90.5       0.11       90.1       0.11       89.9
+ TTSA3R               0.11         90.9       0.11        90.2         0.11      90.0       0.12       89.5       0.12       89.4
+ Ours + TTSA3R        0.10         92.0       0.10        91.5         0.11      91.2       0.11       90.7       0.11       90.5
+
+
+
+
+4.2   Video Depth Estimation
+
+As in [73, 58], we evaluate long-sequence video depth estimation on the KITTI [20] and Bonn [37]
+datasets. These datasets span 300 to 500 frames and encompass a diverse range of dynamic, static,
+indoor, and outdoor scenes. We report both scale-invariant and metric-scale results using the
+
+
+                                                                   7
+Absolute Relative error (Abs Rel) and the δ < 1.25 threshold (the percentage of pixels where
+     dgt dest
+max( dest , dgt ) < 1.25).
+As demonstrated in Tabs. 1 and 2, Mem3R significantly outperforms CUT3R. Integrating Mem3R
+with TTT3R and TTSA3R further yields performance gains across most scenarios. Furthermore,
+we evaluate short-sequence performance (50 streaming frames) on the Sintel [9] dataset (Tab. 6) in
+Sec. A.4 of the supplementary material.
+
+
+Table 2: Quantitative evaluation on the Bonn dataset. Bold indicates the absolute best result per
+column within each depth category; green indicates improvement of our model over its direct
+baseline.
+                                                      300 frames                      350 frames                                   400 frames                   450 frames                     500 frames
+ Method
+                                            Abs Rel ↓             δ1.25 ↑         Abs Rel ↓     δ1.25 ↑        Abs Rel ↓                      δ1.25 ↑    Abs Rel ↓         δ1.25 ↑          Abs Rel ↓     δ1.25 ↑
+                                                                                                     Metric Depth
+ CUT3R                                           0.11              88.8             0.11            88.8                          0.11         89.5            0.10          90.2             0.10            90.6
+ Ours                                            0.11              89.7             0.11            89.6                          0.11         90.2            0.10          90.8             0.10            91.2
+ TTT3R                                           0.11              90.2             0.10            90.8                          0.10         91.3            0.10          91.8             0.10            92.1
+ Ours + TTT3R                                    0.10              91.4             0.10            91.9                          0.10         92.3            0.10          92.6             0.10            92.9
+ TTSA3R                                          0.10              91.7             0.10            92.1                          0.10         92.5            0.10          92.7             0.10            93.0
+ Ours + TTSA3R                                   0.10              92.5             0.10            92.8                          0.10         93.2            0.10          93.4             0.09            93.7
+                                                                                              Scale-Invariant Depth
+ CUT3R                                           0.089             93.8            0.091            93.1                     0.090             93.3           0.086          93.6            0.084            93.8
+ Ours                                            0.085             94.6            0.087            94.0                     0.087             94.1           0.085          94.4            0.083            94.5
+ TTT3R                                           0.079             94.9            0.078            95.0                     0.078             95.1           0.077          95.2            0.076            95.3
+ Ours + TTT3R                                    0.077             94.9            0.076            95.0                     0.076             95.1           0.076          95.2            0.075            95.3
+ TTSA3R                                          0.078             95.1            0.077            95.1                     0.077             95.2           0.077          95.3            0.076            95.4
+ Ours + TTSA3R                                   0.076             95.0            0.074            95.0                     0.074             95.1           0.074          95.2            0.073            95.3
+
+
+
+                                     VGGT (offline)
+                                     StreamVGGT                                                                                   0.62
+                         0.12        Point3R
+                                     CUT3R
+                                     TTT3R                                                                                                       OOM
+                         0.10                                                                                                     0.60
+                                                                                                             Normal Consistency
+
+
+
+
+                                     TTSA3R                                                                                                      OOM
+      Chamfer Distance
+
+
+
+
+                                     Ours
+                         0.08        Ours + TTT3R
+                                     Ours + TTSA3R                                                                                0.58
+                         0.06
+                                                                                                                                  0.56
+                         0.04
+                                               OOM                                                                                0.54
+                         0.02                  OOM
+                                50         100          150       200       250       300     350      400                               50    100      150       200      250        300      350      400
+                                                              Number of Input Views                                                                           Number of Input Views
+
+Figure 5: Quantitative evaluation of 3D Reconstruction on 7-Scenes. OOM denotes out-of-memory.
+Mem3R achieves significant improvement compared with CUT3R. Moreover, when combined with
+the training-free, plug-and-play state update strategies TTT3R or TTSA3R, Mem3R further yields
+better results compared to applying these strategies to CUT3R.
+
+
+4.3          3D Reconstruction
+
+We evaluate our multiview reconstruction framework on the 7-Scenes [46] dataset over sequences of
+50 to 400 frames, using Chamfer Distance (CD) and Normal Consistency (NC) as the primary metrics.
+Following TTT3R [13], CD is defined as the mean of accuracy and completeness, where accuracy
+measures the Euclidean distance from reconstructed points to the nearest ground-truth points and
+completeness is defined conversely. As shown in Fig. 5, Mem3R significantly outperforms CUT3R.
+Moreover, when combined with TTT3R or TTSA3R, Mem3R consistently achieves lower CD than
+Point3R and CUT3R under the same state-update strategy, further validating the effectiveness of
+our architecture. Qualitative results in Figs. 1 and 6 show that Mem3R produces more accurate
+and better-aligned 3D reconstructions, with further improvements when combined with TTT3R or
+TTSA3R. For example, in Fig. 1, Ours + TTT3R reconstructs the staircase with more accurate step
+spacing and clearer handrails. Additional visualizations are provided in Sec. A.3, and results on
+NRGBD [2] are reported in Sec. A.4 of the supplementary material.
+
+
+                                                                                                             8
+        CUT3R                       Ours                       CUT3R                      Ours
+
+
+
+
+         TTT3R                Ours + TTT3R                      TTT3R                 Ours + TTT3R
+
+
+
+
+       TTSA3R                  Ours + TTSA3R                   TTSA3R                Ours + TTSA3R
+
+Figure 6: Qualitative 3D reconstruction results on long sequences. Red circles mark some
+representative regions where the difference is particularly clear.
+
+
+4.4   Model Efficiency
+
+With the hybrid memory design described in Secs. 3.2 and 3.3, Mem3R maintains constant GPU
+memory complexity with respect to sequence length. As shown in Tab. 3, Mem3R matches the
+throughput of CUT3R and its training-free state update variants, while reducing GPU memory
+usage by 7% and parameter count by 19% relative to CUT3R. All evaluations are conducted on a
+workstation with a single NVIDIA RTX PRO 6000 Blackwell Max-Q GPU using 512 × 384 images
+from 7-Scenes.
+
+Table 3: Efficiency comparison of runtime (fps), GPU memory usage (MiB), and Parameter count.
+ Green indicates that our model matches or outperforms its corresponding base model.
+                     Method            Runtime (fps) ↑   Memory (MiB) ↓   Params ↓
+                     CUT3R                   26               7930         793M
+                     Ours                    26               7340         644M
+                     TTT3R                   25               8364         793M
+                     Ours + TTT3R            25               7774         644M
+                     TTSA3R                  25               8786         793M
+                     Ours + TTSA3R           25               8208         644M
+
+
+
+4.5   Ablation Study
+
+To evaluate the contributions of the components introduced in Secs. 3.2 and 3.3, we perform ablation
+studies on long-sequence camera pose estimation on the TUM-Dynamics dataset and video depth
+estimation on the KITTI dataset, using TTT3R as the baseline. As shown in Tab. 4, both the fast-
+weight memory and the channel-wise state gate help mitigate temporal forgetting in streaming 3D
+perception, leading to better accuracy than the original TTT3R.
+
+
+                                                    9
+Table 4: Ablation study of Mem3R when combined with TTT3R. Left: Quantitative evaluation
+of relative camera pose estimation on long sequences from the TUM-D dataset, measured by ATE
+in meters (m) ↓. Right: Quantitative evaluation of scale-invariant video depth estimation on long
+sequences from the KITTI dataset, measured by Abs Rel ↓ and δ1.25 ↑. Best results are shown in
+bold.
+                                                      TUM-D relative camera pose (ATE ↓)                                 KITTI video depth
+                                                                      #frames                            300                      400                      500
+ Method
+                                                      200     400      600       800    1000    Abs Rel ↓      δ1.25 ↑   Abs Rel ↓      δ1.25 ↑   Abs Rel ↓      δ1.25 ↑
+ TTT3R                                                0.041   0.051    0.074    0.091   0.11      0.11          90.2       0.12          89.5       0.12          89.1
+ Ours + TTT3R (w/o. channel-wise state update gate)   0.031   0.044    0.059    0.090   0.10      0.11          91.0       0.11          90.0       0.11          89.5
+ Ours + TTT3R (w/o. fast weight)                      0.027   0.039    0.054    0.067   0.078     0.11          91.0       0.11          90.0       0.12          89.5
+ Ours + TTT3R                                         0.025   0.037    0.046    0.060   0.073     0.10          91.4       0.11          90.5       0.11          89.9
+
+
+
+
+5     Conclusion
+In conclusion, we present Mem3R, a RNN-based hybrid memory model for streaming 3D
+reconstruction that improves long-term temporal consistency by decoupling camera tracking from
+geometric mapping. By combining an implicit fast-weight memory for robust pose tracking with
+an explicit token-based state for geometric representation, Mem3R achieves substantially stronger
+performance on long sequences while keeping the efficiency advantages of recurrent streaming
+methods. Compared with CUT3R, Mem3R is also more parameter-efficient, reducing the model size
+from 793M to 644M parameters. Despite being more compact, it lowers Absolute Trajectory Error
+(ATE) by up to 39% on challenging 500-1000 frame benchmarks. The resulting improvements also
+extend to downstream tasks such as 3D reconstruction and video depth estimation. These results
+establish hybrid memory as an effective design for accurate and efficient long-horizon 3D perception.
+
+Acknowledgments and Disclosure of Funding
+We would like to thank Guangyao Zhai for the valuable discussion during the initial stages of
+this project, and Haian Jin for the assistance with the training setup. We thank the members of
+Android XR, Google for their help and support, especially Xiao Yuan, Luke Jia and Chao Guo.
+
+
+References
+ [1] E. Arnold, J. Wynn, S. Vicente, G. Garcia-Hernando, A. Monszpart, V. Prisacariu, D. Turmukhambetov,
+     and E. Brachmann. Map-free visual relocalization: Metric pose relative to a single image. In European
+     Conference on Computer Vision, pages 690–708. Springer, 2022. 6, 15
+ [2] D. Azinović, R. Martin-Brualla, D. B. Goldman, M. Nießner, and J. Thies. Neural rgb-d surface
+     reconstruction. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition,
+     pages 6290–6301, 2022. 8
+ [3] Z. Bauer, F. Gomez-Donoso, E. Cruz, S. Orts-Escolano, and M. Cazorla. Uasol, a large-scale high-
+     resolution outdoor stereo dataset. Scientific data, 6(1):162, 2019. 15
+ [4] A. Behrouz, P. Zhong, and V. Mirrokni. Titans: Learning to memorize at test time. arXiv preprint
+     arXiv:2501.00663, 2024. 2, 3
+ [5] A. Behrouz, Z. Li, P. Kacham, M. Daliri, Y. Deng, P. Zhong, M. Razaviyayn, and V. Mirrokni. Atlas:
+     Learning to optimally memorize the context at test time. arXiv preprint arXiv:2505.23735, 2025. 3
+ [6] A. Behrouz, M. Razaviyayn, P. Zhong, and V. Mirrokni. Nested learning: The illusion of deep learning
+     architectures. In The Thirty-ninth Annual Conference on Neural Information Processing Systems, 2025.
+     URL https://openreview.net/forum?id=nbMeRvNb7A. 3
+ [7] A. Behrouz, M. Razaviyayn, P. Zhong, and V. Mirrokni. It’s all connected: A journey through
+     test-time memorization, attentional bias, retention, and online optimization. In The Fourteenth
+     International Conference on Learning Representations, 2026. URL https://openreview.net/forum?
+     id=gZyEJ2kMow. 3
+ [8] M. J. Black, P. Patel, J. Tesch, and J. Yang. Bedlam: A synthetic dataset of bodies exhibiting detailed
+     lifelike animated motion. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, pages 8726–8737, 2023. 15
+
+
+                                                                                10
+ [9] D. J. Butler, J. Wulff, G. B. Stanley, and M. J. Black. A naturalistic open source movie for optical flow
+     evaluation. In European conference on computer vision, pages 611–625. Springer, 2012. 7, 8
+[10] Y. Cabon, N. Murray, and M. Humenberger. Virtual kitti 2. arXiv preprint arXiv:2001.10773, 2020. 15
+[11] A. Chang, A. Dai, T. Funkhouser, M. Halber, M. Niebner, M. Savva, S. Song, A. Zeng, and Y. Zhang.
+     Matterport3d: Learning from rgb-d data in indoor environments. In 2017 International Conference on 3D
+     Vision (3DV), pages 667–676. IEEE Computer Society, 2017. 15
+[12] X. Chen, Y. Chen, Y. Xiu, A. Geiger, and A. Chen. Easi3r: Estimating disentangled motion from dust3r
+     without training. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages
+     9158–9168, 2025. 2, 7, 18, 19
+[13] X. Chen, Y. Chen, Y. Xiu, A. Geiger, and A. Chen. TTT3r: 3d reconstruction as test-time training. In The
+     Fourteenth International Conference on Learning Representations, 2026. URL https://openreview.
+     net/forum?id=aMs6FtNaY5. 2, 3, 6, 8, 17, 18, 19
+[14] Z. Chen, J. Yang, and H. Yang. Pref3r: Pose-free feed-forward 3d gaussian splatting from variable-length
+     image sequence, 2024. URL https://arxiv.org/abs/2411.16877. 2
+[15] Z. Chen, M. Qin, T. Yuan, Z. Liu, and H. Zhao. Long3r: Long sequence streaming 3d reconstruction. In
+     Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 5273–5284, 2025. 3
+[16] A. Dai, A. X. Chang, M. Savva, M. Halber, T. A. Funkhouser, and M. Nießner. Scannet: Richly-annotated
+     3d reconstructions of indoor scenes. In IEEE Conf. Comput. Vis. Pattern Recog., pages 2432–2443, 2017.
+     6, 15
+[17] A. Dehghan, G. Baruch, Z. Chen, Y. Feigin, P. Fu, T. Gebauer, D. Kurz, T. Dimry, B. Joffe, A. Schwartz,
+     and E. Shulman. Arkitscenes: A diverse real-world dataset for 3d indoor scene understanding using mobile
+     RGB-D data. In Adv. Neural Inform. Process. Syst., 2021. 6, 15
+[18] J. Dong, H. Li, S. Zhou, W. Hu, W. Xu, and Y. Wang. Memix: Writing less, remembering more for
+     streaming 3d reconstruction. arXiv preprint arXiv:2603.15330, 2026. URL https://arxiv.org/abs/
+     2603.15330. 2
+[19] Z. Fan, J. Zhang, W. Cong, P. Wang, R. Li, K. Wen, S. Zhou, A. Kadambi, Z. Wang, D. Xu, et al. Large
+     spatial model: End-to-end unposed images to semantic 3d. Advances in neural information processing
+     systems, 37:40212–40229, 2024. 2
+[20] A. Geiger, P. Lenz, C. Stiller, and R. Urtasun. Vision meets robotics: The kitti dataset. The international
+     journal of robotics research, 32(11):1231–1237, 2013. 7
+[21] A. Gu and T. Dao. Mamba: Linear-time sequence modeling with selective state spaces. In First conference
+     on language modeling, 2024. 3
+[22] J. J. Hopfield. Neural networks and physical systems with emergent collective computational abilities.
+     Proceedings of the national academy of sciences, 79(8):2554–2558, 1982. 3
+[23] J. Hu, Y. Pan, J. Du, D. Lan, X. Tang, Q. Wen, Y. Liang, and W. Sun. Comba: Improving bilinear rnns
+     with closed-loop control. arXiv preprint arXiv:2506.02475, 2025. 3
+[24] P.-H. Huang, K. Matzen, J. Kopf, N. Ahuja, and J.-B. Huang. Deepmvs: Learning multi-view stereopsis.
+     In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 2821–2830,
+     2018. 15
+[25] R. Jayanti, S. Agrawal, V. Garg, S. Tourani, M. H. Khan, S. Garg, and M. Krishna. Segmast3r: Geometry
+     grounded segment matching. In The Thirty-ninth Annual Conference on Neural Information Processing
+     Systems, 2025. 2
+[26] H. Jin, R. Wu, T. Zhang, R. Gao, J. T. Barron, N. Snavely, and A. Holynski. Zipmap: Linear-time stateful
+     3d reconstruction with test-time training. arXiv preprint arXiv:2603.04385, 2026. 3
+[27] N. Karaev, I. Rocco, B. Graham, N. Neverova, A. Vedaldi, and C. Rupprecht. Dynamicstereo: Consistent
+     dynamic depth from stereo videos. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition, pages 13229–13239, 2023. 15
+[28] Y. Lan, Y. Luo, F. Hong, S. Zhou, H. Chen, Z. Lyu, S. Yang, B. Dai, C. C. Loy, and X. Pan. Stream3r:
+     Scalable sequential 3d reconstruction with causal transformer. arXiv preprint arXiv:2508.10893, 2025. 2,
+     3, 7, 18, 19
+
+
+                                                      11
+[29] V. Leroy, Y. Cabon, and J. Revaud. Grounding image matching in 3d with mast3r. In European Conference
+     on Computer Vision, pages 71–91. Springer, 2024. 2, 7, 18, 19
+[30] Z. Li and N. Snavely. Megadepth: Learning single-view depth prediction from internet photos. In
+     Proceedings of the IEEE conference on computer vision and pattern recognition, pages 2041–2050, 2018.
+     6, 15
+[31] Z. Li, A. Behrouz, Y. Deng, P. Zhong, P. Kacham, M. Karami, M. Razaviyayn, and V. Mirrokni. Tnt:
+     Improving chunkwise training for test-time memorization. arXiv preprint arXiv:2511.07343, 2025. 3
+[32] Z. Li, J. Zhou, Y. Wang, H. Guo, W. Chang, Y. Zhou, H. Zhu, J. Chen, C. Shen, and T. He. Wint3r: Window-
+     based streaming reconstruction with camera token pool. In The Fourteenth International Conference on
+     Learning Representations, 2026. URL https://openreview.net/forum?id=PjviszIZf1. 3
+[33] L. Ling, Y. Sheng, Z. Tu, W. Zhao, C. Xin, K. Wan, L. Yu, Q. Guo, Z. Yu, Y. Lu, et al. Dl3dv-10k: A
+     large-scale scene dataset for deep learning-based 3d vision. In Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition, pages 22160–22169, 2024. 6, 15
+[34] C. Liu, B. Tan, Z. Ke, S. Zhang, J. Liu, M. Qian, N. Xue, Y. Shen, and T. Braud. Plana3r: Zero-shot metric
+     planar 3d reconstruction via feed-forward planar splatting. In The Thirty-ninth Annual Conference on
+     Neural Information Processing Systems, 2025. 2
+[35] I. Loshchilov and F. Hutter. Decoupled weight decay regularization. arXiv preprint arXiv:1711.05101,
+     2017. 6
+[36] L. Mehl, J. Schmalfuss, A. Jahedi, Y. Nalivayko, and A. Bruhn. Spring: A high-resolution high-detail
+     dataset and benchmark for scene flow, optical flow and stereo. In Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition, pages 4981–4991, 2023. 15
+[37] E. Palazzolo, J. Behley, P. Lottes, P. Giguere, and C. Stachniss. Refusion: 3d reconstruction in dynamic
+     environments for rgb-d cameras exploiting residuals. In 2019 IEEE/RSJ International Conference on
+     Intelligent Robots and Systems (IROS), pages 7855–7862. IEEE, 2019. 7
+[38] B. Peng, E. Alcaide, Q. Anthony, A. Albalak, S. Arcadinho, S. Biderman, H. Cao, X. Cheng, M. Chung,
+     L. Derczynski, et al. Rwkv: Reinventing rnns for the transformer era. In Findings of the association for
+     computational linguistics: EMNLP 2023, pages 14048–14077, 2023. 3
+[39] J. Reizenstein, R. Shapovalov, P. Henzler, L. Sbordone, P. Labatut, and D. Novotny. Common objects
+     in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction. In Proceedings of the
+     IEEE/CVF international conference on computer vision, pages 10901–10911, 2021. 6, 15
+[40] M. Roberts, J. Ramapuram, A. Ranjan, A. Kumar, M. A. Bautista, N. Paczan, R. Webb, and J. M. Susskind.
+     Hypersim: A photorealistic synthetic dataset for holistic indoor scene understanding. In Proceedings of the
+     IEEE/CVF international conference on computer vision, pages 10912–10922, 2021. 6, 15
+[41] I. Schlag, K. Irie, and J. Schmidhuber. Linear transformers are secretly fast weight programmers. In
+     International conference on machine learning, pages 9355–9366. PMLR, 2021. 3
+[42] J. Schmidhuber. Learning to control fast-weight memories: An alternative to dynamic recurrent networks.
+     Neural Computation, 4(1):131–139, 1992.
+[43] J. Schmidhuber. Reducing the ratio between learning complexity and number of time varying variables
+     in fully recurrent nets. In ICANN’93: Proceedings of the International Conference on Artificial Neural
+     Networks Amsterdam, The Netherlands 13–16 September 1993 3, pages 460–463. Springer, 1993. 3
+[44] N. Shazeer. Glu variants improve transformer. arXiv preprint arXiv:2002.05202, 2020. 4
+[45] Y. Shen, Z. Zhang, Y. Qu, X. Zheng, J. Ji, S. Zhang, and L. Cao. Fastvggt: Training-free acceleration of
+     visual geometry transformer. arXiv preprint arXiv:2509.02560, 2025. 2, 3
+[46] J. Shotton, B. Glocker, C. Zach, S. Izadi, A. Criminisi, and A. Fitzgibbon. Scene coordinate regression
+     forests for camera relocalization in rgb-d images. In Int. Conf. Comput. Vis., pages 2930–2937, 2013. 8
+[47] S. Sinha, R. Shapovalov, J. Reizenstein, I. Rocco, N. Neverova, A. Vedaldi, and D. Novotny. Common pets
+     in 3d: Dynamic new-view synthesis of real-life deformable categories. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, pages 4881–4891, 2023. 15
+[48] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers. A benchmark for the evaluation of
+     rgb-d slam systems. In 2012 IEEE/RSJ international conference on intelligent robots and systems, pages
+     573–580. IEEE, 2012. 6
+
+
+                                                      12
+[49] P. Sun, H. Kretzschmar, X. Dotiwalla, A. Chouard, V. Patnaik, P. Tsui, J. Guo, Y. Zhou, Y. Chai, B. Caine,
+     et al. Scalability in perception for autonomous driving: Waymo open dataset. In Proceedings of the
+     IEEE/CVF conference on computer vision and pattern recognition, pages 2446–2454, 2020. 15
+[50] Y. Sun, X. Li, K. Dalal, J. Xu, A. Vikram, G. Zhang, Y. Dubois, X. Chen, X. Wang, S. Koyejo, et al.
+     Learning to (learn at test time): Rnns with expressive hidden states. arXiv preprint arXiv:2407.04620,
+     2024. 3
+[51] Z. Tang, Y. Fan, D. Wang, H. Xu, R. Ranjan, A. Schwing, and Z. Yan. Mv-dust3r+: Single-stage scene
+     reconstruction from sparse views in 2 seconds. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 5283–5293, 2025. 2
+[52] K. Team, Y. Zhang, Z. Lin, X. Yao, J. Hu, F. Meng, C. Liu, X. Men, S. Yang, Z. Li, et al. Kimi linear: An
+     expressive, efficient attention architecture. arXiv preprint arXiv:2510.26692, 2025. 2, 3
+[53] F. Tosi, Y. Liao, C. Schmitt, and A. Geiger. Smd-nets: Stereo mixture density networks. In Proceedings of
+     the IEEE/CVF conference on computer vision and pattern recognition, pages 8942–8952, 2021. 15
+[54] S. Umeyama. Least-squares estimation of transformation parameters between two point patterns. IEEE
+     Transactions on pattern analysis and machine intelligence, 13(4):376–380, 2002. 6
+[55] C. Wang, H. Tan, W. Yifan, Z. Chen, Y. Liu, K. Sunkavalli, S. Bi, L. Liu, and Y. Hu. tttlrm: Test-time
+     training for long context and autoregressive 3d reconstruction. arXiv preprint arXiv:2602.20160, 2026. 3
+[56] H. Wang and L. Agapito. 3d reconstruction with spatial memory. In 2025 International Conference on 3D
+     Vision (3DV), pages 78–89. IEEE, 2025. 2, 3, 7, 18, 19
+[57] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny. Vggt: Visual geometry grounded
+     transformer. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 5294–5306,
+     2025. 2, 3, 7, 18, 19
+[58] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa. Continuous 3d perception model
+     with persistent state. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages
+     10510–10522, 2025. 3, 6, 7, 15, 18, 19
+[59] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud. Dust3r: Geometric 3d vision made easy. In
+     IEEE Conf. Comput. Vis. Pattern Recog., pages 20697–20709, 2024. 2, 7, 18, 19
+[60] W. Wang, D. Zhu, X. Wang, Y. Hu, Y. Qiu, C. Wang, Y. Hu, A. Kapoor, and S. Scherer. Tartanair: A
+     dataset to push the limits of visual slam. In 2020 IEEE/RSJ International Conference on Intelligent Robots
+     and Systems (IROS), pages 4909–4916. IEEE, 2020. 15
+[61] Y. Wang, J. Zhou, H. Zhu, W. Chang, Y. Zhou, Z. Li, J. Chen, J. Pang, C. Shen, and T. He. Pi3: Scalable
+     permutation-equivariant visual geometry learning. arXiv e-prints, pages arXiv–2507, 2025. 2, 7, 18
+[62] T. Wu, J. Zhang, X. Fu, Y. Wang, J. Ren, L. Pan, W. Wu, L. Yang, J. Wang, C. Qian, et al. Omniobject3d:
+     Large-vocabulary 3d object dataset for realistic perception, reconstruction and generation. In Proceedings
+     of the IEEE/CVF conference on computer vision and pattern recognition, pages 803–814, 2023. 15
+[63] Y. Wu, W. Zheng, J. Zhou, and J. Lu. Point3r: Streaming 3d reconstruction with explicit spatial pointer
+     memory. arXiv preprint arXiv:2507.02863, 2025. 3, 6, 18, 19
+[64] H. Xia, Y. Fu, S. Liu, and X. Wang. Rgbd objects in the wild: Scaling real-world 3d object learning from
+     rgb-d videos. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 22378–22389, 2024. 15
+[65] Q. Xu, D. Wei, L. Zhao, W. Li, Z. Huang, S. Ji, and P. Liu. Siu3r: Simultaneous scene understanding and
+     3d reconstruction beyond feature alignment. In The Thirty-ninth Annual Conference on Neural Information
+     Processing Systems, 2025. 2
+[66] J. Yang, A. Sax, K. J. Liang, M. Henaff, H. Tang, A. Cao, J. Chai, F. Meier, and M. Feiszli. Fast3r: Towards
+     3d reconstruction of 1000+ images in one forward pass. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 21924–21935, 2025. 2
+[67] S. Yang, J. Kautz, and A. Hatamizadeh. Gated delta networks: Improving mamba2 with delta rule. arXiv
+     preprint arXiv:2412.06464, 2024. 3
+[68] S. Yang, B. Wang, Y. Zhang, Y. Shen, and Y. Kim. Parallelizing linear transformers with the delta rule over
+     sequence length. Advances in neural information processing systems, 37:115491–115522, 2024. 3
+
+
+                                                       13
+[69] Y. Yao, Z. Luo, S. Li, J. Zhang, Y. Ren, L. Zhou, T. Fang, and L. Quan. Blendedmvs: A large-scale dataset
+     for generalized multi-view stereo networks. In Proceedings of the IEEE/CVF conference on computer
+     vision and pattern recognition, pages 1790–1799, 2020. 15
+
+[70] C. Yeshwanth, Y. Liu, M. Nießner, and A. Dai. Scannet++: A high-fidelity dataset of 3d indoor scenes. In
+     Int. Conf. Comput. Vis., pages 12–22, 2023. 15
+
+[71] X. Yu, M. Xu, Y. Zhang, H. Liu, C. Ye, Y. Wu, Z. Yan, C. Zhu, Z. Xiong, T. Liang, et al. Mvimgnet: A
+     large-scale dataset of multi-view images. In Proceedings of the IEEE/CVF conference on computer vision
+     and pattern recognition, pages 9150–9161, 2023. 15
+
+[72] S. Yuan, Y. Yang, X. Yang, X. Zhang, Z. Zhao, L. Zhang, and Z. Zhang. Infinitevggt: Visual geometry
+     grounded transformer for endless streams. arXiv preprint arXiv:2601.02281, 2026. 2, 3
+[73] J. Zhang, C. Herrmann, J. Hur, V. Jampani, T. Darrell, F. Cole, D. Sun, and M.-H. Yang. MonST3r: A simple
+     approach for estimating geometry in the presence of motion. In The Thirteenth International Conference
+     on Learning Representations, 2025. URL https://openreview.net/forum?id=lJpqxFgWCM. 2, 7,
+     18, 19
+
+[74] J. Zhang, C. Herrmann, J. Hur, C. Sun, M.-H. Yang, F. Cole, T. Darrell, and D. Sun. Loger: Long-context
+     geometric reconstruction with hybrid memory. arXiv preprint arXiv:2603.03269, 2026. 3
+
+[75] S. Zhang, J. Wang, Y. Xu, N. Xue, C. Rupprecht, X. Zhou, Y. Shen, and G. Wetzstein. Flare: Feed-forward
+     geometry, appearance and camera estimation from uncalibrated sparse views. In Proceedings of the
+     Computer Vision and Pattern Recognition Conference, pages 21936–21947, 2025. 2
+
+[76] T. Zhang, S. Bi, Y. Hong, K. Zhang, F. Luan, S. Yang, K. Sunkavalli, W. T. Freeman, and H. Tan. Test-time
+     training done right. arXiv preprint arXiv:2505.23884, 2025. 2, 3
+
+[77] Y. Zheng, A. W. Harley, B. Shen, G. Wetzstein, and L. J. Guibas. Pointodyssey: A large-scale synthetic
+     dataset for long-term point tracking. In Proceedings of the IEEE/CVF International Conference on
+     Computer Vision, pages 19855–19865, 2023. 15
+
+[78] Z. Zheng, X. Xiang, and J. Zhang. Ttsa3r: Training-free temporal-spatial adaptive persistent state for
+     streaming 3d reconstruction. arXiv preprint arXiv:2601.22615, 2026. 2, 3, 6, 18, 19
+[79] T. Zhou, R. Tucker, J. Flynn, G. Fyffe, and N. Snavely. Stereo magnification: Learning view synthesis
+     using multiplane images. arXiv preprint arXiv:1805.09817, 2018. 15
+
+[80] D. Zhuo, W. Zheng, J. Guo, Y. Wu, J. Zhou, and J. Lu. Streaming 4d visual geometry transformer. arXiv
+     preprint arXiv:2507.11539, 2025. 2, 3, 6, 18, 19
+
+
+
+
+                                                     14
+A     Supplementary Material
+
+A.1   Training Datasets
+
+Following the final stage of training for CUT3R, we only use multi-view datasets during training.
+Our fine-tuning follows the same training data configuration as CUT3R, using the dataset
+mixture defined in its dpt_512_vary_4_64.yaml config. Specifically, the training set consists
+of Co3Dv2 [39], WildRGBD [64], ARKitScenes [17], ARKitScenes-HighRes [17], ScanNet++ [70],
+ScanNet [16], HyperSim [40], BlendedMVS [69], MegaDepth [30], MapFree [1], Waymo [49],
+VirtualKITTI2 [10], Unreal4K [53], TartanAir [60], DL3DV [33], Cop3D [47], MVImgNet [71],
+RealEstate10K [79], OmniObject3D [62], Dynamic Replica [27], Spring [36], BEDLAM [8], MVS-
+Synth [24], PointOdyssey [77], UASOL [3], and Matterport3D [11].
+
+A.2   Model Details
+
+The explicit geometric memory consists of 768 state tokens, each with dimension of 768. We set
+the confidence regularization coefficient β in Eq. (12) to 0.2. This appendix provides additional
+architectural details of the lightweight MLP-based implicit memory module introduced in Sec. 3.2, as
+well as the channel-wise state update gate described in Sec. 3.3. Relative to the original multi-layer
+Transformer decoders used to update and read out state tokens for pose tracking in CUT3R [58], the
+fast-weight module is substantially more compact while preserving the capacity needed for effective
+long-horizon streaming inference.
+
+Fast-weight memory via TTT. The fast-weight module serves as the core implicit memory for
+pose tracking and contains approximately 1.56M parameters. It first projects 1024-dimensional visual
+features into a 768-dimensional latent space, which is evenly split across 12 heads with 64 dimensions
+per head. The memory itself is implemented as a SwiGLU-based module with three weight matrices
+per head,
+                                       W0 , W1 , W2 ∈ R64×64 .
+
+Its online update is controlled by two lightweight linear predictors: a learning rate head that outputs
+36 scalars, corresponding to three learning rates for each of the 12 heads, and a decay head that
+predicts 12 head-wise retention factors α. During readout, the retrieved features are passed through
+an RMSNorm layer followed by a final linear projection back to the output space.
+
+Channel-wise state update module. The channel-wise state update module regulates how new
+observations are written into the explicit state. This module is implemented as a two-layer bottleneck
+MLP with approximately 0.98M parameters. Specifically, it concatenates the 768-dimensional
+historical state feature with the 1024-dimensional current visual feature, forming a 1792-dimensional
+input. This input is first projected to a bottleneck dimension of 384, followed by a GELU activation
+and a second linear projection back to 768 dimensions. A sigmoid function is then applied element-
+wise to produce the channel-wise update gate.
+
+Overall complexity. Together, the fast-weight memory and the channel-wise update module
+introduce only four main projection or bottleneck layers and approximately 2.54M parameters in
+total. This lightweight design substantially reduces computational and memory overhead relative
+to heavier decoder-based alternatives in the original CUT3R, while achieving better long-sequence
+streaming 3D reconstruction and pose estimation than CUT3R.
+
+A.3   Supplement Visualization
+
+We provide additional qualitative results in Figs. 7 and 8 to further compare the 3D reconstruction
+quality of Mem3R against CUT3R, TTT3R, and TTSA3R. As discussed in Sec. 4.3, TTSA3R already
+improves the reconstruction quality of CUT3R substantially. Nevertheless, Fig. 8 shows that, under
+long streaming input sequences, Mem3R combined with TTSA3R still produces more accurate
+reconstructions.
+
+
+                                                  15
+         ...
+
+
+
+
+   GT Trajectory
+
+Figure 7: Qualitative 3D reconstruction results on long sequences. Red circles mark some
+representative regions where the difference is particularly clear.
+       ...
+
+
+
+
+                        TTSA3R                               Ours + TTSA3R
+       ...
+
+
+
+
+                        TTSA3R                               Ours + TTSA3R
+
+
+Figure 8: Qualitative 3D reconstruction results on long sequences. Red circles mark some
+representative regions where the difference is particularly clear.
+
+
+                                          16
+           CUT3R vs. Ours                TTT3R vs. Ours + TTT3R         TTSA3R vs. Ours + TTSA3R
+
+
+
+
+            CUT3R vs. Ours                TTT3R vs. Ours + TTT3R         TTSA3R vs. Ours + TTSA3R
+
+
+Figure 9: Qualitative visualization of predicted camera trajectories on the TUM Dynamics dataset
+(top row) and the ScanNet dataset (bottom row). Each row is evaluated on the same sequence. Our
+Mem3R achieves significant improvement compared with CUT3R. Moreover, when combined with
+TTT3R or TTSA3R, Mem3R further reduces drift compared to applying these strategies to CUT3R.
+
+
+A.4   Supplement Experiment
+
+Pose Estimation. Additional qualitative comparisons in Fig. 9 show that, under the same state-
+update strategy, Mem3R equipped with TTT3R or TTSA3R achieves more accurate camera tracking
+than CUT3R on long sequences.
+Tab. 6 shows that Mem3R attains the lowest ATE among existing online 3D reconstruction models on
+Sintel short sequences. At the same time, results in Tabs. 5 and 6 suggest that incorporating TTT3R
+or TTSA3R into Mem3R does not lead to substantial additional gains on short sequences. Given that
+Mem3R has approximately 19% fewer parameters than CUT3R while delivering clear improvements
+on long sequences, these short-sequence results still demonstrate its strong competitiveness.
+
+Video Depth Estimation. As shown in Tabs. 6 and 7, Mem3R achieves performance comparable
+to other online methods on short sequences. Similar to the observations above and TTT3R [13],
+equipping Mem3R with TTT3R or TTSA3R brings only limited improvements on short sequences.
+Mem3R still consistently outperforms CUT3R on short sequences. While TTT3R and TTSA3R
+offer only limited improvements in this setting, Mem3R reduces the parameter count of CUT3R
+by approximately 19% and delivers substantial gains on long sequences, underscoring the overall
+competitiveness of our model.
+
+3D Reconstruction. As shown in Tab. 8, Mem3R yields improvements on the NRGBD dataset that
+are comparable to those observed on the 7-Scenes dataset.
+
+
+
+
+                                                  17
+Table 5: ATE (m) (↓) of relative camera pose estimation on long sequences on TUM-D and ScanNet.
+Bold denotes the best result in each column within each dataset, and green indicates that our model
+matches or outperforms its corresponding base model.
+ #frames            50         100       150       200       300       400      500       600        700     800        900      1000
+                                                              TUM-D
+ CUT3R             0.023       0.033    0.043     0.061      0.093    0.12     0.14       0.14       0.15    0.17       0.17     0.17
+ Ours              0.012       0.020    0.031     0.042      0.064    0.078    0.096      0.11       0.13    0.14       0.15     0.15
+ TTT3R             0.014       0.020    0.031     0.041      0.045    0.051    0.067      0.074     0.085   0.091    0.102      0.11
+ Ours + TTT3R      0.011       0.015    0.019     0.025      0.031    0.037    0.041      0.046     0.053   0.060    0.066      0.073
+ TTSA3R            0.012       0.018    0.025     0.030      0.038    0.043    0.056      0.064     0.074   0.079    0.086      0.091
+ Ours + TTSA3R     0.011       0.015    0.018     0.023      0.027    0.032    0.036      0.039     0.045   0.051    0.058      0.064
+                                                              ScanNet
+ CUT3R             0.045       0.11     0.21      0.32       0.47     0.57      0.66      0.71       0.73    0.76       0.79     0.82
+ Ours              0.040       0.083    0.14      0.20       0.33     0.43      0.53      0.58       0.62    0.65       0.67     0.71
+ TTT3R             0.033       0.072    0.11      0.14       0.19     0.24      0.28      0.32       0.34    0.37       0.40     0.40
+ Ours + TTT3R      0.034       0.068    0.10      0.13       0.17     0.20      0.22      0.23       0.25    0.27       0.28     0.29
+ TTSA3R            0.033       0.063    0.10      0.13       0.17     0.21      0.26      0.30       0.33    0.36       0.38     0.39
+ Ours + TTSA3R     0.035       0.065    0.09      0.12       0.16     0.18      0.21      0.23       0.24    0.26       0.28     0.30
+
+
+
+
+Table 6: Quantitative evaluation of camera pose and depth estimation on short sequences from the
+Sintel dataset. For depth estimation, we report results under both per-sequence scale (Per-seq.) and
+metric-scale settings, when available. GA denotes global alignment. ‘–‘ indicates that metric-scale
+depth is unavailable for methods that do not support metric-scale estimation. Best results are shown
+in bold.
+                                                                           Sintel (50 frames)
+ Method              Online                     Camera pose                     Depth (Per-seq.)               Depth (Metric)
+                                  ATE ↓        RPE trans ↓     RPE rot ↓      Abs Rel ↓     δ < 1.25 ↑      Abs Rel ↓     δ < 1.25 ↑
+ DUSt3R-GA [59]            ✗         0.417       0.250             5.796       0.656              45.2         –                –
+ MASt3R-GA [29]            ✗         0.185       0.060             1.496       0.641              43.9        1.02             14.3
+ MonST3R-GA [73]           ✗         0.111       0.044             0.869       0.378              55.8         –                –
+ Easi3R [12]               ✗         0.110       0.042             0.758       0.377              55.9         –                –
+ VGGT [57]                 ✗         0.172       0.062             0.471       0.299              63.8         –                –
+ π 3 [61]                  ✗         0.073       0.038             0.288       0.233              66.4         –                –
+ Spann3R [56]            ✓           0.329       0.110             4.471       0.622              42.6         –                –
+ Point3R [63]            ✓           0.351       0.128             1.822       0.452              48.9        0.78             17.1
+ StreamVGGT [80]         ✓           0.251       0.149             1.894       0.323              65.7         –                –
+ STream3R [28]           ✓           0.213       0.076             0.868       0.478              51.1        1.04             21.0
+ CUT3R [58]              ✓           0.209       0.069             0.624       0.433              46.9        1.03             23.6
+ TTT3R [13]              ✓           0.210       0.091             0.720       0.405              48.9        0.98             23.2
+ TTSA3R [78]             ✓           0.210       0.085             0.765       0.402              49.8        0.96             24.6
+ Ours                    ✓           0.180       0.074             0.860       0.438              44.1        1.10             24.6
+ Ours + TTT3R            ✓            0.20       0.091             0.720       0.414              46.7        1.02             25.2
+ Ours + TTSA3R           ✓            0.20       0.087             0.754       0.413              47.0        0.99             25.8
+
+
+
+
+                                                                18
+Table 7: Video Depth Estimation on short sequence. We evaluate scale-invariant depth accuracy on
+KITTI and Bonn datasets. Methods that require global alignment are denoted as “GA”.
+           Method                 Online        KITTI (110 frames)               Bonn (110 frames)
+                                               Abs Rel ↓      δ < 1.25 ↑        Abs Rel ↓   δ < 1.25 ↑
+           DUSt3R-GA [59]           ✗            0.144           81.3            0.155         83.3
+           MASt3R-GA [29]           ✗            0.183           74.5            0.252         70.1
+           MonST3R-GA [73]          ✗            0.168           74.4            0.067         96.3
+           Easi3R [12]              ✗            0.102           91.2            0.059         97.0
+           VGGT [57]                ✗            0.070           96.5            0.055         97.1
+           Spann3R [56]             ✓            0.198           73.7            0.144         81.3
+           Point3R [63]             ✓            0.136           84.2            0.060         96.0
+           STREAM3Rα [28]           ✓            0.116           89.6            0.075         94.1
+           StreamVGGT [80]          ✓            0.173           72.1            0.059         97.2
+           CUT3R [58]               ✓            0.122           87.5            0.076         94.0
+           TTT3R [13]               ✓            0.114           90.4            0.069         95.5
+           TTSA3R [78]              ✓            0.110           91.0            0.064         96.4
+           Ours                     ✓            0.113           89.4            0.074         94.3
+           Ours + TTT3R             ✓            0.110           90.3            0.067         95.6
+           Ours + TTSA3R            ✓            0.109           91.0            0.065         95.9
+
+
+
+
+Table 8: Quantitative evaluation of multi-view reconstruction. OOM denotes out-of-memory. Bold
+denotes the best result in each column within each dataset, and green indicates that our model
+matches or outperforms its corresponding base model. For 7-Scenes, some test sequences contain
+only 500 frames, so we evaluate at most 250 frames by sampling every two frames. For NRGBD
+dataset, one test sequence contain less than 400 frames.
+                     200 frames          250 frames            300 frames           350 frames         400 frames
+ Method
+                    CD ↓    NC ↑        CD ↓      NC ↑        CD ↓      NC ↑       CD ↓     NC ↑      CD ↓    NC ↑
+                                                7-Scenes Dataset
+ VGGT (offline)     OOM     OOM         OOM       OOM         OOM       OOM       OOM       OOM       OOM     OOM
+ Stream-VGGT        OOM     OOM         OOM       OOM         OOM       OOM       OOM       OOM       OOM     OOM
+ CUT3R              0.070   0.563       0.096     0.550       0.110     0.541     0.118     0.536     0.130   0.533
+ Ours               0.038   0.575       0.052     0.565       0.057     0.558     0.066     0.554     0.077   0.549
+ TTT3R              0.025   0.581       0.030     0.572       0.031     0.565     0.034     0.560     0.038   0.557
+ Ours + TTT3R       0.023   0.580       0.025     0.572       0.025     0.566     0.025     0.563     0.027   0.560
+ TTSA3R             0.023   0.582       0.025     0.573       0.026     0.567     0.027     0.563     0.030   0.561
+ Ours + TTSA3R      0.021   0.581       0.022     0.572       0.022     0.566     0.023     0.563     0.023   0.560
+                                                NRGBD Dataset
+ VGGT (offline)     OOM     OOM         OOM       OOM         OOM       OOM       OOM       OOM       OOM     OOM
+ Stream-VGGT        OOM     OOM         OOM       OOM         OOM       OOM       OOM       OOM       OOM     OOM
+ CUT3R              0.081   0.602       0.130     0.594       0.162     0.576     0.188     0.566     0.220   0.552
+ Ours               0.060   0.612       0.085     0.609       0.101     0.592     0.114     0.585     0.135   0.577
+ TTT3R              0.037   0.626       0.049     0.621       0.065     0.605     0.085     0.599     0.104   0.595
+ Ours + TTT3R       0.037   0.625       0.048     0.621       0.062     0.612     0.062     0.608     0.064   0.608
+ TTSA3R             0.031   0.630       0.042     0.622       0.057     0.616     0.060     0.611     0.069   0.609
+ Ours + TTSA3R      0.032   0.625       0.042     0.621       0.052     0.616     0.057     0.614     0.061   0.612
+
+
+
+
+                                                         19
+

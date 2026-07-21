@@ -1,0 +1,732 @@
+                                              3DT URBO Q UANT: Training-Free Near-Optimal
+                                               Quantization for 3D Reconstruction Models
+
+
+                                                                                    Jae Joong Lee
+                                                                            Department of Computer Science
+                                                                                  Purdue University
+                                                                                lee2161@purdue.edu
+arXiv:2604.05366v1 [cs.CV] 7 Apr 2026
+
+
+
+
+                                                                                        Abstract
+                                                    Every existing method for compressing 3D Gaussian Splatting, NeRF, or
+                                                    transformer-based 3D reconstructors requires learning a data-dependent code-
+                                                    book through per-scene fine-tuning. We show this is unnecessary. The parameter
+                                                    vectors that dominate storage in these models, 45-dimensional spherical harmonics
+                                                    in 3DGS and 1024-dimensional key-value vectors in DUSt3R, fall in a dimension
+                                                    range where a single random rotation transforms any input into coordinates with a
+                                                    known Beta distribution. This makes precomputed, data-independent Lloyd-Max
+                                                    quantization near-optimal, within a factor of 2.7 of the information-theoretic lower
+                                                    bound. We develop 3DT URBO Q UANT, deriving (1) a dimension-dependent crite-
+                                                    rion that predicts which parameters can be quantized and at what bit-width before
+                                                    running any experiment, (2) norm-separation bounds connecting quantization MSE
+                                                    to rendering PSNR per scene, (3) an entry-grouping strategy extending rotation-
+                                                    based quantization to 2-dimensional hash grid features, and (4) a composable
+                                                    pruning-quantization pipeline with a closed-form compression ratio. On NeRF
+                                                    Synthetic, 3DT URBO Q UANT compresses 3DGS by 3.5× with 0.02 dB PSNR loss
+                                                    and DUSt3R KV caches by 7.9× with 39.7 dB pointmap fidelity. No training, no
+                                                    codebook learning, no calibration data. Compression takes seconds.
+
+
+                                        1    Introduction
+                                        Compressing 3D reconstruction models today requires training. For 3D Gaussian Splatting
+                                        (3DGS) Kerbl et al. [2023], methods like CompGS Navaneet et al. [2024], HAC++ Chen et al.
+                                        [2025b], and OMG Lee et al. [2025a] learn per-scene codebooks through hours of fine-tuning to
+                                        reach 20–185× compression. For NeRF Mildenhall et al. [2020], Müller et al. [2022] hash grids,
+                                        SHACIRA Girish et al. [2023] and CNC Chen et al. [2024a] train entropy models per scene. For
+                                        transformer reconstructors like DUSt3R Wang et al. [2024a], KV cache quantization methods Liu
+                                        et al. [2024], Hooper et al. [2024] require calibration data. Every method in every 3D reconstruction
+                                        family shares the same structural requirement: a data-dependent codebook or calibration step that
+                                        must be repeated for each new scene or model.
+                                        This requirement has practical consequences. A streaming 3D application cannot pause to fine-tune
+                                        a codebook. A dynamic scene with densifying Gaussians invalidates codebooks learned on earlier
+                                        states. An on-device deployment cannot afford the GPU-hours needed for per-scene compression.
+                                        The question is whether data-dependent codebook learning is fundamentally necessary, or whether
+                                        the structure of 3D reconstruction parameters admits a data-independent alternative.
+                                        We find that it is not necessary. The parameter vectors that dominate storage in 3D reconstruction
+                                        models occupy a specific dimension range, d ∈ [16, 1024], where rotation-based vector quantiza-
+                                        tion Zandieh et al. [2025a] achieves near-optimal distortion without any data-dependent learning.
+                                        The mechanism is the following: multiplying a d-dimensional vector by a random orthogonal matrix
+
+                                        Preprint.
+produces coordinates that follow a Beta distribution with variance 1/d. When d is large enough
+(we find d ≥ 16 suffices in practice), these coordinates are nearly independent, and a precomputed
+Lloyd-Max scalar quantizer Lloyd [1982] for the Beta distribution is near-optimal. 3DGS spherical
+harmonic coefficients have d = 45. DUSt3R KV cache vectors have d = 1024. Both fall squarely in
+this range.
+Building on this observation, we make four contributions:
+
+      1. Dimension-dependent quantization criterion. We derive which 3D reconstruction pa-
+         rameters can be quantized by rotation-based VQ based on their dimension d, and at what
+         bit-width b. We show that coordinates at d = 45 are independent enough for near-optimal
+         scalar quantization at b ≥ 3, while d = 3 (positions) and d = 4 (quaternions) are not. This
+         criterion predicts per-bit rendering PSNR loss before any experiment: at b = 3 and d = 45,
+         the bound gives Dmse ≤ 0.03, and we measure 0.033 on Lego, a 10% gap.
+      2. Norm-separation bounds. 3D reconstruction parameters are not unit-norm, unlike the
+         setting analyzed in Zandieh et al. [2025a]. We derive that separating the norm
+                                                                                    √
+                                                                                        γi = ∥f i ∥2
+         and quantizing the direction f̂ i = f i /γi yields per-element MSE of γi2 · 23π · 4−b . This
+         gives a closed-form prediction of rendering quality as a function of bit-width and the SH
+         norm distribution of each scene.
+      3. Entry-grouping for low-dimensional features. Instant-NGP Müller et al. [2022] hash
+         entries have df = 2, below the threshold where coordinate independence holds. We
+         introduce a grouping strategy that concatenates g entries into deff = g · df dimensions before
+         rotation and quantization, extending the approach to NeRF feature grids.
+      4. Composable compression with derived rates. We show that rotation-based quantization
+         composes multiplicatively with opacity pruning (retaining fraction ρ) and SH degree re-
+         duction (factor r), with a closed-form total compression ratio of ρ1 · b·r+56/d
+                                                                                    32
+                                                                                        sh
+                                                                                           . This yields
+         5–8× total compression on 3DGS without any retraining.
+
+2   Related Work
+3D Gaussian Splatting compression. The growing memory cost of 3DGS has motivated a rich line
+of compression work, recently surveyed in Bagdasarian et al. [2025]. Methods can be broadly catego-
+rized into three strategies that are typically combined. Codebook-based quantization: CompGS Na-
+vaneet et al. [2024] trains a VQ-VAE to learn compact codebooks for Gaussian attributes with
+entropy coding (31×). C3DGS Niedermayr et al. [2024] applies sensitivity-aware vector clustering
+with quantization-aware training. Compact-3DGS Lee et al. [2024] replaces SH with a grid-based
+neural field and applies codebook VQ (25×+). Context and entropy modeling: HAC Chen et al.
+[2024b] introduces hash-grid-assisted spatial context models with arithmetic coding. Its extension
+HAC++ Chen et al. [2025b] achieves over 100× compression by explicitly minimizing entropy during
+optimization. ContextGS Wang et al. [2024b] develops anchor-level autoregressive context models
+(20×). CodecGS Lee et al. [2025b] maps Gaussians to tri-plane feature planes and leverages standard
+video codecs (H.265/VVC) for 146× compression. Pruning and distillation: LightGaussian Fan et al.
+[2024] combines global significance pruning with SH distillation and VecTree quantization (15×).
+LP-3DGS Zhang et al. [2024b] learns differentiable pruning masks. EAGLES Girish et al. [2024]
+uses quantized embeddings with progressive training. SOGS Morgenstern et al. [2024] arranges
+Gaussians into a 2D grid for off-the-shelf image codec compression (17–42×).
+Wang et al. Wang et al. [2025] propose noise-substituted VQ that jointly trains codebooks and features
+(∼45×). SALVQ Xu et al. [2025] replaces uniform scalar quantization with scene-adaptive lattice VQ.
+A common thread across all these methods is their reliance on data-dependent, per-scene training:
+codebooks, context models, and entropy parameters must be learned anew for each scene, typically
+taking hours. The sole exception is FlexGaussian Tian et al. [2025], which is training-free but uses
+heuristic mixed-precision assignment without theoretical guarantees. 3DT URBO Q UANT provides
+the quantization component with provable near-optimality using a fixed, precomputed codebook,
+bridging the gap between training-free convenience and theoretically-grounded compression.
+
+Neural Radiance Field compression. NeRF compression targets the learned feature representations
+that dominate storage. SHACIRA Girish et al. [2023] develops importance-weighted hash-grid
+
+
+                                                   2
+codebooks with quantization-aware retraining for Instant-NGP. CNC Chen et al. [2024a] exploits
+level-wise and dimension-wise context dependencies in hash grids, achieving 100× compression
+on NeRF Synthetic. VQRF Li et al. [2023] applies vector quantization to TensoRF Chen et al.
+[2022] factored features. VQAD Takikawa et al. [2022] proposes a vector-quantized auto-decoder
+for variable-bitrate neural fields. More recently, HERO Zhang et al. [2025] introduces RL-based
+hardware-aware quantization for NeRF accelerators, Quant-NeRF Hassan et al. [2025] develops
+end-to-end quantization for low-precision 3D Gaussian NeRF, and Zhang et al. Zhang et al. [2024a]
+propose hardware-friendly positional encoding quantization. All are data-dependent: codebooks or
+quantization parameters must be learned per scene. 3DT URBO Q UANT applies a fixed, precomputed
+codebook derived from the Beta distribution, avoiding any per-scene learning.
+
+KV cache quantization for transformers. Memory-efficient inference in transformers has driven
+work on KV cache compression, both for LLMs and emerging 3D vision transformers. KIVI Liu
+et al. [2024] proposes per-channel asymmetric 2-bit quantization. KVQuant Hooper et al. [2024] uses
+sensitivity-weighted quantization with per-channel scales. QJL Zandieh et al. [2025b] introduces
+a 1-bit scheme based on the Johnson-Lindenstrauss transform providing unbiased inner product
+estimation. PolarQuant Han et al. [2025] decomposes vectors using polar coordinates. For 3D vision
+transformers specifically, QuantVGGT Feng et al. [2025] applies W4A4 post-training quantization
+to the 1.2B-parameter VGGT model with Hadamard rotation smoothing. XStreamVGGT Su et al.
+[2026] combines token-importance pruning with dimension-adaptive KV quantization for 4.4×
+memory reduction. TurboQuant Zandieh et al. [2025a] extends these ideas with provably optimal
+MSE bounds by exploiting the Beta distribution of randomly-rotated coordinates. Our work applies
+this approach to DUSt3R, demonstrating that provably near-optimal quantization achieves 7.9× KV
+compression with high-fidelity 3D reconstruction.
+
+Vector quantization theory. The information-theoretic foundation for vector quantization was
+laid by Shannon’s distortion-rate theory Shannon [1948], Shannon et al. [1959], establishing that the
+minimum achievable distortion for a source with differential entropy h(x) at bit budget B is D(B) ≥
+  d     (2/d)(h(x)−B)
+2πe · 2               . Zador Zador [1964] derived asymptotic expressions for fixed-rate quantizers,
+and Gersho Gersho [1979] popularized lattice quantization. The Lloyd-Max algorithm Lloyd [1982],
+Max [1960] provides the optimal scalar quantizer for known distributions. TurboQuant Zandieh
+et al. [2025a] achieves the Shannon bound within a constant factor by exploiting the fact that random
+rotation transforms worst-case inputs into vectors with a known, quantization-friendly distribution.
+
+3     Preliminaries
+We first establish the formal problem definition, then briefly review the three 3D reconstruction
+settings and the TurboQuant algorithm that underlies our approach.
+
+3.1   Problem Definition
+
+Let Θ = {θ 1 , . . . , θ N } ⊂ Rd denote the set of N parameter vectors of dimension d in a trained 3D
+reconstruction model. Our goal is to design a quantization scheme that compresses each θ i from
+32d bits (float32) to bd bits (b bits per coordinate, b ≪ 32), while minimizing the distortion in the
+model’s output.
+Formally, we seek a quantization map Q : Rd → {0, 1}bd and dequantization map Q−1 : {0, 1}bd →
+Rd that minimize the worst-case expected MSE distortion:
+                                             h                   2
+                                                                   i
+                           Dmse := max EQ x − Q−1 (Q(x)) 2 ,                                 (1)
+                                     x∈Sd−1
+
+where the expectation is over the randomness in Q (which may be a randomized quantizer) and the
+maximization is over all unit-norm input vectors.
+For applications involving inner product computation (e.g., attention in transformers), we also
+consider the inner product distortion:
+                                         h                            2
+                                                                        i
+                       Dprod := max EQ ⟨y, x⟩ − ⟨y, Q−1 (Q(x))⟩ ,                           (2)
+                                 x∈Sd−1
+                                  y∈Rd
+
+
+                                                  3
+with the additional desideratum of unbiasedness: EQ ⟨y, Q−1 (Q(x))⟩ = ⟨y, x⟩.
+                                                                  
+
+Design requirements. For 3D reconstruction deployment, the quantizer must satisfy three properties
+beyond low distortion: (i) data-oblivious: no access to the training data or calibration set. (ii) online:
+each vector is quantized independently, enabling streaming and dynamic scenes. (iii) computationally
+efficient: quantization should be faster than model training by orders of magnitude.
+
+3.2   3D Reconstruction Approaches
+
+We briefly describe the parameter structures of each approach to motivate our quantization targets.
+
+3D Gaussian Splatting (3DGS). A 3DGS model Kerbl et al. [2023] represents a scene as a set of
+N anisotropic Gaussians {(µi , Σi , αi , ci )}N                 3
+                                              i=1 , where µi ∈ R is the center, Σi is the covariance
+(parameterized by scale si ∈ R3 and rotation quaternion q i ∈ R4 ), αi ∈ R is the opacity (stored in
+logit space), and ci is the view-dependent color encoded via spherical harmonics (SH). At SH degree
+                                                        3                                         dsh
+l, the color is represented by DC coefficients cdc
+                                                 i ∈ R and higher-order rest coefficients f i ∈ R
+where dsh = 3((l + 1)2 − 1). For l = 3: dsh = 45, constituting 180 of the 236 bytes per Gaussian
+(76%).
+
+Neural Radiance Fields (NeRF). Instant-NGP Müller et al. [2022] encodes scene geometry
+and appearance in multi-resolution hash tables {T (r) }Rr=1 across R resolution levels. Each table
+T (r) ∈ RNr ×df stores Nr feature vectors of dimension df (typically df = 2). A query point
+x ∈ R3 is projected to each level, the enclosing voxel vertices are looked up, features are trilinearly
+interpolated, concatenated across levels, and passed through a small MLP to produce density and
+color.
+
+Transformer reconstruction (DUSt3R). DUSt3R Wang et al. [2024a] uses a ViT-Large en-
+coder Dosovitskiy et al. [2021] with L transformer layers, each with multi-head self-attention over H
+heads of dimension dh . For V input views tokenized into P patches each, the self-attention at layer ℓ
+computes:                                                      !   ⊤
+                                                    Q(ℓ) K (ℓ)
+                               Attn (ℓ)
+                                          = softmax    √               V (ℓ) ,                        (3)
+                                                         dh
+where Q(ℓ) , K (ℓ) , V (ℓ) ∈ RV P ×dkv with dkv = H · dh . The KV cache for all layers consumes
+2L · V P · dkv · 4 bytes. For DUSt3R ViT-Large (L = 24, H = 16, dh = 64, dkv = 1024), this grows
+to hundreds of MB for multi-view inputs.
+
+3.3   TurboQuant: Near-Optimal Data-Oblivious Quantization
+
+TurboQuant Zandieh et al. [2025a] solves the problem in Eq. (1) by reducing vector quantization in
+Rd to d independent scalar quantization problems. The key enabling result is the following:
+Lemma 1 (Coordinate distribution on the hypersphere Zandieh et al. [2025a]). If x ∈ Sd−1 is
+uniformly distributed on the unit hypersphere, then each coordinate xj follows the Beta distribution:
+                                       Γ(d/2)               (d−3)/2
+                xj ∼ fX (x) := √                     1 − x2          , x ∈ [−1, 1].               (4)
+                                    π Γ((d − 1)/2)
+In high dimensions, fX (·) → N (0, 1/d), and distinct coordinates become nearly independent.
+Since multiplying any fixed x ∈ Sd−1 by a random orthogonal matrix Π (obtained via QR decompo-
+sition of an i.i.d. Gaussian matrix) produces y = Πx uniformly distributed on Sd−1 , each coordinate
+y j follows fX . This transforms the worst-case vector quantization problem into one where the
+coordinate distribution is known, enabling the use of optimal scalar quantization.
+
+Optimal scalar quantization. The Lloyd-Max algorithm Lloyd [1982], Max [1960] finds centroids
+{c1 , . . . , c2b } that minimize the scalar quantization MSE for a given distribution. For fX in Eq. (4),
+this amounts to solving:
+                                                      2b Z ci +ci+1
+                                                     X         2
+                       C(fX , b) :=       min             c    +c
+                                                                    |x − ci |2 · fX (x) dx.            (5)
+                               −1≤c1 ≤···≤c2b ≤1         i−1   i
+                                                   i=1     2
+
+
+
+
+                                                     4
+                                       3DTurboQuant Pipeline Overview
+                    extract                                             normalize              Π·
+      Trained model −−−→ High-dim parameter vectors (θ i ∈ Rd ) −  → Unit vectors (θ̂ i ∈ Sd−1 ) −
+                                                                −−−−                             −→
+                                                                        store γi
+                                              Lloyd-Max                  pack
+                 Rotated coords (y i ∼ fX ) −−−−−→ b-bit indices −−→ Compressed model
+               3DGS: d = 45 (SH) DUSt3R: d = 1024 (KV) NeRF: d = 32 (grouped hash)
+
+Figure 1: Overview of 3DT URBO Q UANT. Parameter vectors from any 3D reconstruction model
+are normalized, randomly rotated, and scalar-quantized using a precomputed codebook. The same
+algorithm applies across all three approaches. Only the dimension d differs.
+
+
+Crucially, this codebook depends only on d and b. It can be precomputed once and reused for all
+scenes.
+
+TurboQuantmse algorithm.          The complete procedure is:
+       1. Setup (once per (d, b)): Generate random rotation Π ∈ Rd×d ; compute codebook {ck } by
+          solving Eq. (5).
+       2. Q UANTIZE(x): y ← Π · x; idxj ← arg mink |y j − ck | for j ∈ [d]; output idx.
+       3. D E Q UANTIZE(idx): ỹ j ← cidxj ; x̃ ← Π⊤ · ỹ; output x̃.
+Theorem 2 (MSE bound Zandieh et al. [2025a]). For any b ≥ 1 and x ∈ Sd−1 , TurboQuantmse
+achieves:                                        √
+                                                   3π 1        2.72
+                                 Dmse (Qmse ) ≤        · b ≈ b .                             (6)
+                                                   2    4       4
+For b = 1, 2, 3, 4: Dmse ≈ 0.36, 0.117, 0.03, 0.009 respectively.
+Theorem 3 (Information-theoretic lower bound Zandieh et al. [2025a]). For any randomized quan-
+tizer Q : Sd−1 → {0, 1}bd with any reconstruction map, there exist hard instances such that:
+                                            1                            ∥y∥22 1
+                              Dmse (Q) ≥       ,          Dprod (Q) ≥         · b.                    (7)
+                                            4b                            d    4
+                                                                    √
+The ratio between the upper bound (6) and lower bound (7) is 23π ≈ 2.7, establishing near-optimality
+of TurboQuant within a small constant factor of the best achievable distortion by any algorithm.
+
+4     Method: 3DT URBO Q UANT
+The core question is: given a trained 3D model with parameter vectors of dimension d, which vectors
+should be quantized, at how many bits, and how does the resulting distortion affect the model’s
+output? We answer this for each of the three reconstruction approaches. The overall pipeline is shown
+in Figure 1.
+
+4.1    3DGS Spherical Harmonic Compression
+
+For each Gaussian i ∈ [N ], we extract the SH rest coefficients as a flat vector f i ∈ Rdsh (dsh = 45
+for l = 3). We apply TurboQuant with norm separation:
+                      γi = ∥f i ∥2 ,      f̂ i = f i /γi ,      idxi = Q UANTIZE(f̂ i ).              (8)
+By Theorem 2, the per-Gaussian SH reconstruction MSE is bounded:
+                                                      √
+                                h
+                                             2
+                                               i
+                                                  2     3π 1
+                              E ∥f i − f̃ i ∥2 ≤ γi ·     · b.                                        (9)
+                                                       2   4
+
+What we quantize vs. what we keep. Positions µi ∈ R3 , quaternions q i ∈ R4 , scales si ∈ R3 ,
+                                      3
+opacity αi ∈ R, and DC color cdci ∈ R remain in float32. These low-dimensional parameters (d ≤ 4)
+contribute only 56 bytes per Gaussian (24% of storage) but are highly sensitive: sub-pixel position
+errors or quaternion perturbations cause visible artifacts, while the Beta distribution approximation
+requires d ≫ 1 for near-independence.
+
+
+                                                          5
+Storage format. Per Gaussian: 56 bytes (unquantized) + ⌈45b/8⌉ bytes (bit-packed SH indices) +
+                                                                                b
+4 bytes (norm γi ). The rotation matrix Π ∈ R45×45 (8.1 KB) and codebook {ck }2k=1 (2b · 4 bytes)
+are stored once globally, with negligible overhead.
+
+Composability with pruning. We optionally apply two training-free pruning strategies before
+quantization:
+
+       • Opacity pruning: Remove Gaussians with σ(αi ) < τ , reducing N .
+       • SH degree reduction: Truncate to degree l′ < l, reducing dsh = 3((l′ + 1)2 − 1).
+
+These compose multiplicatively with quantization: if pruning retains fraction ρ of Gaussians and
+reduces SH dimension by factor r, the total compression is approximately ρ1 · b·r+56/d
+                                                                                  32
+                                                                                      sh
+                                                                                         .
+
+4.2   Transformer KV Cache Compression
+
+For DUSt3R’s ViT-Large encoder, we quantize the key and value matrices K (ℓ) , V (ℓ) ∈ RV P ×dkv at
+                        (ℓ)   (ℓ)
+each layer ℓ. Each row kt , v t ∈ Rdkv is quantized independently via TurboQuant. The quantized
+attention becomes:
+                                                         (ℓ)⊤
+                                                              !
+                                  (ℓ)            Q(ℓ) K̃          (ℓ)
+                             Attn = softmax
+                             g                      √           Ṽ ,                          (10)
+                                                       dh
+         (ℓ)                 (ℓ)                           (ℓ)
+where K̃ = Q−1  mse (Qmse (K     )) and similarly for Ṽ         . This requires only a forward-pass hook,
+requiring no model modification or retraining.
+At dkv = 1024, Lemma 1 gives Var(y j ) = 1/1024 ≈ 10−3 , meaning each rotated coordinate
+carries negligible individual information. The near-independence of coordinates at high d makes
+TurboQuant’s scalar quantization particularly effective, explaining why even b = 3–4 bits suffice for
+high-fidelity reconstruction.
+
+4.3   NeRF Hash Grid Compression
+
+For Instant-NGP hash tables T (r) ∈ RNr ×df , the raw feature dimension df = 2 is too low for
+TurboQuant’s Beta approximation. We address this by grouping g consecutive hash entries into
+higher-dimensional vectors:
+                             h                                i
+                                 (r)   (r)              (r)
+                         hk = T kg ; T kg+1 ; . . . ; T kg+g−1 ∈ Rg·df ,                 (11)
+
+with g = ⌈16/df ⌉ yielding deff = g · df ≥ 16. After quantization, the grouped vector is unpacked
+back to individual hash entries for inference. For higher-dimensional NeRF representations such
+as TensoRF Chen et al. [2022] (df = 48) and K-Planes Fridovich-Keil et al. [2023] (df = 64), no
+grouping is needed and Theorem 2 applies directly.
+
+5     Experiments
+5.1   Experimental Setup
+
+Dataset. We use the Lego scene from the NeRF Synthetic dataset Mildenhall et al. [2020], a
+standard benchmark with 100 training and 200 test views at 800×800 resolution.
+
+Models. (1) 3DGS: official implementation Kerbl et al. [2023], 30K training iterations, SH degree
+3, producing 232,743 Gaussians (57.7 MB PLY). (2) DUSt3R: pretrained ViT-Large model Wang
+et al. [2024a] (571M parameters, 48 attention layers). (3) Instant-NGP: nerfstudio Tancik et al. [2023]
+implementation, 20K iterations.
+
+Metrics. Rendering PSNR (3DGS, NeRF), 3D pointmap PSNR (DUSt3R), compression ratio
+(original size / compressed size), and wall-clock quantization time on a single NVIDIA GPU.
+
+
+                                                  6
+Table 1: 3DT URBO Q UANT compression of 3DGS on Lego (232K Gaussians, baseline PSNR =
+29.80 dB). Rendering PSNR over 200 test views. Render time is constant (∼0.8 s) as dequantization
+is negligible.
+          Bits (b)    PSNR (dB) ∆PSNR (dB) Compression Quant Time SH MSE
+      fp32 (baseline)      29.80            0.00            1.0×               –            –
+             1             29.31           −0.49            4.1×             4.2 s       0.00199
+             2             29.68           −0.12            3.8×             6.6 s       0.00063
+             3             29.78           −0.02            3.5×             9.3 s       0.00018
+             4             29.80           −0.00            3.3×            12.2 s       0.00005
+
+ Ground Truth fp32 (baseline) b = 1 (4.1×) b = 2 (3.8×) b = 3 (3.5×) b = 4 (3.3×) Error (b=1, 10×)
+
+
+
+
+Figure 2: Qualitative results of 3DT URBO Q UANT on 3DGS. Rendered images across bit widths
+b = 1, 2, 3, 4 on the Lego (top) and Mic (bottom) scenes. Rightmost column: 10× amplified error
+map at b = 1 relative to the fp32 baseline. At b = 3, the renders are visually indistinguishable from
+the uncompressed model.
+
+
+5.2   3D Gaussian Splatting Results
+
+Table 1 presents quantization-only results across bit widths b = 1 to 4. Two trends are worth noting.
+First, the PSNR loss drops rapidly with bit-width: from −0.49 dB at b = 1 to −0.02 dB at b = 3, a
+96% reduction in distortion for only 2 additional bits per coordinate. At b = 4, the loss rounds to
+zero. This steep improvement matches the 4−b decay predicted by Theorem 2.
+Second, the theory-to-practice gap is small. Normalizing the measured SH MSE by the average
+squared norm γ̄ 2 ≈ 0.0055 yields per-unit-norm MSE values of 0.36, 0.11, 0.033, 0.009 for b =
+1, 2, 3, 4, which match the theoretical bounds (0.36, 0.117, 0.03, 0.009) within 10% across all bit-
+widths. The bound is tightest at b = 1 (0.93×) and loosest at b = 4 (1.50×), consistent with finite-d
+effects that vanish as d grows.
+
+Qualitative results. Figure 2 shows rendered images on both Lego and Mic scenes. At b = 3, the
+10× amplified error map reveals no visible structure, confirming that the 0.02 dB loss is uniformly
+distributed across the image rather than concentrated in specific regions. At b = 1, subtle color shifts
+appear on the Lego bricks (where SH norms γi are largest), but geometry remains sharp because
+positions and rotations are unquantized.
+
+Combined with pruning. Table 2 shows that opacity pruning and SH degree reduction compose
+orthogonally with TurboQuant quantization, all without any retraining.
+
+5.3   DUSt3R KV Cache Results
+
+Table 3 evaluates KV cache quantization on DUSt3R ViT-Large using 5 Lego test view pairs.
+Pointmap PSNR measures how well the quantized model’s 3D point predictions match the unquantized
+output. Three observations emerge.
+First, there is a phase transition between b = 2 and b = 3. At b = 2, pointmap PSNR is 16.5 dB,
+but at b = 3 it jumps to 29.3 dB, a 12.8 dB improvement from a single additional bit. This is not
+
+
+                                                   7
+      Input View       fp32 (baseline)     b = 2 (15.8×)      b = 3 (10.6×)       b = 4 (7.9×)
+
+
+
+
+Figure 3: DUSt3R KV cache quantization: depth map visualization. Predicted depth maps
+(turbo colormap) from DUSt3R ViT-Large with KV cache quantized at various bit widths. At b = 4
+(7.9× KV compression, 39.7 dB pointmap PSNR), the depth structure is indistinguishable from the
+unquantized baseline.
+
+Table 2: Pruning + 3DT URBO Q UANT on Lego. All configurations are training-free. τ : opacity
+threshold. SHl′ : reduced SH degree.
+       Configuration                 Gaussians PSNR (dB) ∆PSNR (dB) Ratio
+       TQ b = 3 (quant only)               232,743         29.78         −0.02        3.5×
+       TQ b = 3 + prune τ = 0.05           196,887         29.63         −0.17        4.1×
+       TQ b = 3 + prune τ = 0.1            173,482         28.98         −0.82        4.7×
+       TQ b = 3 + prune τ = 0.2            144,022         27.21         −2.59        5.6×
+       TQ b = 3 + SH1                      232,743         28.06         −1.74        4.3×
+       TQ b = 3 + prune τ = 0.3 + SH1      123,863         25.05         −4.75        8.0×
+
+
+predicted by TurboQuant’s smooth 4−b MSE bound and reveals that DUSt3R’s decoder amplifies
+small KV errors nonlinearly. The 3D point MSE drops 18× (from 0.014 to 0.00078) between these
+two bit-widths.
+Second, at b = 4 the pointmap PSNR reaches 39.7 dB with 3D point MSE of 7 × 10−5 , meaning the
+average 3D prediction error is under 0.01 scene units. The KV cache shrinks by 7.9×, from 100 MB
+to 13 MB for a 2-view pair. This directly enables fitting 8× more views in the same GPU memory.
+Third, the quantization overhead is modest. At b = 4, inference takes 1.67 s compared to the 0.14 s
+baseline, adding 1.53 s. This overhead comes from the CPU-side rotation and quantization. A fused
+GPU kernel (left for future work) would reduce this to milliseconds, as the operations are fully
+parallelizable.
+
+5.4   Instant-NGP Hash Grid Results
+
+Table 4 shows hash grid quantization results for Instant-NGP on Lego, where the limitations of
+low-dimensional features become apparent.
+The compression ratios are modest (1.3–1.9×) compared to the 3DGS and DUSt3R results. The
+cause is Instant-NGP’s low per-entry dimension: df = 2 means even grouped vectors (deff = 32)
+require one 4-byte norm per 32 coordinates, consuming 12.5% of the compressed representation
+in overhead alone. Notably, the PSNR delta saturates at −1.07 dB for b ≥ 2, suggesting that the
+grouping-induced locality assumption, not quantization precision, is the bottleneck. This confirms
+our dimension-dependent analysis: rotation-based quantization works best when d is naturally high.
+For NeRF representations with df ≥ 16 (TensoRF planes at df = 48, K-Planes at df = 64), our
+approach would operate without grouping and achieve 3–7× compression at the same MSE bounds
+as 3DGS.
+
+5.5   Comparison with Existing Methods
+
+Table 5 compares 3DT URBO Q UANT against existing 3DGS compression methods, revealing a clear
+trade-off between compression ratio and training cost.
+The gap in compression ratios (3.5× vs. 20–185×) reflects a difference in scope, not in quantization
+quality. Training-required methods combine four stages: pruning removes 40–80% of Gaussians,
+learned VQ compresses what remains by 4–6×, entropy coding adds another 1.5–2×, and fine-
+tuning recovers 0.2–0.5 dB of quality lost during compression. 3DT URBO Q UANT provides only the
+
+
+                                                 8
+Table 3: 3DT URBO Q UANT KV cache quantization in DUSt3R ViT-Large (571M params, 48 attention
+layers, dkv = 1024). Baseline inference: 0.14 s. Overhead = additional time from quantization.
+     Bits (b) Ptmap PSNR (dB) 3D Point MSE KV Compress Inf. Time Overhead
+       fp32             ∞                    0               1.0×            0.14 s            –
+         1             16.52              0.01386            31.0×            1.04 s        +0.90 s
+         2             16.52              0.01386            15.8×            1.85 s        +1.72 s
+         3             29.30              0.00078            10.6×            0.94 s        +0.81 s
+         4             39.68              0.00007            7.9×            1.67 s         +1.53 s
+         5             49.65             0.000008            6.4×             2.32 s        +2.19 s
+         8             52.81             0.000003            4.0×            11.62 s        +11.48 s
+
+
+Table 4: 3DT URBO Q UANT on Instant-NGP hash features (Lego). Low ratios reflect the 2D per-entry
+feature dimension; higher-dim representations (TensoRF df = 48, K-Planes df = 64) would yield
+3–7×.
+             Bits (b) PSNR (dB) ∆PSNR (dB) Hash Compress Quant Time
+               fp32         11.57            0.00              1.0×                  –
+                 1           9.70           −1.87              1.9×                0.18 s
+                 2          10.54           −1.04              1.8×                0.23 s
+                 4          10.51           −1.07              1.6×                0.91 s
+                 8          10.49           −1.08              1.3×                11.5 s
+
+
+quantization stage, but at near-optimal distortion. A natural next step is to combine 3DT URBO Q UANT
+with existing pruning and entropy coding pipelines, replacing the learned VQ component. Since
+3DT URBO Q UANT matches or exceeds the per-coordinate distortion of learned codebooks (0.02 dB
+vs. 0.1–0.5 dB) while eliminating the hours-long codebook training, this substitution would accelerate
+the overall compression pipeline without degrading the compression ratio.
+The only existing training-free method is FlexGaussian Tian et al. [2025], which achieves 19×
+through heuristic mixed-precision quantization and pruning. 3DT URBO Q UANT at b = 3 achieves
+lower PSNR loss (0.02 dB vs. < 1 dB) at a lower compression ratio (3.5× vs. 19×), reflecting the
+absence of pruning. When we add pruning (3DT URBO Q UANT + prune), the compression reaches
+5–8× with a rate-distortion trade-off that practitioners can control via the threshold τ and bit-width b.
+
+
+6   Analysis and Discussion
+
+Why dimension determines quantization quality. Our experiments reveal a clean relationship
+between vector dimension d and quantization effectiveness. At d = 1024 (DUSt3R), 3-bit quantiza-
+tion yields 29.3 dB pointmap PSNR, and even 4-bit gives 39.7 dB. At d = 45 (3DGS), 3-bit gives
+−0.02 dB rendering loss. At d = 2 (Instant-NGP), even 8-bit still loses −1.08 dB.
+This pattern follows directly from the Beta distribution variance Var(y j ) = 1/d. At d = 1024,
+each coordinate has variance ≈ 10−3 and the distribution concentrates in a narrow band around zero
+that a 3-bit quantizer covers with high fidelity. At d = 2, coordinates have variance 0.5 and span
+nearly all of [−1, 1], making 3-bit quantization coarse. The near-independence of coordinates, which
+determines whether scalar quantization is optimal or suboptimal, also strengthens with d Zandieh
+et al. [2025a]. This gives a practical rule: rotation-based quantization with b bits works well when
+d · 4−b ≪ 1, or equivalently b > log4 d.
+                                                                               √
+Theory-practice gap. Theorem 2 gives a worst-case upper bound Dmse ≤ 23π ·4−b . Our measured
+MSE at d = 45 tracks this bound within a factor of 0.93 to 1.50 across b = 1 to 4. The gap is smallest
+at b = 1 (measured/bound = 0.93) and grows at higher b (1.50 at b = 4). This is consistent with
+the proof structure: the bound uses the Panter-Dite high-resolution formula which is exact only as
+b → ∞. For low b, the numerically-solved Lloyd-Max codebook is tighter than the formula predicts,
+explaining why the bound is mildly loose at b ≥ 3.
+
+
+                                                    9
+Table 5: Comparison with existing 3DGS compression methods. Prior methods combine pruning,
+learned codebooks, entropy coding, and per-scene fine-tuning. 3DT URBO Q UANT provides provably
+near-optimal quantization only, with no training. Compression ratios are reported relative to vanilla
+3DGS.
+  Method                                  Venue       Compress PSNR Loss Training               Time
+    Training-required methods
+    LightGaussian Fan et al. [2024]            NeurIPS’24               15×    0.2–0.5 dB   Yes     Hours
+    ContextGS Wang et al. [2024b]              NeurIPS’24               20×    0.1–0.3 dB   Yes     Hours
+    C3DGS Niedermayr et al. [2024]              CVPR’24                 31×    0.1–0.5 dB   Yes     Hours
+    SOGS Morgenstern et al. [2024]              ECCV’24               17–42×   0.1–0.5 dB   Yes     Hours
+    FCGS Chen et al. [2025a]                    ICLR’25                >20×     ∼0.1 dB     Yes    Seconds
+    CodecGS Lee et al. [2025b]                  ICCV’25                 76×     ∼0.2 dB     Yes     Hours
+    HAC++ Chen et al. [2025b]                  TPAMI’25               >100×      ≤0 dB∗     Yes     Hours
+    OMG Lee et al. [2025a]                     NeurIPS’25              185×     ∼0.1 dB     Yes     Hours
+    Training-free methods
+    FlexGaussian Tian et al. [2025]           ACM MM’25                19×      <1 dB       No     Seconds
+    3DT URBO Q UANT b = 3                         –                   3.5×     0.02 dB      No       9s
+    3DT URBO Q UANT + prune                       –                   5–8×     0.2–3 dB     No       9s
+    ∗ HAC++ reports quality improvement over vanilla 3DGS baseline.
+
+
+
+
+At d = 1024 (DUSt3R), we cannot measure the theory-practice gap in the same way because the
+output is the 3D pointmap, not a direct reconstruction of the quantized vector. However, the attention
+MSE of ∼ 10−11 at b = 4 (from our simulations in Section 5.3) confirms that the KV quantization
+error is negligible at the attention level, and the 39.7 dB pointmap PSNR confirms it remains negligible
+after propagation through the decoder.
+
+The DUSt3R phase transition. The jump from 16.5     √
+                                                        dB (b = 2) to 29.3 dB (b = 3) deserves
+attention. The KV quantization MSE at b = 2 is 23π · 4−2 ≈ 0.17 per unit-norm coordinate,
+accumulated across d = 1024 coordinates. This error propagates through the softmax attention and
+then through DUSt3R’s 12-layer DPT decoder, which amplifies small attention weight perturbations
+into larger pointmap errors. At b = 3, the MSE drops to ≈ 0.04, falling below the decoder’s
+amplification threshold. This suggests that DUSt3R’s decoder has an effective “noise floor” around
+Dmse ≈ 0.05 per coordinate, below which errors propagate linearly and above which they are
+amplified nonlinearly.
+
+Computational cost. The dominant cost is the rotation y = Π · x: O(N d2 ) total. For 3DGS
+(N = 232K, d = 45), this takes 9 s on CPU with NumPy. For DUSt3R KV cache (d = 1024, ∼500
+tokens per layer), each layer costs ∼0.04 s, totaling 1–2 s across 48 layers. In both cases this is 1000×
+to 10000× faster than the hours of fine-tuning required by learned methods. A fused GPU kernel
+would further reduce cost by 10–100×.
+
+Limitations. (1) 3DT URBO Q UANT compresses storage, not the rendering computation. Inference
+speed is unchanged. (2) Entry-grouping for low-dimensional features (d < 4) introduces spatial
+locality assumptions that may not hold for all hash table layouts. (3) The current CPU implementation
+can be accelerated with a GPU kernel. (4) Combining with entropy coding could add 5% further
+compression (the codebook index entropy is ≈ 3.8 bits for b = 4 Zandieh et al. [2025a]).
+
+7      Conclusion
+We have shown that the high-dimensional parameter vectors in 3D reconstruction models, from
+45-dimensional SH coefficients to 1024-dimensional KV cache vectors, occupy a favorable operating
+point for rotation-based vector quantization where strong coordinate concentration enables near-
+optimal compression without any data-dependent learning. 3DT URBO Q UANT exploits this structural
+property through dimension-dependent quantization analysis, norm-separation with derived per-
+element MSE bounds, entry-grouping for low-dimensional features, and a composable pruning-
+
+
+                                                           10
+quantization pipeline. The result is 3.5× 3DGS compression with only 0.02 dB PSNR loss and 7.9×
+DUSt3R KV compression with 39.7 dB reconstruction fidelity, backed by formal guarantees within
+2.7× of the information-theoretic optimum. All compression completes in seconds with no per-scene
+training, codebook learning, or calibration data.
+Our work opens several directions: (1) integrating 3DT URBO Q UANT as the quantization stage within
+existing learned compression pipelines (HAC++, CodecGS) to combine provable optimality with
+entropy coding, (2) applying the inner-product-optimized TurboQuantprod variant to attention-heavy
+architectures for unbiased similarity estimation, and (3) extending to dynamic 3D reconstruction (4D
+Gaussians, streaming DUSt3R) where online quantization is essential.
+
+References
+Milena T Bagdasarian, Patrick Knoll, Yiming Li, Florian Barthel, Anna Hilsmann, Peter Eisert,
+ and Wieland Morgenstern. 3dgs.zip: A survey on 3d gaussian splatting compression methods.
+ Computer Graphics Forum, 44, 2025.
+Anpei Chen, Zexiang Xu, Andreas Geiger, Jingyi Yu, and Hao Su. Tensorf: Tensorial radiance fields.
+  In ECCV, 2022.
+Yihang Chen, Qianyi Wu, Mehrtash Harandi, and Jianfei Cai. How far can we compress instant-ngp-
+  based nerf? In CVPR, 2024a.
+Yihang Chen, Qianyi Wu, Weiyao Lin, Mehrtash Harandi, and Jianfei Cai. Hac: Hash-grid assisted
+  context for 3d gaussian splatting compression. In ECCV, 2024b.
+Yihang Chen, Qianyi Wu, Mengyao Li, Weiyao Lin, Mehrtash Harandi, and Jianfei Cai. Fcgs: Fast
+  feedforward 3d gaussian splatting compression. In ICLR, 2025a.
+Yihang Chen, Qianyi Wu, Mengyao Li, Weiyao Lin, Mehrtash Harandi, and Jianfei Cai. Hac++:
+  Towards 100x compression of 3d gaussian splatting. IEEE TPAMI, 2025b.
+Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas
+  Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, et al. An image
+  is worth 16x16 words: Transformers for image recognition at scale. In ICLR, 2021.
+Zhiwen Fan, Kevin Wang, Kairun Wen, Zehao Zhu, Dejia Xu, and Zhangyang Wang. Lightgaussian:
+  Unbounded 3d gaussian compression with 15x reduction and 200+ fps. In NeurIPS, 2024.
+Weilun Feng et al. Quantvggt: Quantized visual geometry grounded transformer. arXiv preprint
+ arXiv:2509.21302, 2025.
+Sara Fridovich-Keil, Giacomo Meanti, Frederik Warburg, Benjamin Recht, and Angjoo Kanazawa.
+  K-planes: Explicit radiance fields in space, time, and appearance. In CVPR, 2023.
+Allen Gersho. Asymptotically optimal block quantization. IEEE Transactions on Information Theory,
+  25(4):373–380, 1979.
+Sharath Girish, Kamal Gupta, and Abhinav Shrivastava. Shacira: Scalable hash-grid compression for
+  implicit neural representations. In ICCV, 2023.
+Sharath Girish, Kamal Gupta, and Abhinav Shrivastava. Eagles: Efficient accelerated 3d gaussians
+  with lightweight encodings. In ECCV, 2024.
+Insu Han, Praneeth Kacham, Amin Karbasi, Vahab Mirrokni, and Amir Zandieh. Polarquant:
+  Quantizing kv caches with polar transformation. arXiv preprint arXiv:2502.02617, 2025.
+Ahmed Hassan, Anupreetham Anupreetham, Jian Meng, and Jae-sun Seo. Quant-nerf: Efficient
+  end-to-end quantization of neural radiance fields with low-precision 3d gaussian representation. In
+ ICASSP, 2025.
+Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, Michael W Mahoney, Yakun S Shao, Kurt
+  Keutzer, and Amir Gholami. Kvquant: Towards 10 million context length llm inference with kv
+  cache quantization. In NeurIPS, 2024.
+
+
+                                                 11
+Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, and George Drettakis. 3d gaussian splatting
+  for real-time radiance field rendering. In ACM Transactions on Graphics, volume 42, 2023.
+Joo Chan Lee, Daniel Rho, Xiangyu Sun, Jong Hwan Ko, and Eunbyung Park. Compact 3d gaussian
+  representation for radiance field. In CVPR, 2024.
+Joo Chan Lee, Jong Hwan Ko, and Eunbyung Park. Omg: Optimized minimal 3d gaussian splatting.
+  In NeurIPS, 2025a.
+Soonbin Lee, Fangwen Shu, Yago Sanchez, Thomas Schierl, and Cornelius Hellge. Compression of
+  3d gaussian splatting with optimized feature planes and standard video codecs. In ICCV, 2025b.
+Lingzhi Li, Zhen Shen, Zhongshu Wang, Li Shen, and Liefeng Bo. Compressing volumetric radiance
+  fields to 1 mb. In CVPR, 2023.
+Zirui Liu, Jiayi Yuan, Hongye Jin, Shaochen Zhong, Zhaozhuo Xu, Vladimir Braverman, Beidi Chen,
+  and Xia Hu. Kivi: A tuning-free asymmetric 2bit quantization for kv cache. In ICML, 2024.
+Stuart Lloyd. Least squares quantization in pcm. IEEE Transactions on Information Theory, 28(2):
+  129–137, 1982.
+Joel Max. Quantizing for minimum distortion. IRE Transactions on Information Theory, 6(1):7–12,
+  1960.
+Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik, Jonathan T Barron, Ravi Ramamoorthi, and
+  Ren Ng. Nerf: Representing scenes as neural radiance fields for view synthesis. In ECCV, 2020.
+Wieland Morgenstern, Florian Barthel, Anna Hilsmann, and Peter Eisert. Compact 3d scene repre-
+ sentation via self-organizing gaussian grids. In ECCV, 2024.
+Thomas Müller, Alex Evans, Christoph Schied, and Alexander Keller. Instant neural graphics
+  primitives with a multiresolution hash encoding. In ACM Transactions on Graphics, volume 41,
+  2022.
+K L Navaneet, Kossar Pourahmadi Meibodi, Soroush Abbasi Koohpayegani, and Hamed Pirsiavash.
+  Compgs: Smaller and faster gaussian splatting with vector quantization. In ECCV, 2024.
+Simon Niedermayr, Josef Stumpfegger, and Rüdiger Westermann. Compressed 3d gaussian splatting
+  for accelerated novel view synthesis. In CVPR, 2024.
+Claude E Shannon. A mathematical theory of communication. The Bell System Technical Journal, 27
+  (3):379–423, 1948.
+Claude E Shannon et al. Coding theorems for a discrete source with a fidelity criterion. IRE Nat.
+  Conv. Rec, 4:1, 1959.
+Zunhai Su, Weihao Ye, Hansen Feng, Keyu Fan, Jing Zhang, Dahai Yu, Zhengwu Liu, and Ngai Wong.
+  Xstreamvggt: Extremely memory-efficient streaming vision geometry grounded transformer with
+  kv cache compression. arXiv preprint arXiv:2601.01204, 2026.
+Towaki Takikawa, Alex Evans, Jonathan Tremblay, Thomas Müller, Morgan McGuire, Alec Jacobson,
+  and Sanja Fidler. Variable bitrate neural fields. In ACM SIGGRAPH, 2022.
+Matthew Tancik et al. Nerfstudio: A modular framework for neural radiance field development. In
+ ACM SIGGRAPH, 2023.
+Boyuan Tian, Qizhe Gao, Siran Xianyu, Xiaotong Cui, and Minjia Zhang. Flexgaussian: Flexible
+  and cost-effective training-free compression for 3d gaussian splatting. In ACM Multimedia, 2025.
+Haishan Wang, Mohammad Hassan Vali, and Arno Solin. Compressing 3d gaussian splatting by
+  noise-substituted vector quantization. In SCIA, 2025.
+Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r:
+  Geometric 3d vision made easy. In CVPR, 2024a.
+
+
+                                               12
+Yufei Wang, Zhihao Li, Lanqing Guo, Wenhan Yang, Alex C Kot, and Bihan Wen. Contextgs:
+  Compact 3d gaussian splatting with anchor level context model. In NeurIPS, 2024b.
+Hao Xu, Xiaolin Wu, and Xi Zhang. Improving 3d gaussian splatting compression by scene-adaptive
+  lattice vector quantization. arXiv preprint arXiv:2509.13482, 2025.
+Paul L Zador. Development and evaluation of procedures for quantizing multivariate distributions.
+  Stanford University, 1964.
+Amir Zandieh, Majid Daliri, Majid Hadian, and Vahab Mirrokni. Turboquant: Online vector
+ quantization with near-optimal distortion rate. arXiv preprint arXiv:2504.19874, 2025a.
+Amir Zandieh, Majid Daliri, and Insu Han. Qjl: 1-bit quantized jl transform for kv cache quantization
+ with zero overhead. In AAAI, 2025b.
+K Zhang, Y Chen, Z Liu, J Yang, and W Liu. Hardware-friendly positional encoding quantization for
+  fast and memory-efficient nerf. In ICONIP. Springer, 2024a.
+Yipu Zhang, Chaofang Ma, Jinming Ge, Lin Jiang, Jiang Xu, and Wei Zhang. Hero: Hardware-
+  efficient rl-based optimization framework for nerf quantization. arXiv preprint arXiv:2510.09010,
+  2025.
+Zhaoliang Zhang et al. Lp-3dgs: Learning to prune 3d gaussian splatting. In NeurIPS, 2024b.
+
+
+
+
+                                                 13
+

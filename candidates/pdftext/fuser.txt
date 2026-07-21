@@ -1,0 +1,997 @@
+                                            FUSER: Feed-Forward MUltiview 3D Registration Transformer and SE(3)N
+                                                                  Diffusion Refinement
+
+
+                                                                     Haobo Jiang1 , Jin Xie3 , Jian Yang3 , Liang Yu2 , Jianmin Zheng∗1
+                                                            1
+                                                                Nanyang Technological University, 2 Alibaba Group, 3 Nanjing University
+                                                            {haobo.jiang, ASJMZheng}@ntu.edu.sg, {csjyang, csjxie}@nju.edu.cn,
+arXiv:2512.09373v3 [cs.CV] 16 Jun 2026
+
+
+
+
+                                                                                liangyu.yl@alibaba-inc.com
+
+
+
+
+                                                                     Abstract
+
+                                         Registration of multiview point clouds conventionally re-
+                                         lies on extensive pairwise matching to build a pose graph                    Redundant
+                                                                                                                 Pairwise Registration                      FUSER
+                                         for global synchronization, which is computationally expen-
+                                                                                                          Time-consuming; No global constraint
+                                         sive and inherently ill-posed without holistic geometric con-                                                Efficient, Feed-forward
+                                         straints. This paper proposes FUSER, the first feed-forward                                                      Pose Estimation
+                                                                                                               Global Synchronization                 w/o Any Pairwise Match
+                                         multiview registration transformer that jointly processes all
+                                                                                                          Outlier sensitivity; High inductive bias
+                                         scans in a unified, compact latent space to directly predict
+                                         global poses without any pairwise estimation. To maintain
+                                         tractability, FUSER encodes each scan into low-resolution
+                                         superpoint features via a sparse 3D CNN that preserves ab-
+                                         solute translation cues, and performs efficient intra- and
+                                         inter-scan reasoning through a Geometric Alternating At-
+                                                                                                            Conventional two-stage paradigm          Our feed-forward paradigm
+                                         tention module. Particularly, we transfer 2D attention pri-
+                                         ors from off-the-shelf foundation models to enhance 3D fea-     Figure 1. Comparison of paradigms. Conventional multiview reg-
+                                         ture interaction and geometric consistency. Building upon       istration relies on redundant pairwise estimation (time-consuming
+                                                                                                         and no global constraint) and pose synchronization (outlier sen-
+                                         FUSER, we further introduce FUSER-DF, an SE(3)N dif-
+                                                                                                         sitivity and high inductive bias). By contrast, our FUSER di-
+                                         fusion refinement framework to correct FUSER’s estimates        rectly predicts global poses through unified feed-forward reason-
+                                         via denoising in the joint SE(3)N space. FUSER acts as a        ing across all scans without any pairwise matching, delivering out-
+                                         surrogate multiview registration model to construct the de-     standing accuracy and efficiency (minutes→seconds).
+                                         noiser, and a prior-conditioned SE(3)N variational lower        problem, playing an important role in extensive downstream
+                                         bound is derived for denoising supervision. Extensive ex-       applications, such as 3D scene reconstruction [19, 55],
+                                         periments on 3DMatch, ScanNet and ArkitScenes demon-            AR/VR [4, 45, 84, 85], and embodied AI [51, 61, 63].
+                                         strate that our approach achieves the superior registration
+                                                                                                             Despite its practical importance, the multiview registra-
+                                         accuracy and outstanding computational efficiency. Code
+                                                                                                         tion problem has received far less attention compared to
+                                         is available at https://github.com/Jiang-HB/FUSER.
+                                                                                                         its pairwise counterpart [31, 57, 79, 80]. This is largely
+                                                                                                         because most existing approaches adhere to a pairwise-
+                                                                                                         then-global paradigm [3, 9, 25], where pairwise registra-
+                                         1. Introduction                                                 tion serves as a sub-module to first estimate relative poses
+                                         Multiview point cloud registration aims to estimate the         between pairs of scans (i.e., pose graph), after which a
+                                         global rigid poses of a set of unordered, partially overlap-    pose-graph synchronization step is then applied to recover
+                                         ping point-cloud scans, thereby aligning them into a com-       globally consistent absolute poses (i.e., transformation syn-
+                                         mon coordinate system. It is a fundamental yet challenging      chronization). As the core component, pairwise registration
+                                                                                                         has thus attracted most research effort, with the implicit as-
+                                            ∗ Corresponding author                                       sumption that improving pairwise accuracy will naturally
+bring better multiview consistency. However, optimizing           the prior predictions toward fine-grained results. Remark-
+scan pairs in isolation fails to exploit global multi-scan ge-    ably, FUSER serves as a surrogate multiview registration
+ometric constraints, often producing ambiguous or unstable        model to construct the denoiser, and we also derive a prior-
+relative poses whose errors further accumulate during syn-        conditioned variational lower bound to supervise the de-
+chronization. At the same time, registering many redundant        noising. Extensive experiments verify the outstanding ac-
+pairs would impose substantial computational overhead.            curacy and efficiency of our method.
+    To address these issues, recent studies move beyond              To summarize, our main contributions are as follows:
+exhaustive pairwise matching by prioritizing reliable scan        • We propose a novel feed-forward paradigm for multi-
+pairs via overlap prediction [11, 49, 67] or triplet consis-        view registration that directly predicts per-scan global
+tency [47]. Meanwhile, both analytical and learning-based           poses without redundant pairwise matching, enabling
+synchronization frameworks have been developed to en-               unified all-scan reasoning and reducing inference time
+hance global optimization. Analytical methods employ ro-            from minutes to second scale.
+bust averaging or hierarchical strategies to refine relative      • We develop FUSER, an end-to-end multiview registration
+poses under geometric consistency [3, 29, 47, 69], whereas          transformer that combines absolute geometric encod-
+learning-based approaches incorporate geometric priors and          ing, 2D foundation attention-guided geometric alternat-
+data-driven weighting to improve robustness [25, 30, 33, 43,        ing message passing, and direct pose regression, achiev-
+49, 77]. Nevertheless, even the most advanced methods re-           ing outstanding feed-forward accuracy and efficiency.
+main bound to the pairwise-then-global paradigm and thus
+                                                                  • We introduce FUSER-DF, an SE(3)N diffusion refine-
+cannot fully overcome its inherent limitations.
+                                                                    ment framework that further improves multiview pose es-
+    In this paper, we propose FUSER, the first feed-forward         timates from FUSER. Here, FUSER serves as a surro-
+multiview registration transformer that jointly encodes all         gate multiview registration model to construct the SE(3)N
+scans in a compact latent space to directly predict global          denoiser, supervised by a prior-aware, multiview-specific
+poses without any pairwise estimation. Unlike prior two-            variational lower bound.
+stage paradigm, FUSER enables holistic geometric reason-
+ing across scans, avoids error propagation and redundant
+computation (caused by pairwise estimates), and removes
+                                                                  2. Related Work
+handcrafted priors through a fully data-driven manner.            Pairwise Registration. Pairwise registration [1, 7, 12,
+    However, designing a feed-forward multiview registra-         23, 83] aims to estimate the relative transformation be-
+tion transformer is highly non-trivial, as it must jointly rea-   tween two point clouds. Classical approaches use hand-
+son across multiple scans while managing the prohibitive          crafted descriptors to encode local geometry [44, 58–
+attention cost of all-scan interactions. To this end, we          60, 65], such as USC [65] with a shape-context local
+introduce absolute geometric encoding via a sparse 3D             frame, SHOT [60] with normal-based histograms, and
+CNN [14, 15], departing from relative encodings [64], to          PFH/FPFH [58, 59] with pairwise geometric relations. Re-
+encode each scan into low-resolution superpoint features          cent learning-based descriptors adopt data-driven represen-
+that preserve absolute spatial cues crucial for absolute trans-   tations [2, 5, 10, 16, 24, 39, 41, 42, 48, 50, 70, 80].
+lation recovery. To ensure tractable multi-scan reasoning,        Predator [31] employs cross-attention to identify overlap-
+we propose a Geometric Alternating Attention that alter-          ping regions, RoITr [79] introduces rotation-invariant en-
+nates intra- and cross-scan message passing, capturing both       coding, and GeoTransformer [57] injects explicit geomet-
+local and global geometry. Notably, transferring 2D at-           ric embeddings for stronger discrimination. Other meth-
+tention priors from an off-the-shelf VGGT-like foundation         ods [35, 38, 62] are built on various paradigms such as re-
+model (i.e., π 3 [72]) yields significant gains despite the       inforcement learning [34, 36, 37, 52–54, 82] and diffusion
+modality gap. The fused features are decoded by a global          models [40, 73, 81]. Beyond two-frame setting, we target
+pose predictor, trained with a relative pose loss as reference-   the more challenging multiview alignment problem requir-
+free global supervision. Trained on large-scale datasets,         ing globally consistent registration across multiple scans.
+FUSER achieves excellent accuracy while cutting runtime           Multiview Registration. Conventional multiview registra-
+from minutes (in two-stage pipelines) to the second scale.        tion follows a two-stage pipeline: exhaustive pairwise reg-
+    Building on the established FUSER and its pose esti-          istration followed by global pose synchronization. Classical
+mates, we further introduce FUSER-DF, an SE(3)N diffu-            methods [3, 8, 13, 26, 32] build fully connected pose graphs
+sion refinement framework that formulates multiview pose          from all pairwise estimations, incurring quadratic complex-
+refinement as a denoising diffusion process in the joint          ity and degraded robustness under outliers [22, 77]. To ad-
+SE(3)N space. We treat the FUSER outputs as pose pri-             dress these issues, traditional synchronization relies on non-
+ors, and design prior-aware SE(3)N diffusion/reverse pro-         linear least-squares frameworks such as IRLS [17, 27, 46],
+cess to learn an SE(3)N denoiser that progressively refines       often enhanced by robust rotation averaging [29, 69] or hier-
+                                                                                                             2D Attention Prior
+archical initialization (e.g., HARA [47]). Recent learning-                                               from Foundation Model
+
+based approaches integrate geometric priors and data-driven
+
+
+
+
+                                                                                                                           Scan-wise
+                                                                                                                           Attention
+                                                                                                                                                                              !!
+
+
+
+
+                                                                                                                                            Multiview Pose Regression
+robustness [11, 25, 30, 33, 43, 49, 77]. For instance,                                                                                                                        "
+
+
+
+
+                                                                                                     Geometric Attention
+                                                                          Absolute Geometric
+LMVR [25] and FeatSync [30] jointly optimize pairwise               !!
+
+
+
+
+                                                                                                        Cross-Scan
+
+
+                                                                                                                           Scan-wise
+                                                                                                                           Attention
+and global registration, SGHR [67] predicts overlaps for
+
+
+
+
+                                                                              Encoding
+                                                                                                                                                                              !"
+                                                                                                                                                                              "
+adaptive reweighting, and MDGD [49] fuses descriptor and            !"
+                                                                                                                                                                                 ü Global reasoning
+geometric cues for reliable graphs. However, these methods
+                                                                                                                                                                                 ü High speed
+still depend on extensive pairwise estimation and remain
+
+
+
+
+                                                                                                                           Scan-wise
+                                                                                                                           Attention
+                                                                                                                                                                             ! # ü Robust
+                                                                                                                                                                             "
+sensitive to noisy poses. By contrast, our method elimi-                                                                                                                         ü Less inductive bias
+                                                                    !#                                                                 xL
+nates the two-stage paradigm, directly predicting globally
+consistent poses in a single feed-forward process.                Figure 2. Architecture of FUSER. It encodes unordered scans into
+                                                                  a compact latent space via Absolute Geometric Encoding, then per-
+                                                                  forms 2D attention prior-enhanced Geometric Alternating Atten-
+3. Approach                                                       tion for multiview reasoning and final pose regression.
+3.1. Background                                                   the denoised pose can be estimated as Ht−1 =
+Problem Definition. Given a collection of partially over-                                                    q
+lapping point clouds S = {Si ∈ RMi ×3 | 1 ≤ i ≤ N },               Exp(λ0 Log(fθ (Xt , Y)Ht ) + λ1 Log(Ht ) + β̃t ε), (2)
+each capturing a 3D scene fragment from a distinct camera                                      √                                                                        √
+                                                                                                ᾱ      t      βt−1                                                         α (1−ᾱ   )
+pose, the goal of multiview 3D registration is to estimate        where λ0 = 1−t−1   ᾱt
+                                                                                         t
+                                                                                           and λ1 =       1−ᾱt     , and Xt de-
+the rigid global poses of all scans so that they can be consis-   notes the source point cloud transformed by Ht ; Theoret-
+tently aligned within a common global coordinate system.          ically, the surrogate registration model can be modeled by
+Formally, for each scan Si , its rigid pose is represented as     different deep pairwise registration models e.g. [71, 76, 78].
+Ti = (Ri , ti ) ∈ SE(3), where Ri ∈ SO(3) and ti ∈ R3
+denote the rotation and translation of the i-th point cloud.      3.2. FUSER
+Existing Multiview Pipelines. In most existing multiview          3.2.1. Motivation
+registration pipelines [13, 26, 32], this problem is typically    Mainstream multiview registration systems still follow a
+represented as a graph G = (S, E), where each vertex cor-         pairwise-then-global pipeline [3, 9, 25]: redundant pair-
+responds to a scan and each edge (i, j) ∈ E encodes the           wise alignments construct a pose graph, followed by pose
+relative pose Ti←j = T−1    i Tj between scans Si and Sj .        synchronization on SE(3) to recover absolute poses. While
+The graph edges E are initialized from noisy relative trans-      effective to some extent, this two-stage strategy has sev-
+formations obtained by independent pairwise registration          eral fundamental limitations: (i) Missing global context:
+algorithms [31, 57, 79, 80]. A pose synchronization step is       Each pairwise alignment is performed independently, ignor-
+then applied to recover per-scan global poses.                    ing geometric constraints from other scans and leading to
+Pairwise SE(3) Diffusion Registration. The SE(3) diffu-           ambiguity in low-overlap or symmetric scenes that require
+sion registration model [40] reformulates pairwise 3D reg-        joint reasoning; (ii) Outlier sensitivity. Inaccurate pair-
+istration as a denoising diffusion process composed of a for-     wise estimates contaminate pose synchronization, causing
+ward SE(3) diffusion process and a reverse SE(3) denoising        global error propagation; (iii) Computational overhead:
+process. Given source and target point clouds X and Y,            Repeated pairwise registration is computationally intensive
+the forward process gradually perturbs the optimal transfor-      and markedly slow, due to costly feature extraction and out-
+mation H0 ∈ SE(3) into a noisy one, forming a Markov              lier removal; (iv) Strong inductive bias: It necessitates nu-
+chain: H0 → H1 · · · → HT , whose diffusion formula               merous hand-crafted designs, e.g. graph sparsification, ro-
+Ht ∼ q(Ht | H0 ) can be represented as:                           bust losses, and synchronization schedules, largely restrict-
+                   √            √                                 ing model flexibility and hindering global optima.
+         Ht = Exp(γ 1 − ᾱt ε)F( ᾱt ; H0 , H).            (1)        To address the aforementioned limitations, we propose
+                                                                  FUSER, a novel, powerful and efficient feed-forward mul-
+Here, Gaussian noise is sampled as ε ∼ N (0, I), and H de-        tiview 3D registration transformer that enables end-to-end
+notes the identity transformation.
+                     Qt        Qt The diffusion coefficient       global alignment without any time-consuming pairwise reg-
+is defined as ᾱt = s=0 αt = s=0 (1 − βt ), where βt fol-         istration. FUSER takes all scans as input and performs ge-
+lows a cosine
+         √      schedule [56]. The √
+                                   pose interpolation func-       ometric message passing across all views through stacked
+tion F ( ᾱt ; H0 , H) = Exp((1 − ᾱt ) · Log(HH−1 0 ))H0 .       transformer layers in a compact latent space, directly re-
+The SE(3) reverse process then learns a pose denoiser to          gressing the absolute pose for each scan. By jointly rea-
+iteratively refine noisy poses through the chain HT →             soning over geometric cues from all scans, FUSER inher-
+· · · H1 → H0 . Using a surrogate registration model fθ ,         ently mitigates the limitation (i) of lacking global context.
+Additionally, as the entire pipeline requires only a single,          sure permutation equivariance [72], we remove these tokens
+efficient feed-forward pass, without any redundant pairwise           so that reordering scans does not alter their features:
+alignments, it effectively addresses the issues of outlier sen-
+sitivity and computational overhead in limitations (ii) and                    AA(Pπ (S ′ ), Pπ (F)) = Pπ (AA(S ′ , F)),           (3)
+(iii). Moreover, FUSER adopts a clean, fully data-driven ar-
+chitecture that alleviates the heavy reliance on handcrafted          where Pπ (·) denotes a permutation operator and AA(·) the
+priors inherent in previous pipelines. It learns to infer accu-       alternating attention. Additionally, unlike the 2D ROPE po-
+rate poses purely through transformer-based attention over            sition embedding on 2D patch coordinates in VGGT, we
+raw point clouds, thereby alleviating the handcrafted induc-          replace it with sinusoidal positional encodings on super-
+tive bias on the optimization space in limitation (iv).               point coordinates to integrate absolute positional cues into
+    As illustrated in Fig. 2, FUSER consists of an absolute           the each attention layer. We note that we also devote much
+geometric feature encoder, a 2D attention prior-enhanced              effort on relative position-aware 3D ROPE embedding, un-
+alternating attention module, and a global pose predictor.            fortunately, our experiments shows it may bring degraded
+The following subsections elaborate on each component.                performance, possibly caused by the relative position infor-
+                                                                      mation would be misleading during cross-scan attention (as
+3.2.2. Absolute Geometric Encoding                                    each scan belongs to different coordinate system).
+Prevalent deep geometric descriptors [57, 79] typically pre-          2D-to-3D Attention Prior Transfer. A key finding of our
+fer translation-invariant descriptors, build on relative coor-        study is the cross-domain transfer of attention priors from
+dinate normalization e.g. KPConv [64], to stabilize pairwise          2D to 3D. Rather than training our alternating transform-
+matching. However, since FUSER directly regresses abso-               ers from scratch, we investigate whether the powerful mul-
+lute poses, particularly translation, such position-agnostic          tiview reasoning learned by 2D reconstruction foundation
+encodings become inadequate: removing global location                 models can benefit 3D geometric alignment. To this end,
+cues obscures where each scan lies in the camera frame,               we initialize our alternating attention layers with pretrained
+making translation regression inherently ambiguous.                   weights from π 3 , a VGGT variant trained on large-scale 2D
+   To this end, we employ an absolute coordinate-aware                image reconstruction tasks. Notably, we make no architec-
+sparse 3D CNN built with MinkowskiEngine [14, 15] to ex-              tural modifications to accommodate this transfer due to their
+tract hierarchical geometric features. Each scan Si ∈ S un-           inherent structural compatibility (apart from differences in
+dergoes hierarchical voxelization and sparse convolutions,            2D/3D position embedding and 2D/3D feature encoding).
+yielding compact, semantically enriched superpoints S′i ∈                 This simple yet effective initialization empirically yields
+     ′                                            ′
+RMi ×3 (Mi′ ≪ Mi ) with features Fi ∈ RMi ×d . To en-                 notable performance gains in our 3D multi-scan matching
+able efficient all-scan attention in the transformer, we keep         tasks as shown in Table 4. We attribute these improvements
+the latent representation highly compact by controlling the           to transferable 2D attention priors, such as view grouping,
+number of superpoints through a deeper, five-layer sparse             alignment consistency, and attention sparsity, which gener-
+convolutional hierarchy (kernel size 3, stride 2). Despite            alize surprisingly well to unstructured 3D point clouds. To
+this low superpoint resolution, our experiments show that             the best of our knowledge, this demonstrates a promising
+the resulting compact superpoint features still retain suffi-         step toward transferring pretrained 2D attention modules for
+cient geometric information for accurate pose regression,             3D point cloud reasoning, suggesting a potential direction
+leading to outstanding registration performance.                      for future cross-modal foundation model research.
+3.2.3. Geometric Alternating Attention                                3.2.4. Global Pose Prediction and Supervision
+                                        ′
+With the downsampled superpoints S          = (S′1 , ..., S′N ) and   Global Pose Regression. With the superpoint tokens F̃ =
+their features F = (F1 , ..., FN ) from all scans, we then ap-        (F̃1 , ..., F̃N ) learned by L alternating attentions above, we
+ply a transformer attention mechanism over them to enable             directly regress a global pose T̂i ∈ SE(3) for each scan.
+comprehensive cross-scan geometric reasoning.                         Specifically, a series of self-attention blocks first refines the
+Permutation-Equivariant Alternating Attention. In-                    superpoint tokens of each scan, followed by global aver-
+spired by VGGT’s alternating attention mechanism for                  age pooling to obtain a compact scan-level global descrip-
+cross-image reasoning [68], we extend this paradigm to 3D             tor. Two lightweight MLP heads then regress the transla-
+matching field. Our transformer contains L = 32 alternat-             tion t̂i ∈ R3 and a 3×3 rotation proxy (a 9D representa-
+ing layers, including 16 intra-scan and 16 cross-scan blocks,         tion), which is finally projected onto a valid rotation matrix
+applied sequentially to capture fine-grained local geometry           R̂i ∈ SO(3) via SVD-based orthogonalization [72].
+and global contextual relationships across scans.                     Global Pose Supervision. Directly supervising global
+   Notably, VGGT’s alternating attention uses learnable               poses in a fixed world frame is inherently ill-posed: (i)
+reference tokens to differentiate the reference view, but this        world coordinate systems vary across sequences or datasets,
+design causes instability under varying scan orders. To en-           leading to instability when regressing absolute ground-truth
+poses; and (ii) defining the world frame by arbitrarily select-   3.3.2. Prior-aware SE(3)N Diffusion Process
+ing a reference scan breaks permutation equivariance with         Unlike SE(3) diffusion [40] that perturbs optimal transfor-
+respect to scan order. To address these issues, we adopt a        mation toward the identity one, our prior-aware SE(3)N dif-
+reference-free strategy that indirectly supervises the pair-      fusion instead diffuses from the optimal poses toward the
+wise relative poses. Specifically, for any (i ̸= j), we com-      prior T̂1:N = (T̂1 , ..., T̂N ) predicted by FUSER. This pro-
+pute the relative transformation T̂i←j = T̂−1i T̂j and com-       cess forms a Markov chain T01:N → T11:N · · ·TT1:N , where
+pare it to the ground-truth Ti←j using a geodesic rotation        the diffusion formula Tt1:N = (Tt1 , ..., TtN ) ∼ q(Tt1:N |
+loss and a robust translation loss with Huber function ℓβ (·):    T01:N , T̂1:N ) can be expressed as:
+                                                   !                                      √               √
+                            Tr(R⊤i←j R̂i←j ) − 1                            Tti = Exp(γ 1 − ᾱt ε)F( ᾱt ; T0i , T̂i ),     (7)
+       Lr (i, j) = arccos                              ,
+                                     2                     (4)    where i ∈ {1, ..., N } denotes the scan index; F represents
+                                                                  the pose interpolation function between     the optimal pose
+                                  
+       Lt (i, j) = ℓβ t̂i←j − ti←j .                                                                   √
+                                                                  and the prior pose√estimate, with ᾱt acting as the interpo-
+We further impose a point-wise loss to ensure geometric           lation weight: F( ᾱt ; T0i , T̂i ) =
+consistency between the transformed point clouds under the                              √                    −1
+predicted and ground-truth poses Lp (i, j) =                                 Exp((1 − ᾱt ) · Log(T̂i (T0i ) ))T0i .          (8)
+                                                                                             √
+          Nj
+                                                                  The perturbation Exp(γ 1 − ᾱt ε) introduces stochastic
+      1 X                                                         noise to the interpolated pose, enriching the diversity of dif-
+          ∥(R̂i←j pl + t̂i←j ) − (Ri←j pl + ti←j )∥1 .      (5)
+      Nj                                                          fusion trajectories. This diversity effectively augments the
+          l=1
+                                                                  training of the denoiser network, enhancing its generaliza-
+Finally, our overall loss is summarized as L =                    tion capability across diverse pose distributions.
+       1     X                                                    3.3.3. Prior-aware SE(3)N Reverse Process
+               Lr (i, j) + γt Lt (i, j) + γp Lp (i, j),    (6)
+   N (N − 1)                                                      As demonstrated in Sec. 3.1, the conventional SE(3) reverse
+                i̸=j
+                                                                  process learns an SE(3) denoiser that refines poses from the
+where γt and γp balance the respective loss terms.                identity transformation to the optimal one. By contrast, our
+                                                                  prior-aware SE(3)N reverse process learns an SE(3)N de-
+3.3. FUSER-DF: SE(3)N Diffusion Refinement                        noiser pθ that refines poses from the prior multiview poses
+                                                                  predicted by FUSER toward the optimal ones (see Fig. 3).
+Building on our established feed-forward multiview regis-         To train this denoiser, we first derive a prior-aware varia-
+tration transformer (FUSER) and its predicted global poses        tional lower bound of log-likelihood over the training data:
+T̂1:N = (T̂1 , ..., T̂N ), we further seek higher alignment                         h                      i
+precision by introducing a novel SE(3)N Diffusion Refine-          ES,T0 ∼pdata ln pθ (T01:N | S, T̂1:N )
+                                                                       1:N
+ment model, termed FUSER-DF, that formulates the multi-             "                              #
+view pose correction as a denoising diffusion process over                pθ (T0:T
+                                                                                 1:N | S, T̂1:N )
+                                                                                                         h                         i
+                                                                  ≥E ln                              = E ln pθ (T01:N | S, T̂1:N )
+the joint SE(3)N manifold.                                              q(T1:T        0
+                                                                              1:N | T1:N , T̂1:N )     |            {z             }
+                                                                                                                           Residual term
+3.3.1. FUSER-DF vs. SE(3) Diffusion Registration
+                                                                         h                                                             i
+                                                                    −E       KL(q(TT1:N | T01:N , T̂1:N )||p(TT1:N | T̂1:N ))
+Compared with the prior SE(3) diffusion model [40], our              |                              {z                                 }
+                                                                                             Prior matching term
+FUSER-DF brings three key innovations:
+                                                                      T
+(i) From pairwise to multiview: Prior work diffuses a single
+                                                                    hX                                                               i
+                                                                  −E     KL(q(Tt−1    t      0                   t−1
+                                                                               1:N | T1:N , T1:N , T̂1:N )||pθ (T1:N | St , T̂1:N )) ,
+relative motion on SE(3), whereas FUSER-DF diffuses the              t=2
+                                                                         |                         {z                              }
+entire pose set on the joint space SE(3)N , preserving cross-                                  Prior-aware Denoising matching term
+                                                                                                                                           (9)
+scan dependencies throughout refinement;
+(ii) From estimation to refinement: Unlike denoising from         where St represents the transformed scans under the noisy
+an uninformed identity prior H for pose estimation, our pose      poses Tt1:N , that is St = {Sti | Sti = Rti Si + tti , i = 1..N }.
+refinement initializes the reverse chain at FUSER’s pose es-      Please refer to Appendix B for detailed derivation.
+timate and only need perform small-step correction;               Prior-aware Denoising Matching Term. This term serves
+(iii) Pairwise to multi-view surrogate: Prior work relies on      as the core loss for training our SE(3)N denoiser. Here,
+a pairwise surrogate registration model fθ and thus cannot        q(Tt−1        t       0
+                                                                      1:N | T1:N , T1:N , T̂1:N ) denotes the posterior distri-
+model multiview alignment; Thanks to the multiview pose           bution of noisy poses Tt−1                t−1
+                                                                                           1:N , while pθ (T1:N | St , T̂1:N ) rep-
+estimation of FUSER, we can employ it as our multiview            resents its learnable prior distribution predicted by the de-
+surrogate registration model for SE(3)N refinement.               noiser. Benefiting from the pose reference from both the
+           Prior-aware !" # ! %&'()*)'+ ,-(.&**                        Minimizing the KL divergence between the prior and the
+          Surrogate Model                                              posterior is thus equivalent to reducing their expected-value
+             (FUSER)                                                   discrepancy (Eq. 11 and Eq. 12). Consequently, this objec-
+                                                                       tive can be reformulated as optimizing the surrogate model
+                                                                       fθmv (St ) to predict the residual pose Tt→0i    , a formula-
+                                ...                                    tion naturally aligned with the standard optimization target
+                                                                       of multiview registration. Thus, the losses introduced in
+                                                                       Sec. 3.2.4 can be directly applied for surrogate training.
+             FUSER                                                     Residual and Prior Matching Terms. The prior matching
+                                                                       term actually is a constant term and doesn’t contain any op-
+Figure 3. Pipeline of prior-aware SE(3)N denoising process. It         timizable parameters, and we can thus ignore it. Instead, the
+integrates the prior pose estimates (T̂1 , ..., T̂N ) of FUSER into    objective of residual matching term is essentially consistent
+the denoising process, where FUSER, as the surrogate registra-         with the prior-aware denoising matching term at t = 1.
+tion model, estimates the residual poses (T̂t→0   1   , ..., T̂t→0
+                                                               N ) =
+FUSER(St ) to support progressive denoising over SE(3)N space.
+                                                                       4. Experiments
+optimal poses T01:N    and the prior poses T̂1:N , the pos-
+                                                                       4.1. Experimental Settings
+terior can naturally provide a supervision signal for guid-
+ing the training of the ground truth-agnostic prior distri-            Implementation Details. We train FUSER with sequence
+bution by minimizing their Kullback-Leibler (KL) diver-                lengths randomly sampled from 2 to 50 to accommodate
+gence. Formally, inspired by [28], our prior-aware poste-              varying scan set sizes. The loss weights γt and γp in loss 6
+rior pose, post Tt−1         t−1     t     0
+                 1:N ∼ q(T1:N | T1:N , T1:N , T̂1:N ), can
+                                                                       are both 0.1, and the Huber threshold β in loss 4 is 0.06.
+                  post t−1                                             For FUSER-DF, we follow [40] with T =200 diffusion steps
+be expressed as:      Ti =
+                                                                       during training and 10 denoising steps at inference, setting
+  Exp(λ0 Log (T0i ) + λ1 Log (Tti ) + λ2 Log(T̂i ) + ε̃i ). (10)       the perturbation weight γ=0.1 in Eq. 7. We train on four
+             q                                                         large-scale indoor datasets, 3DMatch [80], ScanNet [18],
+Here, ε̃i = β̃t εi and the scan index i ∈ {1, ..., N }; The            ScanNet++ [75], and ArkitScenes [6], for 2 epochs using
+denoising coefficients λ0 √and λ1 √are consistent
+                                          √
+                                                      with those       the Adam optimizer (learning rate 5×10−5 , weight decay
+in Eq. 2, and λ2 = 1 +
+                           ( ᾱt −1)( αt + ᾱt−1 )
+                                                   . The denois-       0.05) with a linear decay schedule down to 1×10−8 . Train-
+                                    1−ᾱt
+ing coefficients λ0 , λ1 , and λ2 essentially control the rela-        ing uses 8 NVIDIA L20 GPUs (45 GB each), and evaluation
+tive contributions of the optimal pose T0i , the current noisy         uses a single GPU. FUSER has ∼0.6B parameters.
+pose Tti , and the prior pose estimate T̂i at each timestep.           Metrics. We evaluate registration accuracy using rotation
+Intuitively, at the beginning of the reverse process, λ2 dom-          and translation errors (RE/TE) on ScanNet and Registration
+inates, making the posterior pose strongly depend on the               Recall (RR) on 3DMatch and ArkitScenes, as in [16, 25, 67,
+prior estimate. As the denoising progresses, λ2 gradually              77]. More details are provided in Appendix A.
+decays, shifting the posterior toward the conventional SE(3)
+                                                                       4.2. Comparison with Existing Methods
+reverse formulation governed by λ0 and λ1 . Consequently,
+following the formulation in [40], the expected value of pos-          Evaluation on ScanNet. We first evaluate FUSER and
+terior pose (Eq. 11) can be rewritten as µpost =                       FUSER-DF on ScanNet [18], a well-known indoor RGB-D
+                                                                       dataset. Following [67], we use total 32 sequences with 30
+  Exp(λ0 Log (Tt→0
+               i   Tti ) + λ1 Log (Tti ) + λ2 Log(T̂i )), (11)         scans each (20 frames apart) for evaluation. Baselines in-
+                                                                       clude EIGSE3 [3], L1-IRLS [9], RotAvg [26], LMVR [25],
+where Tt→0i    = T0i (Tti )−1 represents the residual trans-           LITS [77], HARA [47], SGHR [67], MDGD [49], and In-
+formation from the noisy pose to the optimal one. Anal-                creMVR [11]. All methods use YOHO [66] descriptors for
+ogously, the expected value of the parameterized prior dis-            pairwise registration except LMVR, which performs end-
+tribution can be reformulated through a multiview surrogate            to-end alignment and synchronization. As [43] has not re-
+registration model fθmv as µθ (S, Tt1:N , T̂1:N )i ≜                   leased code, it is excluded. We follow [25, 67] and con-
+ Exp((λ0 Log(fθmv (St )i Tti + λ1 Log(Tti ) + λ2 Log(T̂i )). (12)      sider three pose graphs: (i) Full: exhaustive pairwise reg-
+                                                                       istration; (ii) Pruned: filtering pairs by a median point dis-
+Benefiting from our established end-to-end feed-forward                tance threshold (0.05m); and (iii) Sparse: adaptively select-
+multiview registration model, FUSER, we employ it to in-               ing pairs based on overlap estimation.
+stantiate the multiview surrogate function as:                             As shown in Table 1, both FUSER and FUSER-DF
+                                                                       consistently surpass all baselines across nearly all metrics.
+   (T̂t→0
+      1   , T̂t→0
+              2   , ..., T̂t→0    mv
+                           N ) = fθ (St ) ≜ FUSER(St ).        (13)    Compared with the strongest prior method [49], FUSER
+                               Table 1. Multiview registration performance on the ScanNet (30 scans) [18].
+                                                                  Rotation Error                                         Translation Error (m)
+ Pose Graph    Method                #Pair    3◦
+                                                         5◦
+                                                                 10   ◦
+                                                                          30◦
+                                                                                 45 ◦
+                                                                                         Mean/Med          0.05   0.1      0.25   0.5    0.75    Mean/Med
+               LMVR [25]             13920   48.3       53.6     58.9     63.2   64.0    48.1◦ /33.7◦      34.5   49.1     58.5   61.6   63.9    0.83/0.55
+               EIGSE3 [3]            13920   19.7       24.4     32.3     49.3   56.9    53.6◦ /48.0◦      11.2   19.7     30.5   45.7   56.7    1.03/0.94
+               L1-IRLS [9]           13920   38.1       44.2     48.8     55.7   56.5    53.9◦ /47.1◦      18.5   30.4     40.7   47.8   54.4    1.14/1.07
+               RotAvg [9]            13920   44.1       49.8     52.8     56.5   57.3    53.1◦ /44.0◦      28.2   40.8     48.6   51.9   56.1    1.13/1.05
+     Full
+               LITS [77]             13920   52.8       67.1     74.9     77.9   79.5    26.8◦ /27.9◦      29.4   51.1     68.9   75.0   77.0    0.68/0.66
+               HARA [47]             13920   54.9       64.3     71.3     74.1   74.2    32.1◦ /29.2◦      35.8   54.4     66.3   69.7   72.9    0.87/0.75
+               SGHR [67]             13920   57.2       68.5     75.1     78.1   78.8    26.4◦ /19.5◦      39.4   61.5     72.0   75.2   77.6    0.70/0.59
+               MDGD [49]             13920   54.7       71.4     83.4     88.2   88.6    17.6◦ /19.1◦      38.7   62.8     77.8   82.6   85.2    0.42/0.35
+               EIGSE3 [3]            13920   40.8       46.3     51.9     61.2   65.7    40.6◦ /37.1◦      23.9   38.5     51.0   59.3   66.1    0.88/0.84
+               L1-IRLS [9]           13920   46.3       54.2     61.6     64.3   66.8    41.8◦ /34.0◦      24.1   38.5     48.3   55.6   60.9    1.05/1.01
+               RotAvg [9]            13920   50.2       60.1     65.3     66.8   68.8    38.5◦ /31.6◦      31.8   49.0     58.8   63.3   65.6    0.96/0.83
+ Pruned [25]
+               LITS [77]             13920   54.3       69.4     75.6     78.5   80.3    24.9◦ /19.9◦      31.4   54.4     72.3   76.7   79.6    0.65/0.56
+               HARA [47]             13920   55.7       63.7     69.0     70.8   72.1    34.7◦ /31.3◦      35.2   53.6     65.4   68.6   71.7    0.86/0.71
+               SGHR [67]             13920   59.4       71.9     80.0     82.1   82.6    21.7◦ /19.1◦      39.9   63.0     74.3   77.6   80.2    0.64/0.47
+               SGHR [67]              6004   59.1       73.1     80.8     82.5   83.0    21.7◦ /19.0◦      39.9   64.1     76.7   79.0   81.9    0.56/0.49
+   Sparse      IncreMVR [11]          6004   58.6       73.4     79.7     83.9   85.6    19.8◦ /15.6◦      39.6   63.9     76.3   81.9   85.4    0.55/0.37
+               MDGD [49]              6004   56.1       71.8     83.5     88.5   88.8    17.4◦ /19.0◦      38.2   61.2     77.5   82.7   84.9    0.37/0.31
+               FUSER (Ours)            0     69.4       86.9     94.7     95.8   96.1     6.7◦ /2.1◦       36.2   71.8     92.5   95.4   96.1    0.15/0.07
+      /
+               FUSER-DF (Ours)         0     72.0       89.7     94.5     95.2   95.5     7.1◦ /2.0◦       43.2   75.5     92.8   94.7   95.6    0.15/0.06
+
+                                                                                      FUSER                        FUSER-DF               Ground truth
+      Table 2. Comparisons on 3DMatch (60 scans) [80].
+ Method                 #Pair     RR (%) ↑   RE (◦ ) ↓        TE (m) ↓                        !" # ! %&'()*)'+
+
+ Full+FCGF [15]         13615       46.2       33.8             0.89
+ Full+Predator [31]     13615       49.7       26.8             0.67
+ Full+YOHO [66]         13615       59.2       35.8             0.77
+ Full+GeoTrans [57]     13615       61.5       38.0             0.61
+ Full+PARENet [74]      13615       61.9       31.2             0.68                          !" # ! %&'()*)'+
+
+
+ SGHR+FCGF [15]         3034        39.7       38.4             0.66
+ SGHR+Predator [31]     3034        44.2       28.3             0.55
+ SGHR+YOHO [66]         3034        53.2       34.6             0.57
+ SGHR+GeoTrans [57]     3034        55.2       29.8             0.69             Figure 4. SE(3)N diffusion refinement in FUSER-DF visually re-
+ SGHR+PARENet [74]      3034        55.3       37.0             0.60             fines FUSER’s pose estimation, yielding smoother surfaces.
+ FUSER (Ours)             0         90.3       3.2              0.14
+ FUSER-DF (Ours)          0         92.0       3.1              0.14             work on the 3DMatch dataset [80], a widely used indoor
+                                                                                 RGB-D dataset. Following the eight Denoising
+                                                                                                                      testing scenes in [67],
+    Table 3. Comparisons on ArkitScenes (200 scans) [6].                         we conduct multiview alignment under a more realistic and
+                                                                                 challenging setup. Unlike prior 3DMatch benchmark that
+ Method                 #Pair     RR (%) ↑   RE (◦ ) ↓        TE (m) ↓
+                                                                                 fuses 50 consecutive frames into GT-aligned fragments via
+ Full+GeoTrans [57]     207527      24.7        92.5            1.36
+                                                                                 TSDF integration (an operation that effectively denoises, al-
+ Full+PARENet [74]      207527      14.3       109.2            1.44
+                                                                                 leviates occlusions, and increases geometric overlap), we
+ SGHR+GeoTrans [57]     47924       26.7       91.2             1.48
+                                                                                 construct each sequence directly from single frame to bet-
+ SGHR+PARENet [74]      47924       23.7       95.3             1.24
+                                                                                 ter reflect real-world deployment with limited overlap and
+ FUSER (Ours)             0         92.1          5.4           0.13
+ FUSER-DF (Ours)          0         95.0          5.6           0.12
+                                                                                 sensor noise. Each sequence contains 60 frames with a
+                                                                                 20-frame interval (consistent with ScanNet). We combine
+significantly reduces mean translation and rotation errors                       five SOTA deep descriptors, FCGF [15], Predator [31],
+(0.37m→0.15m, 17.4◦ →6.7◦ ), highlighting the advantage                          YOHO [66], GeoTrans [57], and PARENet [74], with two
+of our feed-forward design that avoids cumulative pose                           pose-graph types, full and SGHR-based sparse, for compar-
+noise in traditional pairwise pipelines. Further, FUSER-                         ison. As shown in Table 2, both FUSER and FUSER-DF
+DF refines the multiview alignment of FUSER via the pro-                         achieve superior accuracy across all metrics.
+posed SE(3)N diffusion process, yielding notable gains un-                       Evaluation on ArKitScenes. We finally perform evalua-
+der strict thresholds (e.g., Rot@3°: 69.4 → 72.0) while                          tion on ArKitScenes [6], an indoor RGB-D dataset captured
+maintaining high overall accuracy (see Fig. 4 and Fig. 5).                       with LiDAR-equipped iPhones. We randomly select 15 se-
+Evaluation on 3DMatch. We further evaluate our frame-                            quences, each with 200 scans sampled every three frames.
+Table 4. Ablation Studies on ScanNet [18] (ScaN: ScanNet [18], ArkitS: ArkitScenes [6], ScaNP: ScanNet++ [75], 3DM: 3DMatch [80]).
+                                                                                                     Rotation Error                                          Translation Error (m)
+              Pose Graph              Method                                   3◦
+                                                                                        5 ◦
+                                                                                                     10   ◦
+                                                                                                              30◦
+                                                                                                                       45◦
+                                                                                                                              Mean/Med       0.05     0.1      0.25   0.5    0.75    Mean/Med
+                                      (ScaN) w/o 2D Attention Prior           12.9     26.8       46.9        67.3     73.4   34.8◦ /11.3◦    5.4     16.8     37.8   56.8   68.4    0.74/0.40
+                                      (ScaN)                                  36.6     57.3       73.9        83.5     85.1   22.6◦ /4.1◦    15.4     36.5     65.0   80.7   84.3    0.45/0.16
+                   FUSER              (ScaN + ArkitS)                         35.8     63.0       87.0        93.0     94.0   11.4◦ /3.9◦    16.3     44.8     80.5   90.9   93.2    0.26/0.11
+                                      (ScaN + ArkitS + ScaNP)                 56.9     79.8       91.5        93.1     93.6    9.4◦ /2.1◦    27.5     60.6     88.4   92.3   93.8    0.20/0.08
+                                      (ScaN + ArkitS + ScaNP + 3DM)           69.4     86.9       94.7        95.8     96.1    6.7◦ /2.1◦    36.2     71.8     92.5   95.4   96.1    0.15/0.07
+                                      (ScaN) w/o 2D Attention Prior           33.3     46.2       58.8        69.2     73.6   32.6◦ /6.0◦    18.3     34.0     51.0   62.1   69.8    0.67/0.24
+                                      (ScaN)                                  51.0     67.1       79.7        84.9     85.4   21.4◦ /2.9◦    28.1     48.3     72.3   81.5   84.6    0.42/0.11
+              FUSER-DF                (ScaN + ArkitS)                         55.2     77.2       91.9        93.1     93.6   10.6◦ /2.4◦    29.2     59.4     86.0   91.9   93.7    0.23/0.08
+                                      (ScaN + ArkitS + ScaNP)                 66.8     84.9       91.3        93.0     93.4    9.2◦ /2.1◦    39.0     68.6     89.3   92.2   93.6    0.20/0.06
+                                      (ScaN + ArkitS + ScaNP + 3DM)           72.0     89.7       94.5        95.2     95.5    7.1◦ /2.0◦    43.2     75.5     92.8   94.7   95.6    0.15/0.06
+                                                                                                                                       FUSER (Ours)
+
+
+
+                   ScanNet-0701-01 (30 scans)    ScanNet-0457-01 (30 scans)   3DMatch-Hotel1 (60 scans)
+                                                                                                                     gains, indicating a favorable scaling trend and strong poten-
+                                                                                                                     tial for large-scale 3D foundation training.
+PARE-Net + SGHR
+
+
+
+
+                                                                                                                     Effectiveness of 2D Attention Prior. We evaluate the im-
+                                                                                                                     pact of the 2D Attention Prior from pretrained 2D founda-
+                                  RR: 26.2%
+                                  Time: 96.6s
+                                                             RR: 93.3%
+                                                             Time: 84.0s
+                                                                                            RR: 51.3%
+                                                                                            Time: 146.3s             tion model, π 3 [72]. Table 4 shows that integrating this prior
+                                                                                                                     significantly enhances both rotation and translation preci-
+                                                                                                                     sion. This demonstrates that injecting 2D attention priors
+GeoTrans + SGHR
+
+
+
+
+                                                                                                                     via parameter initialization substantially improves geomet-
+                                                                                                                     ric reasoning, leading to more robust multiview alignment.
+                                  RR: 38.2%                  RR: 75.2%                      RR: 49.6%                Runtime and Memory Analysis. Table 5 shows prior
+                                  Time: 115.2s               Time: 102.8s                   Time: 170.4s
+                                                                                                                     two-stage pipelines that rely on redundant pairwise registra-
+                                                                                                                     tions are highly time-consuming, requiring hundreds of sec-
+                                                                                                                     onds per sequence on 3DMatch (60 scans) and even thou-
+FUSER (Ours)
+
+
+
+
+                                                                                                                     sands of seconds on ArkitScenes (200 scans). By contrast,
+                                                                                                                     our feed-forward paradigm, FUSER, and its diffusion vari-
+                                   RR: 92.7%
+                                   Time: 0.15s
+                                                             RR: 100.0%
+                                                             Time: 0.18s
+                                                                                            RR: 99.7%
+                                                                                            Time: 0.29s
+                                                                                                                     ant, FUSER-DF, remove the redundant pairwise optimiza-
+                                                                                                                     tion, enabling efficient second-scale inference while main-
+                                                                                                                     taining superior accuracy, as evidenced in Tables 2 and 3.
+                                                                                                                     Moreover, thanks to the highly compact superpoint repre-
+Ground truth
+
+
+
+
+                                                                                                                     sentation (Sec. 3.2.2) and efficient FlashAttention [20, 21],
+                                                                                                                     FUSER and FUSER-DF consume only 2.83G and 5.09G of
+                                                                                                                     GPU memory, respectively, for the longest ArkitScenes se-
+Figure 5. Qualitative comparison: FUSER surpasses SOTA                                                               quences (200 scans), highlighting its practical efficiency.
+GeoTrans [57] and PARENet [74] descriptors with SGHR pose
+graph [67], achieving much higher accuracy and efficiency.                                                           5. Conclusion
+                  Table 5. Runtime (s) on 3DMatch [80] and ArKitScenes [6].                                          We presented FUSER, the first feed-forward multiview reg-
+                               FCGF Pred. YOHO GeoT. PARE. FUSER FUSER-DF                                            istration transformer that unifies all scans within a compact
+                                                                                                                     latent space for direct global pose prediction, eliminating
+        ArK 3DM
+
+
+
+
+                    Full 517.4 690.7 762.9                495.4       384.0
+                                                                              0.31            2.91                   redundant pairwise estimation. By integrating absolute ge-
+                    SGHR 292.5 316.6 517.5                180.5       155.4
+                    Full          –          –    –      2454.6 1831.3                                               ometric encoding, 2D attention priors, and geometric alter-
+                                                                              0.61            6.50
+                    SGHR          –          –    –      714.8 583                                                   nating attention, FUSER achieves holistic cross-scan rea-
+                                                                                                                     soning and surpasses previous methods by a large margin,
+For a fair evaluation, we select the two best-performing                                                             while cutting inference time from minutes to the second
+baselines on 3DMatch for comparison. Table 3 demon-                                                                  level. We further introduced FUSER-DF, an SE(3)N diffu-
+strates that our method exhibits strong precision, robust-                                                           sion refinement framework that formulates multiview regis-
+ness, and generalizability under large-scale scan settings.                                                          tration as a denoising process for fine-grained pose correc-
+4.3. Ablation Studies and Analysis                                                                                   tion. Both of them marked a paradigm shift from two-stage
+Scaling with Data Volume. Table 4 shows that with in-                                                                pipeline to unified feed-forward paradigm, advancing 3D
+creasing training data, our model yields consistent accuracy                                                         foundation modeling for multiview registration.
+Acknowledgments                                                     [15] Christopher Choy, Jaesik Park, and Vladlen Koltun. Fully
+                                                                         convolutional geometric features. In ICCV, 2019. 2, 4, 7
+This research is supported by the MOE AcRF Tier 1 Grant             [16] Christopher Choy, Wei Dong, and Vladlen Koltun. Deep
+of Singapore (RG107/25), by the RIE2025 Industry Align-                  global registration. In CVPR, 2020. 2, 6, 1
+ment Fund – Industry Collaboration Projects (IAF-ICP)               [17] Brian Clipp, Jongwoo Lim, Jan-Michael Frahm, and Marc
+(Award I2301E0026), administered by A*STAR, as well as                   Pollefeys. Parallel, real-time visual slam. In IROS, 2010. 2
+supported by Alibaba Group and NTU Singapore through                [18] Angela Dai, Angel X Chang, Manolis Savva, Maciej Hal-
+Alibaba-NTU Global e-Sustainability CorpLab (ANGEL).                     ber, Thomas Funkhouser, and Matthias Nießner. Scannet:
+                                                                         Richly-annotated 3d reconstructions of indoor scenes. In
+References                                                               CVPR, 2017. 6, 7, 8, 1
+                                                                    [19] Angela Dai, Matthias Nießner, Michael Zollhöfer, Shahram
+ [1] Dror Aiger, Niloy J Mitra, and Daniel Cohen-Or. 4-points            Izadi, and Christian Theobalt. Bundlefusion: Real-time
+     congruent sets for robust pairwise surface registration. In         globally consistent 3d reconstruction using on-the-fly surface
+     SIGGRAPH. 2008. 2                                                   reintegration. ACM Transactions on Graphics, 2017. 1
+ [2] Sheng Ao, Qingyong Hu, Hanyun Wang, Kai Xu, and Yulan          [20] Tri Dao. FlashAttention-2: Faster attention with better par-
+     Guo. Buffer: Balancing accuracy, efficiency, and generaliz-         allelism and work partitioning. In International Conference
+     ability in point cloud registration. In CVPR, 2023. 2               on Learning Representations (ICLR), 2024. 8
+ [3] Federica Arrigoni, Beatrice Rossi, and Andrea Fusiello.        [21] Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, and
+     Spectral synchronization of multiple views in se (3). SIAM          Christopher Ré. FlashAttention: Fast and memory-efficient
+     Journal on Imaging Sciences, 2016. 1, 2, 3, 6, 7                    exact attention with IO-awareness. In Advances in Neural
+ [4] Ronald T Azuma. A survey of augmented reality. Presence:            Information Processing Systems (NeurIPS), 2022. 8
+     teleoperators & virtual environments, 1997. 1                  [22] Zhen Dong, Bisheng Yang, Fuxun Liang, Ronggang Huang,
+ [5] Xuyang Bai, Zixin Luo, Lei Zhou, Hongbo Fu, Long Quan,              and Sebastian Scherer. Hierarchical registration of unordered
+     and Chiew-Lan Tai. D3feat: Joint learning of dense detec-           tls point clouds based on binary shape context descriptor. IS-
+     tion and description of 3d local features. In Proceedings of        PRS Journal of Photogrammetry and Remote Sensing, 2018.
+     the IEEE/CVF Conference on Computer Vision and Pattern              2
+     Recognition, pages 6359–6367, 2020. 2                          [23] Bertram Drost, Markus Ulrich, Nassir Navab, and Slobodan
+ [6] Gilad Baruch, Zhuoyuan Chen, Afshin Dehghan, Tal Dimry,             Ilic. Model globally, match locally: Efficient and robust 3D
+     Yuri Feigin, Peter Fu, Thomas Gebauer, Brandon Joffe,               object recognition. In CVPR, 2010. 2
+     Daniel Kurz, Arik Schwartz, et al. Arkitscenes: A diverse      [24] Kexue Fu, Shaolei Liu, Xiaoyuan Luo, and Manning Wang.
+     real-world dataset for 3d indoor scene understanding using          Robust point cloud registration framework based on deep
+     mobile rgb-d data. arXiv preprint arXiv:2111.08897, 2021.           graph matching. In CVPR, 2021. 2
+     6, 7, 8                                                        [25] Zan Gojcic, Caifa Zhou, Jan D Wegner, Leonidas J Guibas,
+ [7] Paul J Besl and Neil D McKay. Method for registration of            and Tolga Birdal. Learning multiview 3d point cloud regis-
+     3-D shapes. In Sensor fusion IV: control paradigms and data         tration. In CVPR, 2020. 1, 2, 3, 6, 7
+     structures, pages 586–606, 1992. 2                             [26] Venu Madhav Govindu. Lie-algebraic averaging for globally
+ [8] Tolga Birdal, Umut Simsekli, Mustafa Onur Eken, and Slo-            consistent motion estimation. In CVPR, 2004. 2, 3, 6
+     bodan Ilic. Bayesian pose graph optimization via bingham       [27] Giorgio Grisetti, Rainer Kümmerle, Cyrill Stachniss, and
+     distributions and tempered geodesic mcmc. NeurIPS, 2018.            Wolfram Burgard. A tutorial on graph-based slam. IEEE
+     2                                                                   Intelligent Transportation Systems Magazine, 2011. 2
+ [9] Avishek Chatterjee and Venu Madhav Govindu. Robust rel-        [28] Xizewen Han, Huangjie Zheng, and Mingyuan Zhou. Card:
+     ative rotation averaging. IEEE transactions on pattern anal-        Classification and regression diffusion models. NeurIPS,
+     ysis and machine intelligence, 2017. 1, 3, 6, 7                     2022. 6
+[10] Suyi Chen, Hao Xu, Ru Li, Guanghui Liu, Chi-Wing Fu,           [29] Richard Hartley, Khurrum Aftab, and Jochen Trumpf. L1
+     and Shuaicheng Liu. Sira-pcr: Sim-to-real adaptation for 3d         rotation averaging using the weiszfeld algorithm. In CVPR,
+     point cloud registration. In ICCV, 2023. 2                          2011. 2
+[11] Xiaoya Cheng, Yu Liu, Maojun Zhang, and Shen Yan. In-          [30] Yiheng Hu, Binghao Li, Chengpei Xu, Sarp Saydam, and
+     cremental multiview point cloud registration. arXiv preprint        Wenjie Zhang. Featsync: 3d point cloud multiview registra-
+     arXiv:2407.05021, 2024. 2, 3, 6, 7                                  tion with attention feature-based refinement. Neurocomput-
+[12] Dmitry Chetverikov, Dmitry Svirko, Dmitry Stepanov, and             ing, 2024. 2, 3
+     Pavel Krsek. The trimmed iterative closest point algorithm.    [31] Shengyu Huang, Zan Gojcic, Mikhail Usvyatsov, Andreas
+     In Object recognition supported by user interaction for ser-        Wieser, and Konrad Schindler. Predator: Registration of
+     vice robots, 2002. 2                                                3d point clouds with low overlap. In Proceedings of the
+[13] Sungjoon Choi, Qian-Yi Zhou, and Vladlen Koltun. Robust             IEEE/CVF Conference on Computer Vision and Pattern
+     reconstruction of indoor scenes. In CVPR, 2015. 2, 3                Recognition, pages 4267–4276, 2021. 1, 2, 3, 7
+[14] Christopher Choy, JunYoung Gwak, and Silvio Savarese. 4d       [32] Xiangru Huang, Zhenxiao Liang, Chandrajit Bajaj, and Qix-
+     spatio-temporal convnets: Minkowski convolutional neural            ing Huang. Translation synchronization via truncated least
+     networks. In CVPR, 2019. 2, 4                                       squares. NeurIPS, 2017. 2, 3
+[33] Xiangru Huang, Zhenxiao Liang, Xiaowei Zhou, Yao Xie,           [50] Yang Li and Tatsuya Harada. Lepard: Learning partial point
+     Leonidas J Guibas, and Qixing Huang. Learning transfor-              cloud matching in rigid and deformable scenes. In CVPR,
+     mation synchronization. In CVPR, 2019. 2, 3                          2022. 2
+[34] Haobo Jiang, Jianjun Qian, Jin Xie, and Jian Yang. Planning     [51] Jian Liu, Wei Sun, Hui Yang, Pengchao Deng, Chong-
+     with learned dynamic model for unsupervised point cloud              pei Liu, Nicu Sebe, Hossein Rahmani, and Ajmal Mian.
+     registration. IJCAI, 2021. 2                                         Diff9d: Diffusion-based domain-generalized category-level
+[35] Haobo Jiang, Yaqi Shen, Jin Xie, Jun Li, Jianjun Qian, and           9-dof object pose estimation. IEEE Transactions on Pattern
+     Jian Yang. Sampling network guided cross-entropy method              Analysis and Machine Intelligence, 2025. 1
+     for unsupervised point cloud registration. In ICCV, 2021. 2     [52] Shunyu Liu, Yihe Zhou, Jie Song, Tongya Zheng, Kaixuan
+[36] Haobo Jiang, Jin Xie, and Jian Yang. Action candidate based          Chen, Tongtian Zhu, Zunlei Feng, and Mingli Song. Con-
+     clipped double q-learning for discrete and continuous action         trastive identity-aware learning for multi-agent value decom-
+     tasks. In AAAI, 2021. 2                                              position. In AAAI, 2023. 2
+[37] Haobo Jiang, Guangyu Li, Jin Xie, and Jian Yang. Action         [53] Shunyu Liu, Wei Luo, Yanzhen Zhou, Kaixuan Chen, Quan
+     candidate driven clipped double q-learning for discrete and          Zhang, Huating Xu, Qinglai Guo, and Mingli Song. Trans-
+     continuous action tasks. IEEE Transactions on Neural Net-            mission interface power flow adjustment: A deep reinforce-
+     works and Learning Systems, 2022. 2                                  ment learning approach based on multi-task attribution map.
+[38] Haobo Jiang, Zheng Dang, Shuo Gu, Jin Xie, Mathieu Salz-             IEEE Transactions on Power Systems, 2024.
+     mann, and Jian Yang. Center-based decoupled point-cloud         [54] Shunyu Liu, Jie Song, Yihe Zhou, Na Yu, Kaixuan Chen,
+     registration for 6d object pose estimation. In ICCV, 2023. 2         Zunlei Feng, and Mingli Song. Interaction pattern disentan-
+[39] Haobo Jiang, Zheng Dang, Zhen Wei, Jin Xie, Jian Yang,               gling for multi-agent reinforcement learning. IEEE Trans-
+     and Mathieu Salzmann. Robust outlier rejection for 3d reg-           actions on Pattern Analysis and Machine Intelligence, 2024.
+     istration with variational bayes. In CVPR, 2023. 2                   2
+[40] Haobo Jiang, Mathieu Salzmann, Zheng Dang, Jin Xie, and         [55] Richard A Newcombe, Shahram Izadi, Otmar Hilliges,
+     Jian Yang. Se (3) diffusion model-based point cloud regis-           David Molyneaux, David Kim, Andrew J Davison, Pushmeet
+     tration for robust 6d object pose estimation. NeurIPS, 2023.         Kohi, Jamie Shotton, Steve Hodges, and Andrew Fitzgibbon.
+     2, 3, 5, 6                                                           Kinectfusion: Real-time dense surface mapping and track-
+[41] Haobo Jiang, Jin Xie, Jian Yang, Liang Yu, and Jianmin               ing. In IEEE international symposium on mixed and aug-
+     Zheng. Generative point cloud registration. In ICML, 2025.           mented reality, 2011. 1
+     2                                                               [56] Alexander Quinn Nichol and Prafulla Dhariwal. Improved
+[42] Haobo Jiang, Jin Xie, Jian Yang, Liang Yu, and Jianmin               denoising diffusion probabilistic models. In ICML, 2021. 3
+     Zheng. Zero-shot rgb-d point cloud registration with pre-       [57] Zheng Qin, Hao Yu, Changjian Wang, Yulan Guo, Yuxing
+     trained large vision model. In CVPR, 2025. 2                         Peng, and Kai Xu. Geometric transformer for fast and robust
+[43] Shengze Jin, Iro Armeni, Marc Pollefeys, and Daniel Barath.          point cloud registration. In CVPR, 2022. 1, 2, 3, 4, 7, 8
+     Multiway point cloud mosaicking with diffusion and global       [58] Radu Bogdan Rusu, Nico Blodow, Zoltan Csaba Marton, and
+     optimization. In CVPR, 2024. 2, 3, 6                                 Michael Beetz. Aligning point cloud views using persistent
+[44] Andrew E Johnson and Martial Hebert. Using spin images               feature histograms. In IROS, 2008. 2
+     for efficient object recognition in cluttered 3d scenes. IEEE   [59] Radu Bogdan Rusu, Nico Blodow, and Michael Beetz. Fast
+     Transactions on pattern analysis and machine intelligence,           point feature histograms (fpfh) for 3d registration. In ICRA,
+     1999. 2                                                              2009. 2
+[45] Pyojin Kim, Jungha Kim, Minkyeong Song, Yeoeun Lee,             [60] Samuele Salti, Federico Tombari, and Luigi Di Stefano.
+     Moonkyeong Jung, and Hyeong-Geun Kim. A benchmark                    Shot: Unique signatures of histograms for surface and tex-
+     comparison of four off-the-shelf proprietary visual–inertial         ture description. Computer Vision and Image Understand-
+     odometry systems. Sensors, 2022. 1                                   ing, 2014. 2
+[46] Rainer Kümmerle, Giorgio Grisetti, Hauke Strasdat, Kurt        [61] Manolis Savva, Abhishek Kadian, Oleksandr Maksymets,
+     Konolige, and Wolfram Burgard. g2o: A general framework              Yili Zhao, Erik Wijmans, Bhavana Jain, Julian Straub, Jia
+     for graph optimization. In ICRA, 2011. 2                             Liu, Vladlen Koltun, Jitendra Malik, et al. Habitat: A plat-
+[47] Seong Hun Lee and Javier Civera. Hara: A hierarchical ap-            form for embodied ai research. In ICCV, 2019. 1
+     proach for robust rotation averaging. In CVPR, 2022. 2, 3,      [62] Yaqi Shen, Le Hui, Haobo Jiang, Jin Xie, and Jian Yang.
+     6, 7                                                                 Reliable inlier evaluation for unsupervised point cloud regis-
+[48] Jiahao Li, Changhao Zhang, Ziyao Xu, Hangning Zhou, and              tration. In AAAI, 2022. 2
+     Chi Zhang. Iterative distance-aware similarity matrix convo-    [63] Andrew Szot, Alexander Clegg, Eric Undersander, Erik Wi-
+     lution with mutual-supervised point elimination for efficient        jmans, Yili Zhao, John Turner, Noah Maestre, Mustafa
+     point cloud registration. In ECCV, 2020. 2                           Mukadam, Devendra Singh Chaplot, Oleksandr Maksymets,
+[49] Shiqi Li, Jihua Zhu, Yifan Xie, Naiwen Hu, and Di Wang.              et al. Habitat 2.0: Training home assistants to rearrange their
+     Matching distance and geometric distribution aided learning          habitat. NeurIPS, 2021. 1
+     multiview point cloud registration. IEEE Robotics and Au-       [64] Hugues Thomas, Charles R Qi, Jean-Emmanuel Deschaud,
+     tomation Letters, 2024. 2, 3, 6, 7                                   Beatriz Marcotegui, François Goulette, and Leonidas J
+     Guibas. Kpconv: Flexible and deformable convolution for            [81] Tianyu Zhang, Haobo Jiang, Jian Yang, and Jin Xie. Diffpci:
+     point clouds. In ICCV, 2019. 2, 4                                       Large motion point cloud frame interpolation with diffusion
+[65] Federico Tombari, Samuele Salti, and Luigi Di Stefano.                  model. In ICCV, 2025. 2
+     Unique shape context for 3d data description. In Proceed-          [82] Weiqi Zhao, Haobo Jiang, and Jin Xie. Fast proximal policy
+     ings of the ACM workshop on 3D object retrieval, 2010. 2                optimization. In ACPR, 2021. 2
+[66] Haiping Wang, Yuan Liu, Zhen Dong, and Wenping Wang.               [83] Qian-Yi Zhou, Jaesik Park, and Vladlen Koltun. Fast global
+     You only hypothesize once: Point cloud registration with                registration. In ECCV, 2016. 2
+     rotation-equivariant descriptors. In ACM-MM, 2022. 6, 7            [84] Yun Zhu, Le Hui, Yaqi Shen, and Jin Xie. Spgroup3d: Su-
+[67] Haiping Wang, Yuan Liu, Zhen Dong, Yulan Guo, Yu-Shen                   perpoint grouping network for indoor 3d object detection. In
+     Liu, Wenping Wang, and Bisheng Yang. Robust multiview                   AAAI, 2024. 1
+     point cloud registration with reliable pose graph initialization   [85] Yun Zhu, Le Hui, Hang Yang, Jianjun Qian, Jin Xie, and
+     and history reweighting. In CVPR, 2023. 2, 3, 6, 7, 8, 1                Jian Yang. Learning class prototypes for unified sparse-
+[68] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea                      supervised 3d object detection. In CVPR, 2025. 1
+     Vedaldi, Christian Rupprecht, and David Novotny. Vggt: Vi-
+     sual geometry grounded transformer. In CVPR, 2025. 4
+[69] Lanhui Wang and Amit Singer. Exact and stable recovery of
+     rotations for robust synchronization. Information and Infer-
+     ence: A Journal of the IMA, 2013. 2
+[70] Weijie Wang, Wenqi Ren, Guofeng Mei, Bin Ren, Xiaoshui
+     Huang, Fabio Poiesi, Nicu Sebe, and Bruno Lepri. Zeroreg:
+     Zero-shot point cloud registration with foundation models.
+     arXiv preprint arXiv:2312.03032, 2023. 2
+[71] Yue Wang and Justin M Solomon. Deep closest point: Learn-
+     ing representations for point cloud registration. In ICCV,
+     2019. 3
+[72] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang,
+     Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chun-
+     hua Shen, and Tong He. pi3: Permutation-equivariant visual
+     geometry learning. arXiv preprint arXiv:2507.13347, 2025.
+     2, 4, 8
+[73] Qianliang Wu, Haobo Jiang, Lei Luo, Jun Li, Yaqing Ding,
+     Jin Xie, and Jian Yang. Diff-reg: Diffusion model in doubly
+     stochastic matrix space for registration problem. In ECCV,
+     2024. 2
+[74] Runzhao Yao, Shaoyi Du, Wenting Cui, Canhui Tang,
+     and Chengwu Yang. Pare-net: Position-aware rotation-
+     equivariant networks for robust point cloud registration. In
+     ECCV, 2024. 7, 8
+[75] Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner,
+     and Angela Dai. Scannet++: A high-fidelity dataset of 3d
+     indoor scenes. In ICCV, 2023. 6, 8
+[76] Zi Jian Yew and Gim Hee Lee. Rpm-net: Robust point
+     matching using learned features. In CVPR, 2020. 3
+[77] Zi Jian Yew and Gim Hee Lee. Learning iterative robust
+     transformation synchronization. In 3DV, 2021. 2, 3, 6, 7, 1
+[78] Zi Jian Yew and Gim Hee Lee. Regtr: End-to-end point
+     cloud correspondences with transformers. In CVPR, 2022. 3
+[79] Hao Yu, Zheng Qin, Ji Hou, Mahdi Saleh, Dongsheng Li,
+     Benjamin Busam, and Slobodan Ilic. Rotation-invariant
+     transformer for point cloud matching. In CVPR, 2023. 1,
+     2, 3, 4
+[80] Andy Zeng, Shuran Song, Matthias Nießner, Matthew
+     Fisher, Jianxiong Xiao, and Thomas Funkhouser. 3dmatch:
+     Learning local geometric descriptors from rgb-d reconstruc-
+     tions. In Proceedings of the IEEE conference on computer
+     vision and pattern recognition, pages 1802–1811, 2017. 1,
+     2, 3, 6, 7, 8
+Supplementary Material for “FUSER: Feed-Forward MUltiview 3D Registration
+              Transformer and SE(3)N Diffusion Refinement”
+A. Evaluation Metrics
+We evaluate multiview registration accuracy by comparing predicted relative poses R̂ij , t̂ij with ground truth Rij , tij . For
+ScanNet [18], following [25, 67, 77], we report the empirical cumulative distribution function (ECDF) of rotation/translation
+errors:
+                                                                  
+                                                        Tr R̂⊤
+                                                             ij Rij − 1
+                                                                                                                                     (14)
+                                      REij = arccos                        , TEij = ∥t̂ij − tij ∥2
+                                                                2
+For 3DMatch [80], following [16], we report Registration Recall (RR), the percentage of successful registrations within 15°
+and 0.3 m thresholds, together with average rotation (RE) and translation (TE) errors. We also list the number of pairwise
+matchs (#Pair) executed by each method.
+
+B. Variational Lower Bound Derivation for Prior-aware SE(3)N Diffusion Refinement Model
+The objective is to find a tractable lower bound on the marginal log-likelihood of the ground-truth transformations T01:N
+given the data S = {S1 , S2 , ..., SN } and the prior transformations T̂1:N = (T̂1 , T̂2 , ..., T̂N ) predicted by the FUSER. We
+introduce the set of latent transformation variables T1:T        1      2             T
+                                                        1:N = (T1:N , T1:N , . . . , T1:N ) and apply the Jensen’s Inequality (I):
+
+
+
+                               ln pθ (T01:N | S, T̂1:N )
+                                      Z
+                               = ln         pθ (T0:T
+                                                  1:N | S, T̂1:N )dT1:T
+                                                                    1:N
+                                        T1:T
+                                         1:N
+
+                                                                          pθ (T0:T
+                                                                               1:N | S, T̂1:N )
+                                       Z
+                                = ln           q(T1:T    0
+                                                  1:N | T1:N , T̂1:N )                            dT1:T
+                                        T1:T
+                                         1:N
+                                                                       q(T1:T     0
+                                                                           1:N | T1:N , T̂1:N )
+                                                                                                    1:N
+                                                                                                                                     (15)
+                                                   "                       #
+                                                     pθ (T0:T
+                                                          1:N | S, T̂1:N )
+                                = ln ET1:T
+                                       1:N ∼q
+                                                    q(T1:T    0
+                                                       1:N | T1:N , T̂1:N )
+                                               "                              #
+                                (I)                   pθ (T0:T
+                                                           1:N | S, T̂1:N )
+                                ≥ ET1:T
+                                    1:N ∼q
+                                           ln
+                                                    q(T1:T    0
+                                                       1:N | T1:N , T̂1:N )
+
+   Based on the defined conditional dependencies in the diffusion process, the prior distribution pθ and the posterior distri-
+bution q can be factorized as follows:
+                                                                                                     T
+                                                                                                     Y
+                                                    0:T −1
+    pθ (T0:T                   T
+         1:N | S, T̂1:N ) = p(T1:N | T̂1:N ) · pθ (T1:N    | ST , T̂1:N ) = p(TT1:N | T̂1:N ) ·            pθ (Tt−1
+                                                                                                                1:N | St , T̂1:N )   (16)
+                                                                                                     t=1
+
+
+                                                                    T
+                                                                    Y
+                                       q(T1:T    0
+                                          1:N | T1:N , T̂1:N ) =          q(Tt1:N | Tt−1
+                                                                                     1:N , T̂1:N )                                   (17)
+                                                                    t=1
+
+where St represents the transformed point-cloud scans at timestep t. By substituting the factorized distributions into Eq. 15,
+we can achieve:
+
+                                   ln pθ (T01:N | S, T̂1:N )
+                                      "                      QT                                 #
+                                           p(TT1:N | T̂1:N ) t=1 pθ (Tt−1 1:N  | S t , T̂1:N  )
+                                  ≥Eq ln           QT                  t−1
+                                                          q(Tt    | T
+                                                      t=1    1:N       1:N , T̂1:N )                                                 (18)
+                                      "                         T
+                                                                                                     #
+                                               T
+                                                               X         pθ (Tt−1
+                                                                               1:N | St , T̂1:N )
+                                  =Eq ln p(T1:N | T̂1:N ) +         ln
+                                                               t=1      q(Tt1:N | Tt−1 1:N , T̂1:N )
+   We use Bayes’ formula to deform the forward transition q(Tt1:N | Tt−1
+                                                                     1:N , T̂1:N ):
+
+                                                                                                                            q(Tt−1    t      0               t      0
+                                                                                                                               1:N | T1:N , T1:N , T̂1:N )q(T1:N | T1:N , T̂1:N )
+                                              q(Tt1:N | Tt−1
+                                                         1:N , T̂1:N ) =
+                                                                                                                                                                       q(Tt−1    0
+                                                                                                                                                                          1:N | T1:N , T̂1:N )
+
+Substituting this into Eq. 18 yields:
+
+
+    ln pθ (T01:N | S, T̂1:N )
+       "                                                                  T
+                                                                                                                                                                   #
+                                                                          X                     pθ (Tt−1
+                                                                                                     1:N | St , T̂1:N )
+ ≥Eq        ln p(TT1:N | T̂1:N ) +                                              ln
+                                                                          t=1             q(Tt1:N | Tt−1
+                                                                                                     1:N , T̂1:N )
+        "                                                                 T
+                                                                                                                                                                                                                                                            #
+                                                                          X                        pθ (Tt−1                  t−1    0
+                                                                                                        1:N | St , T̂1:N )q(T1:N | T1:N , T̂1:N )
+ =Eq        ln p(TT1:N | T̂1:N ) +                                              ln
+                                                                          t=1             q(Tt−1    t      0               t      0
+                                                                                             1:N | T1:N , T1:N , T̂1:N )q(T1:N | T1:N , T̂1:N )
+        "                                                                 T
+                                                                                                                                                                                                                                                                                                          #
+                                                                          X                        pθ (Tt−1                  t−1    0
+                                                                                                        1:N | St , T̂1:N )q(T1:N | T1:N , T̂1:N )                                                                                                                          pθ (T01:N | S1 , T̂1:N ) · 1
+ =Eq ln p(TT1:N | T̂1:N ) +                                                     ln                                                                                                                                                                          + ln
+                                                                          t=2             q(Tt−1    t      0               t      0
+                                                                                             1:N | T1:N , T1:N , T̂1:N )q(T1:N | T1:N , T̂1:N )                                                                                                                       1 · q(T11:N | T01:N , T̂1:N )
+        "
+ =Eq ln pθ (T01:N | S1 , T̂1:N ) − DKL (q(TT1:N | T01:N , T̂1:N )||p(TT1:N | T̂1:N ))
+
+        T
+                                                                                                                                                                                       #
+        X
+    −         DKL (q(Tt−1    t      0                   t−1
+                      1:N | T1:N , T1:N , T̂1:N )||pθ (T1:N | St , T̂1:N ))
+        t=2
+                                                                                                                                                                                                                                                                                                          (19)
+
+This completes the derivation.
+
+C. Model Architecture of Absolute Geometric Encoder
+We present the detailed architecture of the absolute geometric encoder in Fig. 6.
+                                                                                                                                                                                                                                   3D Conv 3x3x3, 2, 1024
+                                                                                                                                           3D Conv 3x3x3, 2, 128
+
+
+
+
+                                                                                                                                                                                           3D Conv 3x3x3, 2, 256
+                                                   3D Conv 5x5x5, 2, 32
+
+
+
+
+                                                                                                     3D Conv 3x3x3, 2, 64
+                        3D Coordinate Input
+
+
+
+
+                                                                                                                                                                                                                                                                                 Superpoint Features
+                                                                                                                                                                                                                                                                ResBlock, 1024
+                                                                                                                                                                       ResBlock, 128
+
+
+
+
+                                                                                                                                                                                                                   ResBlock, 256
+                                                                                 ResBlock, 32
+
+
+
+
+                                                                                                                            ResBlock, 64
+
+
+
+
+                                                                                                                                                                                                                                                                                                                 3D Conv 5×5×5, 1, 32
+                                                                                Figure 6. Network architecture of absolute geometric encoder.
+
+
+
+D. In-the-Wild Evaluation
+In addition to benchmark evaluations, we further evaluate FUSER on in-the-wild point-cloud sequences acquired with an
+iPhone 14 Pro Max in the authors’ kitchen/living room and study room. Despite challenges such as point sparsity, geometric
+distortion, and measurement noise, FUSER achieves high-quality feed-forward multiview registration, as shown in Fig. 7,
+demonstrating strong robustness and generalizability in real-world scenarios. We note that textures are added solely for
+clearer visualization; the actual input to FUSER consists only of point-cloud data.
+                   In-the-Wild Evaluation: Kitchen & Living Room
+                                   (Scanned by iPhone 14 Pro Max)
+
+
+
+
+                                                                                                       Textured for clearer
+                                                               FUSER                                      visualization
+
+
+
+
+                                                                            [Time: 0.547s | GPU Mem: 3.1GB]
+
+                            In-the-Wild Evaluation: Study Room
+                                   (Scanned by iPhone 14 Pro Max)
+
+
+
+
+                                                                                                      Textured for clearer
+                                                               FUSER                                     visualization
+
+
+
+
+                                                                            [Time: 0.471s | GPU Mem: 3.0GB]
+
+Figure 7. In-the-wild evaluation of FUSER on real-world multiview 3D sequences acquired using an iPhone 14 Pro Max.
+

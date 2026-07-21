@@ -1,0 +1,827 @@
+                                             Interp3R: Continuous-time 3D Geometry
+                                                Estimation with Frames and Events
+
+                                  Shuang Guo1,2 , Filbert Febryanto1,2 , Lei Sun3 , and Guillermo Gallego1,2,4
+                                                                  1
+                                                                    TU Berlin, Berlin, Germany
+                                                         2
+                                                           Robotics Institute Germany, Berlin, Germany
+arXiv:2603.14528v1 [cs.CV] 15 Mar 2026
+
+
+
+
+                                                3
+                                                  INSAIT, Sofia University “St. Kliment Ohridski”, Sofia, Bulgaria
+                                         4
+                                           Einstein Center Digital Future and SCIoI Excellence Cluster, Berlin, Germany
+
+
+
+                                             Abstract. In recent years, 3D visual foundation models, pioneered by
+                                             pointmap-based approaches such as DUSt3R, have attracted a lot of in-
+                                             terest, achieving impressive accuracy and strong generalization across
+                                             diverse scenes. However, these methods are inherently limited to recov-
+                                             ering scene geometry only at the discrete time instants when images are
+                                             captured, leaving the scene evolution during the blind time between con-
+                                             secutive frames largely unexplored. We introduce Interp3R, to the best of
+                                             our knowledge, the first method that enhances pointmap-based models
+                                             to estimate depth and camera poses at arbitrary time instants. Interp3R
+                                             leverages asynchronous event data to interpolate pointmaps produced by
+                                             frame-based models, enabling temporally continuous geometric represen-
+                                             tations. Depth and camera poses are then jointly recovered by aligning
+                                             the interpolated pointmaps together with those predicted by the under-
+                                             lying frame-based models into a consistent spatial framework. We train
+                                             Interp3R exclusively on a synthetic dataset, yet demonstrate strong gen-
+                                             eralization across a wide range of synthetic and real-world benchmarks.
+                                             Extensive experiments show that Interp3R outperforms by a consider-
+                                             able margin state-of-the-art baselines that follow a two-stage pipeline of
+                                             2D video frame interpolation followed by 3D geometry estimation.
+
+
+                                 1         Introduction
+
+                                 Recent years have witnessed remarkable progress in 3D visual foundation mod-
+                                 els. Pointmap-based approaches such as DUSt3R [29] and its successors [18, 33]
+                                 have demonstrated impressive performance in recovering scene geometry and
+                                 camera poses from images, while exhibiting strong generalization across diverse
+                                 environments. These models predict dense 3D pointmaps from input frames and
+                                 enable various downstream tasks, including depth estimation and camera pose
+                                 estimation. Despite their success, existing methods fundamentally operate on
+                                 discrete-time image frames and can only recover scene geometry at the time
+                                 instants when the frames are captured.
+                                     However, real-world scenes evolve continuously over time. The temporal gaps
+                                 between consecutive frames inevitably introduce blind intervals during which the
+                                 scene dynamics remain unobserved. This limitation becomes particularly severe
+2      S. Guo et al.
+
+
+
+
+Fig. 1: The proposed method takes two images I0 , I1 and the events between them
+E as input (Left), and recovers the scene geometry (in the form of pointmaps) at
+an arbitrary time instant τ within the interval between the two images (Right). All
+available pointmaps can then be used to estimate depth maps and camera poses.
+
+
+in scenarios with fast motion or large frame intervals, where significant geometric
+changes may occur between frames. As a result, current frame-based methods
+fail to provide temporally continuous representations of scene geometry.
+    Event cameras provide a promising solution to this problem. Unlike conven-
+tional cameras that capture images at fixed frame rates, event cameras asyn-
+chronously record per-pixel brightness changes with microsecond-level temporal
+resolution [1, 6]. This property allows them to capture fine-grained motion in-
+formation between frames [10, 11], making them well suited for recovering scene
+evolution in continuous time [8,9]. However, effectively integrating asynchronous
+event streams with modern pointmap-based models remains challenging. Events
+are sparse, noisy, and fundamentally different from frame-based representations,
+making it non-trivial to directly exploit them within existing 3D visual models.
+    In this paper, we propose Interp3R, a novel method that extends pointmap-
+based models to continuous-time 3D geometry estimation (Fig. 1). Given two
+frames processed by a frame-based model (e.g., DUSt3R [29], MonST3R [33]
+or Align3R [18]), Interp3R leverages the co-captured event stream to interpo-
+late pointmaps at arbitrary time instants between the frames. The interpolated
+pointmaps, together with those predicted from the input frames, are then aligned
+within a unified spatial framework in a novel coarse-to-fine manner in order to
+jointly recover depth and camera poses. This produces robust, progressively re-
+fined geometry estimation in continuous time across large temporal gaps.
+    We train Interp3R exclusively on synthetic data, yet the learned model gener-
+alizes well to a wide range of synthetic and real-world datasets. Extensive experi-
+ments demonstrate that Interp3R consistently outperforms baselines that follow
+a two-stage pipeline of 2D video frame interpolation followed by frame-based
+3D geometry estimation. Our results show that incorporating event information
+enables accurate and temporally continuous reconstruction of scene geometry.
+    Our contributions can be summarized as follows:
+                                Interp3R: Continuous-time 3D Geometry Estimation                  3
+
+         Table 1: Frame-based and Event-aided 3D Geometry / Video Depth Models.
+
+    Method                    Year Type Input Video Pose Dynamic Scene Continuous-time
+    VideoDepthAnything [4]    2025   FF      F      ✓      ✗           ✓                 ✗
+    DepthAnything-v3 [17]     2025   FF      F      ✓      ✓           ✓                 ✗
+    ChronoDepth [23]          2024   Diff    F      ✓      ✗           ✓                 ✗
+    DepthCrafter [12]         2025   Diff    F      ✓      ✗           ✓                 ✗
+    DUSt3R [29]               2024   PM      F      ✓      ✓           ✗                 ✗
+    MonST3R [33]              2025   PM      F      ✓      ✓           ✓                 ✗
+    Align3R [18]              2025   PM      F      ✓      ✓           ✓                 ✗
+    EAG3R [30]                2025   PM     E+F     ✓      ✓           ✓                 ✗
+    Interp3R (Ours)           2026   PM     E+F     ✓      ✓           ✓                 ✓
+    1
+        FF ≡ Feed-forward ViT; Diff ≡ Diffusion; PM ≡ Pointmap-based Model; F ≡ Frames; E ≡ Events.
+
+
+1. We propose Interp3R, the first method that extends pointmap-based mod-
+   els to estimate scene geometry in continuous time, enabling the recovery
+   of depth and camera poses at arbitrary time instants. It leverages asyn-
+   chronous event data to interpolate pointmaps produced by frame-based mod-
+   els, and jointly recovers geometry by aligning the interpolated and frame-
+   based pointmaps in a novel coarse-to-fine manner.
+2. We show that Interp3R is compatible with different pointmap-based methods
+   (e.g., MonST3R and Align3R), enhancing them to the continuous-time.
+3. We train Interp3R exclusively on a synthetic dataset and demonstrate strong
+   generalization across a variety of synthetic and real-world datasets. Extensive
+   experiments show that our method outperforms baselines that follow a two-
+   stage pipeline of 2D video frame interpolation followed by frame-based 3D
+   geometry estimation.
+4. We make the source code publicly available (upon acceptance).
+
+2         Related Work
+2.1        3D Geometry Estimation from Images and Videos
+Recent years have witnessed significant progress in estimating scene geometry
+and camera motion from images. Early learning-based approaches mainly focused
+on predicting per-frame depth from monocular images [5,15,31,32]. More recent
+works (Tab. 1) extend these models to videos in order to improve temporal
+consistency [4, 12, 23] and jointly recover camera motion [17].
+    Pointmap-based representations have emerged as a powerful paradigm for
+joint geometry and pose estimation. DUSt3R [29] introduces a pointmap repre-
+sentation that predicts aligned 3D point clouds from image pairs and implicitly
+recovers relative camera poses, demonstrating strong generalization across di-
+verse scenes. Building on this idea, MonST3R [33] extends the framework to dy-
+namic scenes by finetuning on dynamic datasets while introducing motion-aware
+global alignment. Align3R [18] further integrates monocular depth priors into
+the pointmap framework, combining feed-forward depth models and pointmap-
+based geometry estimation to improve temporal consistency.
+4      S. Guo et al.
+
+    Beyond per-frame geometry estimation, recent work has also explored mod-
+eling 3D motion between frames. DynaDUSt3R [14] augments DUSt3R with
+motion heads to predict 3D scene flow between two frames at an intermediate
+query time. Given two input images, the model predicts 3D displacement vec-
+tors that describe how points move in space, enabling the estimation of point
+trajectories across time. However, while DynaDUSt3R can hallucinate sparse 3D
+motion between frames, it cannot recover camera poses or dense depth maps at
+intermediate timestamps
+    In summary, existing 3D geometry estimation approaches still operate at
+discrete frame timestamps and do not support continuous-time depth and pose
+estimation, leaving the blind time between frames unmodeled.
+
+2.2   Event-based Video Frame Interpolation
+Event-based video frame interpolation (EVFI) exploits the high temporal res-
+olution of event cameras to synthesize intermediate frames between sparsely
+sampled images. TimeLens [28] and TimeLens++ [27] pioneer this direction by
+introducing a unified framework that estimates inter-frame motion from events
+and synthesizes intermediate frames accordingly. REFID [25] performs frame in-
+terpolation from blurry video inputs. CBMNet [16] improves motion estimation
+by jointly leveraging image and event modalities through cross-modal asymmet-
+ric bidirectional motion fields. TimeLens-XL [19] enables arbitrary-time frame
+interpolation by recursively decomposing large motions into smaller temporal
+steps. VDM-EVFI [3] explores a generative approach by adapting pretrained
+video diffusion models for event-based frame interpolation, benefiting from large-
+scale video priors.
+    In short, existing EVFI methods primarily focus on interpolation interme-
+diate frames and remain limited to modeling 2D appearance. In contrast, our
+work directly interpolates 3D geometry in continuous time, recovering both scene
+structure and camera motion at arbitrary time instants.
+
+2.3   Event-aided 3D Models
+Beyond frame-based 3D geometry estimation, several recent works explore the
+fusion of event data to improve geometric estimation under fast motion or chal-
+lenging imaging conditions. Thanks to their high temporal resolution and high
+dynamic range, event cameras provide complementary motion cues that can
+benefit 3D reconstruction.
+    For example, ADAE [21] integrates event streams into monocular depth mod-
+els [31, 32] to improve robustness under extreme illumination and motion blur.
+It introduces event-guided spatial and temporal feature fusion modules that
+compensate for degraded frame information while preserving the strong general-
+ization capabilities of pretrained depth foundation models. However, the method
+focuses on per-frame depth prediction and does not explicitly model temporal
+consistency. EAG3R [30] (penultimate row in Tab. 1) uses events to augment
+MonST3R for jointly estimating depth and camera poses in extreme-lighting
+                         Interp3R: Continuous-time 3D Geometry Estimation            5
+
+
+
+
+Fig. 2: Pipeline for pointmap prediction and interpolation. The pointmap model first
+takes as input two frames and outputs the source pointmaps. Interp3R then interpolates
+the pointmap at the arbitary target time τ ∈ (0, 1) from two directions, with the first
+part (0 → τ , “forward”) and the second part (1 → τ , “backward”) event data.
+
+scenes. By incorporating event-derived motion cues into pointmap alignment
+across frames, it improves robustness under extreme lighting conditions and fast
+motion. Nevertheless, the model still predicts geometry only at discrete frame
+timestamps and does not address geometry estimation between frames.
+    In summary, existing event-aided 3D models demonstrate that event cameras
+provide valuable complementary motion information for robust depth and pose
+estimation. However, these approaches remain restricted to discrete-time predic-
+tions tied to input frames, leaving the blind time between frames unexplored.
+In contrast, our work explicitly leverages event streams to interpolate geometric
+representations and recover depth and camera poses in continuous time, for the
+first time (last row of Tab. 1), to the best of our knowledge.
+
+3     Method
+3.1   Preliminaries
+Our model achieves continuous-time estimation of depth and camera pose by
+interpolating the pointmaps produced by frame-based models like DUSt3R. Here
+we begin with a brief review of DUSt3R, as well as its follow-ups MonST3R and
+Align3R, which extends it from static to dynamic scenes.
+    Pointmap-based Geometry Estimation. Recent advances in pose-free
+3D reconstruction adopt pointmap representations to directly regress dense ge-
+ometry from image pairs. DUSt3R predicts per-pixel 3D coordinates (pointmaps)
+for an image pair (I0 , I1 ) using a transformer-based model:
+                              X00 , X01 = FDUSt3R (I0 , I1 ),
+                                       
+                                                                           (1)
+where each pointmap assigns a 3D point to every pixel in the reference view. X00
+and X01 indicate the pointmaps of I0 and I1 respectively, and both are expressed
+in the camera coordinates of I0 . In general, Xnm indicates the pointmap of Im
+expressed in the camera coordinates of In . These pairwise pointmaps encode rel-
+ative geometry and can be aligned via a global optimization to recover consistent
+depth and camera poses across multiple views.
+6       S. Guo et al.
+
+    Extension to Dynamic Scenes. MonST3R extends DUSt3R to dynamic
+videos by fine-tuning the pointmap prediction model on dynamic datasets. Specif-
+                                              ∗
+ically, MonST3R solves for a global state Xglobal  by minimizing an objective
+composed of alignment, motion smoothness, and image-based flow constraints:
+                      ∗
+           LMonST3R (Xglobal ) = Lalign + wsmooth Lsmooth + wflow Lflow .       (2)
+This formulation enables joint estimation of video depth and camera motion in
+the presence of scene dynamics.
+   Incorporating Monocular Depth Priors. Instead of relying solely on
+RGB images, Align3R injects per-frame monocular depth estimates to guide
+pointmap regression, providing stronger geometric initialization and improving
+depth accuracy and stability, especially for dynamic scenes.
+
+3.2   Pairwise Pointmap Interpolation
+As depicted in Fig. 2, a pointmap model (we use the latest model, Align3R, as the
+main model in this work) takes as input an image pair (I0 , I1 ) and outputs the
+pairwise pointmaps (X00 , X01 ) as well as the corresponding confidence (C00 , C01 )
+(i.e., a confidence value per 3D point).
+    Then, Interp3R takes as input these pointmap predictions, the RGB fea-
+tures (F0 , F1 ) of the two input frames (I0 , I1 ) and the bidirectional event data
+(E0→τ , E1→τ ), to interpolate the pointmaps (X00→τ , X01→τ ) at the target time
+τ ∈ (0, 1) from both directions 0 → τ and 1 → τ . Note that both interpolated
+pointmaps are expressed in the camera coordinate of I0 .
+    Incorporating Event Data and Pointmaps. The co-captured events
+between the two frames are divided into a forward set, E0→τ , and a backward
+set, Eτ →1 . The backward set Eτ →1 is formed by reversing the timestamps and
+polarities of all events, resulting in E1→τ . After voxelization into spatiotemporal
+grids, denoted as V0→τ and V1→τ , they are processed by the same event en-
+coder EE , as both of them describe motion from the source frame to the target
+interpolation time. Similarly, the predicted pointmaps (X00 , X01 ) and the corre-
+sponding confidence (C00 , C01 ) are also encoded by the same type of small vision
+transformer (ViT) encoders (EX and EC ) respectively. The extracted features
+from the pointmap predictions as well as the event voxels are then fused in the
+Interp3R decoders (D0→τ , D1→τ ) using zero convolution [34].
+    The decoders and heads of Interp3R have the same structure as those of
+Align3R (but other choices are possible, as we show compatibility with MonST3R
+in Sec. 4.5), and are initialized by the weights of those of Align3R. Before being
+trained, Interp3R exactly outputs (X00 , X01 ), i.e., the pointmaps of the two input
+frames. As training iterates, the information about the source pointmaps and
+about the motion from the source to the target time τ are gradually injected to
+the Interp3R decoder. In this way, we do not abruptly change Align3R decoders
+and heads, instead, the predicted pointmaps are progressively transported from
+the source to the target time, which guarantees the stability of training.
+    Explicit Time Encoding. In many EVFI methods [19,27,28], forward and
+backward events are simply voxelized into spatiotemporal volumes with identical
+                           Interp3R: Continuous-time 3D Geometry Estimation         7
+
+channel dimensions and directly fed into the network for motion prediction. Un-
+der this formulation, the interpolation time τ is only implicitly encoded through
+temporal truncation of events, without being explicitly modeled.
+    However, such an implicit representation severely limits the model’s abil-
+ity to reason about the target time. As a result, the interpolation quality be-
+comes highly sensitive to the interpolation time, especially in the presence of
+non-uniform motion or complex scene dynamics. Inspired by [14], we explicitly
+incorporate a time encoding into the prediction heads, conditioning the model
+on the target interpolation time τ ∈ (0, 1). In this way, our method achieves
+more constant performance across different target times, as tested in Sec. 4.
+    Training Objective. As shown in Fig. 2, we only train the Interp3R com-
+ponent (i.e., the Align3R component is frozen), and use the confidence-aware
+scale-invariant 3D regression loss of DUSt3R. We normalize the interpolated
+Xτ and groundtruth pointmaps X̄τ at t = τ using the scale factors calcu-
+lated from the Align3R-predicted and groundtruth pointmaps at t = 0 and 1:
+z = norm(X0 , X1 ) and z̄ = norm(X̄0 , X̄1 )5 , respectively. The final loss function
+for an image pair (I0 , I1 ) is given by:
+                          X               1       1
+             Linterp =             Cv→τ     Xv→τ − X̄v→τ − α log Cv→τ             (3)
+                                          z       z̄
+                         v∈{0,1}
+
+where Cv→τ is the pixel-wise confidence of Xv→τ , and α is a hyper-parameter
+that controls the regularization term [29]. This loss function is the sum of inter-
+polation errors (3D weighted Euclidean distance) from both temporal directions.
+
+3.3    Coarse-to-Fine Global Alignment
+After obtaining the pointmaps for all the frame and interpolation timestamps,
+we perform a coarse-to-fine global alignment to solve for the expected camera
+intrinsics, poses and depth at all those timestamps. We illustrate the proposed
+coarse-to-fine alignment in the case of one image pair in Fig. 3, where Θ0 , Θτ
+and Θ1 are the desired variables. In the coarse alignment, we align the source
+pointmaps produced by Align3R (in blue boxes) to calculate Θ0 and Θ1 , which
+is the same as the global alignment in Align3R. Note that dynamic scenes can
+be handled due to the capability of Align3R.
+    In the fine stage, we further align the interpolated pointmaps produced by
+Interp3R (in red boxes) with the source pointmaps to solve for the variables
+at the target time, Θτ , where Θ0 and Θ1 are initialized with the results of the
+coarse alignment and are still finetuned in the optimization. In practice, the
+target time τ can be set to any value between 0 and 1, and an arbitrary number
+of interpolated pointmaps can be fine-aligned. In this way, the continuous-time
+estimation of depth and pose is achieved.
+    Following DUSt3R, we symmetrize every consecutive image pair (I0 , I1 ) and
+event sets (E0→τ , E1→τ ) to obtain a new pair (I1 , I0 ) with (E1→τ , E0→τ ). We also
+5
+    where the variable with a bar denotes groundtruth and the norm operator computes
+    the average distance between a set of points and the world origin
+8       S. Guo et al.
+
+
+
+
+Fig. 3: Illustration of the coarse-to-fine global alignment. The components of the coarse
+alignment are plotted in blue, and those of the fine alignment are in red.
+
+
+use this new pair to interpolate the pointmaps (X11→τ , X10→τ ), where the target
+time is 1 − τ and the output pointmaps are expressed in the camera coordinate
+of I1 . In this way, we obtain four pointmaps with confidence at the expected
+target position, which are inferred from two directions while expressed in two
+different coordinate systems. All these four measurements are then naturally
+fused according to pixel-wise confidence to obtain the estimation of depth and
+pose at t = τ in the fine-alignment stage.
+
+
+
+4     Experiments
+
+4.1   Experimental Setup
+
+Implementation details. We train our model on six NVIDIA RTX A6000
+GPUs with a total batch size of 12 for 50 epochs. We use the AdamW op-
+timizer with a learning rate of 0.0001. Training is performed solely on the
+PointOdyssey [35] dataset. Each training sample consists of three images cor-
+responding to timestamps t = 0, t = τ , and t = 1. The temporal span of each
+triplet ranges from 2 to 10 frames. We also symmetrize the triplets for training
+to encourage the consistency of the trained model, as [29] does. Before training,
+we precompute all valid triplets and construct a uniformly distributed sampling
+pool by balancing both the left–right temporal spans and the relative position of
+the middle frame. This ensures that the model observes interpolation cases with
+different spans and relative positions evenly during training. During training,
+each epoch randomly samples 20,000 triplets from this pool to train the model.
+    Baselines. Similar to the evaluation of EVFI [28], we skip k = {1, 3, 7, 15}
+frames, feed the remained frames as well as the event data in between to Interp3R
+to solve for depth and camera poses. Since our method is the first to address
+the target continuous-time depth and pose estimation tasks with events and
+frames, we create baselines based on concatenating state-of-the-art individual-
+task methods: we first leverage VFI methods (frame-based RIFE [13], and event-
+based Timelens [28] and VDM-EVFI [3]) to interpolate skipped frames, and then
+input all frames to Align3R to solve for depth and poses.
+                                  Interp3R: Continuous-time 3D Geometry Estimation                                     9
+
+ Table 2: Depth estimation results. Best and second best results are highlighted.
+                                      skip = 1              skip = 3              skip = 7              skip = 15
+Dataset        Method
+                                 Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑
+               RIFE               0.097      0.925      0.106      0.911      0.146      0.891      0.196      0.846
+               TimeLens           0.087      0.925      0.099      0.912      0.142      0.858      0.215      0.777
+PointOdyssey
+               VDM-EVFI           0.108      0.889      0.113      0.875      0.118      0.861      0.137      0.839
+               Interp3R (Ours)    0.069      0.948      0.067      0.952      0.074      0.948      0.099      0.896
+               RIFE               0.381      0.538      0.478      0.532      0.515      0.522      0.580      0.507
+               TimeLens           0.377      0.548      0.441      0.545      0.530      0.496      0.595      0.453
+Sintel
+               VDM-EVFI           0.366      0.542      0.390      0.553      0.397      0.559      0.424      0.543
+               Interp3R (Ours)    0.338      0.591      0.335      0.575      0.370      0.534      0.420      0.556
+               RIFE               0.075      0.956      0.079      0.952      0.098      0.932      0.157      0.886
+               TimeLens           0.077      0.956      0.082      0.949      0.104      0.922      0.226      0.758
+Bonn
+               VDM-EVFI           0.074      0.959      0.076      0.955      0.076      0.956      0.076      0.956
+               Interp3R (Ours)    0.069      0.954      0.070      0.946      0.067      0.955      0.078      0.939
+               RIFE               0.110      0.876      0.114      0.874      0.130      0.856      0.169      0.807
+               TimeLens           0.112      0.872      0.116      0.868      0.133      0.827      0.189      0.730
+TUM
+               VDM-EVFI           0.133      0.824      0.128      0.828      0.130      0.834      0.134      0.828
+               Interp3R (Ours)    0.103      0.879      0.101      0.880      0.101      0.880      0.101      0.881
+
+
+
+
+4.2      Continuous-time Depth Estimation
+
+Evaluation datasets. We evaluate our approach on both real-world and syn-
+thetic benchmarks. The real-world datasets include Bonn [20] and TUM dynam-
+ics [24], while the synthetic datasets include Sintel [2] and the validation split of
+PointOdyssey [35]. Since these datasets do not contain event data, we generate
+events for them using vid2e [7].
+    The Bonn dataset is a real-world RGB-D SLAM benchmark consisting of 24
+dynamic sequences involving human activities such as moving boxes or interact-
+ing with balloons. Following the evaluation protocol of previous works [18, 33],
+we test our model on five sequences with an average length of 110 frames. The
+TUM dynamics dataset contains 8 dynamic scenes, from which 50 frames are
+selected per scene for evaluation. Sintel is a synthetic dynamic dataset composed
+of 23 sequences with roughly 50 frames each. The PointOdyssey validation set
+contains 15 dynamic scenes with multiple moving foreground objects, and the
+first 110 frames of each sequence are evaluated.
+    Evaluation metrics. Following prior works [18, 33], we first align the pre-
+dicted depth maps to the groundtruth depth using a single scale and shift before
+computing the evaluation metrics. To make the comparison of temporal consis-
+tency fair across different methods, the scale and shift are estimated once for the
+entire image sequence rather than independently for each frame. We report two
+standard metrics: the absolute relative error (Abs Rel ↓) and the percentage of
+inlier pixels with δ < 1.25 (↑). To highlight the performance on the interpolated
+frames, the metrics are calculated on the skipped frames.
+    Comparison with baseline methods. Table 2 reports the quantitative
+depth evaluation results under different frame gaps (skips). Our method consis-
+tently achieves the best performance on PointOdyssey, Sintel, and TUM across
+all settings. In particular, on PointOdyssey our approach improves the Abs Rel
+error over the best baseline by approximately 20%–37% depending on the skip
+value, while also achieving the highest δ < 1.25 percentage. On Sintel and TUM,
+our method similarly yields the lowest Abs Rel and the highest inlier ratio across
+10      S. Guo et al.
+
+all skip values with the only exception of skip = 7 on Sintel, demonstrating clear
+advantages over the baselines that sequentially perform 2D VFI and 3D geome-
+try estimation. On the Bonn dataset, our method achieves the best performance
+on half of the evaluated metrics, and for the remaining metrics the gap to the
+best method is very small (< 3%), indicating competitive performance.
+    We also observe that the performance of RIFE and TimeLens degrades sig-
+nificantly as the frame gap increases. This behavior is expected since RIFE only
+predicts the exact middle frame (τ = 0.5), and larger skips require recursively
+interpolating additional frames, leading to noticeable error accumulation. Time-
+Lens explicitly relies on linear optical flow for frame synthesis, and as the skip
+increases, the motion between frames becomes more complex and non-linear,
+which makes accurate interpolation more difficult. Among the baselines, VDM-
+EVFI is the most robust to increasing skip values and generally achieves the
+strongest performance. However, it relies on a large video diffusion model with
+strong priors, containing more than 3B parameters.
+    In contrast, our method demonstrates strong robustness across different frame
+gaps and interpolation positions. The performance remains nearly constant across
+skip values on the Bonn and TUM datasets. A noticeable increase in error only
+occurs on PointOdyssey and Sintel when the skip increases from 7 to 15, which is
+likely due to the significantly faster camera and object motion in these datasets.
+
+4.3   Continuous-time Pose Estimation
+Evaluation datasets. For camera pose evaluation, we largely follow the proto-
+col used in Align3R and its preceding works. The evaluation is conducted on two
+real-world datasets, Bonn and TUM dynamics, and one synthetic dataset, Sin-
+tel. For the Bonn dataset, following prior works, we evaluate on five sequences
+and select 30 frames from each sequence for pose estimation. For the Sintel
+dataset, we adopt the same filtering strategy as previous methods and exclude
+sequences that are static or only exhibit simple linear motion, resulting in 14 test
+sequences. Our evaluation on the TUM dynamics dataset differs slightly from
+previous protocols. Instead of downsampling 30 frames from 90-frame sequences,
+as done in earlier works [18, 33], we directly use the same 50 frames selected for
+depth evaluation. This is because our method naturally operates on temporally
+sparse frames due to frame skipping during inference.
+    Evaluation metrics. Following prior studies [18, 33], we report three com-
+monly used metrics: ATE↓ (Absolute Trajectory Error), RTE↓ (Relative Transla-
+tion Error), and RRE↓ (Relative Rotation Error). ATE measures the discrepancy
+between the estimated trajectory and the groundtruth trajectory after align-
+ment. RTE and RRE quantify the average local translation and rotation errors,
+respectively, computed between consecutive poses.
+    Comparison with baseline methods. Table 3 reports the pose estima-
+tion results under different frame skips. Our method consistently achieves the
+best performance in terms of rotation accuracy across all datasets and skip set-
+tings. Specifically, Interp3R significantly outperforms all competing methods in
+terms of RRE, with relative improvements ranging from approximately 23% to
+                                     Interp3R: Continuous-time 3D Geometry Estimation                                        11
+
+  Table 3: Camera pose evaluation. Best and second best results are highlighted.
+                                     skip = 1                 skip = 3                 skip = 7                 skip = 15
+Dataset    Method
+                             ATE↓      RTE↓ RRE↓      ATE↓      RTE↓ RRE↓      ATE↓      RTE↓ RRE↓      ATE↓      RTE↓ RRE↓
+           RIFE              0.301     0.104  1.259   0.292     0.115  1.290   0.328     0.146  1.675   0.434      0.157  2.547
+           TimeLens          0.321     0.114  1.265   0.385     0.174  1.412   0.566     0.175  2.410   0.599      0.141  3.719
+Sintel
+           VDM-EVFI          0.319     0.127  1.314   0.339     0.128  1.193   0.405     0.148  1.351   0.379     0.118   1.496
+           Interp3R (Ours)   0.224     0.111  0.907   0.263     0.150  0.916   0.284     0.179  0.921   0.302      0.202  1.079
+           RIFE              0.011     0.007  0.749   0.012     0.007  0.746   0.013     0.007  0.827   0.015      0.008  0.782
+           TimeLens          0.011     0.008  0.762   0.012     0.008  0.765   0.015     0.009  0.769   0.017      0.010  1.482
+Bonn
+           VDM-EVFI          0.016     0.011  0.816   0.017     0.011  0.792   0.016     0.010  0.772   0.019      0.010  0.835
+           Interp3R (Ours)   0.007     0.006 0.424    0.008     0.007 0.428    0.009     0.007 0.449    0.009     0.006 0.494
+           RIFE              0.006     0.002  0.438   0.006     0.002  0.491   0.006     0.002  0.659   0.007     0.003   0.930
+           TimeLens          0.006     0.003  0.475   0.006     0.002  0.466   0.007     0.003  0.478   0.011      0.004  1.561
+TUM
+           VDM-EVFI          0.007     0.003  0.495   0.006     0.003  0.468   0.007     0.003  0.451   0.006     0.003   0.450
+           Interp3R (Ours)   0.009     0.004  0.226   0.012     0.006  0.234   0.012     0.006  0.259   0.010      0.005  0.325
+
+
+
+
+50% compared to the best competing baseline. On Bonn, our method achieves
+the best results in terms of all metrics across every skip setting, demonstrat-
+ing consistently superior performance. On Sintel, our approach also obtains the
+lowest ATE across all skip settings, outperforming the second-best method by
+approximately 10%–26%. This indicates that our method maintains accurate
+trajectory estimation even under large frame skips. For TUM, the translation
+errors of all methods are extremely small and nearly indistinguishable (ATE ≈
+0.006–0.012 and RTE ≈ 0.002–0.006 across all settings), suggesting that camera
+translation is very limited in this dataset. Instead, rotational motion dominates
+the camera movement. In this case, our method consistently achieves the lowest
+RRE, demonstrating its superior capability in estimating camera orientation.
+
+
+4.4       Qualitative Results
+
+A qualitative comparison of the estimated depth maps on the Bonn dataset are
+presented in Fig. 4. For all baseline methods, there are obvious artifacts at the
+edges of the moving man (marked in red boxes). This implies that the inaccuracy
+of the 2D VFI results is significantly amplified in the 3D geometry estimation,
+which leads to unreasonable and temporally inconsistent depth values. Although
+the percentage of such pixels is not very big, it could severely affect downstream
+tasks (e.g., robotic navigation and scene reconstruction). In contrast, our method
+produces spatially smooth and temporally consistent depth estimation. Note that
+our method does not interpolate frames; we present the skipped RGB frames for
+t = τ and use them to better visualize the points in Figs. 4 to 6.
+    We also present qualitative results on the DAVIS [22] dataset. Similarly,
+we generate synthetic events for the DAVIS dataset with vid2e. As shown in
+Fig. 5, we input the images at t = 0 and t = 1 and the events in-between to
+our method, which estimates depth and camera poses for all five timestamps,
+where t = {0.25, 0.5, 0.75} are the skipped frames. It turns out that our method
+outputs precise poses and temporally consistent depth maps, which leads to
+precise points.
+    Next, Fig. 6 presents qualitative results on the EDS [11] dataset, which are
+estimated from real images and events. The fine textures in the scene are recov-
+12        S. Guo et al.
+
+ Frame
+ RIFE
+ TL
+ VDM
+ Ours
+
+
+
+
+          t=0               t = 0.25              t = 0.5             t = 0.75               t=1
+
+Fig. 4: Qualitative comparison of depth estimation on the Bonn dataset (skip = 3).
+
+Table 4: Ablation studies. Results of depth evaluation on the PointOdyssey dataset.
+                          skip = 1              skip = 3              skip = 7              skip = 15
+Method
+                     Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑
+w/o events            0.073      0.945      0.078      0.942      0.100      0.926      0.153      0.855
+w/o time encoding     0.107      0.901      0.104      0.909      0.106      0.913      0.117      0.898
+MonST3R + Interp3R    0.090      0.915      0.090      0.910      0.097      0.883      0.108      0.876
+Align3R + Interp3R    0.069     0.948       0.067     0.952       0.074     0.948       0.099      0.896
+
+
+
+
+ered very well in the depth map at t = 0.5. It shows that our model generalizes
+well to real images and events, despite being trained only on synthetic data.
+
+4.5      Ablation Studies
+Finally, we conduct ablation studies to show the effects of event data, inter-
+polation time encoding, and Interp3R’s compatibility with other frame-based
+pointmap models (e.g., MonST3R). Results of depth estimation on PointOdyssey
+and camera pose estimation on Sintel are presented in Tabs. 4 and 5, respectively.
+    Effects of Event Data. First, we train Interp3R without the input events
+and the event encoder EE , with all other settings the same. As shown in Tab. 4,
+depth accuracy is still comparable when skip = 1 and skip = 3, but as the skip
+increases, the values degrade rapidly. It turns out that the motion cues conveyed
+by the event data are vital when the frame gap is large. The same conclusion
+                                Interp3R: Continuous-time 3D Geometry Estimation                                     13
+
+ Frames
+ Depth
+ Points
+
+
+
+
+           t=0                 t = 0.25                 t = 0.5                t = 0.75                  t=1
+
+              Fig. 5: Qualitative results on the DAVIS dataset (skip = 3).
+
+Table 5: Ablation studies. Results of camera pose evaluation on the Sintel dataset.
+                             skip = 1                 skip = 3                 skip = 7                 skip = 15
+Method
+                     ATE↓      RTE↓ RRE↓      ATE↓      RTE↓ RRE↓      ATE↓      RTE↓ RRE↓      ATE↓      RTE↓ RRE↓
+w/o events           0.222     0.102  0.909   0.285     0.178  0.916   0.338     0.217  0.914   0.404      0.220  0.927
+w/o time encoding    0.280     0.148  0.931   0.304     0.168  0.931   0.254     0.169  2.731   0.315      0.212  2.744
+MonST3R + Interp3R   0.218     0.087  0.918   0.247     0.135  0.948   0.251     0.131  0.924   0.336     0.172 0.918
+Align3R + Interp3R   0.224     0.111  0.907   0.263     0.150  0.916   0.284     0.179  0.921   0.302      0.202  1.079
+
+
+
+
+can be drawn from Tab. 5, where pose accuracy errors grow significantly as the
+skip value increases.
+    Effects of Time Encoding. Second, we train Interp3R without the en-
+coding of interpolation time, with all other settings the same. In this case, the
+estimated depth and poses are not as sensitive to the skip value as the “no-event”
+model, but they are less accurate than the full model.
+    Compatibility with MonST3R. Third, we replace Align3R, with which
+Interp3R is trained, by its concurrent work MonST3R, to provide source pointmap
+predictions, yielding a variant: MonST3R + Interp3R. In this test, Interp3R di-
+rectly takes as input MonST3R predictions, and solves for the depth and camera
+poses, without finetuning. According to Tabs. 4 and 5, this variant shows compa-
+rable depth accuracy (Align3R has higher depth accuracy than MonST3R [18])
+as the original model, while in many cases outperforming it in terms of ATE and
+RTE. This shows that Interp3R is compatible with other pointmap models be-
+sides Align3R. In other words, it can be used in a plug-n-play manner, enhancing
+the capability of pointmap models to continuous time.
+
+
+4.6       Limitations
+
+Despite its effectiveness, our approach has limitations. First, Interp3R performs
+pointmap interpolation directly on the outputs produced by the underlying
+frame-based model. When the source pointmaps are unreliable, e.g., due to mo-
+tion blur or challenging illumination conditions in the input frames, the inter-
+polation quality may also degrade. This issue could be mitigated by leveraging
+event data to enhance the input images before geometry estimation, e.g., through
+14             S. Guo et al.
+
+
+     Input
+     Depth
+     Scene
+
+
+
+
+                      t=0                     t = 0.5                    t=1
+
+                     Fig. 6: Qualitative results on the EDS dataset (skip=1).
+
+
+event-guided deblurring or image enhancement, which could improve the quality
+of the predicted pointmaps and consequently benefit the interpolation process.
+    Second, the proposed method relies on event streams to capture motion cues
+between frames. However, when the scene contains flickering or rapidly changing
+light sources, the resulting events may not correspond to true scene motion. In
+such cases, the event signals can introduce artifacts and affect the interpolation
+results. This limitation could be addressed by detecting and removing such non-
+motion events, or by injecting additional knowledge.
+
+
+5            Conclusion
+In this paper, we introduced Interp3R, a novel framework that extends pointmap-
+based models to continuous-time 3D geometry estimation. By leveraging asyn-
+chronous event data, our method interpolates intermediate pointmaps between
+input frames, enabling the recovery of depth and camera poses at arbitrary time
+instants. The interpolated pointmaps are jointly aligned with those predicted
+by frame-based models within a unified spatial framework, allowing temporally
+continuous reconstruction of scene geometry. Extensive experiments show that
+our approach consistently outperforms state-of-the-art baselines that rely on a
+two-stage pipeline of video frame interpolation followed by frame-based geometry
+estimation. We hope our work highlights the potential of combining event-based
+                               Interp3R: Continuous-time 3D Geometry Estimation              15
+
+sensing with modern 3D visual foundation models, and opens new directions for
+temporally continuous 3D perception in dynamic environments.
+
+A     Supplementary Material
+A.1     Additional Implementation Details
+ViT encoders for pointmaps, confidence and events. For each input
+modality, including the pointmap X, confidence C, and event voxel representa-
+tion V, we first apply a standard patch embedding operation to partition the
+input into a sequence of patches:
+                                    W′ = PatchEmbed(W),                                     (4)
+                   ′       ′
+where W′ ∈ RH ×W ×C denotes the patch-embedded representation of the input
+modality W. The resulting patch tokens are then processed by a Vision Trans-
+former encoder to extract hierarchical feature representations F̂ (1) , F̂ (2) , . . . , F̂ (s) .
+These multi-scale features are subsequently injected into the Interp3R decoder
+to facilitate feature aggregation and refinement.
+    Feature fusion using zero convolution. To preserve the prediction ca-
+pability of the original pointmap model, we adopt zero convolution layers [34]
+to fuse the extracted features within the Interp3R decoder:
+                       Ê (l) = ZeroConv(F̂ (l) ) + E (l) ,   l = 1, 2, . . . , s,          (5)
+where E (l) denotes the feature map produced by the Align3R decoder at the
+l-th layer, while Ê (l) represents the fused feature map after incorporating the
+features derived from the input modalities (pointmaps, confidence maps, and
+events).
+    Coarse-to-fine global alignment. In both coarse and fine stages of the
+proposed global alignment, we optimize the parameters for 300 iterations using
+the Adam optimizer. The learning rate is initialized at 0.01 and follows a linear
+decay schedule throughout the optimization process. The flow loss in (2) is only
+used in the coarse alignment, where the optical flow is provided by a pretrained
+RAFT model [26].
+
+References
+ 1. Brandli, C., Berner, R., Yang, M., Liu, S.C., Delbruck, T.: A 240x180 130dB 3µs
+    latency global shutter spatiotemporal vision sensor. IEEE J. Solid-State Circuits
+    49(10), 2333–2341 (2014). https://doi.org/10.1109/JSSC.2014.2342715
+ 2. Butler, D.J., Wulff, J., Stanley, G.B., Black, M.J.: A naturalistic open source movie
+    for optical flow evaluation. In: Eur. Conf. Comput. Vis. (ECCV). pp. 611–625
+    (2012). https://doi.org/10.1007/978-3-642-33783-3_44
+ 3. Chen, J., Feng, B.Y., Cai, H., Wang, T., Burner, L., Yuan, D., Fermuller, C.,
+    Metzler, C.A., Aloimonos, Y.: Repurposing pre-trained video diffusion models
+    for event-based video interpolation. In: IEEE Conf. Comput. Vis. Pattern Recog.
+    (CVPR). pp. 12456–12466 (Jun 2025). https://doi.org/10.1109/cvpr52734.2025.
+    01162
+16      S. Guo et al.
+
+ 4. Chen, S., Guo, H., Zhu, S., Zhang, F., Huang, Z., Feng, J., Kang, B.: Video
+    Depth Anything: Consistent depth estimation for super-long videos. In: IEEE
+    Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 22831–22840 (2025). https:
+    //doi.org/10.1109/CVPR52734.2025.02126
+ 5. Fu, X., Yin, W., Hu, M., Wang, K., Ma, Y., Tan, P., Shen, S., Lin, D., Long,
+    X.: GeoWizard: Unleashing the diffusion priors for 3D geometry estimation from
+    a single image. In: Eur. Conf. Comput. Vis. (ECCV). pp. 241—-258 (Sep 2024).
+    https://doi.org/10.1007/978-3-031-72670-5_14
+ 6. Gallego, G., Delbruck, T., Orchard, G., Bartolozzi, C., Taba, B., Censi, A.,
+    Leutenegger, S., Davison, A., Conradt, J., Daniilidis, K., Scaramuzza, D.: Event-
+    based vision: A survey. IEEE Trans. Pattern Anal. Mach. Intell. 44(1), 154–180
+    (2022). https://doi.org/10.1109/TPAMI.2020.3008413
+ 7. Gehrig, D., Gehrig, M., Hidalgo-Carrió, J., Scaramuzza, D.: Video to Events: Recy-
+    cling video datasets for event cameras. In: IEEE Conf. Comput. Vis. Pattern Recog.
+    (CVPR). pp. 3583–3592 (2020). https://doi.org/10.1109/CVPR42600.2020.00364
+ 8. Guo, S., Gallego, G.: CMax-SLAM: Event-based rotational-motion bundle adjust-
+    ment and SLAM system using contrast maximization. IEEE Trans. Robot. 40,
+    2442–2461 (2024). https://doi.org/10.1109/TRO.2024.3378443
+ 9. Guo, S., Gallego, G.: Event-based photometric bundle adjustment. IEEE Trans.
+    Pattern Anal. Mach. Intell. 47(10), 9280–9297 (2025). https://doi.org/10.1109/
+    TPAMI.2025.3586497
+10. Guo, S., Hamann, F., Gallego, G.: Unsupervised joint learning of optical flow and
+    intensity with event cameras. In: Int. Conf. Comput. Vis. (ICCV). pp. 7980–7989
+    (2025). https://doi.org/10.48550/arXiv.2503.17262
+11. Hidalgo-Carrió, J., Gallego, G., Scaramuzza, D.: Event-aided direct sparse odom-
+    etry. In: IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 5781–5790 (Jun
+    2022). https://doi.org/10.1109/CVPR52688.2022.00569
+12. Hu, W., Gao, X., Li, X., Zhao, S., Cun, X., Zhang, Y., Quan, L., Shan, Y.:
+    DepthCrafter: Generating consistent long depth sequences for open-world videos.
+    In: CVPR. pp. 2005–2015 (2025). https://doi.org/10.1109/CVPR52734.2025.00193
+13. Huang, Z., Zhang, T., Heng, W., Shi, B., Zhou, S.: Real-time intermediate flow
+    estimation for video frame interpolation. In: Eur. Conf. Comput. Vis. (ECCV).
+    pp. 624—-642 (2022). https://doi.org/10.1007/978-3-031-19781-9_36
+14. Jin, L., Tucker, R., Li, Z., Fouhey, D., Snavely, N., Holynski, A.: Stereo4D: Learn-
+    ing how things move in 3D from internet stereo videos. In: IEEE Conf. Comput.
+    Vis. Pattern Recog. (CVPR). pp. 10497–10509 (2025). https://doi.org/10.1109/
+    CVPR52734.2025.00982
+15. Ke, B., Obukhov, A., Huang, S., Metzger, N., Daudt, R.C., Schindler, K.: Re-
+    purposing diffusion-based image generators for monocular depth estimation. In:
+    IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 9492–9502 (2024). https:
+    //doi.org/10.1109/CVPR52733.2024.00907
+16. Kim, T., Chae, Y., Jang, H.K., Yoon, K.J.: Event-based video frame interpolation
+    with cross-modal asymmetric bidirectional motion fields. In: IEEE Conf. Comput.
+    Vis. Pattern Recog. (CVPR). pp. 18032–18042 (Jun 2023). https://doi.org/10.
+    1109/CVPR52729.2023.01729
+17. Lin, H., Chen, S., Liew, J.H., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth Anything 3: Recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+18. Lu, J., Huang, T., Li, P., Dou, Z., Lin, C., Cui, Z., Dong, Z., Yeung, S.K., Wang,
+    W., Liu, Y.: Align3R: Aligned monocular depth estimation for dynamic videos.
+                         Interp3R: Continuous-time 3D Geometry Estimation             17
+
+    In: IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 22820–22830 (2025).
+    https://doi.org/10.1109/CVPR52734.2025.02125
+19. Ma, Y., Guo, S., Chen, Y., Xue, T., Gu, J.: TimeLens-XL: Real-time event-based
+    video frame interpolation with large motion. In: Eur. Conf. Comput. Vis. (ECCV).
+    pp. 178—-194 (Oct 2024). https://doi.org/10.1007/978-3-031-72907-2_11
+20. Palazzolo, E., Behley, J., Lottes, P., Giguère, P., Stachniss, C.: ReFusion: 3D
+    reconstruction in dynamic environments for RGB-D cameras exploiting residu-
+    als. In: IEEE/RSJ Int. Conf. Intell. Robot. Syst. (IROS). pp. 7855–7862 (2019).
+    https://doi.org/10.1109/IROS40897.2019.8967590
+21. Peng, S., Xiong, Y., Zhou, H., Shi, Z., Liu, H., Chen, G., Yan, L., Chang, Y.:
+    Adapting depth anything to adverse imaging conditions with events. arXiv e-prints
+    (2026)
+22. Perazzi, F., Pont-Tuset, J., McWilliams, B., Van Gool, L., Gross, M., Sorkine-
+    Hornung, A.: A benchmark dataset and evaluation methodology for video object
+    segmentation. In: IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 724–732
+    (2016). https://doi.org/10.1109/CVPR.2016.85
+23. Shao, J., Yang, Y., Zhou, H., Zhang, Y., Shen, Y., Guizilini, V., Wang, Y., Poggi,
+    M., Liao, Y.: Learning temporally consistent video depth from video diffusion pri-
+    ors. In: IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 22841–22852 (2025).
+    https://doi.org/10.1109/CVPR52734.2025.02127
+24. Sturm, J., Engelhard, N., Endres, F., Burgard, W., Cremers, D.: A benchmark
+    for the evaluation of RGB-D SLAM systems. In: IEEE/RSJ Int. Conf. Intell.
+    Robot. Syst. (IROS). pp. 573–580 (Oct 2012). https://doi.org/10.1109/IROS.
+    2012.6385773
+25. Sun, L., Sakaridis, C., Liang, J., Sun, P., Cao, J., Zhang, K., Jiang, Q., Wang,
+    K., Van Gool, L.: Event-based frame interpolation with ad-hoc deblurring. In:
+    IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp. 18043–18052 (2023). https:
+    //doi.org/10.1109/CVPR52729.2023.01730
+26. Teed, Z., Deng, J.: RAFT: Recurrent all-pairs field transforms for optical flow. In:
+    Eur. Conf. Comput. Vis. (ECCV). pp. 402–419 (2020). https://doi.org/10.1007/
+    978-3-030-58536-5_24
+27. Tulyakov, S., Bochicchio, A., Gehrig, D., Georgoulis, S., Li, Y., Scaramuzza, D.:
+    Time Lens++: Event-based frame interpolation with parametric non-linear flow
+    and multi-scale fusion. In: IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp.
+    17734–17743 (Jun 2022). https://doi.org/10.1109/CVPR52688.2022.01723
+28. Tulyakov, S., Gehrig, D., Georgoulis, S., Erbach, J., Gehrig, M., Li, Y., Scaramuzza,
+    D.: Time lens: Event-based video frame interpolation. In: IEEE Conf. Comput. Vis.
+    Pattern Recog. (CVPR). pp. 16150–16159 (Jun 2021). https://doi.org/10.1109/
+    CVPR46437.2021.01589
+29. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: DUSt3R: Geometric
+    3D vision made easy. In: IEEE Conf. Comput. Vis. Pattern Recog. (CVPR). pp.
+    20697–20709 (2024). https://doi.org/10.1109/CVPR52733.2024.01956
+30. Wu, X., Yu, Y., Lyu, X., Huang, Y., Wang, B., Zhang, B., Wang, Z., Qi, X.:
+    EAG3R: Event-augmented 3D geometry estimation for dynamic and extreme-
+    lighting scenes. arXiv e-prints (2025)
+31. Yang, L., Kang, B., Huang, Z., Xu, X., Feng, J., Zhao, H.: Depth anything: Unleash-
+    ing the power of large-scale unlabeled data. In: IEEE Conf. Comput. Vis. Pattern
+    Recog. (CVPR). pp. 10371–10381 (2024). https://doi.org/10.1109/CVPR52733.
+    2024.00987
+32. Yang, L., Kang, B., Huang, Z., Zhao, Z., Xu, X., Feng, J., Zhao, H.: Depth anything
+    V2. In: Adv. Neural Inf. Process. Syst. (NeurIPS) (2024)
+18      S. Guo et al.
+
+33. Zhang, J., Herrmann, C., Hur, J., Jampani, V., Darrell, T., Cole, F., Sun, D., Yang,
+    M.H.: MonST3R: A simple approach for estimating geometry in the presence of
+    motion. In: Int. Conf. Learn. Representations (ICLR) (2025)
+34. Zhang, L., Rao, A., Agrawala, M.: Adding conditional control to text-to-image
+    diffusion models. In: Int. Conf. Comput. Vis. (ICCV). pp. 3813–3824 (2023). https:
+    //doi.org/10.1109/ICCV51070.2023.00355
+35. Zheng, Y., Harley, A.W., Shen, B., Wetzstein, G., Guibas, L.J.: PointOdyssey: A
+    large-scale synthetic dataset for long-term point tracking. In: Int. Conf. Comput.
+    Vis. (ICCV). pp. 19798–19808 (2023). https://doi.org/10.1109/ICCV51070.2023.
+    01818
+

@@ -1,0 +1,973 @@
+                                                          OVGGT: O(1) Constant-Cost Streaming Visual Geometry Transformer
+
+                                                                                               Si-Yu Lu1                   Po-Ting Chen2   Hui-Che Hsu2    Sin-Ye Jhong2
+                                                                                                                          Wen-Huang Cheng1    Yung-Yao Chen2
+                                                                   1                                                                                   2
+                                                                       National Taiwan University                                                          National Taiwan University of Science and Technology
+arXiv:2603.05959v3 [cs.CV] 29 Apr 2026
+
+
+
+
+                                                                                                                                                                                                                          500                         500
+                                                                   0.046                                   0.031                                 14.20         30.7                                             Evict3R                InfiniteVGGT
+                                                                   InfiniteVGGT                            InfiniteVGGT                                Ours    StreamVGGT
+
+                                                      0.037                 0.029 0.027
+                                                                                                                                    7.63
+                                                                                                 Evict3R
+                                                         Evict3R
+
+
+
+
+                                                                                  StreamVGGT
+
+
+
+
+                                                                                                                                                                                                                                                                                        500
+                                                                                                                                        InfiniteVGGT
+
+
+
+
+                                          0.038                                                                                                                                                                                                                                   Ours
+                                                                                                                                                                                20.2
+                                         StreamVGGT
+
+
+
+
+                                                                                                                                                                                               GT Image
+                                                                                                                                                                                InfiniteVGGT                                                                        OOM
+                                                                                                                                                                   14.5
+
+
+
+
+                                                                                                                                                                                                                                                                                        500 Frames
+                                                                                                                                                                                                                                                                                  500
+
+                                                                                                                               6.87                                                                                                                               StreamVGGT
+                                                                                                                              Evict3R                                 Evict3R
+
+                                                                                                                           3.65
+                                                                        0.024                                   0.021     Stream                                                     10.1
+                                                                        Ours                                    Ours       VGGT                                                      Ours
+                                                                                                                                                                                                                        50                      100                             300
+                                                                                                                                                                                                                 Ours                    Ours                            Ours
+                                                         Acc.↓                                  Comp.↓                             FPS ↑                              VRAM ↓                              50 Frames             100 Frames                  300 Frames
+
+
+                                         Figure 1. Streaming 3D on a single 32 GB GPU. Left: On 200-frame sequences [28], OVGGT outperforms all baselines in reconstruction
+                                         quality, speed, and VRAM usage. Right: From 50 to 500 frames, StreamVGGT runs out of memory; other methods survive but suffer
+                                         notable quality degradation. OVGGT maintains high-fidelity reconstructions at lower cost.
+
+
+                                                                                                 Abstract                                                                              1. Introduction
+
+                                            Reconstructing 3D geometry from streaming video re-                                                                                        Reconstructing 3D scene geometry from sequential image
+                                         quires continuous inference under bounded resources. Re-                                                                                      observations is a cornerstone problem in computer vision,
+                                         cent geometric foundation models achieve impressive re-                                                                                       underpinning autonomous navigation, augmented reality,
+                                         construction quality through all-to-all attention, yet their                                                                                  robotic manipulation, and large-scale digital twin construc-
+                                         quadratic cost confines them to short, offline sequences.                                                                                     tion. The task requires inferring dense, metrically con-
+                                         Causal-attention variants such as StreamVGGT enable                                                                                           sistent spatial structures from 2D image streams, recon-
+                                         single-pass streaming but accumulate an ever-growing KV                                                                                       ciling the inherent ambiguity of monocular observations
+                                         cache, exhausting GPU memory within hundreds of frames                                                                                        with multi-view geometric constraints. For decades, this
+                                         and precluding the long-horizon deployment that motivates                                                                                     progress has been driven by classical pipelines that decom-
+                                         streaming inference in the first place. We present OVGGT, a                                                                                   pose this problem into cascaded stages: keypoint detection
+                                         training-free framework that bounds both memory and com-                                                                                      and matching [9, 15, 24], robust pose estimation, triangu-
+                                         pute to a fixed budget regardless of sequence length. Our                                                                                     lation, and bundle adjustment [25]. While effective under
+                                         approach combines Self-Selective Caching, which leverages                                                                                     controlled conditions, these modular designs are inherently
+                                         FFN residual magnitudes to compress the KV cache while                                                                                        fragile: errors in any single stage propagate downstream,
+                                         remaining fully compatible with FlashAttention, with Dy-                                                                                      limiting robustness on textureless surfaces, repetitive struc-
+                                         namic Anchor Protection, which shields coordinate-critical                                                                                    tures, or large viewpoint changes.
+                                         tokens from eviction to suppress geometric drift over ex-                                                                                        DUSt3R [38] marked a paradigm shift, ushering in the
+                                         tended trajectories. Extensive experiments on indoor, out-                                                                                    era of Geometric Foundation Models by training a single
+                                         door, and ultra-long sequence benchmarks demonstrate that                                                                                     Transformer network to regress dense 3D pointmaps from
+                                         OVGGT processes arbitrarily long videos within a constant                                                                                     image pairs end-to-end, bypassing the multi-stage pipeline
+                                         VRAM envelope while achieving state-of-the-art 3D geo-                                                                                        entirely without requiring camera intrinsics or explicit fea-
+                                         metric accuracy.                                                                                                                              ture matching. Follow-up works augmented this framework
+                                                                                                                                                                                       with dense correspondences [14] and dynamic-scene sup-
+
+
+                                                                                                                                                                                 1
+port [44]. Yet the pairwise nature fundamentally limits scal-          In summary, our contributions are as follows. (1) We
+ability: extending to N views demands O(N 2 ) predictions           present OVGGT, a training-free online streaming frame-
+followed by costly global alignment optimization. While             work that performs 3D inference from arbitrarily long
+subsequent streaming variants [34, 37] achieve continuous           videos under fixed memory and compute, eliminating the
+inference through dedicated architectural designs, they still       scaling bottleneck of existing causal-attention pipelines.
+suffer from accuracy degradation over long input sequences.         (2) We design Self-Selective Caching, combining FFN-
+    To circumvent costly global alignment, subsequent               residual-based Activation Value Rating with spatial smooth-
+works [36, 40, 41] sought to advance the paradigm through           ing and Hybrid Scoring to compress the KV cache to a fixed
+all-to-all attention designs. For instance, VGGT [36]               budget while remaining fully compatible with FlashAtten-
+jointly processes all views through alternating intra-frame         tion. (3) We introduce Dynamic Anchor Protection, which
+and global all-to-all attention, predicting cameras, depth,         shields coordinate-critical tokens from eviction through a
+and point clouds in one forward pass. Nevertheless, the             global initial anchor and historical anchors, effectively sup-
+quadratic cost of attention persists: VGGT exhausts 80 GB           pressing geometric drift over extended trajectories. Exten-
+of GPU memory at merely ∼300 frames, and the paradigm               sive experiments demonstrate state-of-the-art geometric ac-
+inherently precludes continuous inference, as every invoca-         curacy on indoor, outdoor, and ultra-long sequence bench-
+tion must recompute over all previous inputs. To address            marks, with faster throughput and lower memory consump-
+this limitation, StreamVGGT [45] reformulated the archi-            tion than existing causal streaming methods.
+tecture into temporal causal attention akin to autoregressive
+decoding, caching all prior KV pairs so that each frame is          2. Related Work
+processed exactly once, thereby enabling streaming infer-
+ence without redundant recomputation at each time step.             2.1. Classical Geometric Reconstruction
+However, the linear growth of the KV cache remains a criti-         Structure from Motion. Structure-from-Motion (SfM) re-
+cal bottleneck: 100 frames already accumulate over 105 to-          covers camera poses and sparse 3D point clouds from un-
+kens per layer (∼10 GB VRAM), and the per-step attention            ordered images via feature extraction, pairwise matching,
+cost escalates with sequence length, fundamentally prevent-         and joint optimization. COLMAP [25, 26] remains the
+ing deployment on the long sequences demanded by stream-            dominant incremental system, and recent learned match-
+ing 3D reconstruction.                                              ers [9, 15, 24] and global SfM methods [23] have im-
+    In this work, we present OVGGT, a geometric foun-               proved robustness and runtime, while fully differentiable
+dation model for online streaming that maintains con-               pipelines [35] enable end-to-end learned reconstruction.
+stant memory and compute regardless of sequence length,             Nevertheless, the reliance on explicit correspondences
+built upon two complementary components: Self-Selective             and iterative optimization fundamentally limits throughput,
+Caching (SSC) and Dynamic Anchor Protection (DAP).                  making SfM difficult to deploy in real-time streaming sce-
+SSC compresses the inference-time cache to a fixed bud-             narios and inherently unable to produce dense reconstruc-
+get via (i) Activation Value Rating, which scores each to-          tions.
+ken’s geometric salience using its FFN residual magni-              Multi-View Stereo. Multi-View Stereo (MVS) methods
+tude, a quantity already computed in the forward pass and           densify SfM’s sparse output into complete surface mod-
+fully compatible with FlashAttention [7, 8], with spatial           els. Classical approaches such as PMVS [11] employ patch-
+Gaussian smoothing to encourage coherent retention; and             based matching, while learning-based methods [13, 33, 42]
+(ii) Cache Compression, which unifies current-frame acti-           have progressively replaced hand-crafted components with
+vation scores with historical key-vector diversity to balance       end-to-end differentiable cost volumes. Despite consider-
+geometric importance and distributional coverage. To main-          able progress, MVS methods typically assume known poses
+tain geometric stability over long sequences, DAP shields           and intrinsics and operate offline, precluding streaming re-
+two types of anchors from eviction: a Global Initial Anchor         construction from uncalibrated video.
+that permanently protects all first-frame tokens to preserve        Simultaneous Localization and Mapping. SLAM sys-
+coordinate-system consistency, and Historical Anchors that          tems jointly estimate camera trajectory and scene struc-
+are adaptively registered based on view-overlap coverage to         ture in real time. Feature-based methods such as ORB-
+supply long-range geometric references. Both components             SLAM [3, 18, 19] track sparse landmarks with loop
+are entirely training-free, requiring no architectural modi-        closure for global consistency, while learning-based ap-
+fications and readily applicable as a plug-in for pretrained        proaches [16, 30, 31] achieve superior accuracy through
+causal-attention models. Experiments show that OVGGT                differentiable optimization. However, both classical and
+processes arbitrarily long sequences within a fixed VRAM            learned SLAM systems typically yield only sparse or semi-
+envelope while surpassing the full-cache StreamVGGT in              dense maps, and their overall pipelines still operate in dis-
+reconstruction accuracy.                                            joint stages, precluding end-to-end optimization and limit-
+
+                                                                2
+                                           aux
+                                         tokens        Spatial-Temporal Decoder
+
+                          Vision
+                                                      Causal       Causal         Causal           3D
+                                                     Attention    Attention      Attention
+                         Encoder                                                                  Heads
+
+                  t-1                                                                KV Cache        DAP
+                        Current Tokens
+                                                  Activation Value Rating     KVCC       update
+                        Cached Tokens
+                        Protected Tokens
+                        Evictable Tokens
+                                                                                       New KV
+                                                                                       Cache
+
+                                                      Causal       Causal         Causal
+                          Vision                     Attention    Attention      Attention         3D
+                         Encoder                                                                  Heads
+                  t                                    Spatial-Temporal Decoder
+
+Figure 2. Overview of OVGGT. At each time step, the input frame is encoded into tokens and processed by a spatial-temporal decoder
+that attends to a bounded KV cache. During inference, the Activation Value Rating module scores each token’s geometric salience, and the
+KV Cache Compression (KVCC) module evicts low-scoring tokens to maintain a fixed cache budget. Dynamic Anchor Protection (DAP)
+shields coordinate-critical tokens from eviction, ensuring long-range geometric stability.
+
+
+ing generalization.                                                     achieves constant-resource inference via a fixed-size recur-
+                                                                        rent state, and its follow-up TTT3R [4] further stabilizes
+2.2. Geometric Foundation Models                                        long-sequence accuracy. Point3R [39] leverages spatial
+Driven by large-scale pretraining and Vision Transformer                pointer memory with hierarchical positional embeddings
+architectures, geometric foundation models have emerged                 for cross-frame geometric aggregation. However, these
+as a unified paradigm that jointly addresses pose estimation,           methods remain constrained in model capacity for capturing
+depth prediction, and dense 3D reconstruction within a sin-             long-range dependencies. Capitalizing on VGGT’s supe-
+gle feed-forward framework. These models can be broadly                 rior accuracy, StreamVGGT [45] converted its bidirectional
+categorized by how they aggregate multi-view information.               attention into temporal causal attention with a KV cache,
+Pairwise Prediction with Post-hoc Alignment.                            preserving much of the all-to-all representational capacity
+DUSt3R [38] established the foundational paradigm                       while enabling single-pass streaming. However, the linearly
+by training a siamese Vision Transformer to directly regress            growing KV cache remains the critical bottleneck: memory
+per-pixel 3D pointmaps from an image pair, eliminating                  and latency increase monotonically with processed frames,
+the need for camera intrinsics. MASt3R [14] augmented                   eventually exceeding GPU capacity. Current works [17, 43]
+the architecture with a dense feature head for 3D-grounded              also attempt to mitigate unbounded cache growth but still
+correspondence matching, and subsequent extensions ad-                  face imprecise resource control or degraded long-sequence
+dressed dynamic scenes [44], real-time dense SLAM [20],                 accuracy. Our work directly addresses this bottleneck by
+and view symmetrization [2]. However, scaling to many                   introducing fixed-budget cache management and dynamic
+views still necessitates O(N 2 ) pairwise computations                  anchoring, enabling long sequences under constant resource
+followed by global alignment [14, 38], severely impeding                consumption while preserving geometric accuracy.
+deployment on long sequences.
+Offline All-to-All Attention. To circumvent pairwise scal-
+ability bottlenecks, VGGT [36] alternates intra-frame spa-              3. Method
+tial self-attention with global cross-frame attention to pre-
+dict cameras, depth, and point clouds in a single forward               As illustrated in Fig. 2, OVGGT is a streaming model that
+pass. Fast3R [40] scaled a similar architecture to over 1,000           performs geometric inference from arbitrarily long video
+images via FlashAttention and tensor parallelism. Despite               sequences under a fixed budget. Based on the causal
+remarkable quality, the quadratic memory complexity of                  attention framework of StreamVGGT [45], it introduces
+global attention confines these methods to offline batch pro-           token-level cache management and an anchoring mecha-
+cessing.                                                                nism that together enable continuous processing of thou-
+Streaming Methods for Continuous Inference. To bridge                   sands of frames within a constant VRAM envelope. We
+representational capacity and unbounded video demands,                  first analyze the bottleneck of the existing streaming model
+Spann3R [34] extended pairwise prediction to sequential                 (Sec. 3.1), then present Self-Selective Caching (Sec. 3.2)
+processing with an external spatial memory. CUT3R [37]                  and Dynamic Anchor Protection (Sec. 3.3).
+
+
+                                                                    3
+                                                                           Original       Layer 0        Layer 10       Layer 20
+3.1. Preliminaries and Bottlenecks
+StreamVGGT [45] converts the offline all-to-all attention
+of VGGT [36] into a causal streaming pipeline for real-time
+3D inference. Each input frame It is encoded by a frozen
+DINOv2 [21] backbone into Np = ⌊H/p⌋ × ⌊W/p⌋ patch
+tokens, which are concatenated with one learnable camera
+token zcam ∈ RC and four register tokens zreg ∈ R4×C
+(collectively termed aux tokens), yielding a per-frame se-
+quence of M = 1 + 4 + Np tokens. These tokens pass
+through L=24 alternating attention blocks, each consist-
+ing of intra-frame spatial self-attention SA(l) followed by
+                                                                     Figure 3. Per-token FFN activation scores across layers, pro-
+cross-frame temporal causal attention CA(l) that queries the
+                                                                     gressing from high-frequency textures (shallow) to geometric
+KV cache Ct . The output tokens are decoded by camera,               structures (mid) to semantic boundaries (deep).
+depth, and point cloud heads into per-frame camera param-
+eters gt ∈ R9 , depth map Dt ∈ RH×W , and 3D pointmap
+Pt ∈ RH×W ×3 :                                                       tion across layers (Fig. 3). Our probing experiments em-
+                                                                  pirically confirm that FFN-residual-based scoring consis-
+                                           (l) L−1
+    (gt , Dt , Pt ) = Φ CA(l) SA(l) (·), Ct      l=0
+                                                       , (1)         tently outperforms attention-weight-based, query-key-dot-
+                                                                     product-based, and random eviction strategies across all re-
+where Φ subsumes the three prediction heads. The KV                  construction metrics, validating its effectiveness as a geo-
+cache grows by M entries per layer per frame:                        metric saliency proxy. Building on this insight, we pro-
+                                                                     pose a self-selective strategy that derives importance en-
+    (l)  (l)    (l)  (l) 
+   Ct = Ct−1 ; (Kt , Vt ) ,          l = 0, . . . , L−1.   (2)       tirely from quantities already computed in the forward pass,
+                                                                     requiring no additional modules.
+After T frames, the total footprint is Mem(CT ) = 2 · L ·
+T · M · Nh · d, where Nh and d are the head count and                Activation Value Rating.       While FlashAttention pre-
+the per-head dimension, respectively. At 518×392 reso-               cludes access to attention weights, the feed-forward net-
+lution (M =1,041), merely 100 frames consume ∼10 GB                  work (FFN) within each Transformer block operates inde-
+of VRAM. This linear growth imposes two bottlenecks:                 pendently of the attention kernel. In the Pre-LN formula-
+(i) VRAM exhaustion caps the maximum sequence length,                tion,
+                                              (l)
+and (ii) the per-step attention cost O(M · |Ct |) increases
+                                                                               h(l) = x(l−1) + MHA LN(x(l−1) ) ,
+                                                                                                                   
+with t, degrading throughput over time.                                                                                    (3)
+    We address these issues by bounding the cache to a fixed                     (l)     (l)    (l)
+                                                                               x = h + λ2 · FFN LN(h ) ,       (l)
+                                                                                                                   
+                                                                                                                           (4)
+budget B, which reduces the per-step cost to O(M · B),
+constant with respect to sequence length, thereby achieving                   (l)
+                                                                     where λ2 is the LayerScale [32] coefficient. The FFN
+O(1) per-step inference and storage overhead. The follow-                       (l)
+                                                                     residual λ2 ·FFN(LN(h(l) )) applies a token-wise nonlin-
+ing subsections detail how we achieve this while preserving
+                                                                     ear transformation that amplifies salient representations; its
+reconstruction quality.
+                                                                     magnitude naturally reflects how strongly each token is ac-
+3.2. Self-Selective Caching                                          tivated. We therefore define the activation score of the i-th
+                                                                     token at layer l as
+Maintaining a fixed-size cache requires deciding which to-
+kens to retain. Attention-map-based selection is the most                            (l)    (l)              (l) 
+                                                                                    si = λ2 · FFN LN(hi ) 2 ,                  (5)
+intuitive criterion, yet modern pipelines rely on FlashAtten-
+tion [7, 8], which avoids materializing the full attention ma-       quantifying the representational shift induced by the FFN.
+trix A ∈ RN ×N and thus cannot expose per-token attention            As visualized in Fig. 3, shallow layers yield high scores
+weights without sacrificing efficiency. Token compression            in textured regions, intermediate layers highlight geometri-
+techniques developed for large models [5, 10] offer a natural        cally informative patches (e.g., the checkerboard), and deep
+starting point for cache management, yet the representations         layers concentrate on semantic object boundaries, reflect-
+in geometric transformers carry fundamentally different se-          ing the coarse-to-fine hierarchy of Transformers. Crucially,
+mantics: whereas LLM compression targets linguistically              since the FFN residual is already computed during the for-
+salient text tokens, geometric patch tokens undergo spatially        ward pass, this scoring introduces zero additional memory
+structured nonlinear transformations that progressively en-          or computation overhead and remains fully compatible with
+code texture, geometry, and semantic boundary informa-               FlashAttention.
+
+
+                                                                 4
+                                 Vanilla      w/ Smoothing            centroid key vector; tokens with higher deviation from the
+                                                                      centroid are considered more informative. Current-frame
+                                                                                                                           (l)
+                                                                      tokens in Unew directly use the activation score si . Af-
+                                                                      ter independent min-max normalization (dˆi , ŝi ∈ [0, 1]), a
+                                                                      priority coefficient β ∈ [0, 1] balances the two sources:
+                                                                                            (1 − β) · dˆi , i ∈ Uhist ,
+                                                                                          (
+                 Vanilla                                                             ri =                                       (7)
+                                                                                            β · ŝi ,       i ∈ Unew .
+                                                                      A larger β favors current-frame tokens; a smaller β priori-
+                                                                      tizes historical diversity. We retain the B (l) − |P| highest-
+                                                                      scoring tokens from U and evict the rest:
+                                                                                    C˜t = P ∪ Top-k U, B (l) − |P| .
+                                                                                                                      
+                                                                                                                                 (8)
+                                                                      Per-layer budgets B (l) are allocated proportionally to each
+       w/ Smoothing                                                   layer’s token diversity [43], granting more capacity to high-
+Figure 4. Activation smoothing effectively improves reconstruc-
+                                                                      diversity layers and compressing homogeneous layers more
+tion quality over vanilla token retention.                            aggressively.
+                                                                      3.3. Dynamic Anchor Protection
+   Activation Smoothing. Directly selecting tokens by raw             Cache compression alone cannot guarantee geometric con-
+activation scores tends to produce spatially fragmented re-           sistency: as the token composition churns through repeated
+tention patterns, introducing discontinuous references that           eviction cycles, depth and point cloud predictions may drift
+degrade reconstruction sharpness (Fig. 4, “Vanilla”). A key           when the camera moves far from previously observed re-
+distinction from LLM token compression is that geometric              gions. This challenge is unique to geometric streaming
+patch tokens possess inherent 2D spatial structure: neigh-            and has no counterpart in LLM inference, where token se-
+boring patches observe overlapping scene regions and share            quences lack a shared spatial coordinate system. We there-
+local geometric context. Disrupting this spatial coherence            fore introduce Dynamic Anchor Protection (DAP) to ex-
+scatters the retained references across the image and de-             plicitly shield a small set of geometrically critical tokens
+stroys the local continuity that depth and point cloud heads          P = Pinit ∪ Phist from eviction.
+rely upon. We therefore apply Gaussian smoothing to the
+2D activation map S ∈ RHp ×Wp :                                       Global Initial Anchor. The first frame defines the world-
+                                                                      coordinate origin for all subsequent predictions. We perma-
+              S̃ = α · (G ∗ S) + (1 − α) · S,              (6)        nently protect all M first-frame tokens as Pinit to preserve
+                                                                      coordinate-system consistency throughout inference.
+where G is a Gaussian kernel and α controls the smoothing
+strength. This encourages spatially coherent token groups             Historical Anchors. As the camera traverses the scene,
+to be retained, preserving the local context critical for accu-       the first frame may share no visual overlap with the cur-
+rate depth and point cloud prediction (Fig. 4, “w/ Smooth-            rent view, rendering Pinit alone insufficient. We therefore
+ing”). Aux tokens are excluded from smoothing and retain              adaptively register historical anchors to supply long-range
+original scores.                                                      geometric references. Concretely, let a be the most recent
+                                                                      anchor frame with 3D points Pa and pose Ta ∈ SE(3). We
+KV Cache Compression.             Given per-token activation          project Pa into the current view via T−1 t Ta and compute
+scores, we compress
+              PL−1 (l) each  layer’s cache to its budget B (l)        the coverage ratio ρt as the fraction of points falling within
+(with B =        l=0 B ). For brevity, we omit the layer              the image bounds; a new anchor is registered at frame t
+index; all operations execute independently per layer. We             whenever ρt < τ and at least 100 frames have elapsed since
+partition the cache into a protected set P (exempt from evic-         the last registration, preventing excessive switching under
+tion; see Sec. 3.3) and an evictable set U = Uhist ∪ Unew ,           rapid camera motion. For each anchor frame j, we rank its
+with |P| + |U| = |Ct |.                                               patch tokens by the per-point confidence cj ∈ RNp from
+   Hybrid Scoring. Since only current-frame tokens pass               the point cloud head and protect only the top-η percentile
+through the FFN, historical tokens lack up-to-date activa-            as Phist,j . To prevent unbounded accumulation, the num-
+tion scores; we therefore adopt a dual-metric scheme. Fol-            ber of active anchors is capped at Kmax with a first-in-first-
+lowing [43], each historical token in Uhist is assigned a di-         out (FIFO) policy: when the limit is reached, the oldest an-
+versity score di = 1 − cos(ki , k̄), where k̄ denotes the             chor is demoted back to Uhist . We adopt FIFO over more
+
+
+                                                                  5
+                                 200
+    GT              StreamVGGT                       Evict3R                      InfiniteVGGT                     Ours
+
+
+
+
+Figure 5. Qualitative comparison on indoor scene reconstruction (sequence length = 500). Each row shows a different scene with
+close-up insets. Note that StreamVGGT is limited to a maximum of 200 input frames due to memory constraints.
+
+
+complex replacement strategies as it introduces zero addi-             Implementation Details.        The default cache budget
+tional computation and, given that older anchors are natu-             is B=200K tokens, occupying approximately 10 GB
+rally more likely to have been superseded by newer, spa-               and comfortably supporting arbitrarily long inference on
+tially closer references, empirically performs on par with             consumer-grade GPUs; the ablation in Sec. 5 confirms this
+alternatives. The resulting budget overhead is bounded by              as the most cost-effective operating point. Within SSC, the
+                                                                       smoothing coefficient is set to α=0.5 and the hybrid scor-
+                |P| ≤ M + Kmax · ⌈η · Np ⌉,                 (9)        ing balance to β=0.5. For DAP, the view-overlap threshold
+                                                                       is τ =0.2 with a minimum interval of 100 frames between
+where the first term accounts for the global initial anchor            anchor registrations, the anchor token retention percentile
+tokens and the second for all active historical anchors. In            is η=0.05, and the maximum number of active historical
+practice, we set Kmax and η to small values so that the total          anchors is Kmax =3. All experiments are conducted on a
+anchor overhead remains a modest fraction of each layer’s              single 32 GB NVIDIA RTX 5090 GPU.
+budget B (l) , leaving sufficient capacity in the evictable pool
+to maintain token diversity. SSC and DAP are comple-                   4.1. 3D Reconstruction
+mentary: the former identifies which tokens carry geomet-
+                                                                       Indoor Benchmarks.           We evaluate indoor 3D recon-
+ric value, while the latter guarantees that coordinate-critical
+                                                                       struction on 7-Scenes [28] and NRGBD [1], reporting Ac-
+references survive across eviction cycles. Their joint design
+                                                                       curacy (Acc), Completeness (Comp), and Normal Consis-
+reflects the spatial and metric structure inherent to visual
+                                                                       tency (NC). Following [4, 43], we sample sequences of
+geometry, and we empirically validate each component in
+                                                                       100 to 500 frames at stride 2; as a more challenging stress
+Sec. 5 and the supplementary material.
+                                                                       test, we further reduce the stride to 1 on 7-Scenes, yielding
+                                                                       full-sequence input that places greater demands on long-
+4. Experiments
+                                                                       horizon stability. As shown in Tab. 1, OVGGT achieves
+To comprehensively validate OVGGT against existing                     state-of-the-art performance under a constant resource bud-
+streaming models, we evaluate 3D reconstruction per-                   get, with its advantage becoming increasingly pronounced
+formance across three diverse scene categories: indoor,                as sequence length grows. StreamVGGT rapidly exhausts
+outdoor, and ultra-long sequences (Sec. 4.1). We fur-                  VRAM and cannot continue processing beyond short se-
+ther provide detailed comparisons on video depth estima-               quences. Notably, the superior accuracy of OVGGT relative
+tion (Sec. 4.2) and inference efficiency analysis (Sec. 4.3)           to StreamVGGT indicates that retaining the entire cache
+against causal visual geometry models.                                 does not represent an accuracy upper bound: redundant
+Baselines. The works most closely related to ours are                  cached tokens can degrade reconstruction quality. Despite
+Evict3R [17] and InfiniteVGGT [43], both built on the                  this accuracy, OVGGT maintains a clear inference cost ad-
+causal architecture of StreamVGGT [45], which serves as                vantage among causal-pipeline methods (Sec. 4.3). Qual-
+the full-cache reference. InfiniteVGGT uses its default                itative results in Fig. 5 further corroborate these findings:
+fixed budget; for Evict3R, which specifies a retention ra-             at 500 frames, competing methods exhibit geometric distor-
+tio rather than an absolute budget, we report both the orig-           tion and blurred details, whereas OVGGT preserves sharp
+inal and a budget-matched variant (Evict3R† ) dynamically              structures and coherent geometry throughout.
+calibrated to match OVGGT. We further compare against                  Outdoor and Ultra-Long Sequences.               For outdoor
+Spann3R [34], CUT3R [37], TTT3R [4], and Point3R [39].                 and ultra-long sequence evaluation, we report results on
+
+
+                                                                   6
+Table 1. Quantitative comparison on the 7-Scenes [28] and NRGBD [1] datasets across different sequence lengths. Evict3R† denotes
+Evict3R with its pruning rate dynamically calibrated to match our constant budget. The best and second-best results are highlighted.
+
+                                            7-Scenes                                               NRGBD
+Method                Seq.   Acc ↓    Comp ↓      NC ↑                        Seq.   Acc ↓    Comp ↓      NC ↑
+                      Len. Mean Med. Mean Med. Mean Med.                      Len. Mean Med. Mean Med. Mean Med.
+
+Spann3R [34]      200         0.215 0.131 0.122 0.063 0.535          0.550 100       0.111 0.069 0.045 0.015 0.636          0.733
+CUT3R [37]                    0.087 0.048 0.045 0.014 0.566          0.601           0.039 0.024 0.013 0.004 0.645          0.748
+Point3R [39]                  0.041 0.019 0.023 0.006 0.579          0.622           0.046 0.028 0.016 0.004 0.662          0.775
+TTT3R [4]                     0.027 0.015 0.023 0.005 0.582          0.627           0.031 0.019 0.012 0.004 0.650          0.756
+StreamVGGT [45]               0.038 0.014 0.029 0.007 0.583          0.628           0.024 0.014 0.013 0.003 0.663          0.777
+Evict3R [17]                                  OOM                                    0.025 0.015 0.013 0.003 0.664          0.781
+Evict3R† [17]                 0.037 0.013 0.027 0.007 0.584          0.631           0.031 0.020 0.013 0.003 0.665          0.791
+InfiniteVGGT [43]             0.046 0.016 0.031 0.008 0.582          0.627           0.035 0.022 0.014 0.003 0.669          0.787
+Ours                          0.024 0.008 0.021 0.005 0.587          0.635           0.022 0.014 0.012 0.003 0.672          0.796
+Spann3R [34]      500         0.343 0.263 0.154 0.085 0.515          0.521 300       0.346 0.221 0.175 0.099 0.558          0.586
+CUT3R [37]                    0.194 0.143 0.092 0.034 0.527          0.538           0.244 0.136 0.081 0.019 0.575          0.613
+Point3R [39]                  0.056 0.025 0.031 0.012 0.555          0.584           0.076 0.042 0.014 0.004 0.624          0.707
+TTT3R [4]                     0.065 0.037 0.030 0.006 0.552          0.578           0.102 0.043 0.026 0.005 0.610          0.678
+StreamVGGT [45]                               OOM                                                    OOM
+Evict3R [17]                                  OOM                                                    OOM
+Evict3R† [17]                 0.042 0.016 0.026 0.005 0.559          0.589           0.042 0.026 0.017 0.004 0.640          0.739
+InfiniteVGGT [43]             0.040 0.015 0.024 0.005 0.561          0.593           0.053 0.031 0.024 0.005 0.646          0.751
+Ours                          0.031 0.011 0.020 0.003 0.561          0.593           0.037 0.022 0.015 0.003 0.642          0.740
+Spann3R [34]      1000        0.340 0.262 0.154 0.092 0.508          0.510 500       0.516 0.342 0.225 0.130 0.552          0.578
+CUT3R [37]                    0.240 0.166 0.102 0.015 0.513          0.516           0.328 0.247 0.157 0.085 0.562          0.592
+Point3R [39]                  0.068 0.028 0.025 0.006 0.533          0.549           0.116 0.049 0.027 0.004 0.620          0.698
+TTT3R [4]                     0.126 0.080 0.050 0.010 0.525          0.535           0.169 0.082 0.096 0.015 0.594          0.647
+StreamVGGT [45]                               OOM                                                    OOM
+Evict3R [17]                                  OOM                                                    OOM
+Evict3R† [17]                 0.134 0.059 0.052 0.009 0.531          0.545           0.072 0.040 0.026 0.006 0.641          0.739
+InfiniteVGGT [43]             0.061 0.031 0.035 0.014 0.537          0.554           0.070 0.046 0.037 0.008 0.642          0.743
+Ours                          0.039 0.014 0.020 0.003 0.537          0.554           0.054 0.032 0.026 0.006 0.637          0.732
+
+
+ETH3D [27] and Long3D [43]. All methods receive the                  quences, exhibiting stable reconstruction quality through-
+complete sequence as input without subsampling. No-                  out. These results confirm that OVGGT can maintain cache
+tably, the ultra-long sequences in Long3D contain up to              effectiveness and compactness under complex scenes and
+10,000 consecutive frames. For the particularly challeng-            extended inference horizons, actively filtering out noisy
+ing ETH3D [27] and Long3D [43] datasets, we addition-                and redundant information to sustain reconstruction perfor-
+ally report results with an increased budget of B=400K               mance. The metrics of StreamVGGT on outdoor scenes
+(denoted Ours400 ) to accommodate the complexity of out-             corroborate this observation directly: Evict3R and In-
+door scenes and ultra-long sequence lengths, alongside the           finiteVGGT, which are also built upon the same full-cache
+default B=200K configuration. This increase incurs only              baseline, achieve comparable or inferior accuracy relative to
+a modest overhead of approximately 1 GB in allocated                 StreamVGGT, whereas OVGGT consistently surpasses it.
+VRAM relative to the default budget, remaining well below
+the resource consumption of other causal baselines.                  4.2. Video Depth Estimation
+   As shown in Tab. 2, OVGGT delivers the best per-                  Beyond 3D reconstruction, we also evaluate OVGGT on
+formance in both open outdoor scenes and ultra-long se-              long-sequence video depth estimation. Unlike direct 3D
+
+
+                                                                 7
+Table 2. Quantitative comparison on full sequences of ETH3D [27] and Long3D [43] datasets. Ours200 and Ours400 denote results with
+the default 200K and an increased 400K token budget, respectively. Best and second best results highlighted.
+
+                                        ETH3D (Outdoor)                                       Long3D (Ultra-Long)
+ Method                     Acc ↓             Comp ↓              NC ↑              Acc ↓            Comp ↓               NC ↑
+                        Mean     Med.      Mean     Med.     Mean     Med.     Mean      Med.     Mean     Med.     Mean      Med.
+ CUT3R [37]             0.940 0.607 0.709          0.374     0.718    0.812    6.189 2.405 1.921 1.535              0.501     0.497
+ TTT3R [4]              0.598 0.374 0.585          0.223     0.728    0.826    7.341 2.018 1.455 1.235              0.509     0.503
+ StreamVGGT [45]        0.601 0.369 0.442          0.169     0.791    0.933                    OOM
+ Evict3R† [17]          0.605 0.375 0.442          0.163     0.792    0.934    4.928 2.710 0.715 0.204              0.507     0.504
+ InfiniteVGGT [43]      0.603 0.371 0.444          0.169     0.792    0.933    4.344 3.668 0.974 0.205              0.517     0.525
+ Ours200                0.628 0.396 0.380          0.121     0.790    0.934    2.453 1.794 0.390 0.060              0.507     0.509
+ Ours400                0.535 0.317 0.394          0.107     0.793    0.934    2.449 1.675 0.542 0.151              0.507     0.509
+
+       Table 3. Video depth evaluation on Bonn [22] and KITTI [12] across different sequence lengths. Best results highlighted.
+
+                                                 Bonn                                                  KITTI
+                               Abs Rel ↓                    δ < 1.25 ↑                  Abs Rel ↓                  δ < 1.25 ↑
+Method
+                        100       300      500      100       300      500       100        300     500      100       300        500
+StreamVGGT [45]        0.055   –     –   0.974   –     –                        0.166   –     –   0.740   –     –
+Evict3R† [17]          0.063 0.072 0.072 0.963 0.951 0.957                      0.192 0.213 0.198 0.693 0.700 0.705
+InfiniteVGGT [43]      0.056 0.073 0.070 0.975 0.957 0.960                      0.165 0.249 0.257 0.742 0.556 0.577
+Ours                   0.055 0.071 0.067 0.974 0.956 0.959                      0.128 0.133 0.135 0.839 0.844 0.839
+
+
+point evaluation, which can be affected by cumulative noise           clear accuracy advantage. In throughput, OVGGT achieves
+over long sequences, depth estimation better reflects per-            a substantial lead: Evict3R and InfiniteVGGT maintain sta-
+frame local geometric accuracy. Tab. 3 reports depth met-             ble but sub-real-time frame rates, while StreamVGGT’s
+rics on Bonn [22] and KITTI [12], both of which contain               per-step cost grows with the accumulated cache, trigger-
+dynamic objects.                                                      ing OOM beyond ∼200 frames. In VRAM, StreamVGGT
+   On the indoor Bonn sequences, OVGGT performs on                    exceeds 32 GB reserved memory at that point, and In-
+par with the best baselines at shorter sequence lengths,              finiteVGGT also incurs high overhead due to its large de-
+yet maintains stable accuracy as sequences grow longer,               fault budget. Evict3R’s allocated VRAM is only ∼1 GB
+whereas other methods exhibit increasing error accumula-              above OVGGT, yet its reserved memory is considerably
+tion. On the outdoor driving scenes of KITTI, OVGGT al-               higher because materializing attention maps for eviction
+ready surpasses the full-cache baseline StreamVGGT even               precludes FlashAttention. By contrast, OVGGT retains
+at short input lengths. We attribute this to the complexity           full FlashAttention compatibility, achieving both the low-
+of large-scale outdoor scenes, where redundant cached to-             est memory footprint and the highest throughput, realizing
+kens introduce substantial noise during inference; the self-          truly O(1) constant-cost inference per frame.
+selective caching and anchor protection of OVGGT can ef-
+fectively filter such noise and ensure stable geometric in-           5. Ablation Studies
+ference. As sequence length further increases, OVGGT
+exhibits minimal metric fluctuation, demonstrating robust             Cache Budget Capacity. Tab. 4 reports reconstruction
+inference under the default B=200K budget while out-                  metrics under varying cache budgets. Performance de-
+performing baselines that consume considerably more re-               grades noticeably with an excessively small budget, stabi-
+sources.                                                              lizes at 200K, and yields diminishing returns beyond this
+                                                                      point. We therefore adopt B=200K as the default, which
+                                                                      provides sufficient accuracy across typical scenes while fit-
+4.3. Inference Efficiency
+                                                                      ting within a 12 GB VRAM envelope, enabling deployment
+Fig. 6 profiles FPS and peak VRAM (both allocated and re-             on standard consumer-grade GPUs.
+served) against sequence length on the same 7-Scenes con-
+figuration reported in Tab. 1, where OVGGT already holds a            Effect of Activation Smoothing. Tab. 5 reports the effect
+
+
+                                                                  8
+                                                                                                                                           32
+      18                                                                30                            OOM (>29.7GB)                                                      OOM (need>32GB)
+                                                                        28                                                                 30
+      16                                                                16                                                                 20
+
+
+
+
+                                                  VRAM Allocated (GB)
+
+
+
+
+                                                                                                                      VRAM Reserved (GB)
+      14
+                                                                                                                                           18
+                                   Evict3R                              14                             Evict3R                                                             Evict3R
+      12                           InfiniteVGGT                                                        InfiniteVGGT                                                        InfiniteVGGT
+                                                                                                                                           16
+FPS
+
+
+
+
+                                   OVGGT                                                               OVGGT                                                               OVGGT
+      10                           StreamVGGT                           12                             StreamVGGT                                                          StreamVGGT
+                                                                                                                                           14
+      8
+                                                                        10                                                                 12
+      6
+                                                                                                                                           10
+      4                                                                 8
+                    OOM
+                                                                                                                                           8
+           0     200 400     600    800    1000                              10    20    50 100 200       500 1000                              10    20      50 100 200      500 1000
+                    Number of Frames                                              Number of Frames (log scale)                                       Number of Frames (log scale)
+
+                                    Figure 6. Efficiency comparison. FPS and VRAM vs. sequence length.
+
+               Table 4. Effect of cache budget. Reconstruction metrics on 7-Scenes and NRGBD at 300 frames. Best per column.
+
+                                           7-Scenes                                                                                                  NRGBD
+  Budget             Acc ↓             Comp ↓                                 NC ↑                        Acc ↓                                 Comp ↓             NC ↑
+                                                                                            CD ↓                                                                                    CD ↓
+                 Mean Med. Mean Med. Mean Med.                                                       Mean Med. Mean Med. Mean Med.
+      100K       0.059   0.035     0.030     0.006                      0.565      0.598    0.043    0.037       0.023                 0.013          0.003    0.636   0.730        0.041
+      200K       0.026   0.009     0.020     0.004                      0.571      0.609    0.032    0.037       0.022                 0.015          0.003    0.642   0.740        0.042
+      500K       0.025   0.008     0.021     0.005                      0.570      0.608    0.033    0.038       0.021                 0.017          0.003    0.640   0.736        0.043
+      750K       0.027   0.009     0.022     0.005                      0.571      0.609    0.035    0.041       0.023                 0.018          0.004    0.639   0.736        0.046
+      1M         0.028   0.010     0.023     0.005                      0.572      0.610    0.036    0.044       0.024                 0.019          0.004    0.642   0.741        0.048
+
+
+of smoothing coefficient α (mean metrics). Increasing α                                           both mechanisms are essential and complementary for sup-
+progressively improves accuracy by encouraging spatially                                          pressing long-range geometric drift.
+coherent token retention, but excessively high values intro-
+duce over-averaging artifacts in point cloud visualizations.                                      6. Conclusion
+We set α=0.5 as a balanced default that preserves recon-
+struction sharpness while maintaining stable reference re-                                        We introduce OVGGT, a training-free framework that en-
+tention.                                                                                          ables streaming 3D reconstruction from arbitrarily long
+                                                                                                  video under constant memory and compute. By combining
+                                                                                                  Self-Selective Caching with Anchor Protection, our method
+Hybrid Scoring Balance.          The coefficient β balances                                       compresses the cache to a fixed budget while preserving ge-
+current-frame activation scores against historical key-vector                                     ometrically critical tokens, achieving state-of-the-art accu-
+diversity. As shown in Tab. 6, which reports median recon-                                        racy across indoor, outdoor, and ultra-long sequence bench-
+struction metrics on 7-Scenes, over-relying on either source                                      marks with real-time throughput on a single consumer GPU.
+degrades quality: small β retains excessively scattered fea-                                      Limitations and Future Work. Despite operating under a
+tures, while large β neglects spatial coverage. The optimum                                       fixed resource envelope, OVGGT inherits the fundamental
+at β=0.5 confirms the necessity of combining both criteria.                                       limitation of single-pass causal pipelines: geometric errors
+                                                                                                  accumulate monotonically and cannot be corrected, as no
+Anchor Impact on Long-Range Stability.              To iso-                                       mechanism exists for revisiting past predictions and each
+late DAP’s contribution, we evaluate three configurations                                         frame can only reference a bounded subset of prior con-
+on KITTI depth estimation at 500 frames, stratified into                                          text. We believe staged streaming inference is a promising
+near (15–35 units) and far (> 35 units) ranges: no an-                                            direction, combining mini-batch joint prediction with peri-
+choring, Global Initial Anchor only (Pinit ), and full DAP                                        odic lightweight global refinement to unite the bounded per-
+(Pinit ∪ Phist ). As shown in Tab. 7, the Global Initial An-                                      stage cost of causal models with the error-correction capac-
+chor alone yields substantial gains, and adding Historical                                        ity of batch methods, mitigating long-horizon drift without
+Anchors nearly doubles the improvement, confirming that                                           full all-to-all recomputation.
+
+
+                                                                                              9
+Table 5. Activation smoothing coefficient. Reconstruction on 7-Scenes and NRGBD at 300                        Table 6. Hybrid scoring balance.
+frames.                                                                                                       300 frames on 7-Scenes.
+
+                                       7-Scenes                                   NRGBD                        β       Acc ↓     NC ↑     CD ↓
+Smooth         α
+                       Acc ↓ Comp ↓ NC ↑                CD ↓      Acc ↓ Comp ↓ NC ↑               CD ↓          0.1    0.021     0.607 0.024
+w/o           0.0       0.027     0.021       0.571 0.033         0.039       0.015      0.643    0.044         0.3    0.013     0.606 0.017
+                                                                                                                0.5    0.009     0.609 0.013
+              0.1       0.027     0.020       0.571     0.033 0.038           0.014      0.642 0.044
+                                                                                                                0.7    0.010     0.609 0.014
+w/            0.3       0.028     0.021       0.571     0.033 0.037           0.015      0.644 0.042
+              0.5       0.026     0.020       0.571     0.032 0.037           0.015      0.642 0.042            0.9    0.012     0.611 0.016
+              0.9       0.027     0.019       0.571     0.033 0.039           0.016      0.648 0.045
+
+
+Table 7. Effect of Dynamic Anchor Protection. Depth estima-                            Exact Attention with IO-Awareness. In Advances in Neural
+tion improvement over the no-anchor baseline on KITTI [12] at                          Information Processing Systems, 2022. 2, 4, 13
+500 frames, split by depth range.                                                  [9] Daniel DeTone, Tomasz Malisiewicz, and Andrew Rabi-
+                                                                                       novich. SuperPoint: Self-Supervised Interest Point Detec-
+                    Far (> 35 units)              Near (15–35 units)
+Pinit Phist                                                                            tion and Description. In IEEE/CVF Conference on Computer
+               F1% ↑      F5% ↑    δ 1.05 ↑   F1% ↑     F5% ↑     δ 1.05 ↑
+                                                                                       Vision and Pattern Recognition Workshops, 2018. 1, 2
+                 –          –      –      –      –      –
+ ✓            +5.43%     +4.19% +4.22% +3.51% +2.81% +2.86%                       [10] Yuan Feng, Junlin Lv, Yukun Cao, Xike Xie, and S. Kevin
+ ✓     ✓      +10.15%    +7.23% +7.23% +5.35% +4.69% +4.76%                            Zhou. AdaKV: Optimizing KV Cache Eviction by Adap-
+                                                                                       tive Budget Allocation for Efficient LLM Inference. arXiv
+                                                                                       preprint :2407.11550, 2024. 4
+References                                                                        [11] Yasutaka Furukawa and Jean Ponce. Accurate, Dense, and
+                                                                                       Robust Multiview Stereopsis. IEEE Transactions on Pattern
+ [1] Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman,                           Analysis and Machine Intelligence, 32(8):1362–1376, 2010.
+     Matthias Nießner, and Justus Thies. Neural RGB-D Surface                          2
+     Reconstruction. In IEEE/CVF Conference on Computer Vi-
+                                                                                  [12] Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel
+     sion and Pattern Recognition, pages 6290–6301, 2022. 6,
+                                                                                       Urtasun. Vision meets Robotics: The KITTI Dataset. The
+     7
+                                                                                       International Journal of Robotics Research, 2013. 8, 10, 15
+ [2] Yohann Cabon, Vincent Leroy, Jérôme Revaud, and Shuzhe
+                                                                                  [13] Xiaodong Gu, Zhiwen Fan, Siyu Zhu, Zuozhuo Dai, Feitong
+     Wang. MUSt3R: Multi-View Network for Stereo 3D Recon-
+                                                                                       Tan, and Ping Tan. Cascade Cost Volume for High-
+     struction. arXiv preprint :2503.01661, 2025. 3
+                                                                                       Resolution Multi-View Stereo and Stereo Matching. In
+ [3] Carlos Campos, Richard Elvira, Juan J. Gómez Rodrı́guez,
+                                                                                       IEEE/CVF Conference on Computer Vision and Pattern
+     José M. M. Montiel, and Juan D. Tardós. ORB-SLAM3: An
+                                                                                       Recognition, 2020. 2
+     Accurate Open-Source Library for Visual, Visual-Inertial,
+     and Multimap SLAM. IEEE Transactions on Robotics, 37                         [14] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Ground-
+     (6):1874–1890, 2021. 2                                                            ing Image Matching in 3D with MASt3R. In European Con-
+                                                                                       ference on Computer Vision, 2024. 1, 3
+ [4] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and
+     Anpei Chen. TTT3R: 3D Reconstruction as Test-Time Train-                     [15] Philipp Lindenberger, Paul-Erik Sarlin, and Marc Pollefeys.
+     ing. arXiv preprint :2509.26645, 2025. 3, 6, 7, 8                                 LightGlue: Local Feature Matching at Light Speed. In
+ [5] Joonmyung Choi, Sanghyeok Lee, Byungoh Ko, Eunseo                                 IEEE/CVF International Conference on Computer Vision,
+     Kim, Jihyung Kil, and Hyunwoo J. Kim. Representation                              2023. 1, 2
+     Shift: Unifying Token Compression with FlashAttention. In                    [16] Lahav Lipson, Zachary Teed, and Jia Deng. Deep Patch Vi-
+     IEEE/CVF International Conference on Computer Vision,                             sual SLAM. In European Conference on Computer Vision,
+     2025. 4                                                                           2024. 2
+ [6] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Hal-                       [17] Soroush Mahdi, Fardin Ayar, Ehsan Javanmardi, Manabu
+     ber, Thomas Funkhouser, and Matthias Nießner. Scan-                               Tsukada, and Mahdi Javanmardi. Evict3R: Training-Free
+     Net: Richly-annotated 3D Reconstructions of Indoor Scenes.                        Token Eviction for Memory-Bounded Streaming Visual Ge-
+     In IEEE/CVF Conference on Computer Vision and Pattern                             ometry Transformers. arXiv preprint :2509.17650, 2025. 3,
+     Recognition, 2017. 12, 13                                                         6, 7, 8, 13
+ [7] Tri Dao. FlashAttention-2: Faster Attention with Better Par-                 [18] Raul Mur-Artal and Juan D. Tardós. ORB-SLAM2: An
+     allelism and Work Partitioning. In International Conference                       Open-Source SLAM System for Monocular, Stereo, and
+     on Learning Representations, 2024. 2, 4, 13                                       RGB-D Cameras. IEEE Transactions on Robotics, 33(5):
+ [8] Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, and                             1255–1262, 2017. 2
+     Christopher Ré. FlashAttention: Fast and Memory-Efficient                   [19] Raul Mur-Artal, J. M. M. Montiel, and Juan D. Tardós. ORB-
+
+
+                                                                             10
+     SLAM: A Versatile and Accurate Monocular SLAM System.              [32] Hugo Touvron, Matthieu Cord, Alexandre Sablayrolles,
+     IEEE Transactions on Robotics, 31(5):1147–1163, 2015. 2                 Gabriel Synnaeve, and Hervé Jégou. Going Deeper with Im-
+[20] Riku Murai, Eric Orb, Lachlan Nicholson, Kenta Masuda,                  age Transformers. In IEEE/CVF International Conference
+     Keisuke Tateno, and Federico Tombari. MASt3R-SLAM:                      on Computer Vision, 2021. 4
+     Real-Time Dense SLAM with 3D Reconstruction Priors.                [33] Fangjinhua Wang, Silvano Galliani, Christoph Vogel, Pablo
+     arXiv preprint :2412.12392, 2024. 3                                     Specber, and Marc Pollefeys. PatchmatchNet: Learned
+[21] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy                   Multi-View Patchmatch Stereo. In IEEE/CVF Conference
+     Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,                  on Computer Vision and Pattern Recognition, 2021. 2
+     Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, Mah-           [34] Hengyi Wang and Lourdes Agapito. Spann3R: 3D Recon-
+     moud Assran, Nicolas Ballas, Wojciech Galuba, Russell                   struction with Spatial Memory. In European Conference on
+     Howes, Po-Yao Huang, Shang-Wen Li, Ishan Misra, Michael                 Computer Vision, 2024. 2, 3, 6, 7, 14
+     Rabbat, Vasu Sharma, Gabriel Synnaeve, Hu Xu, Hervé               [35] Jianyuan Wang, Nikita Karaev, Christian Rupprecht, and
+     Jégou, Julien Mairal, Patrick Labatut, Armand Joulin, and              David Novotny. VGGSfM: Visual Geometry Grounded Deep
+     Piotr Bojanowski. DINOv2: Learning Robust Visual Fea-                   Structure From Motion. In IEEE/CVF Conference on Com-
+     tures without Supervision. Transactions on Machine Learn-               puter Vision and Pattern Recognition, 2024. 2
+     ing Research, 2024. 4                                              [36] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+[22] Emanuele Palazzolo, Jens Behley, Philipp Lottes, Philippe               Vedaldi, Christian Rupprecht, and David Novotny. VGGT:
+     Giguere, and Cyrill Stachniss. ReFusion: 3D Reconstruction              Visual Geometry Grounded Transformer. In IEEE/CVF Con-
+     in Dynamic Environments for RGB-D Cameras Exploiting                    ference on Computer Vision and Pattern Recognition, 2025.
+     Residuals. In IEEE/RSJ International Conference on Intelli-             2, 3, 4
+     gent Robots and Systems, 2019. 8                                   [37] Jianyuan Wang, Nikita Karaev, Andrea Vedaldi, Christian
+[23] Linfei Pan, Daniel Barath, Marc Pollefeys, and Jo-                      Rupprecht, and David Novotny. Continuous 3D Perception
+     hannes Lutz Schönberger. Global Structure-from-Motion                  Model with Persistent State. arXiv preprint :2501.12387,
+     Revisited. In European Conference on Computer Vision,                   2025. 2, 3, 6, 7, 8, 15
+     2024. 2                                                            [38] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Raber,
+[24] Paul-Erik Sarlin, Daniel DeTone, Tomasz Malisiewicz, and                and Jérôme Revaud. DUSt3R: Geometric 3D Vision Made
+     Andrew Rabinovich. SuperGlue: Learning Feature Matching                 Easy. In IEEE/CVF Conference on Computer Vision and
+     with Graph Neural Networks. In IEEE/CVF Conference on                   Pattern Recognition, 2024. 1, 3
+     Computer Vision and Pattern Recognition, 2020. 1, 2                [39] Zhihao Wang, Jinglu Li, Lina Han, and Yan Lu. Point3R:
+[25] Johannes Lutz Schönberger and Jan-Michael Frahm.                       Online Dense 3D Reconstruction with Spatial Pointer Mem-
+     Structure-from-Motion Revisited. In IEEE/CVF Conference                 ory. arXiv preprint :2507.05869, 2025. 3, 6, 7, 15
+     on Computer Vision and Pattern Recognition, 2016. 1, 2             [40] Jianing Yang, Georgios Pavlakos, Neehar Desai, Nikita
+[26] Johannes Lutz Schönberger, Enliang Zheng, Marc Pollefeys,              Karaev, and David Novotny. Fast3R: Towards 3D Re-
+     and Jan-Michael Frahm. Pixelwise View Selection for Un-                 construction of 1000+ Images in One Forward Pass. In
+     structured Multi-View Stereo. In European Conference on                 IEEE/CVF Conference on Computer Vision and Pattern
+     Computer Vision, 2016. 2                                                Recognition, 2025. 2, 3
+[27] Thomas Schops, Johannes L Schonberger, Silvano Galliani,           [41] Zhenggang Yang, Delin Wang, Zhuohan Li, Jingkang Yan,
+     Torsten Sattler, Konrad Schindler, Marc Pollefeys, and An-              Yuhao Ding, Baigui Yin, Ziwei Liu, and Cewu Lu. MV-
+     dreas Geiger. A Multi-View Stereo Benchmark with High-                  DUSt3R+: Single-Stage Scene Reconstruction from Sparse
+     Resolution Images and Multi-Camera Videos. In IEEE/CVF                  Views in 2 Seconds. arXiv preprint :2412.06974, 2024. 2
+     Conference on Computer Vision and Pattern Recognition,             [42] Yao Yao, Zixin Luo, Shiwei Li, Tian Fang, and Long Quan.
+     2017. 7, 8                                                              MVSNet: Depth Inference for Unstructured Multi-View
+[28] Jamie Shotton, Ben Glocker, Christopher Zach, Shahram                   Stereo. In European Conference on Computer Vision, 2018.
+     Izadi, Antonio Criminisi, and Andrew Fitzgibbon. Scene                  2
+     Coordinate Regression Forests for Camera Relocalization in         [43] Shuai Yuan, Yantai Yang, Xiaotian Yang, Xupeng Zhang,
+     RGB-D Images. In IEEE/CVF Conference on Computer Vi-                    Zhonghao Zhao, Lingming Zhang, and Zhipeng Zhang. In-
+     sion and Pattern Recognition, 2013. 1, 6, 7, 12, 13                     finiteVGGT: Visual Geometry Grounded Transformer for
+[29] Jürgen Sturm, Nikolas Engelhard, Felix Endres, Wolfram                 Endless Streams. arXiv preprint :2601.02281, 2026. 3, 5,
+     Burgard, and Daniel Cremers. A Benchmark for the Evalua-                6, 7, 8, 13, 15
+     tion of RGB-D SLAM Systems. In IEEE/RSJ International              [44] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jam-
+     Conference on Intelligent Robots and Systems, 2012. 12, 13              pani, Deqing Sun, and Ming-Hsuan Yang. MonST3R: A
+[30] Zachary Teed and Jia Deng. DROID-SLAM: Deep Visual                      Simple Approach for Estimating Geometry in the Presence
+     SLAM for Monocular, Stereo, and RGB-D Cameras. In Ad-                   of Motion. arXiv preprint :2410.03825, 2024. 2, 3
+     vances in Neural Information Processing Systems, 2021. 2           [45] Chuanxia Zheng and Andrea Vedaldi.             StreamVGGT:
+[31] Zachary Teed, Lahav Lipson, and Jia Deng. Deep Patch Vi-                Streaming Visual Geometry Grounded Transformer. arXiv
+     sual Odometry. In Advances in Neural Information Process-               preprint :2507.11116, 2025. 2, 3, 4, 6, 7, 8, 12
+     ing Systems, 2024. 2
+
+
+                                                                   11
+                   Supplementary Material                                  Error (ATE) on TUM-Dynamic [29] and ScanNet [6]. Both
+                                                                           datasets contain dynamic objects and complex camera mo-
+A. Comparison with Full-Cache Baseline                                     tions that stress-test long-sequence tracking stability.
+To provide a fine-grained view of how cache manage-                           As shown in Tab. S1, OVGGT achieves the best ATE
+ment affects reconstruction quality over time, we compare                  across nearly all sequence lengths on both datasets. On
+OVGGT against the full-cache StreamVGGT [45] and a                         TUM-Dynamic, our method consistently outperforms both
+random eviction baseline at sequence lengths from 25 to                    Evict3R† and InfiniteVGGT at every evaluation point from
+200 frames on 7-Scenes [28]. StreamVGGT retains the en-                    100 to 1,000 frames, with the performance gap widening as
+tire KV cache up to its OOM limit (∼200 frames on 32 GB),                  sequence length increases. This trend is particularly reveal-
+while the random baseline evicts tokens uniformly at ran-                  ing: at 1,000 frames, OVGGT reduces ATE by 30% relative
+dom under the same B=200K budget as OVGGT. Fig. S1                         to Evict3R† (0.058 vs. 0.083), confirming that dynamic an-
+plots Accuracy, Completeness, and Chamfer Distance as a                    chor protection effectively suppresses the cumulative pose
+function of sequence length.                                               drift afflicting competing methods.
+    Two trends are evident. First, StreamVGGT exhibits                        On ScanNet, where scenes are spatially larger and ex-
+monotonically increasing error: as more tokens accumulate,                 hibit more diverse viewpoint changes, OVGGT again leads
+the attention mechanism must attend over a growing pool of                 at longer sequences. InfiniteVGGT achieves a compara-
+redundant and potentially noisy representations, diluting the              ble ATE at 100 frames, and Evict3R† achieves the best re-
+effective contribution of geometrically informative tokens.                sult at 300 frames; however, both degrade substantially be-
+This observation directly supports the hypothesis that re-                 yond 500 frames. These results confirm that self-selective
+taining the entire cache does not constitute an accuracy up-               caching combined with dynamic anchor protection yields
+per bound. Second, random eviction rapidly diverges from                   more consistent camera trajectory estimation over extended
+both StreamVGGT and OVGGT, demonstrating that the                          sequences, complementing the 3D reconstruction gains re-
+performance gain of OVGGT is not merely a byproduct of                     ported in the main paper.
+cache size reduction but stems from the informed selection
+of which tokens to retain. By contrast, OVGGT maintains                    C. Camera Prediction Head
+consistently low error across all sequence lengths, indicat-
+                                                                           While the primary bottleneck lies in the aggregator’s KV
+ing that self-selective caching actively filters transient noise
+                                                                           cache, StreamVGGT’s camera prediction head also main-
+while preserving the critical geometric references needed
+                                                                           tains its own KV cache that stores one token per frame.
+for high-fidelity reconstruction.
+                                                                           Although the per-frame overhead is minimal (a single to-
+                                                                           ken versus M =1,041 in the aggregator), this cache still
+B. Camera Pose Estimation
+                                                                           grows linearly with sequence length, incrementally degrad-
+Beyond dense 3D reconstruction, we also evaluate camera                    ing speed and violating the constant-cost property.
+pose estimation quality by reporting Absolute Trajectory                      To ensure end-to-end O(1) inference, we extend the
+
+
+                              Acc ( )                                 Comp ( )                              Chamfer Distance ( )
+           0.045                                  0.035                                        0.050
+                                                               StreamVGGT
+           0.040                                               OVGGT
+                                                  0.030        Random                          0.045
+           0.035
+Distance
+
+
+
+
+                                    StreamVGGT                                                                             StreamVGGT
+           0.030                    OVGGT         0.025                                        0.040                       OVGGT
+                                    Random                                                                                 Random
+           0.025
+                                                  0.020                                        0.035
+           0.020
+           0.015                                  0.015                                        0.030
+                   25   75     125 175                    25     75        125 175                     25     75     125 175
+                             Seq. Length                              Seq. Length                                  Seq. Length
+Figure S1. Reconstruction quality vs. sequence length on 7-Scenes [28]. Mean Accuracy, Completeness, and Chamfer Distance are
+plotted from 25 to 200 frames. StreamVGGT (full cache) accumulates noise from redundant tokens as the sequence grows, causing pro-
+gressive metric degradation. Random eviction under the same budget rapidly diverges, confirming that naive cache truncation is insufficient.
+OVGGT selectively retains geometrically salient tokens, achieving lower and more stable error throughout.
+
+
+                                                                      12
+Table S1. Camera Pose evaluation (ATE ↓) on TUM-Dynamic [29] and ScanNet [6] across different sequence lengths. Best results
+highlighted.
+
+                                             TUM-Dynamic                                        ScanNet
+        Method
+                                 100        300     500      800       1k       100      300       500      800       1k
+        Evict3R† [17]     0.017 0.032 0.045 0.074 0.083 0.060 0.184 0.285 0.430 0.491
+        InfiniteVGGT [43] 0.018 0.034 0.046 0.061 0.066 0.056 0.202 0.329 0.438 0.478
+        Ours              0.014 0.029 0.039 0.047 0.058 0.056 0.198 0.284 0.385 0.427
+
+Table S2. Probing experiment: eviction strategy comparison. 3D reconstruction on 7-Scenes [28] at 100 and 300 frames under identical
+budget (B=200K) with DAP disabled. All strategies share the same hybrid scoring framework.
+
+
+                                                            100 frames                            300 frames
+       Strategy                   FlashAttn Acc ↓ Comp ↓ NC ↑ CD ↓ Acc ↓ Comp ↓ NC ↑ CD ↓
+       Attention weight                 ×         0.024    0.020      0.595 0.035 0.023           0.022     0.573 0.032
+       Q·K dot product                  ✓         0.026    0.020      0.596 0.035 0.032           0.022     0.570 0.037
+       FFN residual (Ours)              ✓         0.023    0.018      0.595 0.033 0.026           0.020     0.571 0.032
+
+
+same cache management framework (SSC + DAP) to the                   latter two remain compatible with FlashAttention [7, 8];
+camera head. Specifically, we allocate a separate budget             attention-weight scoring requires materializing the N ×N
+to the camera head proportional to the number of frames              attention matrix, sacrificing memory efficiency and preclud-
+that the total aggregator budget can accommodate. Since              ing fused attention kernels.
+each frame contributes only a single camera token, spatial               As shown in Tab. S2, our FFN-residual scoring
+smoothing is inapplicable and therefore omitted; all other           demonstrates remarkable robustness across different se-
+components operate identically to the aggregator cache.              quence lengths. At 100 frames, it surprisingly outper-
+When DAP registers or demotes an anchor in the aggre-                forms even the attention-weight “oracle” across all metrics,
+gator, the corresponding camera token is simultaneously              suggesting that the FFN residual captures a more refined
+protected or released in the camera head cache. This syn-            geometric signal than raw attention weights in the early
+chronized management ensures that both the aggregator and            stages of reconstruction. As the sequence extends to 300
+the camera head operate under bounded memory, achiev-                frames, while attention-weight scoring achieves slightly
+ing truly constant-cost inference per frame across the entire        better Accuracy and Normal Consistency, it does so at the
+pipeline.                                                            cost of FlashAttention incompatibility and significant mem-
+                                                                     ory overhead. Among the FlashAttention-compatible alter-
+D. FFN Residuals as a Saliency Proxy                                 natives, our method consistently and substantially outper-
+A natural question is why the FFN residual magnitude                 forms the q·k approximation. Notably, at 300 frames, FFN-
+serves as an effective geometric saliency proxy, and whether         residual scoring still matches the attention-weight oracle on
+simpler or more direct alternatives would suffice. To ad-            Chamfer Distance and achieves the best overall Complete-
+dress this, we conduct controlled probing experiments on             ness. The q · k dot product, despite being computation-
+7-Scenes at both 100 and 300 frames under the default                ally lightweight, provides a noisier importance estimate that
+budget (B=200K) with DAP disabled to isolate the effect of           lacks the nonlinear refinement captured by the FFN.
+the scoring criterion. We compare three eviction strategies              These results confirm that FFN-residual scoring offers
+that all share the same hybrid scoring framework, differing          the most favorable trade-off: it matches or even exceeds
+only in the current-frame scoring criterion: (i) attention-          oracle-level reconstruction quality while maintaining full
+weight-based scoring, which materializes the full atten-             FlashAttention compatibility and zero additional overhead.
+tion matrix to extract per-token importance; (ii) query-key          We attribute this effectiveness to the role of the FFN in ge-
+dot product scoring (q · k), which approximates attention-           ometric transformers. The FFN applies a per-token nonlin-
+based importance without full materialization; and (iii) our         ear transformation that progressively refines raw visual fea-
+FFN-residual-based activation scoring. Crucially, only the           tures into geometrically grounded representations; tokens
+
+
+                                                                13
+  Ours
+ t = 100
+
+
+
+
+  Ours
+t = 500
+
+
+
+
+   GT
+
+
+
+Figure S2. Failure case analysis. Reconstruction results of OVGGT at t=100 and t=500 frames compared with the ground truth.
+Red boxes highlight regions where cumulative drift becomes apparent in longer sequences: later frames exhibit progressively degraded
+geometric fidelity, particularly at structural boundaries and fine-grained details.
+
+
+encoding structurally informative regions (e.g., edges, cor-           critical tokens and suppresses coordinate-system inconsis-
+ners, depth discontinuities) undergo larger representational           tency, it still operates under the constraint that information
+shifts, producing higher residual magnitudes. This coarse-             flows exclusively forward in time. This deviates from hu-
+to-fine progression mirrors the feature hierarchy of vision            man spatial intuition, where prior estimates and future ex-
+transformers and provides a principled, zero-overhead im-              pectations are dynamically updated based on current sen-
+portance signal naturally aligned with the demands of 3D               sory inputs to maintain a globally consistent internal map.
+reconstruction.                                                            As discussed in conclusion, we posit that adopting a
+                                                                       staged streaming inference approach represents a promis-
+E. Failure Cases                                                       ing direction to address this limitation. This could evolve
+                                                                       in two primary directions: (1) Mini-batch global estima-
+While OVGGT demonstrates robust performance across a                   tion, which utilizes a sliding window of multiple frames
+wide range of scenarios, it inherits a fundamental limita-             to perform joint prediction, thereby mitigating information
+tion shared by single-pass pipelines: geometric errors ac-             scarcity; and (2) Periodic lightweight global refinement,
+cumulate monotonically along the sequence and cannot be                which employs triggered global optimization to rectify past
+rectified within a single inference pass. Fig. S2 illustrates          estimates and ensure long-term consistency. Such strategies
+this effect on two representative indoor scenes. At t=100,             would significantly alleviate drift in long-range sequences
+the reconstructions closely match the ground truth in both             while remaining manageable and intuitive in terms of re-
+global structure and local details. However, as the sequence           source allocation and cache management.
+extends to t=500, cumulative drift becomes increasingly
+visible. Structural boundaries exhibit misalignment, surface           F. Baseline Adaptations
+details degrade, and regions observed later in the sequence
+suffer disproportionately. This is because these regions rely          To ensure fair and complete evaluation across all sequence
+entirely on a cache that has undergone repeated compres-               lengths, we applied the following adaptations to base-
+sion cycles without a mechanism for revisiting or correcting           line methods whose official implementations cannot na-
+earlier predictions.                                                   tively handle long sequences or accurately reflect model-
+   This limitation is intrinsic to the strictly forward stream-        only VRAM usage. All modifications preserve the original
+ing paradigm. Since each frame is processed exactly once               model weights and inference logic; only the data loading
+and past predictions are never revisited, small per-frame er-          and batching strategy is changed.
+rors compound over time without the possibility of global              Spann3R [34]. We use the original forward function, which
+correction. Although our design preserves geometrically                processes consecutive frame pairs (t−1, t) sequentially. All
+
+
+                                                                  14
+input frames are retained in CPU memory and transferred              Table S3. Effect of maximum historical anchor count Kmax .
+to GPU only when actively needed.                                    Video depth estimation on KITTI [12] at 500 frames under
+                                                                     B=200K. Best results highlighted.
+CUT3R [37]. The official pipeline loads all input frames
+onto the GPU simultaneously for batch encoding before
+performing sequential decoding. This causes VRAM to                                        Near                 Far
+                                                                           Kmax
+scale linearly with input length until OOM, preventing eval-                        RMSE ↓ δ1.25 ↑ δ1.05 ↑ F1% ↑
+uation on long sequences. We restructured the inference
+pipeline to encode and decode each frame sequentially, en-                    1       1.553       0.861    0.091      0.018
+suring stable operation across all tested sequence lengths
+                                                                              3       1.546       0.863    0.092      0.019
+without altering the model itself.
+                                                                              5       1.552       0.862    0.091      0.018
+                                                                             10       1.548       0.863    0.091      0.018
+Point3R [39]. Point3R shares the same batch-encoding bot-
+tleneck. To balance throughput and memory, we adopt a
+chunked inference strategy: input frames are encoded in
+                                                                     ment across all metrics, as the three active anchors col-
+chunks of 10, followed by per-chunk decoding. This allows
+                                                                     lectively cover a wider portion of the trajectory, providing
+Point3R to process sequences of up to 1,000 frames without
+                                                                     sufficient long-range geometric references to suppress drift
+OOM while maintaining reasonable efficiency.
+                                                                     in both near and far ranges. However, further increasing
+   For all baselines, input data resides in CPU memory and
+                                                                     Kmax to 5 or 10 brings negligible additional gain and can
+is moved to GPU on demand, so that all reported VRAM
+                                                                     even cause marginal degradation, since each additional an-
+figures accurately reflect model inference costs rather than
+                                                                     chor consumes ⌈η · Np ⌉ protected tokens per layer, reduc-
+data staging overhead.
+                                                                     ing the evictable pool capacity and thereby limiting the dis-
+                                                                     tributional diversity that the hybrid scoring mechanism re-
+G. Ultra-Long Sequence Evaluation Details                            lies upon. Beyond a modest threshold, the marginal benefit
+The Long3D [43] dataset contains sequences of up to                  of additional anchors is outweighed by the loss of flexible
+10,000 consecutive frames, producing dense point clouds              cache capacity. We therefore adopt Kmax =3 as the default,
+of unprecedented scale. At this scale, standard point cloud          providing ample geometric anchoring while preserving suf-
+registration pipelines become computationally prohibitive            ficient budget for the evictable pool to maintain broad scene
+and prone to failure due to the sheer volume of points and           coverage.
+the large spatial extent of the reconstructions. We therefore
+implement a robust multi-stage evaluation pipeline. First,
+the raw dense point clouds are downsampled to a tractable
+resolution. Second, Statistical Outlier Removal (SOR) is
+applied to suppress noise and spurious points. Third, adap-
+tive DBSCAN clustering segments the point cloud into co-
+herent spatial clusters, with the clustering scale adapted to
+the spatial extent of each reconstruction. Fourth, feature-
+based RANSAC coarse registration aligns the predicted and
+ground-truth point clouds. Finally, a two-stage ICP (coarse-
+to-fine) refinement produces the final alignment from which
+all metrics are computed.
+
+H. Effect of Maximum Anchor Count
+Tab. S3 reports depth estimation metrics on KITTI [12] over
+500 frames with a default budget of B = 200K, stratified
+into Near (d < 35 units) and Far (d > 35 units) depth
+ranges. While enabling versus disabling anchor protection
+yields a substantial accuracy gap, the sensitivity to the ex-
+act number of active anchors is comparatively mild once
+protection is enabled.
+   With Kmax =1, only a single historical anchor is avail-
+able, which may become spatially distant from the current
+view during extended traversals, leading to reduced depth
+accuracy. Increasing to Kmax =3 yields consistent improve-
+
+
+                                                                15
+

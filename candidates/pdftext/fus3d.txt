@@ -1,0 +1,1541 @@
+                                    Fus3D: Decoding Consolidated 3D Geometry
+                                 from Feed-forward Geometry Transformer Latents
+
+                                  Laura Fink1 , Linus Franke1,2 , George Kopanas3                                                                                      Marc Stamminger1 , and
+                                                               Peter Hedman†
+                                                       1
+                                                           Friedrich-Alexander-Universität Erlangen-Nürnberg, Germany
+                                                                     2
+                                                                       Inria, Université Côte d’Azur, France
+arXiv:2603.25827v1 [cs.CV] 26 Mar 2026
+
+
+
+
+                                                                            3
+                                                                               Google DeepMind, UK
+
+                                                                                                                                               Ours      Fϵ                                             Ours
+                                                                                                    Transformer
+                                                                                                  Transformer
+
+
+
+                                                                                                                                                      0.85
+                                                               Geometry Transformer
+
+
+
+
+                                                                                                                  Direct 3D Regression
+
+
+                                                                                                                                                      0.80
+
+
+                                                                                                                                                      0.75
+                                                                                         Extraction
+
+
+
+
+                                                                                                                                         VGGT+TSDF                                                VGGT+TSDF
+                                                                                      Geometry
+
+
+
+
+                                                                                                                                                      0.70
+
+                                                 ...                                                                                                  0.65
+                                                                                                                                                                            Fus3D (Ours)
+                                                                                                                                                                            TSDF from VGGT
+                                             Multi-view
+                                                                                      3D
+
+
+
+
+                                                                                                                                                             2 4   8             16          24
+                                              Images                                                                                                                   # Views
+
+
+                                 Fig. 1: Fus3D directly regresses a 3D representation from the latent space of a multi-
+                                 view geometry transformer, bypassing per-view prediction and post-hoc fusion. This,
+                                 compared to VGGT [46] using TSDF fusion, yields improved surface completeness
+                                 under sparse views (left, 2 views) and avoids error accumulation reducing details at
+                                 scale (right, 24 views), also reflected in the F-score curves across view counts (center).
+
+                                                 Abstract. We propose a feed-forward method for dense Signed Distance
+                                                 Field (SDF) regression from unstructured image collections in less than
+                                                 three seconds, without camera calibration or post-hoc fusion. Our key
+                                                 insight is that the intermediate feature space of pretrained multi-view
+                                                 feed-forward geometry transformers (FFGT) already encodes a powerful
+                                                 joint world representation; yet, existing pipelines discard it, routing fea-
+                                                 tures through per-view prediction heads before assembling 3D geometry
+                                                 post-hoc, which discards valuable completeness information and accu-
+                                                 mulates inaccuracies.
+                                                 We instead perform 3D extraction directly from FFGT features via
+                                                 learned volumetric extraction: voxelized canonical embeddings that pro-
+                                                 gressively absorb multi-view geometry information through interleaved
+                                                 cross- and self-attention into a structured volumetric latent grid. A sim-
+                                                 ple convolutional decoder then maps this grid to a dense SDF. We ad-
+                                                 ditionally propose a scalable, validity-aware supervision scheme directly
+                                                 using SDFs derived from depth maps or 3D assets, tackling practical
+                                                 issues like non-watertight meshes. Our approach yields complete and
+                                                 well-defined distance values across sparse- and dense-view settings and
+                                                 demonstrates geometrically plausible completions.
+                                                 Code and further material can be found at https://lorafib.github.io/fus3d.
+                                         †
+                                             Work done while at Google DeepMind, UK
+2      L. Fink et al.
+
+1   Introduction
+3D reconstruction from unstructured image collections and video remains a fun-
+damental challenge in computer vision, with broad implications for downstream
+tasks in semantic understanding, robotics, and scene interaction. A key require-
+ment in such settings is a complete 3D representation, e.g. when accurate dis-
+tance information is critical. Distance information, often in the form of Signed
+Distance Functions (SDFs), is difficult to acquire when input views are sparse or
+otherwise poorly conditioned. In this work, we provide a novel method for this
+online and sparse-view setting by leveraging extensively pretrained multi-view
+geometry transformers and directly regressing 3D SDFs from them.
+    Recent feed-forward multi-view geometry transformers, such as DUSt3R [49],
+VGGT [46], or DA3 [23], have demonstrated remarkable capabilities in recov-
+ering scene geometry directly from images, producing per-image depth or point
+maps alongside camera poses and intrinsics in a single forward pass. Central to
+their success is a powerful geometry prior acquired through large-scale train-
+ing, enabling robust reconstruction even under challenging conditions such as
+strong symmetry or minimal inter-view overlap – scenarios that confound clas-
+sical feature-matching pipelines.
+    Despite these advances, a fundamental bottleneck remains in how 3D scenes
+are ultimately assembled from the per-image predictions of these transformers.
+Current pipelines rely on classical post-hoc fusion of per-view outputs, typically
+via point cloud merging, Truncated SDF (TSDF) fusion or Poisson reconstruc-
+tion to obtain a coherent 3D representation. This design has two consequential
+failure modes. First, in sparse-view settings, the transformer’s learned world
+prior is only leveraged locally, per image, leaving unobserved regions geomet-
+rically underspecified and yielding incomplete reconstructions (Fig. 1, bottom
+left). Second, when processing many views, minor per-view inconsistencies ac-
+cumulate and propagate into the fused representation, introducing noise that
+degrades reconstruction fidelity at scale (Fig. 1, bottom right, red curve).
+    We address both failure modes through a single unifying idea: rather than
+fusing per-view outputs in 3D space, we directly regress the SDF from the trans-
+former’s intermediate latent features. This allows the full multi-view geometry
+prior, jointly built up across all input views, to inform the 3D estimate at every
+spatial location, yielding complete reconstructions in sparse-view regimes and
+noise-free scaling with more views (see crops in Fig. 1).
+    The central technical challenge is the dimensionality mismatch between the
+set of 2D input tokens and the 3D target representation. We resolve this by intro-
+ducing a learned embedding query that attend into the geometry transformer’s
+feature space, effectively lifting 2D multi-view features into a 3D structured
+latent space without requiring any 3D-to-3D autoencoder training regimes. Cru-
+cially, we perform repeated extraction during the feature construction process
+of the multi-view transformer in order to build meaningful 3D latent features.
+As we demonstrate, the resulting feature space encodes a rich geometry prior
+including object-level symmetry and shape statistics which enables geometri-
+cally complete and well-defined SDFs even for unobserved surfaces. Finally, the
+                                                                    Fus3D        3
+
+intermediate 3D feature volume reveals emergent semantic structure that could
+serve as a foundation for downstream perception.
+    In summary, we make the following contributions:
+
+ – We identify the per-view prediction bottleneck in feed-forward geometry
+   transformers as the root cause of both sparse-view incompleteness and noise
+   accumulation under many views, and thus propose 3D extraction directly
+   from the transformer’s intermediate feature space.
+ – We introduce a learned volumetric extraction module: a set of 3D-position-
+   conditioned canonical embeddings that progressively fuse multi-view geom-
+   etry features into a structured latent grid via attention, enabling projection-
+   free 2D-to-3D lifting.
+ – We propose a validity-aware SDF supervision scheme, to handle non-watertight
+   meshes and unobserved regions gracefully, enabling scalable training on large-
+   scale real-world datasets.
+ – Our results indicate a geometric shape prior encoded within the 3D feature
+   space, enabling complete and robust reconstructions in challenging scenarios.
+
+
+2   Related Work
+
+Classical and Online Reconstruction. Classical pipelines using Structure-from-
+Motion (SfM) and Multi View Stereo (MVS) remain strong baselines for re-
+construction under sufficient overlap and texture [40–42], while SLAM systems
+coupled with TSDF fusion enable real-time incremental reconstruction in RGB-
+D settings [26, 29, 33, 39]. Both approaches, however, handle camera calibration,
+depth estimation and geometry fusion as distinct tasks.
+
+Analysis-by-Synthesis Neural rendering methods formulate 3D reconstruction
+through view synthesis based on various scene representations, with NeRF [28]
+and Gaussian splatting [17] as canonical examples. Learning-based implicit shape
+representations such as SDFs and occupancy functions have become popular
+choices for geometry modeling [27, 35]. NeuS and its follow-ups achieve high-
+fidelity surface reconstruction by coupling SDF representations with differen-
+tiable rendering [21, 47, 52].
+
+Feed-Forward Geometry from Unposed Images. DUSt3R jointly recovers dense
+geometry and camera parameters from unconstrained image collections via point-
+map regression [49], substantially reducing the separation between matching,
+pose estimation, and dense reconstruction. VGGT, π 3 , and MapAnything extend
+this trend to broader geometric outputs, in the form of depth, point maps, cam-
+eras, and tracks, with strong generalization across variable numbers of views [16,
+46, 51]. While VGGT achieves impressive geometric generalization, its outputs
+remain per-view predictions that must be consolidated via TSDF fusion to yield
+a surface, discarding the joint multi-view prior in the process; this predict-then-
+fuse pipeline serves as a direct baseline for our approach.
+4       L. Fink et al.
+
+    A parallel line of work augments feed-forward prediction with persistent spa-
+tial memory: Spann3R maintains a global-frame memory for consistent point
+map prediction [44], while CUT3R develops a stateful formulation for improved
+temporal consistency [48]. Despite impressive progress, all of these methods pro-
+duce per-pixel or per-patch 2.5D outputs and require post-hoc fusion to assemble
+coherent 3D geometry. Their proposed spatial memories support only ray-map or
+pixel-aligned readouts [48], not direct 3D positional queries. Our work departs
+from this paradigm entirely, performing 3D extraction directly in the trans-
+former’s latent space without any per-view prediction or post-hoc fusion.
+
+Generalizable Reconstruction via Differentiable Rendering. Generalizable novel
+view synthesis (NVS) methods reconstruct radiance fields or Gaussian primitives
+from sparse views, under known [3, 4, 60] or unposed [14, 55] cameras. Generaliz-
+able reconstruction methods such as LRM [10] and its follow-ups [9, 64] regress
+structured 3D representations from sparse images via large transformers, with
+MeshLRM [53] extending this to end-to-end mesh reconstruction through dif-
+ferentiable mesh rendering. M-LRM [20] proposes 3D aware positional encoding
+for latent features projected into voxel grids, and GeoLRM [61] fuse voxel-based
+sparse latent features to decode Gaussians, showcase the promising direction of
+3D aware reconstruction in posed scenarios.
+    Post-hoc consolidation methods address view-aligned primitive redundancy
+via fusion [14], pruning [59], or projecting latents via depth maps into grids [50],
+but remain bound to the predict-then-fuse composition. We instead aggregate
+multi-view features directly into a 3D latent volume, avoiding view-aligned inter-
+mediate predictions entirely. Generalizable SDF regression approaches, such as
+SparseNeuS [24], VolRecon [38], and UFORecon [32] use learned correspondence
+finding based on cost volumes or frustum features and neural SDF decoding.
+Hence, VolRecon and UFORecon represent the closest prior work to ours in
+terms of output representation and serve as our primary geometry quality base-
+lines; however, both require known camera parameters at test time in contrast
+to our fully feed-forward, pose-free formulation.
+
+3D Generative Methods. Autoencoder-based pipelines compress explicit 3D rep-
+resentations into volumetric latent codes that support generation, interpolation,
+and image-conditioned reconstruction [2, 5, 8, 30, 54]. These structured latent
+spaces have proven especially expressive for high-fidelity geometry generation
+and are increasingly paired with diffusion models for diverse shape synthesis [54].
+Our extraction transformer shares this volumetric latent structure but departs
+fundamentally in how it is trained: autoencoder pipelines require 3D-to-3D train-
+ing in order to learn a meaningful latent representation, thus relying on high
+quality 3D data not only as supervision signal but also as input to the encoder
+which is often omitted for the actual generation task [54]. While direct 3D super-
+vision is replaceable using differential rendering, the reliance on 3D data as input
+during training creates a bottleneck for dataset generation [13]. By leveraging
+a pretrained backbone with 2D-to-3D training, we shift the burden of represen-
+                                                                                         Fus3D   5
+
+Previous Predict-then-fuse Methods      2D Features
+
+
+                                                      Depth
+                                                      Head
+                                                                               2D→3D
+                 Geometry Transformer                                           Fusion
+
+                                                      Cam
+Input Images                                          Head
+
+
+Our Direct 3D Extraction
+
+
+                                                 3D Extraction                  3D
+                 Geometry Transformer
+                                                  Transformer                  Head
+
+                                                                 3D Features
+Input Images
+
+
+Fig. 2: Juxtaposition of geometric extraction metholodogies. Common pipelines like
+VGGT [46] (top) route transformer features through per-view 2D decoder heads, dis-
+carding the joint multi-view representation before 3D assembly. We instead extract
+dense 3D features directly from the transformer’s intermediate feature space, preserv-
+ing the full multi-view information.
+
+
+
+tation learning to scalable 2D models, using limited 3D data only to lift their
+powerful priors into a consolidated 3D space.
+
+
+
+3    Method
+
+
+Contemporary geometry transformers G [46, 49] encode a set of context im-
+ages {Ii }N
+          i=1 into per-patch features, processed by interleaved frame-local self-
+attention and frame-global cross-attention blocks before being routed to special-
+ized 2D decoder heads Hdepth , Hpts , Hcam that produce per-image depth maps,
+point maps, and camera parameters in one-to-one correspondence with input
+patches. A coherent 3D scene is then recovered via post-hoc fusion, lifting per-
+view predictions into a shared coordinate frame via point cloud followed by a
+surface reconstruction step. This is entirely decoupled from the transformer’s
+internal representations and misses the opportunity to leverage the rich priors
+encoded in the model. In this design, the expressive joint multi-view feature
+space assembled by G is discarded before the 3D representation is constructed.
+    In contrast, we replace the per-view decoder heads with a learned 3D extrac-
+tion module E that operates directly on the transformer’s intermediate feature
+space. Rather than projecting back to individual image planes, E aggregates
+multi-view geometry features into a dense volumetric feature grid via attention,
+without explicit camera projection or per-view fusion, allowing the full joint
+multi-view prior to inform every spatial location simultaneously. A juxtaposi-
+tion of these two paradigms can be seen in Fig. 2.
+6             L. Fink et al.
+
+3.1          Learned Volumetric Extraction from Multi-View Features
+
+To directly regress a 3D representation from a set of input images {Ii }Ni=1 , we
+propose a three-stage pipeline: a pretrained geometry transformer backbone G
+that provides powerful multi-view geometry features; a 3D extraction trans-
+former E that fuses the intermediate features of G into a dense volumetric latent
+grid; and a 3D decoder head H3D that maps these latent features to a dense grid
+of SDF values fˆXΩ in a grid XΩ over a volume domain Ω. An overview of the
+architecture is given in Fig. 3.
+                                      Geometry Transformer
+                                                                                              2D-to-3D Cross Attention   3D Global Attention
+     Input                         Global + Local                  Global + Local
+    Images                           Attention                       Attention
+                                                                                               Intermediate
+                                                                                                 Feature                  3D Grid
+                    ViT                                ...
+                                                                                                  Tokens                  (K,V,Q)
+                                                    × N times
+                  Encoding                                                                        (K,V)
+
+
+                                                    Intermediate
+                                                      Features                                 3D Grid                   2D Global Attention
+  Learned                                                                                        (Q)
+                                                                                                                         2D Local Attention
+ canonical
+embedding
+
+
+
+                              2D             2D                    2D               2D
+                          +   to    3D       to       3D           to    3D         to   3D                    3D
+                              3D             3D                    3D               3D
+                                                                                                              Head
+             Lin. Proj.
+
+ Voxel                                                     ×2
+positions                            3D Extraction Transformer
+
+Fig. 3: Architecture of Fus3D: The geometry transformer G (beige) processes tokenized
+                                                            b
+input images, yielding a list of 2D intermediate features {z2D }B
+                                                                b=1 extracted from differ-
+ent stages. The extraction transformer E (orange) leverages 2D-to-3D cross attention
+(green) to absorb the 3D information into features of the learned canonical embed-
+ding z3D , and distributes this information via 3D self-attention (blue) throughout the
+volumetric latent. The head H3D decodes the resulting structured latent ẑ3D into a
+dense SDF grid.
+
+
+Backbone. Our design requires that all input views are processed within a uni-
+fied feature space, such that intermediate representations are directly comparable
+across frames. This property holds for geometry transformers like VGGT [46],
+DA3 [23], and π 3 [51], which process all views jointly in a shared token sequence,
+but not for pair-wise methods such as MASt3R [19] or DUSt3R [49], which han-
+dle image pairs independently and aggregate predictions post-hoc. We therefore
+adopt the transformer architecture of VGGT as the geometry backbone G. As
+a direct consequence, no explicit conditioning on precomputed camera calibra-
+tion is required. We retain VGGT’s coordinate convention, placing the scene’s
+coordinate frame at the camera center of the first input view.
+
+Learned Canonical Embedding. The mismatch in dimensionality between per-
+image feature representations and the target 3D output is a major difficulty for
+3D feature extraction from 2D latents from G. To address this problem, we take
+                                                                                                                                                                              Fus3D    7
+
+inspiration from neural memory approaches for continuous reconstruction [44,
+48], in which a scene-agnostic learned embedding, initialized independently of
+any observed image, serves as the initial state of a memory that is subsequently
+updated through attention. We generalize this idea to 3D: rather than using a
+2D positional encoding, we condition a set of learned embeddings z3D (we use
+extents of 163 and dimension d=2048) on their corresponding 3D voxel positions
+within the volume Ω. These position-conditioned latent features constitute the
+initial state of the 3D memory, into which multi-view geometry information is
+progressively fused and compressed.
+    The voxel-grid structure implies that the region of interest must be approxi-
+mately known at inference time. While the bounding box of Ω can, in principle,
+vary per scene, we adopt a scheme whereby the datasets are considered in a
+normalized coordinate space, yielding a fixed bounding box relative to the first
+input view, common in the field [7, 32, 38, 56].
+Multi-view Feature Aggregation. Following the design of 2D decoder heads [46],
+we adopt a hierarchical design to compute volumetric features from our learned
+3D embeddings z3D and the intermediate 2D latent features {z2D   b
+                                                                    b=1 of the
+                                                                   }B
+backbone G. Our 3D extraction transformer E lifts and computes the updated
+volumetric 3D features as
+                                      \latentthreedpred = \extr \!\left (\latentthreedinit ,\, \latenttwodlist \right ),                                                              (1)
+
+ elements of {z2Db
+                     b=1 are injected at distinct stages of E, as seen in Fig. 3.
+                    }B
+    Concretely, the embeddings z3D serve as the initial queries for the first cross-
+attention module of E, whose keys and values are drawn from the first intermedi-
+ate feature map z2D 1
+                       . The attended volume is then passed through a volumetric
+self-attention block, which propagates information across spatial locations in
+the volume Ω. Following the interleaved local–global attention design of Wang
+et al. [46], these two operations form a single transformer block. The process is
+repeated for each intermediate feature map in {z2D  b
+                                                       b=1 (B=4) with the updated
+                                                      }B
+3D features ẑ3D carried forward between stages; the full four-stage sequence is
+then applied twice, yielding 8 transformer blocks in total.
+
+3.2   Feed-forward SDF Regression
+We define the ideal signed distance function f for the shape S ⊂ R3 as
+
+                             \sdfgt (\x ) = \begin {cases} -\dist (\x , \SBgt ), & \x \in \Sgt ,\\[1mm] \phantom {-}\dist (\x , \SBgt ), & \x \notin \Sgt ,\\ \end {cases}            (2)
+
+ where x ∈ S are points inside the shape, x ∈
+                                            / S are outside and x ∈ ∂S are at
+the boundary of S. The unsigned distance is then d(x, ∂S) = mins∈∂S ||x − s||2 .
+
+Decoding. The volumetric latent features ẑ3D produced by E are decoded by
+fˆXΩ = H3D (ẑ3D ) with a resolution of 643 . H3D is a simple convolutional up-
+sampling network. fˆXΩ represents the SDF values fˆ(xi,j,k ) corresponding to the
+voxel center positions xi,j,k at index (i, j, k) of grid XΩ sampling the bounding
+volume Ω. The voxel size is denoted as ϵ.
+8             L. Fink et al.
+
+Supervision. Following prior SDF works [57,58], we supervise the network with a
+combination of a direct value loss LSDF , a gradient loss L∇ , and add an Eikonal
+regularizer Leik . However, in practice, target SDF values may not be well-defined
+everywhere within Ω, requiring masking.
+
+Validity Masks. TSDF fusion leaves unobserved regions without valid values, and
+large-scale 3D asset datasets (Sec. 4) frequently contain non-watertight meshes,
+for which the interior is ambiguous and spurious sign flips arise in case of open
+boundaries (see App. Fig. 13). Rather than relying on mesh preprocessing [22,58],
+we instead model these failure modes in our training loss through two binary
+masks defined on XΩ .
+    The validity mask Mval ⊆ XΩ identifies positions x for which the ground-
+truth SDF value is well-defined and reliable; all loss terms are evaluated exclu-
+sively on X ⊆ Mval .
+    The Eikonal mask Meik ⊆ XΩ identifies positions in which the ground-truth
+SDF is locally smooth and sign-consistent. It is constructed by evaluating Leik
+on the ground-truth field fXΩ itself. If the Eikonal term is greater than 1 by
+a sufficiently large amount, we classify the value and its local neighborhood
+as unreliable. Consequently, unreliable regions are excluded from sign-sensitive
+supervision. Using these masks, we adapt the regression losses in the following
+ways:
+
+
+                          \gL _\textrm {SDF}(\pointset ) &= \frac {1}{|\pointset |}\sum _{\x _n \in \pointset } \begin {cases} \left \| \sdfpred (\x _n) - \sdfgt (\x _n)\right \|_1, & \x _n\in \maske ,\\[2mm] \left \|\, |\sdfpred (\x _n)| - |\sdfgt (\x _n)|\,\right \|_1, & \x _n\notin \maske , \end {cases}\\[6pt] \gL _{\nabla }(\pointset ) &= \frac {1}{|\pointset |}\sum _{\x _n \in \pointset } \begin {cases} \left \| \nabla _{\x }\sdfpred (\x _n) - \nabla _{\x }\sdfgt (\x _n) \right \|_2, & \x _n \in \maske ,\\[2mm] 0, & \x _n \notin \maske . \end {cases}
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    (4)
+
+
+ Outside Meik , LSDF degrades gracefully to an unsigned distance variant, pre-
+serving a meaningful signal without imposing incorrect sign supervision.
+    Additionally, we keep the camera loss Lcam by Wang et al. [46] to retain the
+G’s camera estimation functionality.
+
+Total Loss. We combine the above terms as:
+      \Ltot = \lams \, \gL _\textrm {SDF}(\nearsurface ) + \lamc \, \gL _\textrm {SDF}(\grid ) + \lamg \, \gL _{\nabla }(\grid ) + \lame \, \gL _{\textrm {eik}}(\grid ) + \gL _\textrm {cam},                                                                                                                                                                                                                                                                                                                                                                                      (5)
+
+ where L(XΩ ) refer to losses evaluated on voxel centers of grid XΩ , and addi-
+tionally employ LSDF (XS ), where XS refers to sample positions close to the the
+shape boundary ∂S to put extra emphasis on surface extraction. The gradients
+for L∇ (XΩ ) and Leik (XΩ ) are computed by finite differences on the grid.
+
+
+4     Experimental Setup
+Datasets and Sampling
+All experiments require scenes annotated with images, camera parameters, and
+                                                                    Fus3D        9
+
+a surface mesh. Meshes are converted to SDFs or TSDFs [29] via rendered depth
+maps on the fly (see App. Sec. A.2 for details). Unlike VGGT [46], we do not nor-
+malize scale relative to the first view’s depth, instead normalizing to a dataset-
+global scene range. Both datasets feature restricted camera setups, simplifying
+the regression task (see App. Sec. A.1). Mini-batches of size b are constructed by
+drawing b scenes, each with 2–8 unique views sampled uniformly without overlap
+constraints. Images are rescaled to 448 px on the longer side; augmentation crops
+the shorter side to 228–448 px and applies consistent color jitter on each view
+set.
+
+Objaverse. We use ≈5% of the Objaverse [6] subset used by Xiang et al. [54]:
+17K object-centric scenes with 24 views each, and 170 held-out scenes for evalu-
+ation. Supervision meshes are carved to retain only triangles potentially visible
+from outside the object. We note that this is a comparably small training set,
+leaving substantial headroom for improvement at larger scale.
+
+DTU. For forward-facing DTU scenes [12], objects are only partially observed,
+so the ground-truth mesh is open and SDF signs (inside/outside) are ill-defined.
+Hence, we adapt the calculation of losses in two ways: we compute LSDF (XΩ )
+from a depth-fused TSDF. For LSDF (XS ), we keep using the GT mesh but resort
+to its unsigned variant by setting Meik to the empty set during its computation.
+The setup of train and test splits follows VolRecon [38] and UFORecon [32].
+
+
+Training
+Initialization. The backbone G is initialized with the publicly available VGGT
+weights [45], which use DINOv2 for patch tokenization [34]. The 3D decoder
+head H3D follows the structure generation decoder of Xiang et al. [54] with the
+final sigmoid activation removed, initialized from their released weights accord-
+ingly. The extraction transformer E and canonical embedding z3D are trained
+from scratch.
+
+Backbone finetuning. In these experiments, we specialize our back-end to work
+better for object-centric datasets. Inspired by Ren et al. [37], we achieve this
+through light-weight LoRA fine-tuning [11] and apply the same fine-tuning strat-
+egy consistently across all comparison methods.
+
+Training Curriculum. We employ a two-stage curriculum. In the first stage, the
+SDF is predicted at low resolution (163 ) using a single linear decoder, supervised
+with LSDF and Lcam only. In the second stage, H3D is introduced to predict the
+full-resolution SDF grid under the complete loss described in Sec. 3.2. For DTU
+experiments, we fine-tune the resulting weights on the DTU training set.
+    Following related work [14], we use Adam with decoupled weight decay reg-
+ularization as optimizer [25] and a cosine learning rate scheduler with warm up
+for all stages. Training uses up to four NVIDIA A100 80 GB GPUs.
+10       L. Fink et al.
+
+5     Results
+We assess the quality of our method’s predictions in two complementary settings:
+With generalizable implicit methods and with pose-free feed-forward fusion base-
+lines. We further provide analysis to validate our key design decisions.
+
+Comparison with Feed-Forward SDF Baselines
+We compare with VolRecon [38] and UFORecon [32] on the DTU dataset. Given
+the domain gap between Objaverse, we finetune on their proposed training split
+(see Sec. 4). Note that this fine-tuning reduces the geometric extrapolation, so
+that it is limited to potentially visible regions for which a supervision signal
+is available. Since both methods require known camera parameters, we supply
+VGGT-predicted poses and intrinsics in place of ground-truth, placing all meth-
+ods in a fully feed-forward, pose-free setting consistent with our own. We note
+that this may disadvantage the baselines, which were designed for precise cam-
+era input; for completeness, additional comparisons are shown in App. Sec. B.1,
+supplying VolRecon and UFORecon with COLMAP-estimated and ground-truth
+poses, though these settings forfeit the feed-forward assumption and introduce
+additional computational overhead. Coordinate systems from different modal-
+ities are aligned to the ground-truth frame utilizing standard alignment pro-
+cedures [1, 18, 63]; see App. Sec. A.2 for details. In line with UFORecon [32],
+we distinguish between sets with substantial view overlap as favorable config-
+urations, and unfavorable ones, where views are far apart with limited shared
+visibility, posing a harder problem.
+    As shown in Tab. 1 and                       favorable (23, 24, 33)   unfavorable (1, 16, 36)
+Fig. 4 (and in App. Tab. 3),                   ↓ CD DGT2P DP2GT           CD DGT2P DP2GT
+                                  VolRecon †   2.905    2.331     3.478 5.781   3.811      7.751
+we consistently outperform        UFORecon   † 2.771    2.101     3.440 3.275   2.252      4.298
+
+both VolRecon and UFORe- UFORecon 3.415 2.989 3.841 4.942 3.737 6.146
+                                  VolRecon     3.678    3.369     3.987 8.878   5.869     11.887
+
+
+con in the feed-forward set-
+                                  Fus3D        2.432    1.804     3.059 3.525   2.814      4.236
+
+
+ting with unknown poses. We Table 1: Quantitative results with direct SDF pre-
+improve Chamfer distance by diction baselines in a feed-forward scenario. For ref-
+29% in both the favorable erence, † indicated non-feed forward (COLMAP)
+and unfavorable cases. Qual- poses for competing methods.
+itatively, our reconstructions
+are more complete and less noisy throughout; this is most pronounced in the
+unfavorable setting. Notably, despite requiring no camera parameters at infer-
+ence time, we remain competitive with both baselines even when supplied with
+COLMAP-estimated poses. This suggests that the joint multi-view prior pre-
+served in our volumetric latent space effectively compensates for the absence of
+explicit camera conditioning.
+
+Comparison with Unposed Predict-Then-Fuse Baselines
+We compare our method with the default 2D extraction paradigm of geometry
+transformers on the Objaverse dataset, isolating the effect of direct volumetric
+latent extraction versus predict-then-fuse surface reconstruction.
+                                                                                                                             Fus3D             11
+
+ Scan 55                             Scan 55                              Scan 140                            Scan 140
+ (1, 16, 36)                         (23, 24, 33)                         (1, 16, 36)                         (23, 24, 33)
+
+
+
+
+    Fus3D      VolRecon   UFORecon      Fus3D       VolRecon   UFORecon      Fus3D      VolRecon   UFORecon      Fus3D        VolRecon   UFORecon
+
+ Scan 105                            Scan 105                             Scan 106                            Scan 106
+ (1, 16, 36)                         (23, 24, 33)                         (1, 16, 36)                         (23, 24, 33)
+
+
+
+
+    Fus3D      VolRecon   UFORecon      Fus3D       VolRecon   UFORecon      Fus3D      VolRecon   UFORecon      Fus3D        VolRecon   UFORecon
+
+
+
+Fig. 4: Qualitative results on DTU. Beige boxes indicate input views. Numbers in
+brackets correspond to image indices of “favorable” (23, 24, 33) and “unfavorable” (1,
+16, 36) view combinations. (Following the baselines’ evaluation protocols, only visible
+geometry is evaluated.)
+
+
+
+    For a fair comparison, we fine-tune VGGT on the Objaverse training set
+(denoted VGGTft ), supervising depth maps and camera parameters following our
+standard training regime, with                                     0.14
+conventional fine-tuning for the 0.5                                             Fus3D
+                                                                                 VGGTft+TSDF
+                                                                   0.12
+prediction heads and LoRA-based                                                  VGGTft+Poisson
+                                                                                 TSDF from GT
+                                                                   0.10
+backbone refinement [37]. We 0.4
+                                                                   0.08
+compare with two post-hoc fu- 0.3
+sion strategies for VGGTft out-                                    0.06
+                                     0.2            Fus3D
+puts: VGGTft +Poisson, apply-                       VGGTft+TSDF
+                                                    VGGTft+Poisson
+                                                                   0.04
+
+ing Poisson surface reconstruc- 0.1                 TSDF from GT   0.02
+                                         0     10           20          0   10           20
+tion [15] to predicted and fused             context views                context views
+point maps, and VGGTft +TSDF,
+constructing isosurfaces from pre- Fig. 5: Comparison vs ground-truth TSDF iso-
+dicted depth maps and cameras surfaces (green) on 170 Objaverse test scenes,
+via TSDF fusion [29] followed by w.r.t number of input views. Left: F-scores with
+marching cubes [63]. For Fus3D, threshold 0.5ϵ. Right: Chamfer distances.
+surfaces are likewise extracted via marching cubes. To ensure a fair comparison,
+all methods are evaluated at matching output resolutions by sampling with the
+same voxel size ϵ. Reconstructed surfaces are compared against ground truth via
+F-score and Chamfer distance computed on sampled surface points, following
+Yariv et al. [58].
+    Fig. 5 reports these metrics as a function of the number of input views. As
+Objaverse is a 360° object-centric dataset, large regions remain unobserved in
+sparse-view settings, directly exposing the limitations of predict-then-fuse ap-
+proaches: TSDF fusion leaves holes in unobserved regions, and while Poisson
+reconstruction can close smaller gaps, its extrapolation is limited and not ro-
+bust. We include a TSDF constructed from ground-truth depth and cameras,
+TSDF from GT, indicating the upper bound achievable without geometric ex-
+trapolation. Visual examples are shown in Fig. 6 and 7. Notably, although both
+Fus3D and VGGTft are trained on up to 8 views, Fus3D generalizes well to 24
+views at inference time, while the predict-then-fuse baselines suffer from accu-
+12       L. Fink et al.
+
+mulating inconsistencies at higher view counts, directly validating the scalability
+advantage of extracting geometry from the joint latent space rather than fusing
+per-view predictions.
+    Tab. 2 reports full metrics at 8 input views across 170 Objaverse test scenes.
+Fus3D outperforms all baselines on F-                             Fϵ F0.5ϵ CD    EMD SDF
+score at both thresholds, Chamfer dis- Fus3D                                           MAE
+                                                                 0.83 0.51 0.021 0.019 0.004
+tance, and mean absolute error (MAE) on VGGT + Poiss. 0.70 0.38 0.044 0.052 –
+                                               VGGT   f t + TSDF 0.80 0.43 0.022 0.014 0.023
+
+valid SDF values of XΩ , with a particu- TSDF VGGT
+                                                      ft
+                                                                 0.35 0.12 0.080 0.082 0.136
+                                               Poiss. VGGT       0.29 0.10 0.121 0.788   –
+larly pronounced advantage on SDF MAE
+(0.004 vs. 0.023 for VGGTft +TSDF), a Table 2: Quantitative comparison on
+direct consequence of regressing the SDF the 170 test scenes of the Objaverse
+explicitly rather than deriving it from dataset for 8 input views. Lower seg-
+fused depth predictions. VGGTft +TSDF ment shows non-finetuned baselines.
+remains competitive on surface-level met-
+rics but degrades on stricter thresholds (F0.5ϵ : 0.43 vs. 0.51), reflecting residual
+noise and incompleteness from per-view fusion. VGGTft +Poisson lags on all
+metrics, confirming the limited extrapolation capacity of Poisson reconstruc-
+tion in sparse-view settings. The substantially lower scores of non-finetuned
+baselines in the lower segment suggests architectural advantages of Fus3D over
+VGGTft +TSDF and VGGTft +Poisson rather than differences in training data
+or supervision. The only metric where Fus3D does not lead is EMD, where
+VGGTft +TSDF scores marginally better (0.014 vs. 0.019).
+
+
+
+
+         SDF from Mesh       Fus3D     VGGTft+Poisson   VGGTft+TSDF           SDF from Mesh       Fus3D   VGGTft+Poisson        VGGTft+TSDF
+
+
+
+
+      Fig. 6: Visual examples from two input views depicted in the beige boxes.
+
+
+
+
+                         2      8            24               2        8       24             2             8              24
+     SDF from Mesh                   Fus3D                            VGGTft+TSDF                         VGGTft+Poisson
+
+
+
+Fig. 7: Visual examples with varying number of input views. Two exemplary views
+shown on the left.
+
+
+
+Ablations and Analysis
+Eikonal Validity. Fig. 8 (left) visualizes the Eikonal term on a slice of the pre-
+dicted SDF fˆXΩ and of the TSDF obtained from VGGTft outputs. TSDFs store
+fused projective rather than Euclidean distances, causing systematic distance
+overestimation and Eikonal violations within the truncation band. These arti-
+facts manifest as distorted isosurfaces when extracting at offsets ̸= 0. Outside
+the truncation band, the Eikonal condition is recovered by construction through
+                                                                           Fus3D             13
+
+Euclidian redistancing in observed free space [29]. Fus3D, by contrast, predicts
+well-behaved SDF values throughout the volume, particularly near and outside
+the surface. This is reflected quantitatively in Fig. 8 (right): at an isovalue offset
+of 0.5ϵ, Fus3D achieves an even higher F-score than the TSDF constructed from
+ground-truth synthetic data, demonstrating that the quality of the predicted
+distance field, not just surface placement, is a meaningful advantage of direct
+SDF regression.
+         VGGTft+TSDF                     Fus3D
+
+                                                                0.7
+
+                                                                0.6
+
+                                                                0.5
+
+                                                                0.4
+                                                                                 Fus3D
+                                                                0.3              VGGTft+TSDF
+                                                                                 TSDF from GT
+                                                                      0     10          20
+                                                                          context views
+
+Fig. 8: Left: Visualization of the eikonal term for the center slice of the x-axis. Right:
+Plot of the F0.5ϵ -score for surfaces extracted at isovalue +0.5ϵ.
+
+
+
+PCA Analysis of ẑ3D . To probe the structure of the learned volumetric latent
+space, we do Principal Component Analysis (PCA) on ẑ3D across objects from
+the same category. Fig. 9 shows that the dominant components vary smoothly in
+space and correlate with the SDF zero-crossing, adapting consistently to changes
+in object shape and pose, suggesting that the latent volume encodes geometri-
+cally meaningful structure rather than unstructured per-voxel features. Fig. 10
+further shows that features near the surface tend to align with shared geomet-
+ric parts across instances of the same category, hinting that the latent space
+captures some degree of category-level surface structure beyond object-specific
+occupancy. We note that due to the relatively low resolution of the volumetric
+grid, these patterns appear at a coarse spatial scale and finer correspondences are
+not resolved. Nevertheless, the consistent PCA colorings across shapes suggest
+that the latent volume implicitly organizes geometry in a structured way, which
+
+
+
+
+Fig. 9: Visualization of the PCA of ẑ3D of 3 different avatar-like assets. Images show
+the central slices, with the first three components used as RGB channels. The contours
+indicate the zero-crossing of the SDF min-projection along the visualized axis.
+14      L. Fink et al.
+
+may be beneficial for downstream tasks such as shape recognition, completion
+or generation.
+
+
+
+
+Fig. 10: PCA Visualization of occupied voxels of ẑ3D on four car-like assets. First three
+components are used as RGB channels and visualized as surface colors.
+
+
+Inference Evaluation. Fig. 11 reports inference times as a function of the number
+of input views. For VGGT-based baselines, only the
+relevant heads are evaluated, e.g. Hdepth and Hcam 3.5         Fus3D
+                                                               VGGT
+for TSDF, omitting Hpts . Both post-hoc fusion ap-      3.0    VGGT+Poisson
+proaches add substantial overhead to the total re- 2.5         VGGT+TSDF
+
+construction time, growing with view count. Fus3D
+                                                        2.0
+introduces a higher constant cost relative to the
+backbone alone, visible as a larger gap in sparse- 1.5
+view settings; however, this gap narrows as view 1.0
+count increases, since Fus3D omits VGGT’s 2D 0.5
+heads Hdepth and Hpts entirely, leaving the runtime
+                                                            0        10          20
+dominated by the shared per-view feature extrac-                   context views
+tion common to all methods. At higher view counts,
+Fus3D therefore scales more favourably than the Fig. 11: Inference times in
+predict-then-fuse baselines, whose fusion costs grow seconds w.r.t the number of
+proportionally with the number of views.               input views.
+
+
+6    Conclusion
+
+We present Fus3D, a feed-forward pipeline for dense surface reconstruction that
+directly regresses Signed Distance Functions from the intermediate feature space
+of a pretrained multi-view geometry transformer. To enable training on large-
+scale real-world data, we introduced a validity-aware SDF supervision scheme
+that handles non-watertight meshes and unobserved regions without expensive
+or appearance altering preprocessing. By replacing per-view decoder heads with
+a learned volumetric extraction module, we preserve the joint multi-view prior
+assembled by the backbone. By doing so, we address two fundamental failure
+modes of predict-then-fuse pipelines: sparse-view incompleteness and accumu-
+lation of inaccuracies under many views. Experiments demonstrate consistent
+improvements in surface completeness, SDF quality, and scaling behavior over
+both generalizable SDF baselines and feed-forward fusion pipelines.
+                                                                          Fus3D        15
+
+7    Acknowledgments
+We would like to thank all members of the Visual Computing Lab Erlangen for
+the fruitful discussions.
+   The authors gratefully acknowledge the scientific support and HPC resources
+provided by the National High Performance Computing Center of the Friedrich-
+Alexander-Universität Erlangen-Nürnberg ( NHR@FAU ) under the projects
+b212dc, b175dc, and b201dc. NHR funding is provided by federal and Bavar-
+ian state authorities. NHR@FAU hardware is partially funded by the German
+Research Foundation (DFG) – 440719683.
+   Linus Franke was supported in part by the ERC Advanced Grant NERPHYS
+(101141721, https://project.inria.fr/nerphys). The authors are responsible for
+the content of this publication.
+
+References
+ 1. Besl, P.J., McKay, N.D.: Method for registration of 3-d shapes. In: Sensor fusion
+    IV: control paradigms and data structures. vol. 1611, pp. 586–606. Spie (1992)
+ 2. Chang, J., Ye, C., Wu, Y., Chen, Y., Zhang, Y., Luo, Z., Li, C., Zhi, Y., Han, X.:
+    Reconviagen: Towards accurate multi-view 3d object reconstruction via generation.
+    arXiv preprint arXiv:2510.23306 (2025)
+ 3. Charatan, D., Li, S.L., Tagliasacchi, A., Sitzmann, V.: pixelsplat: 3d gaussian splats
+    from image pairs for scalable generalizable 3d reconstruction. In: Proceedings of
+    the IEEE/CVF conference on computer vision and pattern recognition. pp. 19457–
+    19467 (2024)
+ 4. Chen, Y., Xu, H., Zheng, C., Zhuang, B., Pollefeys, M., Geiger, A., Cham, T.J.,
+    Cai, J.: Mvsplat: Efficient 3d gaussian splatting from sparse multi-view images. In:
+    European conference on computer vision. pp. 370–386. Springer (2024)
+ 5. Cheng, Y.C., Lee, H.Y., Tulyakov, S., Schwing, A.G., Gui, L.Y.: Sdfusion: Multi-
+    modal 3d shape completion, reconstruction, and generation. In: Proceedings of the
+    IEEE/CVF conference on computer vision and pattern recognition. pp. 4456–4465
+    (2023)
+ 6. Deitke, M., Schwenk, D., Salvador, J., Weihs, L., Michel, O., VanderBilt, E.,
+    Schmidt, L., Ehsani, K., Kembhavi, A., Farhadi, A.: Objaverse: A universe of
+    annotated 3d objects. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 13142–13153 (2023)
+ 7. Ding, Y., Yuan, W., Zhu, Q., Zhang, H., Liu, X., Wang, Y., Liu, X.: Transmvsnet:
+    Global context-aware multi-view stereo network with transformers. In: Proceedings
+    of the IEEE/CVF conference on computer vision and pattern recognition. pp.
+    8585–8594 (2022)
+ 8. Gao, Q., Georgiev, I., Wang, T.Y., Singh, K.K., Neumann, U., Yoon, J.S.: Can3tok:
+    Canonical 3d tokenization and latent modeling of scene-level 3d gaussians. In:
+    Proceedings of the IEEE/CVF International Conference on Computer Vision. pp.
+    9320–9331 (2025)
+ 9. He, Z., Wang, T.: Openlrm: Open-source large reconstruction models. https://
+    github.com/3DTopia/OpenLRM (2023)
+10. Hong, Y., Zhang, K., Gu, J., Bi, S., Zhou, Y., Liu, D., Liu, F., Sunkavalli, K., Bui,
+    T., Tan, H.: Lrm: Large reconstruction model for single image to 3d. In: ICLR
+    (2024)
+16      L. Fink et al.
+
+11. Hu, E.J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., Chen,
+    W., et al.: Lora: Low-rank adaptation of large language models. Iclr 1(2), 3 (2022)
+12. Jensen, R., Dahl, A., Vogiatzis, G., Tola, E., Aanæs, H.: Large scale multi-view
+    stereopsis evaluation. In: 2014 IEEE Conference on Computer Vision and Pattern
+    Recognition. pp. 406–413. IEEE (2014)
+13. Jiang, H., Tan, H., Wang, P., Jin, H., Zhao, Y., Bi, S., Zhang, K., Luan, F.,
+    Sunkavalli, K., Huang, Q., et al.: Rayzer: A self-supervised large view synthesis
+    model. In: Proceedings of the IEEE/CVF International Conference on Computer
+    Vision. pp. 4918–4929 (2025)
+14. Jiang, L., Mao, Y., Xu, L., Lu, T., Ren, K., Jin, Y., Xu, X., Yu, M., Pang, J.,
+    Zhao, F., et al.: Anysplat: Feed-forward 3d gaussian splatting from unconstrained
+    views. ACM Transactions on Graphics (TOG) 44(6), 1–16 (2025)
+15. Kazhdan, M., Bolitho, M., Hoppe, H.: Poisson surface reconstruction. In: Proceed-
+    ings of the fourth Eurographics symposium on Geometry processing. vol. 7 (2006)
+16. Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang, Y., Fischer, T.,
+    Knapitsch, A., Zauss, D., Weber, E., Antunes, N., Luiten, J., Lopez-Antequera,
+    M., Bulò, S.R., Richardt, C., Ramanan, D., Scherer, S., Kontschieder, P.: MapA-
+    nything: Universal feed-forward metric 3D reconstruction. In: International Con-
+    ference on 3D Vision (3DV). IEEE (2026)
+17. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G.: 3D Gaussian Splatting for
+    Real-Time Radiance Field Rendering. ACM Transactions on Graphics 42(4), 139–1
+    (July 2023)
+18. Knapitsch, A., Park, J., Zhou, Q.Y., Koltun, V.: Tanks and temples: Benchmarking
+    large-scale scene reconstruction. ACM TOG 36(4) (2017)
+19. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: European conference on computer vision. pp. 71–91. Springer (2024)
+20. Li, M., Long, X., Liang, Y., Li, W., Liu, Y., Li, P., Luo, W., Wang, W., Guo, Y.:
+    Multi-view large reconstruction model via geometry-aware positional encoding and
+    attention. IEEE Transactions on Visualization and Computer Graphics (2025)
+21. Li, Z., Müller, T., Evans, A., Taylor, R., Unberath, M., Liu, M., Lin, C.: Neuralan-
+    gelo: High-Fidelity Neural Surface Reconstruction. In: Conference on Computer
+    Vision and Pattern Recognition (2023)
+22. Li, Z., Wang, Y., Zheng, H., Luo, Y., Wen, B.: Sparc3d: Sparse representa-
+    tion and construction for high-resolution 3d shapes modeling. arXiv preprint
+    arXiv:2505.14521 (2025)
+23. Lin, H., Chen, S., Liew, J.H., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth anything 3: recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+24. Long, X., Lin, C., Wang, P., Komura, T., Wang, W.: Sparseneus: Fast generaliz-
+    able neural surface reconstruction from sparse views. In: European Conference on
+    Computer Vision. pp. 210–227. Springer (2022)
+25. Loshchilov, I., Hutter, F.: Decoupled weight decay regularization. arXiv preprint
+    arXiv:1711.05101 (2017)
+26. Mascaro, R., Chli, M.: Scene representations for robotic spatial perception. Annual
+    Review of Control, Robotics, and Autonomous Systems 8(1), 351–377 (2025)
+27. Mescheder, L., Oechsle, M., Niemeyer, M., Nowozin, S., Geiger, A.: Occupancy
+    networks: Learning 3d reconstruction in function space. In: Proceedings of the
+    IEEE/CVF conference on computer vision and pattern recognition. pp. 4460–4470
+    (2019)
+                                                                         Fus3D        17
+
+28. Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng,
+    R.: Nerf: Representing scenes as neural radiance fields for view synthesis. Commu-
+    nications of the ACM 65(1), 99–106 (2021)
+29. Millane, A., Oleynikova, H., Wirbel, E., Steiner, R., Ramasamy, V., Tingdahl, D.,
+    Siegwart, R.: nvblox: Gpu-accelerated incremental signed distance field mapping.
+    In: 2024 IEEE International Conference on Robotics and Automation (ICRA). pp.
+    2698–2705. IEEE (2024)
+30. Mittal, P., Cheng, Y.C., Singh, M., Tulsiani, S.: Autosdf: Shape priors for 3d
+    completion, reconstruction and generation. In: Proceedings of the IEEE/CVF con-
+    ference on computer vision and pattern recognition. pp. 306–315 (2022)
+31. Mo, K.: Pytorchemd. https://github.com/daerduoCarey/PyTorchEMD/
+32. Na, Y., Kim, W.J., Han, K.B., Ha, S., Yoon, S.E.: Uforecon: Generalizable sparse-
+    view surface reconstruction from arbitrary and unfavorable sets. In: Proceedings
+    of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp.
+    5094–5104 (2024)
+33. Nießner, M., Zollhöfer, M., Izadi, S., Stamminger, M.: Real-time 3d reconstruction
+    at scale using voxel hashing. ACM Transactions on Graphics (ToG) 32(6), 1–11
+    (2013)
+34. Oquab, M., Darcet, T., Moutakanni, T., Vo, H.V., Szafraniec, M., Khalidov, V.,
+    Fernandez, P., HAZIZA, D., Massa, F., El-Nouby, A., Assran, M., Ballas, N.,
+    Galuba, W., Howes, R., Huang, P.Y., Li, S.W., Misra, I., Rabbat, M., Sharma, V.,
+    Synnaeve, G., Xu, H., Jegou, H., Mairal, J., Labatut, P., Joulin, A., Bojanowski, P.:
+    DINOv2: Learning robust visual features without supervision. Transactions on Ma-
+    chine Learning Research (2024), https://openreview.net/forum?id=a68SUt6zFt
+35. Park, J.J., Florence, P., Straub, J., Newcombe, R., Lovegrove, S.: Deepsdf: Learning
+    continuous signed distance functions for shape representation. In: Proceedings of
+    the IEEE/CVF conference on computer vision and pattern recognition. pp. 165–
+    174 (2019)
+36. Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel, O.,
+    Blondel, M., Prettenhofer, P., Weiss, R., Dubourg, V., et al.: Scikit-learn: Machine
+    learning in python. the Journal of machine Learning research 12, 2825–2830 (2011)
+37. Ren, W., Wang, H., Tan, X., Han, K.: Fin3r: Fine-tuning feed-forward 3d
+    reconstruction models via monocular knowledge distillation. arXiv preprint
+    arXiv:2511.22429 (2025)
+38. Ren, Y., Wang, F., Zhang, T., Pollefeys, M., Süsstrunk, S.: Volrecon: Volume ren-
+    dering of signed ray distance functions for generalizable multi-view reconstruction.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition. pp. 16685–16695 (2023)
+39. Sayed, M., Gibson, J., Watson, J., Prisacariu, V., Firman, M., Godard, C.: Sim-
+    plerecon: 3d reconstruction without 3d convolutions. In: Proceedings of the Euro-
+    pean Conference on Computer Vision (ECCV) (2022)
+40. Schönberger, J.L., Zheng, E., Frahm, J.M., Pollefeys, M.: Pixelwise view selection
+    for unstructured multi-view stereo. In: ECCV. pp. 501–518 (2016)
+41. Schönberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: Conference
+    on Computer Vision and Pattern Recognition (CVPR) (2016)
+42. Seitz, S., Curless, B., Diebel, J., Scharstein, D., Szeliski, R.: A Comparison and
+    Evaluation of Multi-View Stereo Reconstruction Algorithms. In: Conference on
+    Computer Vision and Pattern Recognition. pp. 519–528 (2006)
+43. Taheri, O.: Chamfer distance. https://github.com/otaheri/chamfer_distance
+44. Wang, H., Agapito, L.: 3d reconstruction with spatial memory. In: 2025 Interna-
+    tional Conference on 3D Vision (3DV). pp. 78–89. IEEE (2025)
+18      L. Fink et al.
+
+45. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt
+    checkpoint. https://huggingface.co/facebook/VGGT-1B (2023)
+46. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the Computer Vision
+    and Pattern Recognition Conference. pp. 5294–5306 (2025)
+47. Wang, P., Liu, L., Liu, Y., Theobalt, C., Komura, T., Wang, W.: Neus: Learning
+    neural implicit surfaces by volume rendering for multi-view reconstruction. arXiv
+    preprint arXiv:2106.10689 (2021)
+48. Wang, Q., Zhang, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d
+    perception model with persistent state. In: CVPR (2025)
+49. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric 3d
+    vision made easy. In: CVPR (2024)
+50. Wang, W., Chen, Y., Zhang, Z., Liu, H., Wang, H., Feng, Z., Qin, W., Zhu, Z.,
+    Chen, D.Y., Zhuang, B.: Volsplat: Rethinking feed-forward 3d gaussian splatting
+    with voxel-aligned prediction. arXiv preprint arXiv:2509.19297 (2025)
+51. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+    arXiv:2507.13347 (2025)
+52. Wang, Y., Han, Q., Habermann, M., Daniilidis, K., Theobalt, C., Liu, L.: Neus2:
+    Fast learning of neural implicit surfaces for multi-view reconstruction. In: Pro-
+    ceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)
+    (2023)
+53. Wei, X., Zhang, K., Bi, S., Tan, H., Luan, F., Deschaintre, V., Sunkavalli, K.,
+    Su, H., Xu, Z.: Meshlrm: Large reconstruction model for high-quality mesh. arXiv
+    preprint arXiv:2404.12385 (2025)
+54. Xiang, J., Lv, Z., Xu, S., Deng, Y., Wang, R., Zhang, B., Chen, D., Tong, X., Yang,
+    J.: Structured 3d latents for scalable and versatile 3d generation. In: Proceedings
+    of the IEEE/CVF conference on computer vision and pattern recognition. pp.
+    21469–21480 (2025)
+55. Xu, Y., Shi, Z., Yifan, W., Chen, H., Yang, C., Peng, S., Shen, Y., Wetzstein, G.:
+    Grm: Large gaussian reconstruction model for efficient 3d reconstruction and gen-
+    eration. In: European Conference on Computer Vision. pp. 1–20. Springer (2024)
+56. Yao, Y., Luo, Z., Li, S., Fang, T., Quan, L.: Mvsnet: Depth inference for unstruc-
+    tured multi-view stereo. In: Proceedings of the European conference on computer
+    vision (ECCV). pp. 767–783 (2018)
+57. Yariv, L., Kasten, Y., Moran, D., Galun, M., Atzmon, M., Ronen, B., Lipman,
+    Y.: Multiview Neural Surface Reconstruction by Disentangling Geometry and Ap-
+    pearance. In: Advances in Neural Information Processing Systems (2020)
+58. Yariv, L., Puny, O., Gafni, O., Lipman, Y.: Mosaic-sdf for 3d generative models.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition. pp. 4630–4639 (2024)
+59. Ye, B., Chen, B., Xu, H., Barath, D., Pollefeys, M.: Yonosplat: You only need
+    one model for feedforward 3d gaussian splatting. arXiv preprint arXiv:2511.07321
+    (2025)
+60. Zhang, C., Zou, Y., Li, Z., Yi, M., Wang, H.: Transplat: Generalizable 3d gaussian
+    splatting from sparse multi-view images with transformers. arXiv Preprint (2024)
+61. Zhang, C., Song, H., Wei, Y., Yu, C., Lu, J., Tang, Y.: Geolrm: Geometry-aware
+    large reconstruction model for high-quality 3d gaussian generation. Advances in
+    Neural Information Processing Systems 37, 55761–55784 (2024)
+                                                                     Fus3D       19
+
+62. Zhou, L., Du, Y., Wu, J.: 3d shape generation and completion through point-voxel
+    diffusion. In: Proceedings of the IEEE/CVF International Conference on Computer
+    Vision (ICCV). pp. 5826–5835 (October 2021)
+63. Zhou, Q.Y., Park, J., Koltun, V.: Open3D: A modern library for 3D data process-
+    ing. arXiv:1801.09847 (2018)
+64. Zhuang, P., Han, S., Wang, C., Siarohin, A., Zou, J., Vasilkovsky, M., Shakhrai,
+    V., Korolev, S., Tulyakov, S., Lee, H.Y.: Gtr: Improving large 3d reconstruction
+    models through geometry and texture refinement. arXiv preprint arXiv:2406.05649
+    (2024)
+                                 Appendix
+
+
+A     Further Details on Experimental Setup
+
+A.1   Datasets
+
+We evaluate our pipeline on two object-centric datasets. We use the established
+Dtu dataset to compare against closely related baselines that directly regress
+SDFs for isosurface reconstruction. In addition, we use the synthetic Objaverse
+datset with 360° outside-in capture. On this dataset, we perform ablations over
+the number of input views, the supervision signal, and the design of our output
+SDF, and latent representation presented in the main paper and the supplemen-
+tary material.
+    In the following, we provide additional details on the setup and processing
+of both datasets in addition to the description in the main paper.
+
+
+Setup of Objaverse Given practical resource constraints, we setup ≈ 5%
+of the Objaverse [6] subset used by Xiang et al. [54], comprising 17K object-
+centric scenes with 24 views each, plus 170 held-out scenes for evaluation. Note
+that this setup requires the photorealistic rendering of all views using Blender
+as these are not provided. All objects of this dataset are within [−0.5, 0.5]3 by
+default.
+    For rendering, we again follow the implementation of Xiang et al. [54]. The
+views are uniformly distributed on a sphere with radius 2, pointing inwards to
+the object at the scene center. We slightly modify the original script by reducing
+the number of samples per pixel to 32 (with denoising enabled), limiting each
+scene to 24 views, and exporting depth maps as an additional modality.
+    Because this is an outside-in capture setup, the network input depends only
+on externally visible geometry, whereas interior structures remain unobserved
+but would still strongly affect mesh-derived SDFs. We therefore remove or ”carve
+out” occluded geometry and retain only potentially visible triangles. To this end,
+we subdivide triangles to a maximum size of 4ϵ, where ϵ is the voxel size our SDF
+grid, and determine the potentially visible subset by shooting several million rays
+inward from a bounding sphere. The resulting carved mesh is then used for SDF
+supervision during training.
+
+
+Setup of Dtu Our setup follows VolRecon [38] and UFORecon [32], resulting
+in a split of 119 training scenes and 15 evaluation scenes. The Dtu [12] dataset
+provides 49 front-facing views per scene. As a result, objects are only partially
+observed, which leads to practical considerations discussed in Supp. Sec. A.2.
+                                                                     Fus3D       21
+
+Discussion on Datasets and Generalization In our setting, a non-finetuned
+VGGT performs noticeably below a task-adapted model. We therefore focus
+our evaluations, mindful of practical compute constraints, on in-domain perfor-
+mance and controlled comparison to relevant baselines, rather than conflating
+them with inter-dataset generalization. With sufficiently diverse object-centric
+training data, the underlying backbone should support substantially stronger
+cross-dataset transfer.
+    Concretely, we retain VGGT’s convention of defining the scene coordinate
+frame with respect to the first input view, but unlike the original VGGT setup,
+we use dataset-level scene scale rather than the mean depth of the first image. In
+addition, both Dtu and Objaverse follow capture configurations that resemble
+a dome around the object. This keeps scene scale effectively fixed and restricts
+the set of plausible camera parameters.
+    For extrinsics, the regression problem is therefore reduced from a continuous
+6-DoF space to a finite set of valid camera arrangements. For intrinsics, the model
+can likewise specialize to a single parameter set in Objaverse or a small family
+of calibrated settings in Dtu. In that sense, our training distribution is narrower
+than the one targeted by large-scale general-purpose geometry transformers.
+
+A.2    Training
+SDF Supervision We supervise with a direct 3D loss on target SDFs. Even
+when ground-truth meshes are available, computing SDFs involves practical con-
+siderations that depend on the chosen SDF calculation method.
+
+SDF from meshes The unsigned distance at a 3D query position is computed as
+the minimum distance to the mesh surface, obtained by finding the closest point
+on all triangles. In a second step, the sign is determined by shooting one or more
+rays and testing whether the number of mesh intersections is even (outside) or
+odd (inside). In theory, a single ray is sufficient to determine the sign, but non-
+watertight meshes can lead to inconsistent results. For example, ground planes,
+self-intersections, or holes make the distinction between interior and exterior ill-
+defined. Since most assets in large-scale datasets are not watertight, the sign is
+often estimated by majority voting across multiple rays. This can still lead to
+spurious sign flips; see Supp. Fig. 13. These sign flips also become visible when
+extracting isosurfaces from the resulting SDFs; see Supp. Fig. 22.
+
+Truncated SDFs from rendered depth maps In
+more extreme cases, such as the mesh annotations
+of Dtu, surfaces are open and SDF signs can-
+not be determined reliably from the mesh alone.
+In such cases, a practical alternative is to fuse
+depth maps and camera parameters into a trun- Fig. 12: Visual example of
+cated signed distance field (TSDF). This approach Dtu ground-truth mesh.
+is also more broadly applicable beyond synthetic
+data, since real-world datasets provide depth observations more frequently than
+22      L. Fink et al.
+
+clean meshes. We use the state-of-the-art nvblox implementation [29], adapted
+to run directly in our training environment without precomputation. To preserve
+details, we fuse at higher resolution and then sample the TSDF at the target
+resolution, both for supervision and for baseline comparisons.
+    For supervision, we fuse all available views of a scene to allow extrapolation
+beyond the visible regions of the input views, while still-unobserved voxels are
+marked as invalid.
+    However, TSDF fusion stores projective rather than true Euclidean distances.
+As a result, the zero-level set is represented correctly, but voxel values gener-
+ally overestimate the minimal distance to the surface and therefore violate the
+Eikonal condition. This limits e.g. surface extraction at arbitrary isovalues and
+can affect downstream tasks that rely on accurate SDF values.
+
+Validity masking We address these practical issues during SDF supervision by
+targeting robustness of loss computations. See Supp. Fig. 13 for visualizations.
+    In related experiments (see Supp. Sec. B.3), we found that supervision with
+TSDFs alone degrades performance. For Dtu, we therefore use a hybrid strategy:
+we compute LSDF (XΩ ) from a depth-fused TSDF to obtain reliable signs, while
+retaining mesh-based supervision for LSDF (XS ) to preserve finer detail. For the
+latter, we use the unsigned variant, which is implemented by setting Meik to the
+empty set during computation.
+    More generally, sign flips in mesh-derived SDFs often induce violations of
+the Eikonal condition. As described in Main Sec. 4, we handle these regions by
+masking out voxels that violate the Eikonal constraint when computing LSDF
+and falling back to the unsigned variant instead. Gradient regression losses are
+likewise unreliable in these regions and are therefore disabled. Specifically, Meik
+is constructed by evaluating the Eikonal term on the target SDF grid and prop-
+agating Eikonal violations to neighboring voxels by applying a 3D max-pooling
+operation with kernel size 5, followed by thresholding with 2.
+
+
+
+
+Fig. 13: Reliability of SDF from Meshes vs TSDFs from Depth. Non-watertight meshes
+may lead to sign flips, while TSDFs contain unobserved regions (green boxes). Differ-
+ence images visualize differences also in values between the two.
+
+
+
+Alignment of Reference Frames When comparing surfaces and point clouds
+from methods that predict in different reference frames and scales, a 7-DoF sim-
+ilarity transform must be estimated to enable a fair comparison. We follow the
+strategy of Knapitsch et al. [18] and estimate this transform by registering pre-
+dicted camera poses to the ground-truth poses. We found this to be more robust
+than non-rigid ICP [1] combined with RANSAC, especially when scene parts are
+severely misaligned (see the non-fine-tuned VGGT examples in Supp. Fig. 19).
+                                                                                          Fus3D            23
+
+For the On- and Offline scenarios in our Dtu experiments, we additionally apply
+rigid ICP to further improve alignment for all methods.
+
+Details on Metrics For the metrics reported in Main Tab. 2 and Main Figs. 5
+and 8, we use the normalized Earth Mover’s Distance also used by Zhou et
+al. [62], based on Mo’s implementation [31]. For these results, we use Taheri’s
+implementation [43] for the Chamfer distance. SDF MAE is computed only on
+valid samples.
+    For the metrics reported in Main Tab. 1 and Supp. Tab. 3, we reuse the
+evaluation script provided by VolRecon [38] and UFORecon [32], whose Chamfer
+distance implementation is based on Scikit-learn [36].
+
+B     Extended Results
+B.1      Comparison to Feed-Forward SDF baselines on Dtu
+Method       24     37    40    55    63     65     69     83    97   105    106   110   114   118   122   Mean
+Favorable
+GT
+VolRecon    1.652 2.612 1.704 1.190 1.538 2.027 1.340 1.532 1.412 1.046 1.383 1.739 0.883 1.324 1.322 1.514
+UFORecon 0.774 2.105 1.348 0.858 1.154 1.160 0.709 1.243 1.172 0.808 0.890 0.568 0.521 0.869 0.980 1.011
+Offline
+VolRecon    2.284 3.244 2.484 2.537 4.200 4.108 2.645 3.580 2.817 2.446 2.449 3.088 2.238 2.546 2.903 2.905
+UFORecon 1.862 4.532 2.687 2.296 3.951 3.452 2.455 4.145 2.242 3.163 1.730 2.606 1.654 2.159 2.623 2.771
+Online
+VolRecon    3.234 4.524 3.655 3.988 4.159 4.719 3.093 3.581 3.408 3.591 3.666 3.458 3.064 3.186 3.848 3.678
+UFORecon 3.190 5.451 4.040 3.497 4.124 3.416 2.991 3.075 2.999 2.786 2.954 3.437 2.716 3.147 3.404 3.415
+Fus3D       2.636 3.129 2.606 2.131 2.432 2.267 2.506 2.833 2.464 1.977 2.079 2.057 2.026 3.092 2.239 2.432
+Unfavorable
+GT
+VolRecon    3.846 3.745 4.788 3.691 3.261 3.963 3.053 5.021 3.822 3.076 4.171 3.475 1.952 3.824 3.875 3.704
+UFORecon 1.298 1.924 1.344 1.298 1.204 1.523 1.013 1.473 1.311 1.048 1.433 0.865 0.572 1.288 1.108 1.247
+Offline
+VolRecon    6.107 4.261 5.061 5.933 5.436 7.371 5.929 8.503 5.589 4.937 5.294 5.589 3.134 6.143 7.432 5.781
+UFORecon 2.860 4.164 2.665 2.802 3.113 3.837 2.359 4.316 7.326 2.477 2.740 2.497 2.089 3.072 2.813 3.275
+Online
+VolRecon    9.152 10.665 6.289 9.582  -   10.952 14.509 10.022 8.944 6.915 10.013 5.681 6.741 7.252 7.578 8.878
+UFORecon 4.691 6.729 5.493 4.462 10.300 3.644 3.908 5.478 3.848 5.945 4.680 3.501 3.044 4.777 3.625 4.942
+Fus3D       4.074 3.522 2.899 3.156 4.247 3.579 3.177 3.960 3.773 2.340 3.185 4.432 3.123 4.083 3.328 3.525
+Table 3: Quantitative results in offline vs online scenarios, and favorable vs unfavorable
+view combinations, separated by pose-estimation type. Values are Chamfer distances
+(↓ CD). GT indicates Dtu dataset poses, Offline refers to COLMAP estimation, and
+Online to feed-forward methods using VGGT or ours.
+
+
+   Here, we provide additional details on the comparison to feed-forward SDF
+prediction baselines (VolRecon [38] and UFORecon [32]), as described in Main
+Sec. 5.
+
+Details on Baselines Camera calibration for the Offline case is performed us-
+ing COLMAP [40] with default parameters for feature extraction, exhaustive
+matching, and mapping over all 49 views. We also tested running COLMAP
+using only the three input views, but the mapping step frequently failed due to
+an insufficient number of matches.
+   For the baseline methods, we used the best-performing publicly available
+checkpoints. For alignment of all outputs to the ground-truth mesh, see Supp.
+Sec. A.2.
+24     L. Fink et al.
+
+Further Evaluation In Tab. 3, we present                    Cam. SDF Total
+metrics of Main Tab. 1 on a per-scene level.     Offline
+Measured execution time of our and baseline      UFORecon 66.4 31.5       97.9
+methods are in Supp. Tab. 4. Note that the       VolRecon 66.4 21.6       88.0
+reported baseline runtimes use a higher in-      Online
+put resolution (512 × 640) than Fus3D (364 ×     UFORecon 0.31 31.5       31.8
+448) and are measured with default, quality-     VolRecon 0.31 21.6       21.9
+oriented settings; they could likely be tuned    Fus3D        –   0.53    0.53
+further for online deployment. Nevertheless on
+                                               Table 4: Measured execution time
+these settings, our method is about 40× faster
+                                               in seconds. "Cam." indicates time
+in estimation compared to the baselines.       for camera parameter estimation
+                                                 required for baselines, SDF for di-
+B.2 Comparison with Unposed                      rect SDF estimation.
+Predict-Then-Fuse Baselines
+Details on Baselines The most relevant base-
+line is VGGT, as our method keeps the same geometry backbone and primarily
+replaces its 2D decoding and post-hoc fusion with a 3D extraction transformer.
+    Mindful of dataset size and compute constraints, we adopt a lightweight fine-
+tuning strategy to setup our baseline VGGTf t and tune our employed backbone.
+Inspired by Ren et al. [37], we update the image encoder (and output heads for
+VGGTf t ) while leaving the multi-view aggregation stack unchanged. Since we
+apply the exact same strategy to our backbone, the intermediate latent features
+remain close to those of standard VGGT. This indicates that the 3D information,
+which e.g. allowed scene completion, were already represented by the original
+latent space and only had to be extracted differently. In order to build up an
+explicit, scene-consistent 3D state already during image matching, akin to a
+spatial memory, a more tightly coupled aggregation and extraction is interesting
+for future work.
+    In the same spirit, we also considered adding CUT3R [48] as a representative
+method with an explicit spatial memory for iterative reconstruction to our main
+evaluation. In our setting using non-sequential images, however, its predictions
+frequently exhibited severe misalignment, which hindered reliable surface recon-
+struction and coordinate-frame alignment. We therefore restrict this comparison
+to a qualitative evaluation in Fig. 14. We hypothesize that CUT3R’s sequen-
+tial processing is a poor fit for our unordered input-view setting, and that its
+memory mechanism does not compensate for this mismatch.
+
+
+
+
+        Fig. 14: Qualitative results of CUT3R on our Objaverse test set.
+
+
+More visual results In Supp. Fig. 17, we visualize slices of the volumetric SDF
+grids. Supp. Fig. 19, 18, 20, 21, and 22 present supplementary qualitative results.
+                                                                                                        Fus3D        25
+
+B.3                      Miscellaneous
+3D Querying Our model
+                                                     Variable Ω Default Ω
+predicts SDF values for the
+                                                     F0.5ϵ CD F0.5ϵ CD
+query volume Ω by condi-
+                                     Fus3D+         0.281 0.018 0.467 0.021
+tioning the initial learned          Fus3D+ wo. Q 0.274 0.021 0.466 0.022
+embedding z3D with its 3D
+voxel positions in Ω. In the table on the right, we report metrics (bold is better)
+for a briefly finetuned variant that handles varying query domains (Fus3D+),
+thus allowing for a control mechanism to select the region of interest (see Supp.
+Fig. 15 for a visualization). Fus3D+ wo. Q ablates the use of a learned em-
+bedding, replacing the initial query entirely by the linearly projected 3D voxel
+positions. Default Ω evaluates the default region of interest. For Variable Ω, a
+volumetric query with random center and extent was evaluated for every scene.
+Notably, the difference between Fus3D+ and Fus3D+ wo. Q is especially pro-
+nounced in case of Variable Ω.
+9e8fd | v=0000 | pts=1
+
+                          SDF from GT (Mesh) (full)   SDF from GT (Mesh)   Fus3D+
+
+             24
+
+
+
+
+Fig. 15: Varying the query domain Ω, potentially leading to zoomed or cropped results.
+Left: extracted isosurfaces. Right: slices of the SDF volumes.
+
+
+Loss Ablation Fig. 16 compares different loss
+configurations, evaluated on our Objaverse 0.50
+test set. Our final configuration (blue, full 0.45
+loss) consistently outperforms both Fus3D∗
+variants, showing that the near-surface super- 0.40
+vision term LSDF (XS ) is important for accu- 0.35
+rate isosurface extraction. While TSDF-based
+supervision (T) is potentially more broadly 0.30
+applicable, especially to real-world data, it 0.25                      Fus3D
+yields lower surface accuracy than mesh-based                           Fus3D* (M)
+                                                0.20                    Fus3D* (T)
+supervision (M). This suggests that the bias
+inherent to TSDF supervision is transferred to       0         10           20
+the prediction and may further conflict with                 context views
+Eikonal regularization.                        Fig. 16: Effect of the loss configu-
+                                                                                    ration, evaluated with F0.5ϵ -Score.
+                                                                                    Fus3D denotes our final model. ∗-
+C                        Discussion & Future Work                                   variants omit LSDF (XS ); (M) is
+                                                                                    trained on mesh-derived SDFs, (T)
+While our reconstructions are dense, com-                                           is trained on TSDFs fused from
+plete, and plausible even in unobserved re-                                         24 ground-truth depth maps and
+                                                                                    camera poses.
+26                           L. Fink et al.
+
+gions, fine-scale details can be missing and surfaces may appear over-smoothed.
+One contributing factor is the relatively low resolution of our SDF grid. We de-
+liberately use a straightforward dense decoder to focus model capacity on 3D
+feature extraction. Beyond surface reconstruction, the resulting dense 3D fea-
+tures which explicitly represent free space may also be valuable for tasks such
+as trajectory planning or robotic manipulation. For high-fidelity surface extrac-
+tion, however, sparse representations and multi-scale upsampling are a promising
+direction to improve spatial resolution without prohibitive memory costs.
+    Another promising direction is to more tightly integrate our extraction mod-
+ule with the backbone, instead of treating the backbone as a “read-only” feature
+provider. This is conceptually related to spatial-memory approaches, where the
+model maintains and updates a consistent state as additional views are pro-
+cessed. Overall, we see higher-resolution (potentially sparse) decoding and a
+more intertwined backbone–extractor design as complementary avenues to im-
+prove detail, robustness, and scalability.
+
+
+
+
+Fig. 17: Left: isosurface extracted from our prediction. Center: slices of our predicted
+SDF and the corresponding error map. Right: slices of the TSDF reconstructed from
+VGGTft predictions and the corresponding error map.
+5f4ea | v=0000 | pts=0
+
+                         SDF from GT (Mesh)   Fus3D   VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson   Cam. Poses
+
+                1
+
+
+
+
+                2
+
+
+
+
+                8
+
+
+
+
+              24
+
+
+
+
+                  Fig. 18: Further qualitative results on Objaverse, supplementing Main Fig. 1.
+                                                                                                                Fus3D                27
+
+
+
+
+8d047 | v=0000 | pts=0
+
+                         SDF from GT (Mesh)   Fus3D   VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson           Cam. Poses
+                1
+
+
+
+
+                 2
+
+
+
+
+                8
+
+
+
+
+              24
+
+
+
+
+c6a91 | v=0000 | pts=0
+
+                         SDF from GT (Mesh)   Fus3D   VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson           Cam. Poses
+
+                1
+
+
+
+
+                 2
+
+
+
+
+                8
+
+
+
+
+              24
+
+
+
+
+       Fig. 19: Additional qualitative results on Objaverse, supplementing Main Fig. 6.
+28                           L. Fink et al.
+
+
+
+
+a8378 | v=0000 | pts=0
+
+                         SDF from GT (Mesh)   Fus3D   VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson   Cam. Poses
+                1
+
+
+
+
+                2
+
+
+
+
+                8
+
+
+
+
+             24
+
+
+
+
+a8378 | v=0000 | pts=1
+
+                         SDF from GT (Mesh)   Fus3D   VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson   Cam. Poses
+
+                1
+
+
+
+
+                                                                       MISSING                     MISSING
+
+
+
+
+                2
+
+
+
+
+                                                                       MISSING                     MISSING
+
+
+
+
+                8
+
+
+
+
+                                                                       MISSING                     MISSING
+
+
+
+
+             24
+
+
+
+
+                                                                       MISSING                     MISSING
+
+
+
+
+Fig. 20: Additional variants of the scene shown in Main Fig. 7. Top: surface extracted
+at isovalue 0. Bottom: surface extracted at isovalue +0.5ϵ (Poisson reconstruction is
+omitted here, as it only reconstructs the zero level set).
+                                                                                                                      Fus3D                29
+
+
+
+
+0b3d9 | v=0001 | pts=0
+
+                         SDF from GT (Mesh)       Fus3D     VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson           Cam. Poses
+                1
+
+
+
+
+                2
+
+
+
+
+                8
+
+
+
+
+             24
+
+
+
+
+                                              Fig. 21: Additional qualitative results on Objaverse.
+
+
+
+
+cf609 | v=0000 | pts=0
+
+                         SDF from GT (Mesh)       Fus3D     VGGTft+TSDF   VGGTft+Poisson   VGGT+TSDF   VGGT+Poisson           Cam. Poses
+
+                1
+
+
+
+
+                2
+
+
+
+
+                8
+
+
+
+
+             24
+
+
+
+
+Fig. 22: Further qualitative results. Spurious sign flips in mesh-derived SDFs can lead
+to broken isosurfaces (see, e.g., the legs).
+

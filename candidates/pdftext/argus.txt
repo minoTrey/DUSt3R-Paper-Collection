@@ -1,0 +1,1585 @@
+                                         Argus: Metric Panoramic 3D Reconstruction for
+                                                         Indoor Scenes
+
+                                            Xi Li1 , Linyuan Li1 , Yan Wu1 , Tong Rao1 , Kai Zhang1 , Xinchen Hui1 , and
+                                                                            Cihui Pan1,2⋆
+                                                                             1
+                                                                              Realsee, China
+                                                       2
+                                                           Quanzhou University of Information Engineering, China
+arXiv:2606.30047v3 [cs.CV] 6 Jul 2026
+
+
+
+
+                                               ...
+
+
+
+
+                                        Fig. 1: Argus is a feed-forward 3D reconstruction network trained on our large-scale
+                                        indoor panoramic 3D dataset Realsee3D. Given acquired sparse multi-view panoramic
+                                        images, it rapidly reconstructs complete, consistent, and metric-scale 3D scenes.
+
+
+
+                                                Abstract. Metric feed-forward 3D reconstruction for panoramic data
+                                                remains under-explored due to the lack of large-scale panoramic RGB-
+                                                D training data. We present Realsee3D, a hybrid dataset of 10K indoor
+                                                scenes (1K real, 9K synthetic) with 299K panoramic viewpoints and pre-
+                                                cise metric annotations, and Argus, a feed-forward network trained on it
+                                                for metric panoramic 3D reconstruction. In the sparse unordered capture
+                                                setting of Realsee3D, a poorly chosen coordinate anchor can cause global
+                                                pose drift. Argus addresses this with a learned covisibility module that se-
+                                                lects the geometrically optimal reference view to anchor the metric world
+                                                frame. To further improve multi-task learning, we decompose the bidirec-
+                                                tional pixel-to-world mapping into interpretable sub-steps with per-step
+                                                supervision and cross-coordinate joint constraints, reinforcing geometric
+                                                consistency across prediction branches. On the Realsee3D benchmark,
+                                                Argus achieves state-of-the-art metric performance in camera pose esti-
+                                                mation, depth estimation, and point cloud reconstruction. Project page:
+                                                https://argus-paper.realsee.ai.
+
+                                                Keywords: Metric · Panoramic · Feed-Forward · 3D Reconstruction
+                                        ⋆
+                                            Corresponding author: pancihui001@realsee.com
+2       Xi Li et al.
+
+1   Introduction
+Image-based 3D reconstruction is a fundamental problem in computer vision,
+widely applied to robotics [3,35,44], AR/VR [16,40], autonomous driving [26,59],
+visual localization [20, 33, 80], and other fields [49]. Recently, Transformer-based
+feed-forward 3D reconstruction has achieved breakthroughs in perspective image
+scenarios [52, 84, 89]. Extending such methods to panoramic imagery is particu-
+larly appealing: panoramic cameras are increasingly adopted for real-world in-
+door 3D capture [2], as a single panorama covers the full field of view and provides
+substantial cross-view overlap, aligning well with the sparse-view feed-forward
+paradigm by enabling rapid scene-level reconstruction from only a few captures.
+Despite its high practical value, metric feed-forward 3D reconstruction tailored
+for panoramic data remains largely unaddressed. Mainstream feed-forward mod-
+els such as VGGT [84] possess multi-view geometric reasoning capabilities, but
+are trained on perspective RGB-D datasets and suffer severe performance degra-
+dation when directly applied to panoramic data. A key bottleneck lies in the
+scarcity of large-scale, high-quality panoramic 3D training data with accurate
+metric annotations. To fill this gap, this paper presents Realsee3D, a large-scale
+indoor multi-view panoramic RGB-D dataset with room-level coverage and pre-
+cise metric annotations, and Argus, a feed-forward network trained on Realsee3D
+that integrates learnable covisibility-guided reference selection with geometric
+factorization supervision for metric panoramic 3D reconstruction.
+    The Realsee3D dataset aligns with real-world panoramic capture scenarios,
+where images are sparsely sampled and provided as an unordered set. In this
+practical setting, existing feed-forward reconstruction methods [45, 84] anchor
+the global coordinate system to a pre-defined heuristic reference view. When the
+anchor is an isolated or boundary viewpoint, insufficient cross-view covisibility
+degrades geometric constraints, causing severe global pose drift and spatially in-
+consistent reconstruction. π 3 [91] adopts permutation-equivariant architectures
+to address permutation sensitivity, but the tightly coupled N × N pairwise con-
+straints require a fixed-reference branch to stabilize training from scratch. Tradi-
+tional methods [71] typically rely on hand-designed heuristics to select a robust
+world coordinate reference, e.g., the highest-feature view or the pair with most
+matches. Inspired by these methods, we propose a learnable covisibility module
+as an alternative. Instead of a fixed heuristic anchor, our module predicts global
+inter-view connectivity to dynamically select the optimal reference frame, sup-
+pressing drift from degenerate viewpoints and improving cross-view consistency.
+The pipeline retains approximate permutation equivariance, while inheriting the
+smooth optimization landscape of reference-frame-oriented metric learning.
+    Beyond reference selection, effective multi-task supervision is critical for re-
+construction quality. Recent works [84, 87–89] show that joint supervision over
+point maps, poses, and depth yields strong geometric synergies. Building on this
+insight, we propose an overcomplete geometric factorization supervision strat-
+egy that decomposes pixel-to-world transformations under the panoramic model
+into interpretable sub-steps, each supervised individually and jointly across co-
+ordinate frames. This lowers optimization difficulty while enhancing multi-task
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes          3
+
+synergy. We further observe empirically that sufficient high-quality metric data,
+combined with expressive modeling, suppresses ERP distortion and boundary
+artifacts without task-specific designs.
+    In summary, the main contributions of this work include:
+ – A large-scale indoor 3D dataset Realsee3D, and a data-driven feed-forward
+   metric panoramic 3D reconstruction network Argus.
+ – A covisibility-based reference view learning method that anchors the metric
+   coordinate system and enhances reconstruction robustness to pose drift.
+ – An overcomplete geometric factorization supervision strategy that decom-
+   poses pixel-to-world transformations into supervised sub-steps with cross-
+   coordinate consistency constraints, boosting multi-task synergy.
+ – A new panoramic 3D reconstruction benchmark on Realsee3D, on which
+   Argus achieves best overall performance across all evaluated tasks.
+
+
+2     Related Work
+2.1   Traditional 3D Reconstruction
+Traditional 3D reconstruction relies on optimization-based pipelines with explicit
+geometric modeling. Classical Structure-from-Motion (SfM) pipelines [1, 61, 71]
+recover camera poses and sparse point clouds through a multi-stage process:
+inter-view feature matching [58, 69], robust two-view geometry estimation with
+RANSAC [6] and other estimators [8, 78], view graph construction [10, 62], and
+global bundle adjustment refinement [32, 81]. Given the recovered poses, Multi-
+View Stereo (MVS) densifies geometry via multi-view photometric reasoning,
+spanning classical pipelines [28, 29, 72, 74] and learning-based approaches [36, 92,
+98]. Recent efforts increasingly integrate learned components into the SfM/MVS
+pipeline, including keypoint detectors [21, 34, 102], learned matchers [54, 70],
+detector-free semi-dense [50,77,90] and dense matching [24,25], monocular depth
+priors [52, 87, 96], and end-to-end frameworks [23, 37, 95]. While these hybrid ap-
+proaches achieve high accuracy, they still inherit multi-stage iterative optimiza-
+tion [41, 86, 101], incurring prohibitive cost for large image sets.
+
+2.2   Feed-Forward 3D Reconstruction
+Feed-forward methods [13, 56, 84] eliminate iterative optimization and directly
+predict scene geometry and camera motion from input images. Transformer ar-
+chitectures [17, 18, 83] have emerged as the dominant backbone for this task.
+DUSt3R [89] redefines feed-forward geometry prediction as dense point map
+regression and achieves robust pairwise reconstruction. VGGT [84] introduces
+alternating attention and multi-task supervision for multi-view geometry learn-
+ing. MapAnything [45] expands this paradigm to universal metric reconstruc-
+tion with support for multi-modal prior inputs. However, most multi-view feed-
+forward methods [84,100,107] remain highly sensitive to input view order due to
+their implicit coordinate anchoring to a selected reference view. π 3 [91] eases this
+4        Xi Li et al.
+
+sensitivity via a permutation-equivariant design for unordered input robustness.
+More recently, VGGT-Ω [85] presents the first empirical validation of the scaling
+law for feed-forward 3D reconstruction. Despite these rapid advances, existing
+feed-forward methods are developed and evaluated exclusively on perspective
+imagery, leaving panoramic scenes largely unexplored. Our work bridges this
+gap by introducing a feed-forward model for metric panoramic reconstruction.
+
+2.3    Panoramic 3D Reconstruction and Datasets
+The rapid progress of feed-forward methods [27, 75, 84] underscores that high-
+quality 3D datasets [9, 55, 67, 99] are the cornerstone of robust feed-forward 3D
+reconstruction [15, 19, 51]. However, most large-scale indoor RGB-D datasets [4,
+76, 79, 105] are built on perspective projection [30, 64, 68, 93], leaving a critical
+gap in dedicated training data and standardized benchmarks for panoramic met-
+ric reconstruction. Existing panoramic 3D datasets such as Matterport3D [12]
+and Stanford2D3D [5] primarily serve as evaluation benchmarks for tasks like
+monocular depth estimation [31, 53, 65] and semantic segmentation [106], but
+their limited scale and annotation schemes cannot support learning-based multi-
+view metric reconstruction. Consequently, panoramic monocular depth estima-
+tion methods [11, 38, 48] typically resort to transfer learning from foundation
+models pre-trained on large-scale perspective images such as DepthAnything
+V2 [97]. To advance this under-explored field, we introduce Realsee3D, a large-
+scale multi-view panoramic RGB-D dataset with precise metric annotations,
+enabling training and evaluation of feed-forward panoramic reconstruction mod-
+els and flexible extension to downstream tasks including depth completion [94],
+novel view synthesis [39, 46, 60], and embodied intelligence [104], among others.
+
+
+3     Realsee3D Dataset
+3.1    Dataset Overview and Construction
+We introduce Realsee3D3 , a large-scale high-resolution panoramic dataset with
+metric annotations combining photorealistic real-world captures and diverse syn-
+thetic scenes, containing 10,000 indoor scenes, 95,962 rooms, 299,073 panoramic
+viewpoints, and two complementary subsets detailed below.
+Real Subset. This subset consists of 1,000 real-world residential scenes, cover-
+ing 9,483 rooms and 24,263 panoramic RGB-D viewpoints. We acquire the data
+using tripod-mounted Realsee Galois 3D LiDAR cameras with nearly co-centered
+RGB and LiDAR sensors, which greatly simplifies image stitching and ensures
+geometric consistency between appearance and depth measurements. At each
+capture position, the camera rotates to five preset orientations. To preserve pho-
+tometric fidelity, we stitch images directly in the RAW domain and adopt HDR
+multi-exposure stacking to handle complex indoor lighting. After on-site ini-
+tial pose estimation, we perform global registration and pose refinement, which
+3
+    Dataset available at https://dataset.realsee.ai.
+                Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes                   5
+
+Table 1: Comparison with Existing Indoor Panoramic Datasets. We distin-
+guish unique viewpoints (spatial capture locations) from total images for accurate
+comparison. Realsee3D offers an unprecedented scale.
+
+Dataset                     Type        Scenes Rooms Unique Viewpoints Images    Modalities
+Stanford2D3D [5]             Real           6      270     1,413       1,413    RGB-D, Pose
+Matterport3D [12]            Real          90     2,056   10,800      10,800    RGB-D, Pose
+ZInD [14]             Real (Unfurnished) 1,524      –     71,474       71,474    RGB, Pose
+Structured3D [103]         Synthetic     3,500   21,835   21,835      196,515   RGB-D, Pose
+Realsee3D (Real)      Real (Furnished) 1,000 9,483         24,263      24,263 RGB-D, Pose
+Realsee3D (Synthetic)    Synthetic      9,000 86,479      274,810     274,810 RGB-D, Pose
+Realsee3D (Total)         Hybrid       10,000 95,962      299,073     299,073 RGB-D, Pose
+
+
+
+
+jointly optimizes visual and 3D features across all scans via covisibility, with
+manual corrections for accurate trajectory alignment when necessary. The final
+output includes high-resolution ERP RGB images, sparse metric depth maps,
+and precise camera poses, faithfully capturing real-world illumination, textures,
+and object distributions.
+Synthetic Subset. To further scale the dataset and enrich scene diversity,
+we construct a synthetic subset of 9,000 procedurally generated scenes, cover-
+ing 86,479 rooms and 274,810 panoramic viewpoints. All scenes are generated
+through a multi-stage pipeline grounded in real-world floorplan distributions.
+We adopt a hybrid rule- and learning-based discrete optimization framework
+that integrates real-scene layout priors and expert design knowledge to produce
+plausible scene configurations. We leverage a proprietary 3D asset library con-
+taining over 100,000 high-fidelity models across 200+ semantic categories. These
+models preserve fine-grained geometry and use physically-based rendering (PBR)
+materials, effectively reducing the synthetic-real domain gap. After layout gener-
+ation, a graph-based viewpoint selection algorithm determines optimal capture
+positions by simulating real-world roaming trajectories, ensuring full and high-
+quality coverage of the 3D environment and yielding dense multi-view observa-
+tions per room. Finally, we render scenes at these viewpoints using a customized
+Unreal Engine 5 pipeline with hardware-accelerated ray tracing, which simulates
+complex light transport including multi-bounce global illumination and ambient
+occlusion. Each scene is rendered under five distinct illumination schemes (Warm
+Day, Cold Day, Natural Day, Warm Night, Cold Night) to maximize intra-scene
+diversity. This pipeline produces dense, high-fidelity RGB-D data and precise
+camera poses, providing perfect geometric ground-truth free from sensor noise
+in real scans. The hybrid design of Realsee3D ensures both photorealistic di-
+versity and accurate geometric annotations, making it substantially larger and
+more diverse than existing panoramic datasets for dense 3D reconstruction.
+
+
+3.2   Comparison with Existing Datasets
+
+As shown in Table 1, we compare Realsee3D against several representative
+indoor panoramic datasets. While Stanford2D3D [5] and Matterport3D [12]
+6             Xi Li et al.
+
+          Covisbility Token                                                    Reference Camera Token
+
+
+
+
+                                                                                Reorder
+
+
+
+
+                                                                                                                          MLP
+                        Covisibility Transformer
+                                                                                                                                      Camera Pose
+
+
+
+
+                                                                                                   Geometry Transformer
+                                                                                    Camera Token
+
+
+
+
+                                                                   ArgMax
+                                                                                                                                      Depth
+             DINO
+
+                                                                            Reference
+
+
+
+
+                                                   MLP
+                                                                              View
+
+
+
+
+                                                                                                                          DPT Heads
+                                                                              Index                                                   Camera Points
+
+                                                         Covisibility
+                                                           Score                                                                      Rotated Points
+                                                                                                                                                       3D Reconstruction
+                                                                                                                                      World Points
+    ...
+
+
+
+
+Fig. 2: Overview of Argus. We first select the optimal reference frame via a Covis-
+ibility Transformer, then aggregate multi-view geometric features through a reference-
+based Geometry Transformer, followed by multiple prediction branches for intermediate
+geometric decomposition representations that facilitate multi-task learning.
+
+
+
+lay the foundation for indoor scene understanding with high-quality real-world
+panoramic data, they are limited in scene count. ZInD [14] provides massive
+real panoramas, yet focuses on unfurnished scenes and lacks dense metric depth.
+Structured3D [103] presents large-scale synthetic data with fine annotations, yet
+its 196,515 images are captured from only 21,835 unique spatial viewpoints (one
+per room) under varying lighting and furniture configurations. Realsee3D com-
+plements these efforts as a large-scale hybrid dataset with dense spatial coverage,
+establishing a robust new benchmark for metric 3D reconstruction.
+
+
+4     Method
+
+4.1        Overview of Argus
+
+An overview of our network is shown in Fig. 2. Given unordered panoramas, our
+model first leverages DINOv2 [63] to generate patch tokens. Covisibility tokens
+are added to per-view tokens and fed into a lightweight Covisibility Transformer
+with Lc = 2 alternating attention layers [84] (self-attention within each view
+alternated with self-attention across views) and then fed into an MLP layer to
+predict covisibility scores. The highest-scoring view is chosen as the reference
+frame with a dedicated reference camera token, while other views use standard
+camera tokens. The aggregated token sequence is then processed by a Geometry
+Transformer with Lg = 24 alternating attention layers. Finally, camera poses
+are regressed from camera tokens by an MLP layer that outputs a 9-dimensional
+vector per view: a 3D translation, a 4D quaternion rotation, and 2 confidence
+scores (one for rotation, one for translation), and depth and point maps across
+coordinate systems are predicted from image tokens via distinct DPT [66] heads.
+Each DPT head outputs an extra channel for pixel-wise confidence. The depth
+                 Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes                7
+
+
+
+
+ Image           Depth          Camera Points       Rotated Points           World Points
+
+         Pixel Space              Camera Space                       World Space
+
+  Fig. 3: Pixel-to-World Bidirectional Transformations for a Single View.
+
+
+
+head is activated with exp(·) to ensure positivity, point map heads use an inverse
+log transform f (x) = sign(x) · (exp(|x|) − 1) to handle the wide dynamic range of
+3D coordinates, where x denotes the raw head output, and all confidence values
+are activated via 1 + exp(·) to guarantee a lower bound of 1.
+
+
+4.2   Learning to Select Reference View
+
+To enable the model to learn optimal reference frames, we construct the super-
+vision labels as follows. Let the image set be I = {I1 , I2 , . . . , IN }, where N is
+the total number of images. We precompute the covisibility scores of all image
+pairs based on pose and depth and then construct a global covisibility matrix
+M. Afterwards, Dijkstra’s algorithm [22] is adopted to select the optimal ref-
+erence view I. More details are provided in the supplementary materials. The
+loss is computed by measuring the discrepancy between predicted covisibility
+logits Ĉ ∈ RN and the one-hot ground-truth C ∈ RN . The ground-truth sets
+CI = 1 for the optimal view I with maximum global covisibility and 0 other-
+wise (I ∈ {1, . . . , N }). We adopt binary cross-entropy (BCE) loss for supervision
+during training. During inference, we select the reference frame Î with the high-
+est score via the arg max operation, which provides approximate permutation
+equivariance since argmax is independent of input ordering. For implementation
+simplicity, we swap the tokens of this view with those of a fixed reference frame
+(the first frame) to achieve an equivalent effect.
+
+
+4.3   Panoramic Geometric Factorization
+
+Directly regressing world-coordinate point maps from images conflates multiple
+geometric transformations into a single prediction step, which increases opti-
+mization difficulty and limits cross-task supervisory signals. To address this, we
+predict each intermediate representation independently using distinct DPT [66]
+heads and supervise intermediate representations of forward and inverse pixel-to-
+world coordinate transformations in panoramic projections via both independent
+and joint cross-coordinate geometric constraints (refer to Sec. 4.5).
+   For W × H ERP panoramas,       2D pixel coordinates u(u, v) map directly to
+                         v
+spherical latitude θ = H   − 0.5 · π and longitude ϕ = W     − 0.5 · 2π, enabling
+8      Xi Li et al.
+
+computation of 3D point clouds on the unit sphere as:
+
+
+                                                                                                           P_{u} = \begin {bmatrix} \cos \left (\theta \right ) \cdot \sin \left (\phi \right ) \\ \sin \left (\theta \right ) \\ \cos \left (\theta \right ) \cdot \cos \left (\phi \right ) \end {bmatrix} \label {eq:sphere}                                                                              (1)
+
+
+All forward and inverse pixel-to-world transformations Φ for a single view are
+shown in Fig. 3, which can be decomposed into the following:
+                                                                \begin {cases} \Phi _{D\to CP}: \, P_{c} = D\odot P_{u}, \\ \Phi _{CP\to RP}: \, P_{r} = R P_{c}, \\ \Phi _{RP\to WP}: \, P_{w} = P_{r} + \boldsymbol {t}, \\ \Phi _{WP\to RP}: \, P_{r} = P_{w} - \boldsymbol {t}, \\ \Phi _{RP\to CP}: \, P_{c} = R^{-1} P_{r}, \\ \Phi _{CP\to D}: \, D = \|P_{c}\|_{2} \end {cases} \label {eq:trans} 
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                             (2)
+
+
+
+
+Here D is the depth map of panoramic image I, R and t are the rotation matrix
+and translation vector of the camera pose, respectively. In the forward direction,
+the camera point map Pc = D ⊙ Pu scales the unit sphere by depth, Pr = RPc
+rotates into the reference frame, and Pw = Pr +t translates to world coordinates;
+the inverse direction reverses these steps. In ΦCP →D , the angular reprojection
+error is neglected for efficiency, as its influence on results is negligible.
+
+
+4.4   Metric Prediction
+
+Unlike perspective cameras where focal length and depth are inherently coupled,
+the fixed ERP projection model eliminates intrinsic ambiguity and thus simplifies
+the model’s learning of metric depth. Combined with the consistent metric scale
+across our dataset (from LiDAR capture and physically based rendering), this
+enables direct metric prediction without a separate scale estimation module [45,
+88]. We simply normalize the ground-truth scale (e.g., divide by s = 10) during
+supervision, which yields stable and accurate metric predictions.
+
+
+4.5   Loss Function
+
+We train Argus end-to-end using multiple losses, including a covisibility loss,
+camera loss, depth loss, multiple point map losses, and a geometry joint loss.
+Covisibility Loss. The covisibility loss Lcovis is formulated as:
+
+
+            \mathcal {L}_{\text {covis}} = -\frac {1}{N} \sum _{i=1}^N \left [ \mathbf {C}_i \log (\sigma (\hat {\mathbf {C}}_i)) + (1-\mathbf {C}_i)\log (1-\sigma (\hat {\mathbf {C}}_i)) \right ] \label {eq:loss_covis}                                                                                                                                                                                  (3)
+
+
+where N is the sequence length and σ(·) is the sigmoid function.
+Camera Loss. The camera loss employs two terms: the quaternion-based rota-
+tion loss Lq and the translation loss Lt . These measure the L1 distance between
+                                                                                          Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes                                                                                                                                                                                                                                                                                                                                                                                                                               9
+
+predicted and ground-truth quaternions q̂i , qi , and between scaled predicted and
+scaled ground-truth translation vectors t̂i , tsi . Unlike previous methods [45, 84],
+additional confidence scores Ciq and Cit are predicted respectively for rotation and
+translation to improve usability. These scores reflect the model’s pose estimation
+confidence and are integrated into the corresponding loss terms as follows:
+
+                                                                                                                                   \mathcal {L}_{q} = \frac {1}{N} \sum _{i=1}^N (\mathcal {C}^{q}_i + 1) \cdot \lVert \hat {q}_i - q_i\rVert _1 -\alpha \log \mathcal {C}^{q}_i \label {eq:loss_q}                                                                                                                                                                                                                                                                           (4)
+
+
+                                                                                                                                    \mathcal {L}_{t} = \frac {1}{N} \sum _{i=1}^N (\mathcal {C}^{t}_i + 1) \cdot \lVert \hat {t}_i - \frac {t_i}{s}\rVert _1-\alpha \log \mathcal {C}^{t}_i \label {eq:loss_t}                                                                                                                                                                                                                                                                (5)
+
+The overall camera loss is formulated as: Lcam = Lq + Lt .
+Depth Loss. The depth loss follows [84], adopting an aleatoric uncertainty loss
+that weights the L2 between the predicted depth D̂i,j and the ground-truth
+                                                 D
+depth Di,j with the predicted uncertainty map Ci,j . The Ld is formulated as:
+
+  \mathcal {L}_{d} = \frac {1}{NHW} \sum _{i=1}^N \sum _{j=1}^{HW}(C^{D}_{i,j} + 1)\left [ \left \lVert \hat D_{i,j}-\frac {D_{i,j}}{s}\right \rVert + \left \lVert \nabla \hat D_{i,j}-\nabla \frac {D_{i,j}}{s}\right \rVert \right ] - \alpha \log C^{D}_{i,j} \label {eq:loss_d} 
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              (6)
+where ∇ is the gradient operator.
+Point Map Loss. The point map loss Lp is analogous to the depth loss.
+
+                                                                                                                   \begin {split} \mathcal {L}_{p} = \frac {1}{3NHW} \sum _{i=1}^N \sum _{j=1}^{HW} (C^{P}_{i,j} + 1) \Big [ \left \lVert \hat P_{i,j}-\frac {P_{i,j}}{s}\right \rVert \\ + \left \lVert \mathbf {n}(\hat P_{i,j})-\mathbf {n}\!\left (\frac {P_{i,j}}{s}\right ) \right \rVert \Big ] - \alpha \log C^{P}_{i,j} \end {split} \label {eq:loss_p} 
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              (7)
+
+
+
+Note that n(·) denotes the operator computing point normals. Substituting pre-
+dicted point maps under distinct spatial coordinate systems into Eq. (7) yields
+Lcp = Lp (Pc ), Lrp = Lp (Pr ) and Lwp = Lp (Pw ), respectively.
+Geometry Joint Loss. To promote mutual enhancement across geometric pre-
+diction branches, we further supervise adjacent transformations in all forward
+and inverse steps of pixel-to-world coordinate mapping. This is formulated as:
+          \begin {aligned} \mathcal {L}_{\text {joint}} & = \mathcal {L}_{\text {p}}\bigl [ \Phi _{D\to CP}( \hat D ) \bigr ] + \mathcal {L}_{\text {p}}\bigl [ \Phi _{CP\to RP}( \hat P_c, \hat R ) \bigr ] + \mathcal {L}_{\text {p}}\bigl [ \Phi _{RP\to WP}( \hat P_r, \hat t ) \bigr ] \\ & \quad + \mathcal {L}_{\text {p}}\bigl [ \Phi _{WP\to RP}( \hat P_w, \hat t ) \bigr ] + \mathcal {L}_{\text {p}}\bigl [ \Phi _{RP\to CP}( \hat P_r, \hat R ) \bigr ] + \mathcal {L}_{\text {d}}\bigl [ \Phi _{CP\to D}( \hat P_c ) \bigr ] \end {aligned} \label {eq:loss_joint} 
+
+                                                                                       (8)
+Each term takes the prediction from one branch, applies the predicted geomet-
+ric transform to derive the next-stage representation, and supervises the result
+against the corresponding ground-truth, thereby enforcing cross-branch geomet-
+ric consistency. Note that all inputs to the joint loss (D̂, P̂c , P̂r , P̂w , R̂, t̂) are
+network predictions from their respective branches, ensuring gradient flow across
+all branches for mutual facilitation.
+Total Loss. The final weighted loss L is as follows:
+                                                          \mathcal {L}= 0.1 \cdot \mathcal {L}_{covis} + 5.0 \cdot \mathcal {L}_{cam} + \mathcal {L}_{d} + \mathcal {L}_{cp} + \mathcal {L}_{rp} + \mathcal {L}_{wp} + \mathcal {L}_{joint} \label {eq:loss_total}                                                                                                                                                                                                                                                                                                            (9)
+10      Xi Li et al.
+
+5     Implementation Details
+
+We train Argus by optimizing the training loss with the AdamW [57] optimizer
+for 99K iterations. We use a cosine learning rate scheduler with a peak learning
+rate of 5e − 5 and a warmup of 9.9K iterations. For every batch, we randomly
+sample 2 to 28 views from a random training scene. Since the covisibility adja-
+cency matrix between views in each scene is precomputed, we ensure the sampled
+views are connected during training. Besides, we randomly split both real and
+synthetic subsets into training and test sets at a 9:1 scene-level ratio. Due to
+the non-uniform pixel distribution of ERP panoramic images, pixel utilization
+at the north and south poles is extremely low. We first resize the panoramic im-
+ages, depths and point maps to 560×280, then crop the top and bottom 15% of
+pixels each, yielding a final resolution of 560×196. We also randomly apply color
+jittering, Gaussian blur, and grayscale augmentation to the views. In addition,
+a random rotation around the Y-axis is applied to the input of each panoramic
+viewpoint, which corresponds to a horizontal pixel shift in the ERP image and
+augments viewpoint yaw diversity. We set α = 0.2 as the weight of the reg-
+ularization term for all confidence losses. The training runs on 24 H20 GPUs
+with 141 GB memory over 36 hours. We employ gradient norm clipping with a
+threshold of 1.0 to ensure training stability. We leverage bfloat16 precision and
+gradient checkpointing to improve GPU memory and computational efficiency.
+All evaluations are completed on a single H20 GPU.
+
+
+6     Benchmarking & Results
+
+6.1   Baselines
+
+We benchmark Argus on a comprehensive suite of 3D vision geometry tasks us-
+ing our Realsee3D dataset. Given the long-standing scarcity of large-scale 3D
+panoramic datasets, no off-the-shelf feed-forward network is available for direct
+panoramic 3D reconstruction. For a fair comparison with SOTA methods, we
+therefore finetune VGGT [84] (without tracking supervision [42, 43]), MapAny-
+thing [45] (V1.1.1, using only image inputs) and π 3 [91] as our main baselines on
+Realsee3D. All models share consistent experimental settings, including the same
+train/test split, data preprocessing, and the same training iterations. We denote
+these adapted models as VGGT360, MapAnything360 and π 3 360. Argus and
+VGGT360 are initialized from VGGT [84] pre-trained weights, others from their
+own checkpoints. It should be noted that the released π 3 pre-training weights are
+initialized from VGGT. Realsee3D contains scenes represented by unordered im-
+ages of arbitrary quantity. For comprehensive scene evaluation, validation uses
+all per-scene panoramic images, differing from prior work [84] sampling fixed
+frames from ordered video streams. Moreover, due to the challenging dataset,
+traditional open-source SfM methods (COLMAP [71] and OpenMVG [61]), when
+applied out of the box, are too slow and yield unusable results, so they are omit-
+ted from comparison.
+                   Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes                                        11
+
+           Table 2: Camera Pose Estimation on the Realsee3D Dataset.
+
+                                             AUC↑                    RRA↑                RTA↑
+ Dataset Part         Method                                                                            ATE↓ A.R.↑
+                                     @5◦      @10◦ @20◦      @5◦   @10◦     @20◦   @5◦   @10◦ @20◦
+
+                  VGGT360 [84]      67.89 83.00 91.00 96.88 99.10   99.46 97.37 99.05 99.66   –    –
+                MapAnything360 [45] 72.66 85.37 92.45 99.41 99.94 100.00 95.86 98.97 99.77 0.134 94.0
+ Real                3
+                    π 360 [91]      72.39 85.92 92.90 98.60 100.00 100.00 98.58 99.74 99.92   –    –
+                       Ours         71.88 85.52 92.64 98.30 100.00 100.00 98.10 99.55 99.83 0.096 98.2
+
+                  VGGT360 [84]      91.10 95.38 97.60 99.67 99.86           99.92 99.57 99.80 99.89   –    –
+                MapAnything360 [45] 90.84 95.11 97.42 99.46 99.78           99.92 99.20 99.68 99.83 0.087 99.3
+ Synthetic
+                    π 3 360 [91]    93.46 96.58 98.20 99.72 99.88           99.91 99.62 99.82 99.89   –    –
+                        Ours        94.44 97.29 98.63 99.76 99.90           99.95 99.65 99.82 99.90 0.027 99.8
+
+
+
+        Table 3: Multi-view Depth Estimation on the Realsee3D Dataset.
+
+                                                      Real                                Synthetic
+  Alignment         Method
+                                    AbsRel↓    δ1 ↑   δ2 ↑   RMSE↓ MAE↓ AbsRel↓       δ1 ↑   δ2 ↑   RMSE↓ MAE↓
+
+                VGGT360 [84]         0.051    64.22 96.21    0.445    0.119   0.025   86.60 98.78     0.158   0.035
+              MapAnything360 [45]    0.063    54.75 95.72    0.541    0.126   0.034   76.47 98.65     0.165   0.042
+  IRLS
+                  π 3 360 [91]       0.053    58.63 95.87    0.454    0.129   0.033   78.14 98.25     0.192   0.052
+                      Ours           0.048    70.22 96.51    0.401    0.102   0.019   91.42 99.03     0.138   0.027
+
+                VGGT360 [84]         0.056    57.69 96.08    0.447    0.127   0.029   85.27 98.76     0.159   0.038
+              MapAnything360 [45]    0.066    51.08 95.90    0.563    0.132   0.037   74.62 98.66     0.186   0.046
+  Median
+                  π 3 360 [91]       0.060    51.85 95.65    0.456    0.140   0.034   75.96 98.22     0.194   0.055
+                      Ours           0.050    65.81 96.60    0.406    0.107   0.019   90.75 99.02     0.139   0.029
+
+              MapAnything360 [45]    0.070    46.31 95.79    0.567    0.137   0.063   74.64 98.64     0.185   0.044
+  Metric
+                    Ours             0.050    66.28 96.62    0.407    0.106   0.035   91.24 99.02     0.139   0.027
+
+
+
+
+6.2      Camera Pose Estimation
+
+We evaluate camera pose prediction on both subsets of Realsee3D, reporting
+AUC, Relative Rotation Accuracy (RRA), and Relative Translation Accuracy
+(RTA) at thresholds of 5◦ , 10◦ , 20◦ , Absolute Trajectory Error RMSE (ATE)
+for global pose accuracy, and Acceptance Rate (A.R.)—the proportion of scenes
+where all poses have rotation error < 10◦ and translation error < 0.5 m—to
+assess practical usability. As shown in Tab. 2, Argus achieves the best metric
+pose accuracy (ATE and A.R.) on both subsets and leads in AUC on the syn-
+thetic subset. Although π 3 360 shows marginally higher relative metrics on the
+real subset—likely due to its stronger pre-training prior—Argus leads decisively
+in global metric accuracy and dominates all metrics on the synthetic subset
+where the domain gap from pre-training data is smaller. Compared with MapA-
+nything360 (which supports metric prediction), Argus reduces ATE by 28% on
+the real subset and 69% on the synthetic subset.
+
+
+6.3      Depth Estimation
+
+We benchmark multi-view depth estimation on the Realsee3D dataset using
+Absolute Relative Error (AbsRel), Root Mean Squared Error (RMSE), Mean
+Absolute Error (MAE), and interior percentage metrics δ<1.03 (δ1 ) and δ<1.25
+(δ2 ). As several baselines cannot predict metric depth, ground-truth alignment
+is necessary before evaluation. For fair comparison with all methods, we re-
+port results under three alignment schemes: Iterative Reweighted Least Squares
+12        Xi Li et al.
+
+         Table 4: Point Map Reconstruction on the Realsee3D Dataset.
+
+                                               Real                              Synthetic
+Alignment         Method
+                                   Acc.↓      Comp.↓      N.C.↑       Acc.↓       Comp.↓      N.C.↑
+
+                                Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med.
+
+              VGGT360 [84]      0.058 0.039 0.074 0.034 0.884 0.981 0.023 0.014 0.016 0.011 0.923 0.995
+            MapAnything360 [45] 0.082 0.054 0.127 0.095 0.829 0.937 0.038 0.026 0.053 0.043 0.880 0.982
+ICP
+                π 3 360 [91]    0.058 0.040 0.078 0.034 0.868 0.975 0.030 0.017 0.018 0.013 0.888 0.991
+                    Ours        0.058 0.037 0.062 0.034 0.894 0.983 0.018 0.011 0.014 0.010 0.943 0.997
+
+            MapAnything360 [45] 0.089 0.057 0.075 0.047 0.825 0.962 0.039 0.023 0.025 0.016 0.873 0.991
+Metric
+                  Ours          0.056 0.037 0.063 0.034 0.894 0.986 0.020 0.012 0.015 0.010 0.939 0.997
+
+
+
+Input Images          VGGT360                     MapAnything360                      Ours
+
+
+
+
+                              Fig. 4: Qualitative Comparison.
+
+
+
+(IRLS) alignment [47], median alignment, and absolute metric evaluation with-
+out any alignment. Results are given in Tab. 3. Argus outperforms all baselines
+in all metrics. We further evaluate Argus on monocular depth estimation for
+Realsee3D, and test its zero-shot generalization on two standard benchmarks:
+Matterport3D [12] and Stanford2D3D [5]. Although not specifically trained for
+monocular depth estimation, our method still achieves highly competitive per-
+formance. Please refer to supplementary materials for the detailed results.
+
+
+6.4      Point Map Reconstruction
+
+We evaluate scene-level point map reconstruction in the world coordinate system
+on our Realsee3D dataset, reporting Accuracy (Acc.), Completeness (Comp.),
+and Normal Consistency (N.C.) in Tab. 4. We present results under two align-
+ment schemes: alignment using the Umeyama algorithm [82] followed by Iterative
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes        13
+
+Table 5: Runtime and Peak GPU Memory Usage of Argus with Varying
+Input Frame Counts.
+
+              # Image Number 1        2    4    8   16   32   64   128
+              Runtime (s)       0.11 0.13 0.18 0.32 0.66 1.47 3.67 10.55
+              Memory (GB)       2.05 2.24 2.60 3.38 3.54 3.88 4.55 7.22
+
+
+
+Closest Point (ICP) refinement [7], and absolute metric evaluation without any
+alignment. Argus achieves overall superior alignment performance and holds a
+clear absolute advantage under metric evaluation. The qualitative comparison of
+reconstructions is shown in Fig. 4, Argus yields more accurate metric geometry
+and sharper structural boundaries than previous methods.
+
+
+6.5   Efficiency Evaluation
+
+The runtime and peak GPU memory usage across different numbers of input
+frames are reported in Tab. 5. In practice, we run inference in BF16 precision
+and perform on-the-fly cleanup of redundant intermediate features, which keeps
+the peak memory footprint at a favorable level even when the number of input
+images exceeds 100. Note that the reported data ignore the memory of load-
+ing the pretrained model (4.64GB). Our model contains 1.31 billion parameters.
+Notably, the multiple DPT heads for cross-coordinate point map prediction can
+also be disabled during inference, as optimal performance is typically achieved
+with only the pose and depth heads. Thus, our multi-head prediction and su-
+pervision scheme markedly boosts geometric learning during training, with zero
+additional inference overhead.
+
+
+6.6   Visualization
+
+Reference View Learning. As shown in Fig. 5, real-world capture often starts
+from arbitrary positions, and the initial viewpoint is frequently located at scene
+corners or boundaries with low covisibility, which greatly raises the difficulty of
+robust reconstruction. With global covisibility supervision, Argus selects a supe-
+rior initial reference view, typically near the scene center with stronger direct or
+indirect connections to other viewpoints. This improves scene-level reconstruc-
+tion robustness by reducing drift and accumulated errors. More importantly, it
+enables metric prediction in the absolute world coordinate frame.
+Generalizability. As shown in Fig. 6, Argus generalizes strongly beyond the
+training distribution. In particular, it maintains reliable metric 3D reconstruction
+for input panoramas with diverse AI-generated artistic styles [73] (e.g., sketches,
+cartoons). Furthermore, Argus exhibits strong robustness under challenging cap-
+ture settings: weak covisibility, multi-floor indoor scenes, long-range viewpoints,
+and small-scale outdoor environments.
+14        Xi Li et al.
+
+Input Images                   Default Sequence Order               Learning Reference View
+
+
+
+
+          ...
+     scene_00943
+
+
+
+
+          ...
+     scene_00530
+
+
+     Fig. 5: Visualization of the Effectiveness of Reference View Learning.
+
+Table 6: Ablation Studies on the Synthetic Subset of Realsee3D Dataset.
+
+ Method                        AbsRel↓    δ1 ↑   δ2 ↑   RMSE↓ MAE↓ Acc.↓ Comp.↓ N.C.↑ ATE↓
+ Full                           0.035    91.24 99.02 0.139 0.027 0.020    0.015 0.939 0.027
+ w/o reference view learning    0.037    90.45 98.96 0.142 0.029 0.024    0.017 0.923 0.060
+ w/o Ljoint                     0.047    90.71 98.86 0.158 0.030 0.020    0.015 0.937 0.049
+ w/o Lcp                        0.055    89.90 98.79 0.161 0.031 0.020    0.015 0.936 0.047
+ w/o Lrp                        0.045    90.55 98.83 0.159 0.030 0.020    0.015 0.937 0.051
+ w/o Lcp & Lrp                  0.055    89.75 98.79 0.160 0.031 0.020    0.015 0.936 0.048
+ w/o Lcp & Lrp & Lwp            0.075    88.52 98.60 0.169 0.034   –        –     –   0.061
+
+
+
+
+6.7      Ablation Studies
+
+Ablation studies are presented in Tab. 6. We report metric prediction results on
+the synthetic subset with key designs progressively ablated. Removing reference
+view learning more than doubles the ATE (0.027→0.060), confirming its critical
+role in establishing a consistent global coordinate frame. The geometric joint
+loss and multi-coordinate point map supervision improve both depth and pose
+accuracy: removing Ljoint raises AbsRel from 0.035 to 0.047 and ATE from
+0.027 to 0.049, and progressively dropping point map losses further degrades
+performance, with the removal of all three causing the largest decline (AbsRel
+0.075, RMSE 0.169). Notably, removing Lcp alone has a larger impact than
+removing Lrp alone, suggesting that camera-coordinate supervision provides a
+stronger learning signal for depth. Although Pc and D are deterministically
+interconvertible, they represent geometry in different dimensional spaces and
+induce significantly different gradient dynamics during optimization.
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes    15
+
+
+
+
+                                  (a) Artistic Styles
+
+
+
+
+                                                ...
+
+
+         (b) Weak Covisibility                            (d) Multi-Floor
+
+
+
+
+                                                ...
+
+
+         (c) Distant Viewpoints                             (e) Outdoor
+
+
+             Fig. 6: Visual Samples with Generalization Ability.
+
+
+
+7   Conclusions, Limitations, and Future Work
+
+
+We present Argus, a feed-forward model that achieves metric panoramic 3D re-
+construction from unordered indoor images in a single forward pass, together
+with Realsee3D, a hybrid indoor benchmark of 10K real and synthetic scenes
+with 299K panoramic viewpoints and precise metric annotations. Argus intro-
+duces covisibility-guided reference view selection to robustly anchor unordered
+inputs, and a panoramic geometric factorization scheme that decomposes pixel-
+to-world mapping into independently supervised intermediate representations
+with cross-coordinate joint constraints. These designs enable Argus to achieve
+state-of-the-art overall performance among feed-forward methods on camera
+pose estimation, metric depth prediction, and point map reconstruction, while
+maintaining favorable efficiency. Argus excels in structured indoor environments
+but has clear limitations: its indoor-focused training data constrains zero-shot
+generalization to unbounded outdoor and aerial scenes, and memory scaling
+limits reconstruction from very large panorama sets (hundreds to thousands of
+views), making scale-agnostic reconstruction a promising future direction. More
+discussions are provided in the supplementary material. We believe Realsee3D
+and Argus together provide the community with a strong foundation for advanc-
+ing metric panoramic 3D reconstruction and its downstream applications.
+16     Xi Li et al.
+
+References
+ 1. Agarwal, S., Snavely, N., Simon, I., Seitz, S.M., Szeliski, R.: Building rome in a
+    day. In: ICCV (2009)
+ 2. Ai, H., Cao, Z., Wang, L.: A survey of representation learning, optimization strate-
+    gies, and applications for omnidirectional vision: H. ai et al. IJCV 133(8), 4973–
+    5012 (2025)
+ 3. Alama, O., Bhattacharya, A., He, H., Kim, S., Qiu, Y., Wang, W., Ho, C., Keetha,
+    N., Scherer, S.: Rayfronts: Open-set semantic ray frontiers for online scene under-
+    standing and exploration. In: IROS. pp. 5930–5937 (2025)
+ 4. Antequera, M.L., Gargallo, P., Hofinger, M., Bulo, S.R., Kuang, Y., Kontschieder,
+    P.: Mapillary planet-scale depth dataset. In: ECCV. pp. 589–604 (2020)
+ 5. Armeni, I., Sax, S., Zamir, A.R., Savarese, S.: Joint 2d-3d-semantic data for indoor
+    scene understanding. arXiv preprint arXiv:1702.01105 (2017)
+ 6. Barath, D., Matas, J.: Graph-cut ransac. In: CVPR. pp. 6733–6741 (2018)
+ 7. Besl, P.J., McKay, N.D.: Method for registration of 3-d shapes. In: Sensor fusion
+    IV: control paradigms and data structures. vol. 1611, pp. 586–606. Spie (1992)
+ 8. Bian, J., Lin, W.Y., Matsushita, Y., Yeung, S.K., Nguyen, T.D., Cheng, M.M.:
+    Gms: Grid-based motion statistics for fast, ultra-robust feature correspondence.
+    In: CVPR. pp. 4181–4190 (2017)
+ 9. Cabon, Y., Murray, N., Humenberger, M.: Virtual kitti 2. arXiv preprint
+    arXiv:2001.10773 (2020)
+10. Campos, C., Elvira, R., Rodríguez, J.J.G., Montiel, J.M., Tardós, J.D.: Orb-
+    slam3: An accurate open-source library for visual, visual–inertial, and multimap
+    slam. IEEE Transactions on Robotics (2021)
+11. Cao, Z., Zhu, J., Zhang, W., Ai, H., Bai, H., Zhao, H., Wang, L.: Panda: To-
+    wards panoramic depth anything with unlabeled panoramas and mobius spatial
+    augmentation. In: CVPR (2025)
+12. Chang, A., Dai, A., Funkhouser, T., Halber, M., Niebner, M., Savva, M., Song,
+    S., Zeng, A., Zhang, Y.: Matterport3d: Learning from rgb-d data in indoor envi-
+    ronments. In: 3DV (2017)
+13. Chen, X., Chen, Y., Xiu, Y., Geiger, A., Chen, A.: Ttt3r: 3d reconstruction as
+    test-time training. arXiv preprint arXiv:2509.26645 (2025)
+14. Cruz, S., Hutchcroft, W., Li, Y., Khosravan, N., Boyadzhiev, I., Kang, S.B.: Zil-
+    low indoor dataset: Annotated floor plans with 360deg panoramas and 3d room
+    layouts. In: CVPR. pp. 2133–2143 (2021)
+15. Dai, A., Chang, A.X., Savva, M., Halber, M., Funkhouser, T., Nießner, M.: Scan-
+    net: Richly-annotated 3d reconstructions of indoor scenes. In: CVPR (2017)
+16. Dai, A., Nießner, M., Zollhöfer, M., Izadi, S., Theobalt, C.: Bundlefusion: Real-
+    time globally consistent 3d reconstruction using on-the-fly surface reintegration.
+    ToG 36(4), 1 (2017)
+17. Dao, T., Fu, D., Ermon, S., Rudra, A., Ré, C.: Flashattention: Fast and memory-
+    efficient exact attention with io-awareness. In: NeurIPS (2022)
+18. Darcet, T., Oquab, M., Mairal, J., Bojanowski, P.: Vision transformers need reg-
+    isters. arXiv preprint arXiv:2309.16588 (2023)
+19. Deitke, M., Schwenk, D., Salvador, J., Weihs, L., Michel, O., VanderBilt, E.,
+    Schmidt, L., Ehsani, K., Kembhavi, A., Farhadi, A.: Objaverse: A universe of
+    annotated 3d objects. In: CVPR. pp. 13142–13153 (2023)
+20. Deng, J., Li, H., Xie, T., Ren, W., Zhang, Q., Tan, P., Guo, X.: Sail-recon:
+    Large sfm by augmenting scene regression with localization. arXiv preprint
+    arXiv:2508.17972 (2025)
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes             17
+
+21. DeTone, D., Malisiewicz, T., Rabinovich, A.: Superpoint: Self-supervised interest
+    point detection and description. In: CVPRW (2018)
+22. Dijkstra, E.: A note on two problems in connexion with graphs. Numerische Math-
+    ematik 1(1), 269–271 (1959)
+23. Duisterhof, B.P., Zust, L., Weinzaepfel, P., Leroy, V., Cabon, Y., Revaud, J.:
+    Mast3r-sfm: a fully-integrated solution for unconstrained structure-from-motion.
+    In: 2025 International Conference on 3D Vision (3DV). pp. 1–10 (2025)
+24. Edstedt, J., Athanasiadis, I., Wadenbäck, M., Felsberg, M.: Dkm: Dense kernelized
+    feature matching for geometry estimation. In: CVPR (2023)
+25. Edstedt, J., Sun, Q., Bökman, G., Wadenbäck, M., Felsberg, M.: Roma: Robust
+    dense feature matching. In: CVPR (2024)
+26. Fei, X., Zheng, W., Duan, Y., Zhan, W., Tomizuka, M., Keutzer, K., Lu, J.:
+    Driv3r: Learning dense 4d reconstruction for autonomous driving. arXiv preprint
+    arXiv:2412.06777 (2024)
+27. Feng, W., Qin, H., Wu, M., Yang, C., Li, Y., Li, X., An, Z., Huang, L., Zhang,
+    Y., Magno, M., et al.: Quantized visual geometry grounded transformer. arXiv
+    preprint arXiv:2509.21302 (2025)
+28. Furukawa, Y., Hernández, C.: Multi-view stereo: A tutorial. Foundations and
+    Trends in Computer Graphics and Vision 9(1-2), 1–148 (2015)
+29. Goesele, M., Curless, B., Seitz, S.M.: Multi-view stereo revisited. In: CVPR. vol. 2,
+    pp. 2402–2409 (2006)
+30. Greff, K., Belletti, F., Beyer, L., Doersch, C., Du, Y., Duckworth, D., Fleet, D.J.,
+    Gnanapragasam, D., Golemo, F., Herrmann, C., et al.: Kubric: A scalable dataset
+    generator. In: CVPR. pp. 3749–3761 (2022)
+31. Guo, Y., Garg, S., Miangoleh, S.M.H., Huang, X., Ren, L.: Depth any camera:
+    Zero-shot metric depth estimation from any camera. In: CVPR (2025)
+32. Hartley, R., Zisserman, A.: Multiple view geometry in computer vision. Cambridge
+    university press (2003)
+33. Hausler, S., Garg, S., Xu, M., Milford, M., Fischer, T.: Patch-netvlad: Multi-scale
+    fusion of locally-global descriptors for place recognition. In: CVPR (2021)
+34. He, X., Sun, J., Wang, Y., Peng, S., Huang, Q., Bao, H., Zhou, X.: Detector-free
+    structure from motion. In: CVPR (2024)
+35. Hu, Y., Xie, Q., Jain, V., Francis, J., Patrikar, J., Keetha, N., Kim, S., Xie,
+    Y., Zhang, T., Fang, H.S., et al.: Toward general-purpose robots via foundation
+    models: A survey and meta-analysis. arXiv preprint arXiv:2312.08782 (2023)
+36. Huang, P.H., Matzen, K., Kopf, J., Ahuja, N., Huang, J.B.: Deepmvs: Learning
+    multi-view stereopsis. In: CVPR. pp. 2821–2830 (2018)
+37. Jang, W., Weinzaepfel, P., Leroy, V., Agapito, L., Revaud, J.: Pow3r: Empowering
+    unconstrained 3d reconstruction with camera and scene priors. In: CVPR. pp.
+    1071–1081 (2025)
+38. Jiang, H., Song, Z., Lou, Z., Xu, R., Tan, M.: Depth anything in 360circ : Towards
+    scale invariance in the wild. arXiv preprint arXiv:2512.22819 (2025)
+39. Jiang, L., Mao, Y., Xu, L., Lu, T., Ren, K., Jin, Y., Xu, X., Yu, M., Pang, J.,
+    Zhao, F., et al.: Anysplat: Feed-forward 3d gaussian splatting from unconstrained
+    views. TOG 44(6), 1–16 (2025)
+40. Jiang, Y., Yu, C., Xie, T., Li, X., Feng, Y., Wang, H., Li, M., Lau, H., Gao,
+    F., Yang, Y., Jiang, C.: Vr-gs: A physical dynamics-aware interactive gaussian
+    splatting system in virtual reality. In: ACM SIGGRAPH (2024)
+41. Jung, D., Choi, J., Lee, Y., Manocha, D.: Im360: Large-scale indoor mapping with
+    360 cameras. In: ICCV (2025)
+18     Xi Li et al.
+
+42. Karaev, N., Makarov, Y., Wang, J., Neverova, N., Vedaldi, A., Rupprecht, C.:
+    Cotracker3: Simpler and better point tracking by pseudo-labelling real videos. In:
+    ICCV. pp. 6013–6022 (2025)
+43. Karaev, N., Rocco, I., Graham, B., Neverova, N., Vedaldi, A., Rupprecht, C.:
+    Cotracker: It is better to track together. In: ECCV. pp. 18–35 (2024)
+44. Keetha, N., Karhade, J., Jatavallabhula, K.M., Yang, G., Scherer, S., Ramanan,
+    D., Luiten, J.: Splatam: Splat track & map 3d gaussians for dense rgb-d slam. In:
+    CVPR. pp. 21357–21366 (2024)
+45. Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang, Y., Fischer, T.,
+    Knapitsch, A., Zauss, D., Weber, E., Antunes, N., Luiten, J., Lopez-Antequera,
+    M., Bulò, S.R., Richardt, C., Ramanan, D., Scherer, S., Kontschieder, P.:
+    Mapanything: Universal feed-forward metric 3d reconstruction. arXiv preprint
+    arXiv:2509.13414 (2025)
+46. Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G.: 3d gaussian splatting for
+    real-time radiance field rendering. TOG (2023)
+47. Kümmerle, C., Verdun, C.M., Stöger, D.: Iteratively reweighted least squares for
+    basis pursuit with global linear convergence rate. In: NeurIPS. pp. 2873–2886
+    (2021)
+48. Li, H., Zheng, W., He, J., Liu, Y., Lin, X., Yang, X., Chen, Y.C., Guo, C.: Da 2 :
+    Depth anything in any direction. arXiv preprint arXiv:2509.26618 (2025)
+49. Li, X.: Multi-view canonical pose 3d human body reconstruction based on volu-
+    metric tsdf. In: ECCV. pp. 392–397 (2022)
+50. Li, X., Rao, T., Pan, C.: Edm: Efficient deep feature matching. In: ICCV. pp.
+    26198–26208 (2025)
+51. Li, Z., Snavely, N.: Megadepth: Learning single-view depth prediction from inter-
+    net photos. In: CVPR (2018)
+52. Lin, H., Chen, S., Liew, J., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth anything 3: Recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+53. Lin, X., Song, M., Zhang, D., Lu, W., Li, H., Du, B., Yang, M.H., Nguyen, T., Qi,
+    L.: Depth any panoramas: A foundation model for panoramic depth estimation.
+    arXiv preprint arXiv:2512.16913 (2025)
+54. Lindenberger, P., Sarlin, P.E., Pollefeys, M.: Lightglue: Local feature matching at
+    light speed. In: ICCV (2023)
+55. Ling, L., Sheng, Y., Tu, Z., Zhao, W., Xin, C., Wan, K., Yu, L., Guo, Q., Yu, Z.,
+    Lu, Y., et al.: Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d
+    vision. In: CVPR. pp. 22160–22169 (2024)
+56. Liu, Y., Min, Z., Wang, Z., Wu, J., Wang, T., Yuan, Y., Luo, Y., Guo, C.:
+    Worldmirror: Universal 3d world reconstruction with any-prior prompting. arXiv
+    preprint arXiv:2510.10726 (2025)
+57. Loshchilov, I., Hutter, F.: Decoupled weight decay regularization. arXiv preprint
+    arXiv:1711.05101 (2017)
+58. Lowe, D.G.: Distinctive image features from scale-invariant keypoints. IJCV
+    (2004)
+59. Ma, X., Wang, Z., Li, H., Zhang, P., Ouyang, W., Fan, X.: Accurate monocular 3d
+    object detection via color-embedded 3d reconstruction for autonomous driving.
+    In: ICCV. pp. 6851–6860 (2019)
+60. Mildenhall, B., Srinivasan, P.P., Tancik, M., Barron, J.T., Ramamoorthi, R., Ng,
+    R.: Nerf: Representing scenes as neural radiance fields for view synthesis. Com-
+    munications of the ACM 65(1), 99–106 (2021)
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes            19
+
+61. Moulon, P., Monasse, P., Perrot, R., Marlet, R.: Openmvg: Open multiple view ge-
+    ometry. In: International Workshop on Reproducible Research in Pattern Recog-
+    nition. pp. 60–74. Springer (2016)
+62. Mur-Artal, R., Montiel, J.M.M., Tardos, J.D.: Orb-slam: a versatile and accurate
+    monocular slam system. IEEE Transactions on Robotics (2015)
+63. Oquab, M., Darcet, T., Moutakanni, T., Vo, H., Szafraniec, M., Khalidov, V.,
+    Fernandez, P., Haziza, D., Massa, F., El-Nouby, A., et al.: Dinov2: Learning robust
+    visual features without supervision. arXiv preprint arXiv:2304.07193 (2023)
+64. Pan, X., Charron, N., Yang, Y., Peters, S., Whelan, T., Kong, C., Parkhi, O.,
+    Newcombe, R., Ren, Y.C.: Aria digital twin: A new benchmark dataset for ego-
+    centric 3d machine perception. In: ICCV. pp. 20133–20143 (2023)
+65. Piccinelli, L., Sakaridis, C., Segu, M., Yang, Y.H., Li, S., Abbeloos, W., Van Gool,
+    L.: Unik3d: Universal camera monocular 3d estimation. In: CVPR (2025)
+66. Ranftl, R., Bochkovskiy, A., Koltun, V.: Vision transformers for dense prediction.
+    In: ICCV (2021)
+67. Reizenstein, J., Shapovalov, R., Henzler, P., Sbordone, L., Labatut, P., Novotny,
+    D.: Common objects in 3d: Large-scale learning and evaluation of real-life 3d
+    category reconstruction. In: ICCV. pp. 10901–10911 (2021)
+68. Roberts, M., Ramapuram, J., Ranjan, A., Kumar, A., Bautista, M.A., Paczan,
+    N., Webb, R., Susskind, J.M.: Hypersim: A photorealistic synthetic dataset for
+    holistic indoor scene understanding. In: ICCV. pp. 10912–10922 (2021)
+69. Rublee, E., Rabaud, V., Konolige, K., Bradski, G.: Orb: An efficient alternative
+    to sift or surf. In: ICCV (2011)
+70. Sarlin, P.E., DeTone, D., Malisiewicz, T., Rabinovich, A.: Superglue: Learning
+    feature matching with graph neural networks. In: CVPR (2020)
+71. Schonberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: CVPR
+    (2016)
+72. Schönberger, J.L., Zheng, E., Frahm, J.M., Pollefeys, M.: Pixelwise view selection
+    for unstructured multi-view stereo. In: ECCV. pp. 501–518 (2016)
+73. Seedream, T., Chen, Y., Gao, Y., Gong, L., Guo, M., Guo, Q., Guo, Z., Hou, X.,
+    Huang, W., Huang, Y., et al.: Seedream 4.0: Toward next-generation multimodal
+    image generation. arXiv preprint arXiv:2509.20427 (2025)
+74. Seitz, S.M., Curless, B., Diebel, J., Scharstein, D., Szeliski, R.: A comparison and
+    evaluation of multi-view stereo reconstruction algorithms. In: CVPR. vol. 1, pp.
+    519–528 (2006)
+75. Shen, Y., Zhang, Z., Qu, Y., Cao, L.: Fastvggt: Training-free acceleration of visual
+    geometry transformer. arXiv preprint arXiv:2509.02560 (2025)
+76. Straub, J., Whelan, T., Ma, L., Chen, Y., Wijmans, E., Green, S., Engel, J.J.,
+    Mur-Artal, R., Ren, C., Verma, S., et al.: The replica dataset: A digital replica of
+    indoor spaces. arXiv preprint arXiv:1906.05797 (2019)
+77. Sun, J., Shen, Z., Wang, Y., Bao, H., Zhou, X.: Loftr: Detector-free local feature
+    matching with transformers. In: CVPR (2021)
+78. Sun, W., Jiang, W., Trulls, E., Tagliasacchi, A., Yi, K.M.: Acne: Attentive context
+    normalization for robust permutation-equivariant learning. In: CVPR. pp. 11286–
+    11295 (2020)
+79. Szot, A., Clegg, A., Undersander, E., Wijmans, E., Zhao, Y., Turner, J., Maestre,
+    N., Mukadam, M., Chaplot, D.S., Maksymets, O., et al.: Habitat 2.0: Training
+    home assistants to rearrange their habitat. NeurIPS 34, 251–266 (2021)
+80. Taira, H., Okutomi, M., Sattler, T., Cimpoi, M., Pollefeys, M., Sivic, J., Pajdla,
+    T., Torii, A.: Inloc: Indoor visual localization with dense matching and view
+    synthesis. In: CVPR (2018)
+20      Xi Li et al.
+
+ 81. Triggs, B., McLauchlan, P.F., Hartley, R.I., Fitzgibbon, A.W.: Bundle adjust-
+     ment—a modern synthesis. In: International workshop on vision algorithms (1999)
+ 82. Umeyama, S.: Least-squares estimation of transformation parameters between
+     two point patterns. PAMI 13(4), 376–380 (1991)
+ 83. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N.,
+     Kaiser, Ł., Polosukhin, I.: Attention is all you need. In: NeurIPS (2017)
+ 84. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+     Visual geometry grounded transformer. In: CVPR (2025)
+ 85. Wang, J., Chen, M., Zhang, S., Karaev, N., Schönberger, J., Labatut, P., Bo-
+     janowski, P., Novotny, D., Vedaldi, A., Rupprecht, C.: Vggt-ω. arXiv preprint
+     arXiv:2605.15195 (2026)
+ 86. Wang, J., Karaev, N., Rupprecht, C., Novotny, D.: Vggsfm: Visual geometry
+     grounded deep structure from motion. In: CVPR (2024)
+ 87. Wang, R., Xu, S., Dai, C., Xiang, J., Deng, Y., Tong, X., Yang, J.: Moge: Un-
+     locking accurate monocular geometry estimation for open-domain images with
+     optimal training supervision. In: CVPR (2025)
+ 88. Wang, R., Xu, S., Dong, Y., Deng, Y., Xiang, J., Lv, Z., Sun, G., Tong, X., Yang,
+     J.: Moge-2: Accurate monocular geometry with metric scale and sharp details.
+     arXiv preprint arXiv:2507.02546 (2025)
+ 89. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+     3d vision made easy. In: CVPR (2024)
+ 90. Wang, Y., He, X., Peng, S., Tan, D., Zhou, X.: Efficient loftr: Semi-dense local
+     feature matching with sparse-like speed. In: CVPR (2024)
+ 91. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J.,
+     Shen, C., He, T.: π 3 : Permutation-equivariant visual geometry learning. In: ICLR
+     (2026)
+ 92. Wang, Y., Zeng, Z., Guan, T., Yang, W., Chen, Z., Liu, W., Xu, L., Luo, Y.:
+     Adaptive patch deformation for textureless-resilient multi-view stereo. In: CVPR.
+     pp. 1621–1630 (2023)
+ 93. Xia, H., Fu, Y., Liu, S., Wang, X.: Rgbd objects in the wild: Scaling real-world
+     3d object learning from rgb-d videos. In: CVPR. pp. 22378–22389 (2024)
+ 94. Yan, Z., Li, X., Wang, K., Zhang, Z., Li, J., Yang, J.: Multi-modal masked pre-
+     training for monocular panoramic depth completion. In: ECCV. pp. 378–395
+     (2022)
+ 95. Yang, J., Sax, A., Liang, K.J., Henaff, M., Tang, H., Cao, A., Chai, J., Meier, F.,
+     Feiszli, M.: Fast3r: Towards 3d reconstruction of 1000+ images in one forward
+     pass. In: CVPR. pp. 21924–21935 (2025)
+ 96. Yang, L., Kang, B., Huang, Z., Xu, X., Feng, J., Zhao, H.: Depth anything:
+     Unleashing the power of large-scale unlabeled data. In: CVPR (2024)
+ 97. Yang, L., Kang, B., Huang, Z., Zhao, Z., Xu, X., Feng, J., Zhao, H.: Depth
+     anything v2. In: NeurIPS. pp. 21875–21911 (2024)
+ 98. Yao, Y., Luo, Z., Li, S., Fang, T., Quan, L.: Mvsnet: Depth inference for unstruc-
+     tured multi-view stereo. In: ECCV (2018)
+ 99. Yao, Y., Luo, Z., Li, S., Zhang, J., Ren, Y., Zhou, L., Fang, T., Quan, L.: Blended-
+     mvs: A large-scale dataset for generalized multi-view stereo networks. In: CVPR.
+     pp. 1790–1799 (2020)
+100. Zhang, S., Wang, J., Xu, Y., Xue, N., Rupprecht, C., Zhou, X., Shen, Y., Wet-
+     zstein, G.: Flare: Feed-forward geometry, appearance and camera estimation from
+     uncalibrated sparse views. In: CVPR. pp. 21936–21947 (2025)
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes          21
+
+101. Zhao, Q., Lin, A., Tan, J., Zhang, J.Y., Ramanan, D., Tulsiani, S.: Diffusionsfm:
+     Predicting structure and motion via ray origin and endpoint diffusion. In: CVPR
+     (2025)
+102. Zhao, X., Wu, X., Miao, J., Chen, W., Chen, P.C., Li, Z.: Alike: Accurate and
+     lightweight keypoint detection and descriptor extraction. TMM pp. 3101–3112
+     (2022)
+103. Zheng, J., Zhang, J., Li, J., Tang, R., Gao, S., Zhou, Z.: Structured3d: A large
+     photo-realistic dataset for structured 3d modeling. In: ECCV. pp. 519–535 (2020)
+104. Zheng, X., Liao, C., Weng, Z., Lei, K., Dongfang, Z., He, H., Lyu, Y., Jiang,
+     L., Qi, L., Chen, L., et al.: Panorama: The rise of omnidirectional vision in the
+     embodied ai era. arXiv preprint arXiv:2509.12989 (2025)
+105. Zheng, Y., Harley, A.W., Shen, B., Wetzstein, G., Guibas, L.J.: Pointodyssey: A
+     large-scale synthetic dataset for long-term point tracking. In: ICCV. pp. 19855–
+     19865 (2023)
+106. Zhong, D., Zheng, X., Liao, C., Lyu, Y., Chen, J., Wu, S., Zhang, L., Hu, X.: Om-
+     nisam: Omnidirectional segment anything model for uda in panoramic semantic
+     segmentation. In: ICCV. pp. 23892–23901 (2025)
+107. Zhuo, D., Zheng, W., Guo, J., Wu, Y., Zhou, J., Lu, J.: Streaming 4d visual
+     geometry transformer. arXiv preprint arXiv:2507.11539 (2025)
+               Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes           1
+
+                             Supplementary Material
+
+
+         REAL-WORLD SCENES                            SYNTHETIC SCENES
+
+
+
+
+                                      RGB                                    RGB
+
+
+
+
+                                      Depth                                  Depth
+
+
+
+
+                              Fig. 7: Examples of Realsee3D.
+
+
+
+A     More Dataset Details
+
+A.1   Dataset Characteristics
+
+Realsee3D is distinguished by several key features:
+
+ – Panoramic Format & Validity Masks: Visual data is provided as high-
+   resolution 1600 × 800 ERP panoramic images. While synthetic scenes offer
+   a complete 360◦ × 180◦ field of view, real-world captures inherently contain
+   blind spots at the zenith and nadir due to hardware constraints. We provide
+   explicit binary validity masks to account for these unobserved regions.
+ – Sparse vs. Dense Depth Profiles: Reflecting its hybrid nature, Realsee3D
+   offers two distinct depth profiles. As shown in Fig. 7, real-world data pro-
+   vides sparse metric depth inherently constrained by LiDAR discrete sam-
+   pling, while synthetic scenes offer dense, continuous depth maps. This dual-
+   ity allows researchers to evaluate algorithm robustness across varying depth
+   qualities. Both modalities include 16-bit relative depth maps and scalar fac-
+   tors to recover absolute metric depth.
+ – Spatial and Geometric Metadata: Each viewpoint includes a 4 × 4
+   Camera-to-World transformation matrix defining its 6-DoF absolute pose.
+   For complex, multi-story environments, we provide explicit floor-level in-
+   dices to facilitate vertical semantic understanding. Additionally, synthetic
+   scenes include pairwise covisibility scores, indicating the visual overlapping
+   area between views.
+ – Unordered Sequences: Reflecting real-world usage where users may cap-
+   ture views in an arbitrary order, the panoramic sequences in Realsee3D are
+   unordered. This presents a unique challenge for reconstruction algorithms,
+   which must robustly handle varying overlap and connectivity.
+2       Xi Li et al.
+
+
+
+
+                   Real                                        Synthetic
+
+                       Fig. 8: Depth Distribution of Realsee3D.
+
+Table 7: Room Type Distribution in Realsee3D. The distribution is calculated
+over 9,483 rooms in the Real subset and 86,479 rooms in the Synthetic subset.
+
+        Room Type Real (%) Synth (%) Room Type             Real (%) Synth (%)
+        Bedroom             32.59    33.07 Dining Room         1.00        1.98
+        Bathroom            21.61    18.99 Cloakroom           0.98        1.12
+        Balcony             10.70    14.38 Study Room          1.64        0.95
+        Living Room         10.46    10.40 Entrance Hall       1.20        0.89
+        Kitchen              9.57    10.09 Storage Room        0.89        2.04
+        Corridor             6.94     5.58 Other               0.42        0.51
+
+
+
+A.2    Dataset Diversity and Statistics
+
+In this section, we provide a detailed statistical analysis of the Realsee3D dataset
+to highlight its diversity across both real-world and synthetic subsets.
+Viewpoint Distance. In the Realsee3D dataset, the average pairwise distances
+between viewpoints are 5.20 meters for the real subset and 5.93 meters for the
+synthetic subset.
+Depth Distribution. The depth distribution of the two subsets of the Re-
+alsee3D dataset is shown in Fig. 8. The average absolute depths of the real
+subset and the synthetic subset are 1.679 and 1.495 meters, respectively.
+Room Type Distribution. Realsee3D covers a wide range of residential room
+types, reflecting the complexity and variety of real-world indoor environments.
+As shown in Tab. 7, the distribution of room types is highly consistent between
+the real and synthetic subsets, with Bedroom, Bathroom, and Balcony being
+the most frequent categories. Beyond these common areas, the dataset also in-
+cludes niche spaces such as Study Rooms, Cloakrooms, and functional areas like
+Nanny’s Rooms, ensuring broad coverage of diverse architectural layouts.
+Architectural Elements. To evaluate geometric reconstruction and scene un-
+derstanding, Realsee3D incorporates a rich variety of architectural elements. As
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes                                                                                       3
+
+Table 8: Distribution of Architectural Elements. The counts represent the total
+number of occurrences across the entire dataset (10k scenes).
+
+                Element Type                                Real (Count) Synthetic (Count)
+                Single Door                                                                        8,924                                            106,655
+                Doorway/Opening                                                                    6,756                                             25,591
+                Standard Window                                                                    4,331                                             50,217
+                Sliding Door                                                                       3,015                                             24,050
+                French Window                                                                      2,676                                             21,759
+                Single Bay Window                                                                  1,655                                             10,301
+                Folding Door                                                                           -                                              7,750
+                Double Door                                                                           72                                                350
+
+
+
+summarized in Tab. 8, the dataset contains a massive number of doors and
+windows with different styles and functionalities. This includes standard single
+doors, sliding doors, French windows, and various types of bay windows. The
+presence of these elements across 10,000 scenes provides challenging cases for
+identifying boundaries and understanding spatial connectivity.
+Scene Complexity. The average number of rooms per scene is 9.48 for the
+Real subset and 9.61 for the Synthetic subset, demonstrating the large scale
+and complexity of the captured environments. On average, each scene contains
+24.2 (Real) to 30.5 (Synthetic) unique viewpoints, providing dense multi-view
+coverage essential for robust 3D reconstruction. Furthermore, while all synthetic
+scenes are single-story, the Real subset includes 8.3% multi-story environments
+(up to 3 floors), adding another layer of vertical spatial complexity.
+
+
+
+B    Reference View Label Production
+
+To enable the network to learn and select better reference views, we generate
+supervised ground-truth through the following steps. For any image pair ⟨Ii , Ij ⟩
+(i, j ∈ {1, 2, . . . , N }), cij represents the co-visible pixel count calculated from
+relative pose and depth, and P represents the total pixel count of a single image.
+The covisibility scores are computed via reprojection with depth-buffer checking,
+the visualization of the covisibility mask is illustrated in Fig. 9. The covisibility
+                                  c
+score is defined as: sij = Pij . Then we construct a dissimilarity matrix M ∈
+RN ×N , where the higher the degree of common visibility between an image
+pair, the closer their distance is deemed to be. Thus, the covisibility score sij
+is converted to a distance mij with zero diagonal (a view has zero connectivity
+cost to itself) as:
+
+                                 m_{ij} = \begin {cases} \frac {1}{s_{ij} + \epsilon } & , i \neq j \\ 0 & , i = j \end {cases} \label {eq:d_ij}              (10)
+4         Xi Li et al.
+
+
+
+
+    Covis Mask
+    score: 0.116
+
+
+
+
+    Dilate Mask
+    score: 0.618
+
+
+
+Fig. 9: Visualization of Masks Computed from Depth and Pose for Covis-
+ibility Scores. We also dilate LiDAR-warped masks to alleviate sparsity and align
+real-synthetic score distribution.
+
+
+where ϵ is a small constant to avoid division by zero. The dissimilarity matrix
+M is:
+
+
+                                                     \mathbf {M} = \begin {bmatrix} 0 & m_{12} & \cdots & m_{1N} \\ m_{21} & 0 & \cdots & m_{2N} \\ \vdots & \vdots & \ddots & \vdots \\ m_{N1} & m_{N2} & \cdots & 0 \end {bmatrix} \label {eq:M_matrix}    (11)
+
+
+To quantify the minimum connectivity cost between all pairs of views, we apply
+Dijkstra’s algorithm [22] to the dissimilarity matrix M to compute a shortest
+path matrix P ∈ RN ×N . We employ Dijkstra’s algorithm instead of the standard
+Floyd-Warshall algorithm, since our graph is sparse and Dijkstra’s method yields
+higher computational efficiency. We initialize P(0) = M, where P(t) denotes the
+shortest path matrix at iteration t (up to N iterations, the total number of
+               (t)
+frames), and pij is the tentative shortest path length from view i to view j at
+                                                               N ×N
+iteration t. We also define a binary visited mask V ∈ {0, 1}         initialized to
+all zeros, where vij = 1 indicates that the shortest path from view i to view j
+has been determined. For each iteration t, we first identify the unvisited view ui
+with the minimum tentative distance from each source view i:
+
+                                                             u_i = \mathop {\arg \min }_{j \in \{1,2,\dots ,N\}, \, v_{ij}=0} p_{ij}^{(t)} \label {eq:u_i}                                                                                                   (12)
+
+We then mark ui as visited for source view i (viui = 1) and update the tentative
+shortest paths via the relaxation: for all target views j, the new path length pass
+ui is compared with the current tentative length, retaining the smaller value.
+
+                     p_{ij}^{(t+1)} = \min \left (p_{ij}^{(t)}, p_{iu_i}^{(t)} + m_{u_i j}\right ), \quad \forall j \in \{1,2,\dots ,N\} \label {eq:p_ij}                                                                                                    (13)
+
+The iteration terminates early if all nodes are visited (i.e., V = 1) or if no
+reachable unvisited nodes remain (all tentative distances are infinite). The final
+                  Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes                                                                                                                5
+
+           Table 9: Monocular Depth Estimation Results on Realsee3D.
+
+                                                                             Real                                                                                Synthetic
+  Alignment         Method
+                                    AbsRel↓            δ1 ↑                    δ2 ↑                RMSE↓ MAE↓ AbsRel↓                                        δ1 ↑   δ2 ↑   RMSE↓ MAE↓
+
+                 PanDA [11]          0.352          7.20 44.98                                        0.845                       0.519              0.347    8.32 47.06     0.494   0.379
+                  DAC [31]           0.185         15.80 73.81                                        0.632                       0.288              0.249   12.14 66.42     0.394   0.264
+                   DAP [53]          0.460          5.23 35.79                                        1.209                       0.718              0.113   39.96 91.03     0.328   0.163
+                 DA360 [38]          0.077         59.47 92.59                                        0.740                       0.177              0.048   75.67 98.19     0.273   0.059
+                 UniK3D [65]         0.097         30.30 93.41                                        0.534                       0.175              0.143   26.60 88.40     0.240   0.137
+  IRLS
+                   DA2 [48]          0.109         42.98 89.89                                        0.598                       0.215              0.143   38.62 89.07     0.285   0.158
+                VGGT360 [84]         0.057         56.35 95.80                                        0.458                       0.133              0.029   81.72 98.66     0.165   0.043
+              MapAnything360 [45]    0.066         49.24 95.28                                        0.442                       0.135              0.037   71.59 98.50     0.151   0.048
+                  π 3 360 [91]       0.059         53.17 95.48                                        0.466                       0.142              0.037   72.61 98.00     0.208   0.061
+                      Ours           0.053         63.34 96.27                                        0.412                       0.114              0.020   89.82 98.96     0.144   0.031
+
+                 PanDA [11]          0.409          5.23 36.95                                        1.158                       0.723              0.390    5.53 38.61     0.809   0.568
+                  DAC [31]           0.183         14.42 73.44                                        0.647                       0.299              0.213   12.59 67.76     0.451   0.281
+                   DAP [53]          0.422          5.61 37.12                                        1.231                       0.710              0.132   37.38 90.60     0.353   0.181
+                 DA360 [38]          0.123         49.01 91.54                                        1.002                       0.227              0.054   74.09 98.33     0.374   0.073
+                 UniK3D [65]         0.107         26.52 91.99                                        0.545                       0.193              0.139   24.50 87.04     0.266   0.156
+  Median
+                   DA2 [48]          0.126         36.65 89.08                                        0.622                       0.239              0.150   36.84 88.59     0.311   0.178
+                VGGT360 [84]         0.063         50.03 95.61                                        0.461                       0.143              0.034   80.02 98.65     0.168   0.047
+              MapAnything360 [45]    0.069         45.90 95.45                                        0.456                       0.144              0.040   69.73 98.50     0.157   0.053
+                  π 3 360 [91]       0.065         47.68 95.20                                        0.469                       0.152              0.038   70.89 97.98     0.212   0.065
+                      Ours           0.055         59.72 96.39                                        0.418                       0.119              0.022   89.02 98.96     0.145   0.033
+
+                  DAC [31]           0.312          6.61 55.40                                        0.702                       0.419              0.668    3.43 36.14     0.571   0.501
+                 UniK3D [65]         0.314          0.96 42.54                                        0.787                       0.513              0.623    0.10 17.01     0.735   0.604
+  Metric
+              MapAnything360 [45]    0.119          9.00 91.85                                        0.497                       0.230              0.119    6.35 97.87     0.219   0.141
+                    Ours             0.057         55.61 96.33                                        0.420                       0.122              0.043   89.53 98.93     0.145   0.031
+
+
+
+
+shortest path matrix is defined as: P = P(T ) , where T is the number of iterations
+until termination. The element pij in P thus represents the minimum distance
+(connectivity cost) from view i to view j across all possible paths in the covisi-
+bility graph. Finally, we select the reference view index I with the smallest total
+shortest path distance (highest global covisibility connectivity), denoted as:
+
+
+                                           \mathcal {I} = \mathop {\arg \min }_{i \in \{1,\ldots ,N\}} \sum _{j=1}^N p_{ij} \label {eq:ref_index}                                      (14)
+
+
+
+
+C     More Experiments
+
+C.1        Monocular Depth Estimation
+
+We further evaluate Argus on monocular depth estimation for both the real-
+world and synthetic subsets of Realsee3D. All methods are evaluated with their
+largest model weights. As shown in Tab. 9, Argus achieves the best overall per-
+formance across both subsets, consistently improving over strong multi-view ge-
+ometry baselines such as VGGT360 and MapAnything360. Notably, our gains
+are most pronounced on the synthetic subset, where the accurate metric pre-
+diction and globally consistent geometry produced by Argus lead to lower Ab-
+sRel/RMSE and higher δ accuracies. These results indicate that Argus not only
+recovers reliable camera poses at the scene level, but also produces high-quality
+per-view depth that benefits downstream reconstruction.
+6        Xi Li et al.
+
+
+
+
+        Matterport3D 17DRP5sb8fy                 Stanford2D3D area_3 office_2          Structured3D scene_00000
+
+               Fig. 10: Zero-Shot Reconstruction on Unseen Datasets.
+
+                  Table 10: Zero-Shot Monocular Depth Estimation.
+
+                                          Matterport3D [12]                     Stanford2D3D [5]
+      Alignment     Method
+                                AbsRel↓   δ1 ↑   δ2 ↑   RMSE↓ MAE↓ AbsRel↓      δ1 ↑   δ2 ↑   RMSE↓ MAE↓
+
+                  PanDA [11]     0.372     6.00 39.33   0.891   0.681   0.323    8.24 48.84   0.778   0.533
+                   DAC [31]      0.202    13.18 69.89   0.612   0.400   0.188   15.18 74.90   0.592   0.323
+                   DAP [53]      0.440     4.98 34.77   1.321   0.912   0.250   12.45 64.14   1.007   0.531
+      IRLS        DA360 [38]     0.106    45.50 91.56   1.183   0.269   0.064   60.23 95.98   0.588   0.143
+                  UniK3D [65]    0.100    27.37 92.52   0.424   0.202   0.072   42.34 96.78   0.347   0.131
+                   DA2 [48]      0.085    38.59 94.09   0.532   0.199   0.071   38.39 96.59   0.381   0.142
+                     Ours        0.082    41.77 92.54   0.460   0.215   0.072   49.69 95.30   0.427   0.157
+
+                  PanDA [11]     0.432     4.85 34.08   1.655   0.891   0.346    6.97 45.29   1.022   0.672
+                   DAC [31]      0.186    13.19 71.41   0.665   0.414   0.179   14.85 75.49   0.619   0.330
+                   DAP [53]      0.397     5.47 37.02   1.362   0.901   0.249   11.70 64.25   1.045   0.548
+      Median      DA360 [38]     0.257    41.72 93.57   3.300   0.539   0.101   56.39 95.99   0.770   0.166
+                  UniK3D [65]    0.106    24.79 91.38   0.440   0.219   0.075   38.73 96.39   0.355   0.142
+                   DA2 [48]      0.089    36.51 93.64   0.549   0.214   0.073   36.07 96.36   0.391   0.151
+                     Ours        0.085    38.18 92.28   0.478   0.231   0.074   44.86 95.06   0.433   0.162
+
+                   DAC [31]      0.306     9.31 53.45   0.772   0.561   0.251   10.26 65.47   0.615   0.389
+      Metric      UniK3D [65]    0.243     3.44 63.50   0.643   0.447   0.181    4.24 85.22   0.499   0.331
+                     Ours        0.165    14.05 78.66   0.736   0.504   0.103   25.29 92.04   0.494   0.235
+
+
+
+
+C.2    Zero-Shot Performance
+We further test the zero-shot generalization of Argus on two mainstream in-
+door benchmarks, Matterport3D [12] and Stanford2D3D [5]. As summarized in
+Tab. 10, Argus delivers strong monocular depth performance on both datasets,
+is competitive with specialized panoramic depth baselines, and holds a notable
+performance lead in most metric depth evaluation, demonstrating robust cross-
+dataset transfer.
+    To further validate generalization, we run inference on scenes from Matter-
+port3D [12], Stanford2D3D [5], and Structured3D [103]—none of which are used
+for training. As shown in Fig. 10, Argus produces consistent and accurate recon-
+structions across diverse unseen datasets.
+
+C.3    Training Data Ablation
+The synthetic-to-real split of Realsee3D is set to 9:1, an empirically balanced
+ratio. Synthetic data boosts model accuracy, while real data strengthens gener-
+alization. To further dissect their individual contributions, we conduct ablation
+experiments training solely on real or synthetic data, as summarized in Tab. 11.
+Experiments verify the complementary effects of real and synthetic data. No-
+tably, training solely on real data yields slightly better AbsRel than the full
+mixed dataset. We attribute this counterintuitive observation to two factors: the
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes          7
+
+          Table 11: Training Data Ablation Results on Realsee3D.
+
+                                    Real                Synthetic
+            Method
+                            AbsRel↓ Acc.↓ ATE↓ AbsRel↓ Acc.↓ ATE↓
+            Full           0.050 0.056 0.096 0.035 0.020 0.027
+            Real Only      0.047 0.060 0.099 0.289 0.171 0.796
+            Synthetic Only 0.092 0.156 0.473 0.044 0.021 0.049
+
+Table 12: ATE Evaluation of Scalability of Covisibility Module on Real
+Subset.
+
+      # Image Number                 <20           20∼30            >30
+      without reference view learning 0.092        0.138        0.233
+      with reference view learning    0.082 (-11%) 0.087 (-37%) 0.152 (-35%)
+
+
+
+limited volume of real scenes introduces overfitting risks, and real captures con-
+tain sparse depth signals alongside prominent noise and artifacts such as camera
+calibration inaccuracies. Thus, we argue that evaluation on the synthetic subset
+delivers more stable results.
+
+C.4    Scalability of Covisibility Module
+We further analyze the scalability of the Covisibility Module by evaluating ATE
+on real-world scenes grouped by viewpoint count, with results presented in
+Tab. 12. As scene scale grows (from fewer than 20 views to more than 30),
+the ATE without reference view learning degrades sharply (0.092→0.233), indi-
+cating that naive first-frame anchoring becomes increasingly fragile with more
+viewpoints due to accumulated drift. In contrast, the covisibility-guided refer-
+ence selection maintains substantially lower error across all scales. The relative
+improvement is most pronounced in the 20∼30 range (37% ATE reduction),
+which closely matches the average viewpoint count per scene in our dataset and
+represents the typical operating regime. For scenes with more than 30 view-
+points, the absolute gain remains large, yet the relative improvement is slightly
+smaller (35%), as accumulated drift from distant viewpoints inevitably degrades
+pose accuracy even with an optimally chosen reference frame. This demonstrates
+that our lightweight covisibility module is particularly effective within the typical
+scene scale and generalizes well to larger environments.
+
+
+D     More Visualization
+D.1    Distribution of Covisibility Scores
+We take scene_00530 in Fig. 5 as an example to visualize the effectiveness of
+reference view learning. In part (a) in Fig. 11, we visualize the covisibility among
+ 8                                 Xi Li et al.
+
+
+
+
+                        (a) Covisibility Matrix                                                           (b) Ground-Truth Score                                                         (c) Prediction Score
+
+ Fig. 11: Visualization of the Covisibility Adjacency Matrix, Ground-Truth
+ and Predicted Global Covisibility Scores.
+
+                                                                        Covisibility Scores: Permutation-Equivariance Verification
+                                                                                                                                                                                                 Shuffled Input Order
+                                       Original Input Order                                                         Shuffled Input Order                                              (scores remapped to original view indices)
+                      0.25                                                                         0.25                                                                        0.25
+Global Covisibility
+
+
+
+
+                                                                             Global Covisibility
+
+
+
+
+                                                                                                                                                         Global Covisibility
+                      0.20                                                                         0.20                                                                        0.20
+
+                      0.15                                                                         0.15                                                                        0.15
+
+                      0.10                                                                         0.10                                                                        0.10
+
+                      0.05                                                                         0.05                                                                        0.05
+
+                      0.00                                                                         0.00                                                                        0.00
+                               0   1   2   3     4   5      6   7   8    9                                  8   1   5   0     7   2      9   4   3   6                                   0   1   2   3     4   5      6   7   8   9
+                                               View Index                                                                   View Index                                                                   View Index
+
+
+                             Fig. 12: Verification of Covisibility Score Permutation Equivariance.
+
+
+
+ all 21 viewpoints in the scene as an adjacency matrix, where darker colors indi-
+ cate stronger covisibility. In (b) and (c), we report the global covisibility scores
+ of each viewpoint, computed from the ground-truth (GT) and predicted by our
+ network, respectively. We observe that Argus successfully learns the overall dis-
+ tribution of the GT scores. Interestingly, the predicted best reference viewpoint
+ is number 3, which corresponds to the second-best choice under the GT rank-
+ ing. This suggests that the network does not need to identify the exact optimal
+ view; selecting a reasonably good reference from unordered inputs is sufficient to
+ substantially improve reconstruction robustness. Furthermore, our Covisibility
+ Module exhibits permutation equivariance. As illustrated in Fig. 12, randomly
+ shuffling the order of input images barely affects the selection of reference frame.
+
+
+ E                            More Discussions
+
+ E.1                               Why Panoramas.
+
+ As illustrated in Fig. 13, panoramic images deliver superior field-of-view cov-
+ erage for 3D reconstruction compared with perspective images. We split each
+ panorama into five overlapping perspective views as input to VGGT-Ω [85], a
+ recent SOTA perspective-based model. For identical scenes, our method yields
+ faster, more complete, and more accurate reconstructions with metric scale.
+              Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes             9
+
+
+
+
+       ...                                         ...
+                  155 perspective images, ~ 43 s         31 panoramic images, ~ 3 s
+
+                 VGGT-Ω                                     Ours
+
+Fig. 13: Perspective and Panoramic 3D Reconstruction. Evaluated on a single
+RTX 3090 GPU.
+
+
+
+E.2   Metric Scale Normalization Factor.
+
+We set s=10 to normalize the majority of depth values to the interval [0,1]. The
+depth distribution is visualized in Fig. 8. For bounded indoor scenes from the
+Realsee3D dataset, our fixed normalization scheme achieves faster convergence
+and superior accuracy compared to the per-scene distance normalization adopted
+by MapAnything [45]. While the per-scene normalization strategy may offer
+stronger generalization for highly diverse scenes, we are unable to verify this
+claim given the limited scale of our current dataset.
+
+
+E.3   Model Simplicity versus Overcomplete Supervision.
+
+There exists a natural trade-off between architectural simplicity and the richness
+of supervisory signals. With sufficient training data and model capacity, simpler
+architectures with fewer prediction heads can achieve strong performance by
+relying on implicit geometric reasoning. However, when data and model scales
+are relatively limited, as in the current Realsee3D dataset and Argus model,
+explicitly adding multiple prediction heads to supervise intermediate geometric
+representations provides complementary gradient pathways that facilitate multi-
+task learning and improve overall reconstruction accuracy. Our ablation studies
+confirm that these additional heads yield consistent gains under this regime. Al-
+though the extra heads increase training-time computation, they can be disabled
+at inference time with zero additional overhead, making overcomplete supervi-
+sion a cost-effective strategy that trades moderate extra training resources for
+meaningful accuracy improvements.
+
+
+E.4   Cropping Panorama Poles.
+
+We crop the top and bottom 15% of each ERP panorama. On one hand, the
+corresponding polar pixels in the real subset of our Realsee3D dataset are in-
+complete due to limited camera field of view, these areas are typically masked,
+blurred with Gaussian circles, or filled with reflective artifacts. On the other
+hand, this 30% pixel region incurs heavy computational overhead yet covers an
+10     Xi Li et al.
+
+
+
+
+                        Fig. 14: Failure Cases of Argus.
+
+
+extremely narrow field of view, leading to poor computational efficiency. Miss-
+ing point clouds from these cropped regions can be easily complemented using
+adjacent views or simple plane fitting.
+
+E.5   Limitations
+Due to the scarcity of outdoor datasets, our model exhibits suboptimal perfor-
+mance in outdoor and aerial scenarios, and this limitation will be progressively
+mitigated with the acquisition of additional datasets. Moreover, current meth-
+ods fail to realize arbitrary-scale reconstruction due to inherent computational
+resource limits for cases with thousands or tens of thousands of panoramic im-
+ages, and scale-agnostic reconstruction therefore represents a highly promising
+research avenue. One promising approach is to construct a hierarchical system
+via retrieval-driven pre-grouping, executing feed-forward reconstruction and re-
+sult re-aggregation independently in each group. Our Covisibility Transformer
+can be naturally extended to support this functionality, all while maintaining
+the lightweight, end-to-end nature of our reconstruction pipeline.
+
+E.6   Failure Cases
+Our method performs stably in typical indoor real estate scenarios. But as shown
+in Fig. 14, Argus tends to fail in large-scale environments with sparse viewpoints,
+low texture, and a large number of images, such as massive conference halls,
+outdoor parks, and empty factory buildings.
+
+E.7   Future Work
+Looking ahead, we will extend Argus to a unified single-model framework that
+supports multimodal prior inputs, flexible supervision signals, and multi-task
+outputs including 3DGS reconstruction, floor plan generation, semantic or in-
+stance segmentation, object detection, and feature matching, unlocking its po-
+tential for a wider spectrum of real-world applications. Concurrently, we will keep
+curating and annotating high-quality panoramic 3D datasets covering diverse
+scenarios to advance follow-up research in the panoramic 3D vision community.
+

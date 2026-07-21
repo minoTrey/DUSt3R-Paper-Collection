@@ -1,0 +1,656 @@
+                                                   4DVGGT-D: 4D Visual Geometry Transformer with
+                                                        Improved Dynamic Depth Estimation
+
+                                         Ying Zang4,∗ , Xuanyi Liu2,∗ , Yidong Han4,∗ , Deyi Ji1 , Chaotao Ding1 , Yuanqi Hu1 , Qi
+                                              Zhu5 , Xuanfu Li6 , Jin Ma6 , Lingyun Sun3 , Tianrun Chen1,3,† , Lanyun Zhu7
+arXiv:2605.12027v1 [cs.CV] 12 May 2026
+
+
+
+
+                                             1
+                                                 KOKONI 3D, Moxin Technology, 2 Peking University, 3 Zhejiang University, 4 Huzhou University,
+                                                      5
+                                                        Univeristy of Science and Technology of China, 6 Huawei, 7 Tongji University
+                                                                                 ∗
+                                                                                     Equal Contribution, † Project Lead
+
+
+                                                                                               Abstract
+                                                   Reconstructing dynamic 4D scenes from monocular videos is a fundamental yet challenging task.
+                                                   While recent 3D foundation models provide strong geometric priors, their performance significantly
+                                                   degrades in dynamic environments. This degradation stems from a fundamental tension: the
+                                                   inherent coupling of camera ego-motion and object motion within global attention mechanisms. In
+                                                   this paper, we propose a novel, training-free progressive decoupling framework that disentangles
+                                                   dynamics from statics in a principled, coarse-to-fine manner. Our core insight is to resolve the
+                                                   tension by first stabilizing the camera pose, followed by geometric refinement. Specifically, our
+                                                   approach consists of three synergistic components: (1) a Dynamic-Mask-Guided Pose Decoupling
+                                                   module that isolates pose estimation from dynamic interference, yielding a stable motion-free
+                                                   reference frame; (2) a Topological Subspace Surgery mechanism that orthogonally decomposes the
+                                                   depth manifold, safely preserving dynamic objects while injecting refined, mask-aware geometry into
+                                                   static regions; and (3) an Information-Theoretic Confidence-Aware Fusion strategy that formulates
+                                                   depth integration as a heteroscedastic Bayesian inference problem, adaptively blending multi-pass
+                                                   predictions via inverse-variance weighting. Extensive experiments on standard 4D reconstruction
+                                                   benchmarks demonstrate that our method achieves consistent and substantial improvements across
+                                                   principal point-cloud metrics. Notably, our approach shows competitive performance in robust
+                                                   4D scene reconstruction without requiring fine-tuning, suggesting the potential of mathematically
+                                                   grounded dynamic-static disentanglement.
+
+                                                   Correspondence: Deyi Ji, Tianrun Chen, Lanyun Zhu
+
+
+
+
+                                         1        Introduction
+                                         Despite recent advances in feedforward 3D estimation of static scenes from image sets [13, 20, 22], extending
+                                         these remarkable capabilities to dynamic environments, scenes where objects or people undergo motion or
+                                         deformation, remains a significant challenge. In particular, the Visual Geometry Grounded Transformer
+                                         (VGGT)[20] has emerged as a cornerstone in this domain. By leveraging a unified transformer architecture
+                                         that jointly predicts camera poses, depth maps, and point correspondences via alternating intra-frame and
+                                         cross-frame global attention, VGGT achieves unprecedented zero-shot generalization in static environments.
+                                           1 We thank Jianyuan Wang for his insightful discussions. We acknowledge the support from Hisilicon, the ZJU Kunpeng &
+
+                                         Ascend Center of Excellence, and the Dream Set Off - Kunpeng & Ascend Seed Program.
+
+
+
+                                                                                                    1
+                                                      VGGT Transformer Backbone                                            Dynamic Mask Refinement in 3D
+
+                                                                                                                 Mask-Guided
+                                      Patch                                                                                                      Cross-Head 3D
+                                                             Frame-attention                                    Pose Stabilization
+                                    Embedding                                                                                                   Consistency Gating
+                                                                                Alternating Frame &
+                                    Camera Token                               Global Attention Blocks
+                                                            Global-attention
+                                                                                                             Suppressed    Coarse Binary
+                                                                                                             Foreground    Dynamic Mask                      Point-Head    Refined Dynamic
+                                                                                                                                             Depth-Projected Predicted
+                                                                                                                                              World Points World Points          Mask
+                                                                                                                 Static-Region
+                                    Register Tokens         Frame-attention        Motion Cue Mining           Confidence Fusion
+                  Patch Embedding
+
+
+
+
+                                                                                                                                                    Comparsion /
+                                                                                                                                                Disagreement Analysis
+                                                            Global-attention
+
+                                                             Middle layers             Cue-fusion
+
+                                                                   …
+                                    Patch Tokens                                   -6 -4 -2 T +2 +4 +6                                                                      Camera Trajectory
+                                                                                                                             Static-Region
+    Input Video                                               Deep layers          -6 -4 -2 T +2 +4 +6                            Gate             Consistency
+     Sequence                                                                            Offsets                                                   Gating / Filter
+                                                             Frame-attention
+                                                                                      Q/K Attention
+
+                                                            Global-attention                  …
+                                       Token                                                                  Photometric
+                                       Grids                 Frame-attention      Reference       Neighbor   Inconsistency
+                                                                                                                          Early-Stage
+                                                                                  Suppress Dynamic                                                                        4D Scene Visualization
+                                                                                                                           Feedback
+                                                                                  Tokens in K-V path
+
+Figure 1 Overview of the proposed progressive decoupling framework. Given an input video sequence, the VGGT
+backbone extracts features while the Motion Cue Mining module generates an initial dynamic mask. To resolve the
+tension between pose and geometry, the Mask-Guided Pose Stabilization module filters dynamic tokens to establish a
+motion-free static reference frame. Subsequently, Topological Subspace Surgery and Static-Region Confidence Fusion
+adaptively blend multi-pass depth predictions based on heteroscedastic uncertainty, yielding a refined dynamic mask
+and robust 4D scene reconstruction.
+
+
+While VGGT demonstrates strong performance in static scene understanding, its accuracy drops significantly
+when applied to dynamic environments. This limitation stems from a fundamental tension: motion provides
+valuable cues for geometry estimation in dynamic scenarios, yet simultaneously introduces noise that corrupts
+camera pose estimation by violating the static epipolar constraint[30]. In other words, the very signals that
+enable reconstructing dynamic objects are also those that hinder reliable pose recovery.
+A common strategy for handling such dynamic scenarios is to decompose the problem into a series of sub-
+modules, such as depth estimation, optical flow computation, and object tracking [7, 11? ]. While this modular
+approach simplifies the task by disentangling different components, it often results in increased computational
+cost and error accumulation across sequential stages. Given the limitations of modular pipelines, developing
+unified methods offers a more effective solution. Yet, creating such models typically requires capturing complex
+spatiotemporal relationships across frames and demands notable computational resources as well as access
+to large-scale dynamic datasets with ground-truth geometry [21, 24]. Recent adaptations like VGGT4D [8]
+attempt to mitigate this by mining motion cues directly from pretrained attention layers without fine-tuning.
+However, a more principled, multi-stage decoupling is required to fully resolve the geometric conflicts in 4D
+scenes.
+Motivated by these challenges, we present a unified and efficient training-free framework for robust 4D scene
+reconstruction. To address the limited availability of labeled dynamic data and the high cost of optimization,
+we build on the pretrained 3D foundation model VGGT and adapt it to dynamic scenarios without any
+fine-tuning. Recognizing the inherent conflict between pose and geometry, our central idea is to explicitly
+disentangle their effects. Rather than attempting to correct both in a single pass, we propose a progressive
+decoupling approach guided by a simple yet powerful philosophy: first stabilize the camera, then stabilize the
+geometry.
+To achieve this, we first introduce a Dynamic-Mask-Guided Pose Decoupling module. This step identifies
+dynamic regions and filters them out using a key-suppression mechanism. By strictly preventing dynamic
+content from polluting the global context, we deliberately prioritize global trajectory consistency over local
+relative smoothness. This conscious trade-off successfully yields a motion-free Riemannian reference frame
+that serves as a vastly superior foundation for dense 3D geometry. Once the camera is stabilized, we shift our
+
+
+                                                                                          2
+focus to refining the scene geometry. To optimally integrate multi-pass predictions, we employ a Topological
+Subspace Surgery mechanism alongside an Information-Theoretic Confidence-Aware Fusion strategy. This
+principled design allows us to harness mask-aware geometry where it benefits static background grounding,
+while conservatively preserving the structural integrity of dynamic pixels. With this progressive formulation,
+our method achieves accurate pose and geometry estimation for both static and dynamic content in challenging
+scenarios.
+Through extensive experiments, our progressive decoupling framework establishes new state-of-the-art perfor-
+mance across multiple point-cloud metrics on the DyCheck benchmark. For instance, compared to the strong
+VGGT4D baseline [8], it reduces the Distance Mean from 0.0646 to 0.0516 and improves the Completeness
+Mean from 0.0962 to 0.0751. Notably, thanks to its training-free, plug-in design, our approach adds only a
+negligible overhead in runtime compared to the base model. This work makes the following key contributions:
+    • We propose a training-free, progressive decoupling framework for robust 4D scene reconstruction, which
+      achieves state-of-the-art results on dynamic geometry perception benchmarks without requiring any
+      fine-tuning.
+    • We introduce a Dynamic-Mask-Guided Pose Decoupling module that explicitly disentangles pose esti-
+      mation from dynamic interference. By projecting the camera estimation onto a motion-free Riemannian
+      submanifold of SE(3), it anchors a globally consistent static reference frame for subsequent geometric
+      refinement.
+    • We design a Topological Subspace Surgery mechanism and an Information-Theoretic Confidence-Aware
+      Fusion strategy. By formulating depth integration as a heteroscedastic Bayesian inference problem, our
+      method adaptively blends multi-pass predictions via inverse-variance weighting, maximizing geometric
+      fidelity for both static and dynamic regions.
+
+2   Related Work
+3D Foundation Models. The advent of feed-forward 3D foundation models has significantly accelerated
+pose-free dense reconstruction. DUSt3R [22] pioneered this paradigm by predicting dense pointmaps from
+image pairs via pairwise cross-attention. MASt3R [13] strengthened correspondence quality, and Reloc3R [4]
+directly regressed 6-DoF poses for sharper camera estimation. However, pairwise inputs make inference cost
+grow quadratically with sequence length. To lift this constraint, multi-image variants introduce memory
+encoders [2, 19] and subgraph fusion [15] to aggregate context without exhaustive pairing. VGGT [20] and
+Fast3R [25] further employ global attention for cross-view reasoning, while MV-DUSt3R+ [18] couples such
+priors with 3D Gaussian Splatting [10] for end-to-end reconstruction from sparse views. Recent follow-ups push
+beyond these methods with unified dense-geometry prediction [5], causal streaming for long sequences [12],
+and training-free token-merging acceleration [17]. Despite their success, these models are predominantly
+trained under static-scene assumptions and lack an explicit mechanism to disentangle moving objects.
+4D Scene Reconstruction. Traditional 4D reconstruction methods often rely on joint optimization of depth,
+pose, and residual motion, utilizing self-supervised photometric losses or test-time bundle adjustment (e.g.,
+Robust-CVD [11], CasualSAM [29]). More recent pipelines such as MegaSaM [14] achieve robust poses by
+leveraging strong monocular depth priors, while Uni4D [26] integrates multiple visual foundation models with
+multi-stage bundle adjustment. These approaches are effective but hinge on heavy test-time optimization,
+which limits scalability. Recent learning-based approaches aim to reduce optimization overhead: MonST3R [27]
+fine-tunes on dynamic data and leverages optical flow priors; DAS3R [24] augments a DPT head for feed-
+forward motion masking; CUT3R [21] fine-tunes MASt3R on mixed static/dynamic data; PAGE-4D [30]
+introduces a dynamics-aware aggregator to explicitly disentangle pose and geometry estimation; Easi3R [3]
+proposes a training-free adaptation for DUSt3R by analyzing attention statistics, but its pairwise nature limits
+temporal consistency. SpatialTrackerV2 [23] and POMATO [28] explore efficient feed-forward architectures but
+still require training on dynamic datasets. Our work builds upon the insight that global attention inherently
+encodes motion, but we fundamentally differ by proposing a multi-stage, progressive decoupling mechanism
+that explicitly isolates pose estimation from geometric refinement, achieving superior results without any
+fine-tuning.
+
+
+                                                       3
+Uncertainty-Aware Depth Estimation. Modeling uncertainty in depth prediction has been explored in both
+monocular [9, 16] and multi-view settings [1]. These works typically predict a per-pixel variance alongside
+depth, enabling downstream tasks to weight predictions by their reliability. Our confidence-aware fusion
+extends this principle to the multi-pass setting, where two depth estimates with distinct noise characteristics
+must be optimally combined.
+
+3     Method
+Given a monocular video sequence X = {It }N t=1 containing dynamic objects, our goal is to estimate the camera
+extrinsics {Et }N
+                t=1 and reconstruct a dense 4D point cloud. We build upon a pretrained 3D foundation model
+Φθ , and adapt it to dynamic scenes without fine-tuning.
+Our framework performs two forward passes. The first pass applies the original model to obtain initial depth
+maps D(1) , confidence maps C (1) , camera poses, and attention-derived dynamic masks. The second pass
+suppresses dynamic tokens in early attention layers and produces pose-stabilized extrinsics Ẽ, depth maps D̃,
+and confidence maps C. ˜ Finally, we preserve the first-pass depth in dynamic regions and fuse the two depth
+estimates in static regions according to confidence. The overall design follows a simple principle: first reduce
+dynamic interference for camera estimation, then refine geometry using both passes.
+
+3.1   Preliminary: VGGT and Attention-Based Dynamic Cues
+Our framework is instantiated on the Visual Geometry Grounded Transformer (VGGT) [20], a pretrained 3D
+foundation model that jointly predicts camera poses, depth maps, and point correspondences. VGGT flattens
+input images into token sequences and processes them with alternating intra-frame and cross-frame global
+attention layers. This design is effective for static scenes, but in dynamic scenes the same global attention can
+mix camera ego-motion with object motion, leading to inaccurate pose and geometry estimates.
+Following recent training-free adaptations such as VGGT4D [8], we extract dynamic cues from the pretrained
+attention layers. Let Ql , Kl ∈ RNtok ×d denote the query and key matrices at layer l. For a reference frame r
+and a source frame s, we compute the normalized Gram similarities:
+
+                                            Ql,r Q⊤
+                                                  l,s                         Kl,r K⊤
+                                                                                    l,s
+                               GQQ
+                                l,r,s =                  ,       GKK
+                                                                  l,r,s =                  .                  (1)
+                                          ∥Ql,r ∥∥Ql,s ∥                    ∥Kl,r ∥∥Kl,s ∥
+
+These similarities are aggregated across selected layers and temporal neighbors to produce an initial dynamic
+saliency map Mdyn ∈ [0, 1]H×W . Pixels with high saliency are likely to belong to independently moving
+regions. We use this mask not as a final segmentation result, but as a cue for separating pose estimation from
+dynamic geometry reconstruction.
+
+3.2   Pose--Geometry Conflict in Dynamic Scenes
+We first describe the conflict caused by object motion. Under the standard static-scene assumption, the
+correspondence between a reference pixel xr and a target pixel xt is determined by the camera intrinsics K,
+reference depth Dr (xr ), and relative pose [Rt←r | tt←r ]:
+
+                                     xt = K Rt←r Dr (xr )K−1 xr + tt←r .                                 (2)
+                                                                      
+
+
+This leads to the epipolar constraint:
+
+                                         x̃⊤
+                                           t Ex̃r = 0,   E = [tt←r ]× Rt←r ,                                  (3)
+
+where x̃r and x̃t are homogeneous pixel coordinates.
+In a dynamic scene, an independently moving point introduces an additional displacement term. A simplified
+correspondence can be written as:
+
+                           xt = K Rt←r Dr (xr )K−1 xr + tt←r + ∆Xt←r (xr ) ,                           (4)
+                                                                           
+
+
+
+                                                             4
+where ∆Xt←r denotes the 3D displacement caused by object motion. This displacement violates the static
+epipolar constraint and produces a non-zero residual:
+                                                              1
+                                    δ(xr ) ≡ x̃⊤
+                                               t Ex̃r ≈          n(xr )⊤ ∆X⊥ (xr ),                            (5)
+                                                              Zr
+where n(xr ) is the unit normal of the epipolar line and ∆X⊥ is the component of the dynamic displacement
+perpendicular to that line [30].
+This creates a practical tension. Camera pose estimation benefits from suppressing dynamic regions because
+they violate static correspondence assumptions. In contrast, geometry reconstruction should preserve dynamic
+regions because they are part of the target 4D scene. Treating both objectives in a single unmodified forward
+pass can therefore mix two incompatible signals. Our method addresses this by first estimating a more stable
+camera frame from static regions, and then reconstructing geometry with a region-aware fusion strategy.
+
+3.3   Dynamic-Mask-Guided Pose Decoupling
+Let T = {Tt }N
+             t=1 denote the camera-to-world transformations, with each Tt ∈ SE(3). In a standard dense
+correspondence formulation, pose estimation can be viewed as minimizing a global geometric loss:
+                                                              N Z
+                                                              X
+                                   T ∗ = arg        min                 Lgeo (p, Tt ) dp,                      (6)
+                                                  T ∈SE(3)N         Ω
+                                                              t=1
+
+where Ω is the image domain. In dynamic scenes, pixels on moving objects contribute motion-inconsistent
+correspondences to this objective. Ideally, pose estimation should rely more on static regions:
+                                            N Z
+                                            X
+                                 J (T ) =              (1 − Mdyn (p)) Lgeo (p, Tt ) dp.                        (7)
+                                            t=1    Ω
+
+
+Instead of solving Eq. equation 7 through test-time optimization, we approximate this static-region bias with
+a mask-aware forward pass. Specifically, for early attention layers, we suppress the key vectors of tokens
+predicted as dynamic:                   (
+                                         0,       Mdyn (p) ≥ τ and l ≤ Lmask ,
+                              K̂l (p) =                                                                   (8)
+                                         Kl (p), otherwise.
+Here, τ is the dynamic-mask threshold and Lmask controls the number of early layers where suppression is
+applied. This operation reduces the influence of dynamic regions when global context is aggregated, making
+the predicted camera trajectory more dependent on static correspondences.
+The mask-aware pass outputs pose-stabilized extrinsics Ẽ = {Ẽt }N
+                                                                  t=1 , depth maps D̃ = {D̃t }t=1 , and confidence
+                                                                                              N
+
+maps C = {C̃t }t=1 . We use Ẽ as the camera reference for the subsequent reconstruction stage. However, since
+      ˜        N
+
+dynamic tokens are suppressed in this pass, its depth predictions in moving regions may be less reliable. This
+motivates the region-aware depth construction below.
+
+3.4   Region-Aware Depth Construction
+A simple solution would be to directly adopt the mask-aware depth D̃. This is undesirable because the second
+pass is optimized for pose stabilization and suppresses dynamic tokens. As a result, its predictions in moving
+regions can lose object details. We therefore combine the two passes according to the dynamic mask.
+We define the static and dynamic regions as:
+
+                                 S = {p ∈ Ω | Mdyn (p) < τ },              Ddyn = Ω \ S.                       (9)
+
+Let ΠS and ΠDdyn denote restriction operators that keep values only in the corresponding regions. Since these
+two regions have disjoint support, the depth map can be decomposed into static and dynamic parts:
+
+                                             D3a = ΠDdyn D(1) + ΠS D̃.                                       (10)
+
+
+                                                              5
+Equivalently, at each pixel:
+                                   D3a (p) = 1Ddyn (p)D(1) (p) + 1S (p)D̃(p).                               (11)
+This construction preserves the first-pass geometry in dynamic regions while using the pose-stabilized
+prediction in static regions. It provides a simple region-aware baseline, but the hard boundary may introduce
+discontinuities near object borders and may propagate local errors from the second pass inside static regions.
+We address this with confidence-aware fusion.
+
+3.5     Confidence-Aware Depth Fusion
+We further refine the static-region depth by fusing the two predictions according to their confidence. At each
+pixel, we model the two depth estimates as noisy observations of the same latent depth d⋆ (p):
+
+                        D(i) (p) = d⋆ (p) + ϵi (p), ϵi (p) ∼ N 0, σi2 (p) , i ∈ {1, 2},                    (12)
+                                                                         
+
+
+where D(2) = D̃. We interpret the confidence maps as proportional to inverse variance:
+
+                                     σ1−2 (p) ∝ C (1) (p),   σ2−2 (p) ∝ C(p).
+                                                                        ˜                                   (13)
+
+Assuming the two observations are conditionally independent given d⋆ (p), the maximum-likelihood estimate
+is obtained by minimizing the weighted squared error:
+                                                      2         (i)
+                                                                       2
+                                      ˆ
+                                                     X   d − D      (p)
+                                      d(p) = arg min                      .                                 (14)
+                                                  d
+                                                     i=1
+                                                            2σi2 (p)
+
+This gives the inverse-variance weighted estimator:
+
+                                    ˆ     σ −2 (p)D(1) (p) + σ2−2 (p)D̃(p)
+                                    d(p) = 1                               .                                (15)
+                                                 σ1−2 (p) + σ2−2 (p)
+
+Using confidence as precision, this can be written as:
+                                   ˆ
+                                   d(p) = (1 − W(p)) D(1) (p) + W(p)D̃(p),                                  (16)
+
+where
+                                                             ˜
+                                                             C(p)
+                                         W(p) =                         .                                   (17)
+                                                                ˜
+                                                    C (1) (p) + C(p) +ϵ
+Here, ϵ is a small constant for numerical stability. The weight W increases when the mask-aware pass is more
+confident and decreases when the first pass is more reliable.
+The final depth is defined by applying confidence-aware fusion in the static region and preserving the first-pass
+depth in the dynamic region:
+                                     (
+                                       D(1) (p),                            p ∈ Ddyn ,
+                           D3b (p) =                                                                         (18)
+                                       (1 − W(p)) D(1) (p) + W(p)D̃(p), p ∈ S.
+
+
+This fusion can also be interpreted through Fisher information. For a Gaussian observation with variance σ 2 ,
+the Fisher information with respect to the mean is σ −2 . Therefore, Eq. equation 15 weights each depth estimate
+according to its relative information under the Gaussian noise model. Under the conditional-independence
+approximation, the fused precision is:
+                                −2
+                               σfused (p) = σ1−2 (p) + σ2−2 (p) ∝ C (1) (p) + C(p).
+                                                                              ˜                             (19)
+
+This suggests that the fused estimate can reduce posterior uncertainty when the confidence maps are well
+calibrated.
+
+
+                                                         6
+Table 1 Quantitative comparison on the DyCheck dataset. We report point cloud reconstruction metrics (Accuracy,
+Completeness, Distance) and camera pose estimation metrics (ATE, RTE, RRE). All metrics are distance-based (lower
+is better). Our method achieves the best performance on principal point cloud geometric metrics, demonstrating the
+effectiveness of our progressive decoupling framework.
+
+
+                               Accuracy ↓       Completeness ↓        Distance ↓          Pose Estimation
+    Method
+                             Mean      Med.     Mean         Med.   Mean     Med.     ATE ↓    RTE ↓    RRE ↓
+    Easi3RDUSt3R [3]         0.0700   0.0440    0.0600   0.0330     0.1940   0.1320   0.0220   0.0090   0.8060
+    Easi3RMonST3R [3]        0.1000   0.0500    0.1210   0.0820     0.2890   0.2700   0.0320   0.0080   1.0750
+    MonST3R [27]             0.0900   0.0330    0.1130   0.0640     0.2790   0.2340   0.0380   0.0100   1.1720
+    POMATO [28]              0.9600   0.9500    0.8140   0.7760     1.4840   1.4340   0.1280   0.0270   3.6480
+    SpatialTrackerV2 [23]    0.1150   0.0640    0.0520   0.0260     0.4210   0.3040   0.0110   0.0060   0.3470
+    DAS3R [24]               0.1920   0.1420    0.2500   0.1080     0.4280   0.3360   0.0520   0.0120   1.5600
+    CUT3R [21]               0.0730   0.0540    0.1330   0.0490     0.3280   0.2240   0.0360   0.0130   0.8600
+    Baseline (VGGT4D) [8]    0.0331   0.0222    0.0962   0.0628     0.0646   0.0425   0.0183   0.0100   0.3450
+    Ours                     0.0280   0.0188    0.0751   0.0528     0.0516   0.0358   0.0142   0.0114   0.4406
+
+
+4     Experiments
+4.1    Experimental Setup
+Datasets and Metrics. Following the evaluation protocol established by prior work [6, 8], we assess our method
+on the DyCheck [6] dataset, which provides challenging dynamic sequences with ground-truth point clouds
+and camera trajectories. To comprehensively evaluate the quality of the 4D reconstruction, we employ the
+standard 3D point cloud metrics: Accuracy (Mean and Median), Completeness (Mean and Median), and
+Distance (Mean and Median), all of which are distance-based (lower is better). We also report Absolute
+Trajectory Error (ATE), Relative Translation Error (RTE), and Relative Rotation Error (RRE) for camera
+pose evaluation.
+Baselines. We compare against a comprehensive set of state-of-the-art methods, including Easi3R [3],
+MonST3R [27], DAS3R [24], CUT3R [21], SpatialTrackerV2 [23], POMATO [28], and our primary baseline
+VGGT4D [8].
+Implementation Details. We use the pretrained VGGT model as the backbone without any fine-tuning. The
+masking depth Lmask is set to 5, and the dynamic threshold τ is determined via Otsu’s algorithm. The
+regularization constant ϵ is set to 10−6 .
+
+4.2    Comparison with State-of-the-Art Methods
+Table 1 presents a comprehensive comparison with state-of-the-art methods on the DyCheck dataset. Our
+method achieves the best performance across the principal point cloud reconstruction geometric metrics.
+Compared to our strong baseline (VGGT4D), we reduce the Accuracy Mean by 15.4% (0.0331 → 0.0280),
+Completeness Mean by 21.9% (0.0962 → 0.0751), and Distance Mean by 20.1% (0.0646 → 0.0516).
+We explicitly acknowledge that while our method significantly improves the geometric fidelity of the recon-
+structed 3D point cloud, it does not achieve universal monotonicity across all pose metrics. Specifically,
+the Relative Translation Error (RTE) and Relative Rotation Error (RRE) exhibit variance and degradation
+compared to the baseline. This aligns with the fundamental tension discussed in Section 3.2: fully decoupling
+dynamics to stabilize the background geometry can involve trade-offs in continuous pose tracking. However,
+since the ultimate goal of dense 4D reconstruction is the structural integrity of the scene, the substantial
+enhancement in point cloud geometry validates our progressive decoupling approach.
+To provide a more intuitive understanding of our performance improvements, we present qualitative comparisons
+in and Figure 2 and Figure 3 .
+
+
+
+                                                         7
+            Input
+
+
+
+
+           DAS3R
+
+
+
+
+           Easi3R
+
+
+
+
+           MonSTR
+             3R
+
+
+
+            VGGT
+             4D
+
+
+            Ours
+
+
+
+
+Figure 2 Qualitative comparison of dynamic region tracking and scene reconstruction on the DyCheck dataset.
+Compared to state-of-the-art methods such as DAS3R, Easi3R, MonST3R, and the VGGT4D baseline, our approach
+more accurately isolates dynamic objects from the static background. Red boxes highlight areas where our progressive
+decoupling effectively reduces motion artifacts and preserves the structural integrity of complex dynamic entities.
+
+                                             GT                 Baseline            Ours
+
+
+
+
+Figure 3 Visual comparison of reconstructed scene geometry. We compare the ground truth (GT) geometry against
+the baseline and our proposed method. By explicitly disentangling statics from dynamics, our approach effectively
+suppresses dynamic noise and recovers more complete and accurate object structures that closely match the ground
+truth references.
+
+
+
+
+                                                         8
+Figure 2 further highlights the geometric fidelity of our reconstructions compared to the VGGT4D baseline
+and the ground truth. The baseline method exhibits noticeable distortions around moving elements because
+its global attention mechanism inherently couples object motion with camera ego-motion. Our approach
+mitigates this issue through topological subspace surgery and confidence-aware fusion. As demonstrated in
+the visualizations, our method not only recovers sharp and accurate boundaries for dynamic objects but also
+maintains a smooth and continuous representation of the static background. This visual evidence strongly
+aligns with our quantitative gains and confirms the robustness of our mathematical formulation for dynamic
+and static disentanglement.
+Figure 3 illustrates the dynamic region segmentation and scene visualization across multiple challenging
+sequences. State-of-the-art baselines often struggle with severe motion interference, leading to incomplete
+object boundaries and noisy background artifacts. In contrast, our progressive decoupling framework effectively
+isolates dynamic entities. By establishing a stable static reference frame, our method prevents moving objects
+from corrupting the surrounding geometry.
+
+4.3   Ablation Study
+Impact of Pose Decoupling. Implementing the mask-guided pose decoupling alone yields the most significant
+geometric improvement, reducing the Accuracy Mean by 14.8%, Completeness Mean by 19.0%, and Distance
+Mean by 17.8%. Furthermore, this module improves the global Absolute Trajectory Error (ATE) by 22.4%.
+However, we observe an increase in Relative Translation Error (RTE) and Relative Rotation Error (RRE)
+compared to the baseline. This reflects a fundamental trade-off in dynamic scene perception. Explicitly filtering
+out dynamic regions successfully anchors the camera to a stable global environment, but it momentarily
+sacrifices the local signals used for relative frame-to-frame smoothness. This confirms our central hypothesis
+that establishing a globally superior static reference frame is the critical prerequisite for high-fidelity geometric
+reconstruction, even at the cost of short-term relative pose variance.
+Impact of Topological Subspace Surgery. Adding the hard static replacement further refines the reconstruction,
+with additional reductions across all three principal metrics. The Accuracy Mean drops from 0.0282 to 0.0280,
+and the Distance Mean from 0.0531 to 0.0528. While these gains are more modest, they confirm that the
+topological surgery successfully prevents dynamic noise from corrupting the background geometry. As expected,
+the camera pose metrics remain largely unchanged during this geometry-focused stage.
+
+Table 2 Ablation study on the DyCheck dataset. We progressively add each component and observe consistent
+improvement in the principal point cloud metrics (Acc Mean, Comp Mean, Dist Mean).
+
+
+                                 Accuracy        Completeness        Distance                          Pose Estimation
+       Configuration
+                                  Mean ↓            Mean ↓            Mean ↓            ATE ↓              RTE ↓            RRE ↓
+       Baseline (VGGT4D)           0.0331            0.0962            0.0646            0.0183            0.0100            0.3450
+       + Pose Decoupling       0.0282 (↓14.8%)   0.0779 (↓19.0%)   0.0531 (↓17.8%)   0.0142 (↓22.4%)   0.0133 (↑33.0%)   0.5184 (↑50.3%)
+       + Hard Replacement      0.0280 (↓0.7%)    0.0775 (↓0.5%)    0.0528 (↓0.6%)        0.0142            0.0133        0.5181 (↓0.6%)
+       + Conf. Fusion (Ours)      0.0280         0.0751 (↓3.1%)    0.0516 (↓2.3%)        0.0142        0.0114 (↓14.3%)   0.4406 (↓15.0%)
+
+
+Impact of Confidence-Aware Fusion. Our final model, incorporating the information-theoretic confidence-
+aware fusion, achieves the best overall performance. It attains the lowest Completeness Mean (0.0751, a
+3.1% reduction over the hard replacement variant) and Distance Mean (0.0516, a 2.3% reduction). By
+adaptively blending the multi-pass predictions based on uncertainty, the model smooths out localized errors
+that were rigidly preserved in the hard replacement variant. Additionally, this probabilistic formulation
+exhibits a positive regularizing effect on the overall trajectory evaluation, partially recovering RTE and RRE
+by 14.3% and 15.0% respectively compared to the preceding steps. The consistent improvement across all
+stages validates our progressive decoupling design. It demonstrates that exchanging a slight drop in relative
+pose smoothness for significant gains in global trajectory correctness and dense geometric fidelity is a highly
+effective strategy for 4D reconstruction.
+
+
+
+
+                                                                     9
+5   Conclusion
+In this paper, we presented a novel, training-free progressive decoupling framework for robust 4D scene
+reconstruction. By recognizing the fundamental tension between camera pose estimation and geometry
+modeling in dynamic scenes, we proposed a principled paradigm: stabilize the camera first, then stabilize
+the geometry. Through our Dynamic-Mask-Guided Pose Decoupling, Topological Subspace Surgery, and
+Information-Theoretic Confidence-Aware Fusion, we effectively isolate motion interference and optimally
+blend multi-pass geometric predictions. The mathematical formulation grounds our approach in the theory of
+Riemannian manifolds, orthogonal projections on Hilbert spaces, and Bayesian inference under heteroscedastic
+noise. Extensive evaluations demonstrate that our approach consistently improves the principal 3D point cloud
+geometric metrics over existing baselines. Our findings underscore the importance of explicit dynamic-static
+disentanglement and provide a principled mathematical foundation for adapting 3D foundation models to
+complex 4D environments.
+
+References
+ [1] Gwangbin Bae, Ignas Budvytis, and Roberto Cipolla. Estimating and exploiting the aleatoric uncertainty in
+     surface normal estimation. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages
+     13137–13146, 2021.
+ [2] Yohann Cabon, Lucas Stoffl, Leonid Antsfeld, Gabriela Csurka, Boris Chidlovskii, Jerome Revaud, and Vincent
+     Leroy. Must3r: Multi-view network for stereo 3d reconstruction. In Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition, pages 1050–1060, 2025.
+ [3] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and Anpei Chen. Easi3r: Estimating disentangled motion
+     from dust3r without training. In Proceedings of the IEEE/CVF International Conference on Computer Vision,
+     pages 9158–9168, 2025.
+ [4] Siyan Dong, Shuzhe Wang, Shaohui Liu, Lulu Cai, Qingnan Fan, Juho Kannala, and Yanchao Yang. Reloc3r:
+     Large-scale training of relative camera pose regression for generalizable, fast, and accurate visual localization. In
+     Proceedings of the Computer Vision and Pattern Recognition Conference, pages 16739–16752, 2025.
+ [5] Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang,
+     Xiaokang Yang, Yichao Yan, and Chengfei Lyu. Dens3r: A foundation model for 3d geometry prediction. arXiv
+     preprint arXiv:2507.16290, 2025.
+ [6] Hang Gao, Ruilong Li, Shubham Tulsiani, Bryan Russell, and Angjoo Kanazawa. Monocular dynamic view
+     synthesis: A reality check. Advances in Neural Information Processing Systems, 35:33768–33780, 2022.
+ [7] Lily Goli, Sara Sabour, Mark Matthews, Marcus A Brubaker, Dmitry Lagun, Alec Jacobson, David J Fleet,
+     Saurabh Saxena, and Andrea Tagliasacchi. Romo: Robust motion segmentation improves structure from motion.
+     In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 6155–6164, 2025.
+ [8] Yu Hu, Chong Cheng, Sicheng Yu, Xiaoyang Guo, and Hao Wang. Vggt4d: Mining motion cues in visual geometry
+     transformers for 4d scene reconstruction. arXiv preprint arXiv:2511.19971, 2025.
+ [9] Alex Kendall and Yarin Gal. What uncertainties do we need in bayesian deep learning for computer vision?
+     Advances in neural information processing systems, 30, 2017.
+[10] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, and George Drettakis. 3d gaussian splatting for real-time
+     radiance field rendering. ACM Trans. Graph., 42(4):139–1, 2023.
+[11] Johannes Kopf, Xuejian Rong, and Jia-Bin Huang. Robust consistent video depth estimation. In Proceedings of
+     the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 1611–1621, 2021.
+[12] Yushi Lan, Yihang Luo, Fangzhou Hong, Shangchen Zhou, Honghua Chen, Zhaoyang Lyu, Shuai Yang, Bo Dai,
+     Chen Change Loy, and Xingang Pan. Stream3r: Scalable sequential 3d reconstruction with causal transformer.
+     arXiv preprint arXiv:2508.10893, 2025.
+[13] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Grounding image matching in 3d with mast3r. In European
+     conference on computer vision, pages 71–91. Springer, 2024.
+
+
+
+
+                                                           10
+[14] Zhengqi Li, Richard Tucker, Forrester Cole, Qianqian Wang, Linyi Jin, Vickie Ye, Angjoo Kanazawa, Aleksander
+     Holynski, and Noah Snavely. Megasam: Accurate, fast and robust structure and motion from casual dynamic videos.
+     In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 10486–10496,
+     2025.
+[15] Yuzheng Liu, Siyan Dong, Shuzhe Wang, Yingda Yin, Yanchao Yang, Qingnan Fan, and Baoquan Chen. Slam3r:
+     Real-time dense scene reconstruction from monocular rgb videos. In Proceedings of the Computer Vision and
+     Pattern Recognition Conference, pages 16651–16662, 2025.
+[16] Matteo Poggi, Filippo Aleotti, Fabio Tosi, and Stefano Mattoccia. On the uncertainty of self-supervised monocular
+     depth estimation. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     3227–3237, 2020.
+[17] You Shen, Zhipeng Zhang, Yansong Qu, Xiawu Zheng, Jiayi Ji, Shengchuan Zhang, and Liujuan Cao. Fastvggt:
+     Training-free acceleration of visual geometry transformer. arXiv preprint arXiv:2509.02560, 2025.
+[18] Zhenggang Tang, Yuchen Fan, Dilin Wang, Hongyu Xu, Rakesh Ranjan, Alexander Schwing, and Zhicheng Yan.
+     Mv-dust3r+: Single-stage scene reconstruction from sparse views in 2 seconds. In Proceedings of the Computer
+     Vision and Pattern Recognition Conference, pages 5283–5293, 2025.
+[19] Hengyi Wang and Lourdes Agapito. 3d reconstruction with spatial memory. In 2025 International Conference on
+     3D Vision (3DV), pages 78–89. IEEE, 2025.
+[20] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 5294–5306, 2025.
+[21] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous 3d percep-
+     tion model with persistent state. In Proceedings of the Computer Vision and Pattern Recognition Conference,
+     pages 10510–10522, 2025.
+[22] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d
+     vision made easy. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     20697–20709, 2024.
+[23] Yuxi Xiao, Jianyuan Wang, Nan Xue, Nikita Karaev, Yuri Makarov, Bingyi Kang, Xing Zhu, Hujun Bao, Yujun
+     Shen, and Xiaowei Zhou. Spatialtrackerv2: 3d point tracking made easy. arXiv preprint arXiv:2507.12462, 2025.
+[24] Kai Xu, Tze Ho Elden Tse, Jizong Peng, and Angela Yao. Das3r: Dynamics-aware gaussian splatting for static
+     scene reconstruction. arXiv preprint arXiv:2412.19584, 2024.
+[25] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier,
+     and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass. In Proceedings of the
+     Computer Vision and Pattern Recognition Conference, pages 21924–21935, 2025.
+[26] David Yifan Yao, Albert J Zhai, and Shenlong Wang. Uni4d: Unifying visual foundation models for 4d modeling
+     from a single video. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 1116–1126,
+     2025.
+[27] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Forrester Cole, Deqing Sun, and Ming-Hsuan Yang.
+     Monst3r: A simple approach for estimating geometry in the presence of motion. In International Conference on
+     Learning Representations, volume 2025, pages 82863–82886, 2025.
+[28] Songyan Zhang, Yongtao Ge, Jinyuan Tian, Guangkai Xu, Hao Chen, Chen Lv, and Chunhua Shen. Pomato:
+     Marrying pointmap matching with temporal motions for dynamic 3d reconstruction. In Proceedings of the
+     IEEE/CVF International Conference on Computer Vision, pages 5680–5689, 2025.
+[29] Zhoutong Zhang, Forrester Cole, Zhengqi Li, Michael Rubinstein, Noah Snavely, and William T Freeman. Structure
+     and motion from casual videos. In European Conference on Computer Vision, pages 20–37. Springer, 2022.
+[30] Kaichen Zhou, Yuhan Wang, Grace Chen, Xinhai Chang, Gaspard Beaudouin, Fangneng Zhan, Paul Pu Liang,
+     and Mengyu Wang. Page-4d: Disentangled pose and geometry estimation for vggt-4d perception. arXiv preprint
+     arXiv:2510.17568, 2025.
+
+
+
+
+                                                         11
+

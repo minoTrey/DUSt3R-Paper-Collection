@@ -1,0 +1,631 @@
+                                         JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                         i
+
+
+
+
+                                         ScaRF-SLAM: Scale-Consistent Reconstruction with
+                                          Feed-Forward Models and Classical Visual SLAM
+                                                                            Yuhao Zhang, Yifu Tao, Frank Dellaert, and Maurice Fallon
+
+
+
+
+                                            Abstract—Recent works have explored unifying SLAM with ge-               LiDAR Scans →
+                                         ometric foundation models (GFMs). However, directly using GFM
+                                         predictions for tracking is highly sensitive to model capability
+                                         and uncertainty, as geometric inaccuracies in the predictions can
+                                         adversely affect pose estimation. To address this limitation, we
+arXiv:2606.00307v1 [cs.RO] 29 May 2026
+
+
+
+
+                                         present a decoupled framework that integrates classical feature-
+                                         based SLAM with GFMs, which achieves higher quality and more
+                                         consistent dense reconstruction. In brief, we use classical visual
+                                         SLAM for robust low-latency tracking and use GFMs exclusively
+                                         for mapping. By anchoring mapping to poses produced by the
+                                         SLAM module and optimizing across depth scales, the proposed
+                                         design avoids propagating inaccuracies from GFM predictions
+                                         into pose estimation while imposing geometric constraints on the
+                                         reconstruction. The system builds submaps from multiple posed
+                                                                                                                                                                        Dataset Device →
+                                         keyframes and enforces scale consistency via lightweight frame
+                                         and submap scale optimization. It also performs projection-based
+                                         point cloud fusion within each submap, and updates submaps
+                                         online to reflect trajectory updates from the feature-based SLAM.
+                                         To evaluate tracking and reconstruction of our method, we
+                                         introduce a loop-rich, building-scale indoor dataset with accurate           SLAM System
+                                                                                                                                         Loop Closed
+                                                                                                                                                            Global Map Update
+                                         sensor trajectories and LiDAR ground-truth. Experiments show                                     Trajectory
+                                         that our approach achieves superior trajectory accuracy while                                                         Submap
+                                         improving reconstruction precision by 10%–20% over existing
+                                         methods, with about 2 cm reconstruction error per 10 m chunk on                                               Submap Scale Correction
+                                         building-scale dataset. On large-scale outdoor datasets, it attains         Posed Key- Frames
+                                                                                                                                                               Submap
+                                         10 cm error per 30 m chunk (w.r.t LiDAR ground-truth models).
+                                            Code and dataset: github.com/ori-drs/ScaRF-SLAM                                GFM           Depth    Frame Scale Correction & Fusion
+
+                                           Index Terms—Dense SLAM, visual mapping, geometric foun-                   Fig. 1: Top: A consistent two-floor dense reconstruction produced
+                                         dation models.                                                              by our mapping module, including rooms visited multiple times.
+                                                                                                                     Ground-truth poses are used as the SLAM system’s output. The map
+                                                                  I. I NTRODUCTION                                   is aligned to registered LiDAR scans to demonstrate its detail and
+                                                                                                                     accuracy. Bottom: The reconstruction pipeline.
+                                            Simultaneous Localization and Mapping (SLAM) has been
+                                         extensively studied in robotics and has reached a high level                leverage large-scale training and transformer-based architec-
+                                         of maturity. Classical visual SLAM systems provide accurate                 tures to infer consistent multi-view depth, offering a promising
+                                         and robust state estimation, while supporting a wide range                  alternative to purely geometric methods. A key innovation in
+                                         of sensing configurations, including monocular, stereo, and                 DA3 and other similar models is the capacity to take camera
+                                         visual-inertial [1]. These systems are highly optimized and                 intrinsics and poses as auxiliary inputs. This enables more
+                                         reliable in real-world deployments. However, they typically                 explicit geometric conditioning and consistent reconstruction.
+                                         produce sparse or semi-dense map representations. To obtain
+                                                                                                                        Despite recent progress, developing performant SLAM sys-
+                                         high-quality dense reconstructions, active sensors such as
+                                                                                                                     tems with GFMs remains challenging. Most existing ap-
+                                         depth cameras or LiDARs are often required.
+                                                                                                                     proaches tightly couple tracking and mapping within a unified
+                                            More recently, advances in feed-forward geometric foun-
+                                                                                                                     GFM-based pipeline [3], [4], [5]. Such designs are inherently
+                                         dation models (GFMs) have enabled the prediction of dense
+                                                                                                                     sensitive to the quality of GFM predictions, and we observe
+                                         geometry from images. Models such as DepthAnything3 [2]
+                                                                                                                     that prediction quality depends on the number of input views
+                                            This project has been partly funded by the National Research Founda-     and viewpoint diversity: fewer input views typically degrade
+                                         tion of Korea (NRF) grant funded by the Korea government (MSIT)(No.         geometric accuracy (Table V and IV), while more views incur
+                                         RS-2024-00461409) and by the UKRI Project Mobile Robotic Inspector          larger GPU memory usage and latency.
+                                         (EP/Z531212/1).
+                                            Yuhao Zhang, Yifu Tao, and Maurice Fallon are with the Oxford               Although some fully GFM-based SLAM methods report
+                                         Robotics Institute, University of Oxford, OX1 2JD Oxford, UK (e-mail:       improved tracking over classical ones (e.g., monocular ORB-
+                                         yuhao@robots.ox.ac.uk; yifu@robots.ox.ac.uk; mfallon@robots.ox.ac.uk).
+                                            Frank Dellaert is with the College of Computing, Georgia Institute of    SLAM3) on certain benchmarks [6], [7], we attribute this to
+                                         Technology, Atlanta, GA 30332 USA (e-mail: frank.dellaert@cc.gatech.edu).   dataset bias: these datasets are small-scale and lack proper
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                          ii
+
+
+
+initialization, which is critical for classical monocular meth-     mization framework. It supports a diverse range of sensor
+ods. We show that when evaluated on datasets with suitable          configurations including monocular, stereo, RGB-D, and IMU.
+initialization (e.g., EuRoC [8]), classical visual SLAM still       Visual–inertial odometry systems such as OpenVINS [10]
+achieves higher tracking accuracy (Section V-A). Furthermore,       provide efficient and consistent state estimation by fusing point
+incorporating additional sensing modality [4] or more ad-           features with gyroscope and accelerometer measurements, and
+vanced camera configurations (e.g., fisheye, multi-camera) into     can be extended to full SLAM systems with pose graph opti-
+these tightly coupled GFM-based SLAM requires development           mization and loop closure. Moreover, mature frameworks such
+of alternative architectures. This makes it difficult to leverage   as Maplab [11] enable large-scale, multi-session mapping, map
+the maturity and modularity of existing SLAM frameworks.            reuse, and collaborative workflows, highlighting the scalability
+   In this work, we take a different approach and introduce         and ecosystem maturity of feature-based SLAM.
+ScaRF-SLAM (Scale-Consistent Reconstruction with Feed-                 Collectively, these systems demonstrate the flexibility and
+Forward Models), a decoupled framework that combines clas-          robustness of sparse feature-based representations across di-
+sical feature-based SLAM and GFMs in a complementary                verse sensing configurations, but they do not produce dense
+manner. Instead of relying on GFMs for state estimation,            3D reconstructions.
+we leverage the maturity of classical SLAM that supports
+diverse modalities (e.g., visual-inertial), camera rigs (e.g.,      B. Dense SLAM and Mapping
+multi-camera), and camera models (e.g., fisheye) for tracking,         Dense SLAM methods aim to reconstruct full scene geom-
+while using GFMs for dense mapping only. The key idea is            etry. Many systems rely on active depth measurements from
+to anchor the mapping process using the SLAM poses and              range sensors. Early systems such as KinectFusion [12] and
+optimize the reconstruction on top of them. This design avoids      ElasticFusion [13] demonstrated real-time dense reconstruc-
+inaccurate GFM predictions propagating into tracking errors,        tion via TSDF or surfel fusion. To relax this dependency,
+while still benefiting from the dense GFM reconstructions.          subsequent works explored monocular dense reconstruction
+   Our system operates by grouping posed keyframes into             using learned depth. CodeSLAM [14] introduced a compact
+small batches and feeding them into a GFM for depth predic-         learned depth representation jointly optimized with camera
+tion to construct submaps. We then enforce scale consistency        poses. While effective, it tightly couples geometry with pose
+using a lightweight multi-view optimization at both inter-          optimization in a latent space, limiting flexibility and making
+frame and inter-submap level, and carry out a local point           it difficult to adapt to large-scale settings.
+cloud fusion step before updating the global map. Notably, this        More recent works instead leverage SLAM-derived geomet-
+framework is robust to GFM performance degradation under            ric priors to guide depth prediction. SimpleMapping [15] uses
+small input image batch sizes, making it well suited for online     ORB-SLAM3 poses and sparse landmarks to guide multi-view
+and resource constrained scenarios (Table IV).                      stereo networks, while OKVIS2-X [16], [17] exploits visual-
+   The main contributions are summarized as follows:                inertial pose estimates for uncertainty-aware depth fusion and
+   • A practical decoupled GFM-based mapping framework
+                                                                    tightly coupled with a factor-graph SLAM backend. These
+      that integrates consistently with existing feature-based      approaches reflected a growing trend of integrating learned
+      SLAM systems. It preserves the accurate, low-latency          depth with classical SLAM before the emergence of GFMs.
+      pose estimation and sensor re-configurability of classical       While they typically integrate the results into volumetric
+      SLAM systems, while fully leveraging the intrinsic and        representations with probabilistic sensor fusion to suppress
+      pose input modes of recent GFMs to achieve high-quality       noise in the estimated depths, our method operates directly
+      dense reconstruction from passive vision.                     on point clouds. It performs lightweight scale optimization
+   • An efficient scale correction and point cloud fusion
+                                                                    constrained by fixed SLAM poses to enforce geometric consis-
+      mechanism that achieves globally consistent reconstruc-       tency. This design enables a more memory-efficient and scal-
+      tion for sequences of any length and is robust to GFM         able mapping framework while preserving geometric accuracy.
+      performance degradation under small input batch sizes.        C. GFM-enabled SLAM
+   • A high-quality indoor mapping dataset with accurate
+      trajectories and ground-truth point clouds, designed to          Recently developed GFMs can provide strong priors for
+      evaluate building-scale reconstruction.                       dense geometry estimation when provided with multi-view
+   • Evaluation of the system on real-world data captured with
+                                                                    monocular inputs. Models such as MASt3R [18], VGGT [19],
+      handheld device and robotic platform.                         MapAnything [20], and DepthAnything3 [2] predict dense
+                                                                    depth and geometry-aware representations with strong cross-
+                      II. R ELATED W ORK                            scene generalization. These models are GPU-memory inten-
+                                                                    sive and thus support only small batch sizes on memory-
+A. Feature-based SLAM                                               constrained device; therefore, works such as VGGT-Long [21]
+  Classical feature-based SLAM methods estimate camera              and LASER [22] introduce temporal chunking and align
+motion and reconstruct the environment by tracking sparse           chunks under Sim(3) to process longer sequences.
+keypoints and enforcing geometric consistency over time [1].           Building on these advances, several methods integrate
+For instance, ORB-SLAM3 [9] achieves robust performance             GFMs into full SLAM pipelines. MASt3R-SLAM [3] builds a
+with modular components for tightly coupled tracking, local         real-time dense SLAM pipeline upon the two-view 3D recon-
+mapping, and loop closure within a keyframe-based opti-             struction priors of MASt3R, using dense pointmap predictions
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                       iii
+
+
+
+and learned correspondences for camera tracking, loop closure,
+and Sim(3) optimization. Similarly, ViSTA-SLAM [23] uses
+a symmetric two-view model within a pose graph framework.
+Submap-based approaches such as VGGT-SLAM2 [5] con-
+struct local multi-view submaps from GFM predictions and
+align them via intra- and inter-submap optimization. MASt3R-
+                                                                     Perturbed Scales               Feature Matching       Optimized Scales
+Fusion [4] further extends this line of work by incorporating
+additional sensor modalities, such as IMU and GNSS.               Fig. 2: Frame-scale optimization. For illustration purposes, depth
+   Despite promising performance, integrating GFMs into           scales are randomly perturbed before optimization. After feature
+                                                                  matching, the optimization yields consistent scales across frames.
+SLAM pipelines typically entails substantial engineering ef-
+fort, particularly when extending to auxiliary sensing modal-     use wide-FoV fisheye cameras to achieve robust tracking in
+ities [4], and remains challenging in more advanced settings      confined spaces, yet current GFMs are primarily trained on
+such as multi-session operation, multi-camera rigs, and fisheye   rectified pinhole images with limited FoV.
+cameras. Moreover, these methods rely on aligning dense
+predictions that are not strictly geometrically accurate and      A. Notation and Preliminary
+consistent, requiring high-dimensional optimization. In con-         In this paper, matrices and vectors are denoted by bold
+trast, our method adopts a decoupled design that leverages        symbols (e.g., I), while sets are represented in calligraphic
+GFMs solely for mapping, simplifying map optimization to          font (e.g., I). A submap consists of a set of frames I, with
+scale estimation and enforcing geometric constraints derived      associated image data I, intrinsics K, poses T, depth maps D,
+from mature feature-based SLAM upon the learned geometry.         and confidence maps C. We use subscripts to denote frame
+                                                                  indices and superscripts to denote submap indices; i.e., Iij
+                      III. M ETHODOLOGY                           denotes the i-th frame of the j-th submap S j .
+   An overview of the proposed framework is shown in Fig. 1.         We adopt DepthAnything3 (DA3) [2] as our geometric
+Input images are processed by a classical SLAM system,            foundation model. Given a batch of images I from frames
+which provides instantaneous pose estimates. We group recent      I, along with optional camera intrinsics K and poses T, DA3
+posed keyframes into a batch, rectify them to pinhole images,     predicts per-frame dense depth maps D and confidence maps
+and feed to a GFM for depth prediction. Each batch defines        C. When camera poses are provided, DA3 aligns its internally
+a submap. We enforce scale consistency via frame-level opti-      predicted poses to the input T via a Sim(3) transformation and
+mization within each submap and submap-level optimization         scales D accordingly, then explicitly overwrites the predicted
+between submaps, both anchored to the SLAM poses. The             intrinsics and poses with the input K and T.
+map is also updated online to reflect trajectory changes in the   B. Frame-Level Scale Optimization
+SLAM system caused by loop closures.
+                                                                     Once DA3 predicts depth maps D and confidence maps C
+   Our decoupled design offers three key advantages. First,
+                                                                  for frames I, we first discard depth values with confidence
+anchoring dense mapping to accurate SLAM poses enables the
+                                                                  below a threshold and back-project the remaining pixels to
+framework to achieve globally consistent reconstruction even
+                                                                  obtain a point cloud P. Although P may visually appear to
+with degraded GFM performance under small batch sizes (Sec-
+                                                                  be geometrically consistent due to DA3 capability, it is more
+tion V-B). Unlike methods that optimize Sim(3) alignment on
+                                                                  properly described as a prior than a measurement.
+GFM predictions, our method is fully anchored to the feature-
+                                                                     To achieve better scale consistency within each submap,
+based SLAM poses and only optimizes depth scales. This is
+                                                                  we introduce a per-frame scale variable si ∈ R+ for each
+motivated by the observation that depth predictions of GFMs
+                                                                  frame Ii , and optimize these variables using sparse feature
+are not fully geometrically accurate, even up to scale [22].
+                                                                  correspondences. For each image pair (Ii , Ij ), we obtain
+Consequently, Sim(3) optimization over these predictions is
+                                                                  sparse matches Mij using LightGlue [24] with geometric
+highly sensitive to GFM uncertainty and capability.
+                                                                  verification, then we back-project matched pixels into 3D
+   Second, it avoids the reconstruction quality and tracking
+                                                                  points via π −1 (·; Ki ). The scale variables are then estimated
+latency trade-off inherent to fully GFM-based SLAM: larger
+                                                                  by minimizing the L2 distance between matched 3D points
+input batches improve prediction quality through greater view-
+                                                                  across all frames of the batch using GTSAM [25]:
+point diversity but increase latency, making integration with             X        X
+                                                                                              Ti si π −1 (ui , Di (ui ); Ki )
+                                                                                                                             
+robotic systems less practical. In contrast, our framework           min
+                                                                     {si }
+preserves high-frequency, low-latency tracking with feature-                 (i,j) (ui ,uj )∈Mij
+based SLAM, while only dense mapping runs asynchronously                                                                                2
+                                                                                                   − Tj sj π −1 (uj , Dj (uj ); Kj )
+                                                                                                                                    
+at slightly higher latency. Moreover, the SLAM poses also                                                                                   ,
+                                                                                                                                        2
+provide strong priors that can improve GFM predictions when       where Ti and Tj denote the poses of frames Ii and Ij ,
+exploiting the pose input option of recent models [2].            respectively, as given by the underlying SLAM system. A
+   Third, it naturally leverages the maturity of classical SLAM   visualization is shown in Fig. 2.
+systems, which achieve accurate pose estimation (Section V-A)
+and can support diverse sensing modalities (e.g., visual-         C. Point Cloud Fusion
+inertial), camera rigs (e.g., multi-camera), and camera models      To maintain a lightweight map and reduce noise, we perform
+(e.g., fisheye). In particular, classical SLAM systems can        a point cloud fusion step within the submap after frame-level
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                              iv
+
+
+
+
+                                                                                      outdoor
+
+                                                                                                           hall
+
+
+
+Fig. 3: Point cloud fusion. Left: predictions from two frames, shown
+in different colors. Right: red points indicate fused points.                                                          corridor
+
+                                                                       Fig. 4: Visualization of keyframe selection, where the baseline
+scale optimization. Unlike MASt3R-SLAM, which performs                 between keyframes is larger in open spaces (outdoor and hall) and
+pointmap fusion based on the per-pixel matching feature                smaller in more confined environments (corridor).
+produced by MASt3R, DA3 predicts geometry directly without
+providing matching features. We therefore assume that dense            F. Mapping Keyframe Selection
+correspondences are implicitly encoded in the predicted geom-             Keyframe selection is critical for GFM inference when
+etry, and we can derive matches directly from the geometry             using limited GFM batch sizes. To achieve high-quality depth
+that are post-refined by the frame-level scale optimization.           prediction, it is important to select images from diverse
+   Specifically, for each frame Ii with point cloud Pi , we            viewpoints. In SLAM systems, such constraints are common
+project its points into a reference frame Ij using the camera in-      due to limited GPU memory and the need for incremental
+trinsics Kj and poses Ti , Tj . A correspondence is established        reconstruction. While large batches can naturally accumulate
+if the projected depth is within a threshold of the observed           diverse viewpoints, reducing sensitivity to selection, a fixed se-
+depth. Matched points are then fused via confidence-weighted           lection strategy is suboptimal for small batches: using a small-
+averaging, with weights derived from Ci and Cj (Fig. 3).               baseline between frames in open (outdoor) spaces provides
+D. Submap-Level Scale Optimization                                     insufficient geometric cues for far-range geometry, whereas
+   After frame-level scale optimization and point cloud fusion,        large-baseline selection in near-field (indoor) scenes reduces
+each submap becomes locally consistent. We anchor the point            visual overlap, resulting in overly sparse keyframes and in-
+cloud P of each submap to the pose of its central frame Ti .           complete reconstruction. This is why an adaptive strategy that
+Consecutive submaps are constructed with one overlapping               adjusts baseline according to scene geometry is needed.
+frame. Specifically, for two consecutive submaps S i and S i+1 ,          Given a high-frequency image stream, we first temporally
+the last frame image of S i coincides with the first frame image       downsample it to construct a candidate set I whose frequency
+of S i+1 , i.e., Ii−1 = Ii+1                                           is aligned with the processing rate of the mapping module
+                          0 . This overlap naturally provides
+correspondences between submaps.                                       (see Section V-D). Keyframes are then selected based on
+   To enforce global scale consistency across submaps, we              relative motion derived from SLAM poses. For a candidate
+introduce a per-submap scale variable si ∈ R+ for each                 frame Ik and the last selected keyframe Ik′ , we compute the
+submap S i . Given a set of matched points pairs Mi,i+1 , we           positional and angular distance (∆tk,k′ and ∆Rk,k′ ). A frame
+optimize the scale factors by minimizing the distance between          is selected if ∆tk,k′ > τt or ∆Rk,k′ > τR , with fixed
+corresponding 3D points:                                               angular threshold τR and adaptive translation threshold τt .
+                                                                          To adapt to scene scale, we compute the median depth of
+        X            X                                       2
+                              Tj sj pi − Tj+1 sj+1 pi′
+                                       
+  min                                                                  the latest frame in the current batch, dmed = median(D−1 ),
+    j
+ {s }                                                            2
+        (j,j+1) (pi ,pi′ )∈Mj,j+1                                      and adjust τt for the next batch accordingly. Specifically, τt is
+                                                                       increased when dmed > τd , indicating that next batch is likely
+where sj denotes the scale of submap S j , and Tj denotes the
+                                                                       to observe a large-scale open scene; otherwise, it is kept small
+pose of the submap. Compared to frame-level optimization,
+                                                                       to favor near-field reconstruction.
+larger inter-submap baselines improve scale observability and
+                                                                          Additionally, we apply range filtering within each batch by
+provide stronger geometric constraints.
+                                                                       discarding depths exceeding dmax = ατt , with α = 20, to
+   For efficiency, we use a sliding-window strategy in which
+                                                                       suppress unreliable far-range estimates. This adaptive strategy
+only the latest N submaps are optimized when a new submap
+                                                                       balances viewpoint diversity and geometric reliability across
+is created. Global submap optimization is performed once the
+                                                                       varying environments (Fig. 4).
+SLAM system updates the trajectory (i.e., after loop closure).
+E. Map Update                                                                                   IV. DATASET
+   The mapping module is developed to be a component of an                Existing indoor SLAM datasets are often limited in scale
+incremental SLAM system, rather than being a post-processing           or lack high-quality ground-truth reconstruction [6], [7], [8].
+method. Thus, we need to update the live map according                 Therefore, we introduce the ORI dataset, featuring a fisheye
+to the trajectory maintained by the SLAM system. When a                camera traversing a multi-floor office environment with mul-
+loop closure is detected and the trajectory is updated, we             tiple loops, confined staircases, and low-texture corridors that
+build edges between submaps containing the looped frames,              present challenging conditions for dense visual SLAM.
+transform each submap using the updated pose to which it                  The dataset is captured using an Insta360 ONE RS 1-Inch
+is anchored, and then invoke submap-level scale optimization           camera equipped with dual fisheye cameras (FoV > 180◦ ) and
+with the new poses.                                                    an IMU. We use only the monocular images from the front-
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                    v
+
+
+
+TABLE I: Evaluation of ATE (m) for different methods on the EuRoC
+dataset. The initialization phase is excluded from evaluation.
+                                                                               bias this metric. Instead, recall serves as a proportion-based
+                                                                               proxy for completeness, while reconstruction error captures
+                      MH01       MH02        MH03       MH04        MH05
+                                                                               geometric fidelity in metric units.
+DA3-Long              0.3481     0.5270      0.6023     0.3333      0.5918        All evaluated GFM-based methods use rectified pinhole
+MASt3R-SLAM           0.0274     0.0291      0.0580     0.1180      0.0674
+VGGT-SLAM2            0.0614     0.0800      0.1284     0.6447      0.3560     images with calibrated intrinsics. Our system uses the raw
+VGGT(D)-SLAM2         0.0962     0.0718      0.0620     0.3456      0.2246
+ORB-SLAM3∗            0.0206     0.0193      0.0298     0.0996      0.0459
+                                                                               fisheye images for pose estimation and the pinhole images for
+∗ Monocular; All methods use calibrated intrinsics and rectified images.       the GFM. Experiments are conducted on a laptop with an Intel
+                                                                               Core Ultra 7 265HX CPU and an NVIDIA RTX PRO 3000
+       TABLE II: Evaluation of ATE (m) on the ORI dataset.
+                                                                               Blackwell GPU with 12GB of memory.
+                        R01        R02        R03         R04        R05
+                                                                               A. Monocular Tracking
+DA3-Long∗              0.6864     0.2435     0.2556      0.5735     0.1065
+MASt3R-SLAM∗           Failed     0.0954     0.0855      0.3995     0.0909        In this section, we show that, with proper initialization,
+MASt3R-Fusion†         0.1278     0.2496     0.1183      0.1561     0.1403
+VGGT-SLAM2∗            1.0573     0.9097     0.8694      0.7667     0.4423     classical methods continue to outperform fully GFM-enabled
+VGGT(D)-SLAM2∗         0.5362     0.1916     0.1088      0.2572     0.1256     approaches in both single-modal and multi-modal settings,
+ORB-SLAM3∗             0.1114     0.0930     0.0773      0.0915     0.0496     which motivates our design choice to decouple state estimation
+ORB-SLAM3†             0.0840     0.0786     0.0765      0.0587     0.1104
+                                                                               from dense reconstruction when leveraging GFMs.
+OV-SLAM†               0.1075     0.0444     0.0316      0.0644     0.0309
+                                                                                  1) Monocular SLAM: Table I compares the state-of-the-
+∗ Monocular; † Monocular-Inertial; All methods use calibrated intrinsics, if
+                                                                               art GFM-enabled SLAM systems, MASt3R-SLAM [3] and
+supported. Only first 100 s used due to OOM issue with MASt3R-SLAM.
+                                                                               VGGT-SLAM2 [5], as well as DA3-Long (script provided
+facing camera, as the rear camera observes the operator. To                    by DA3 for long-sequence processing adapted from VGGT-
+obtain ground-truth geometry, the camera was rigidly mounted                   Long [21]), with the classical feature-based method ORB-
+to a LiDAR-inertial mapping device (Fig. 1). Two devices                       SLAM3 [9]. As we use DA3 in our system, for more direct
+are temporally aligned via their IMU signals. Ground-truth                     comparison, we created a version of VGGT-SLAM2 using
+camera poses are obtained by registering each LiDAR scan to                    DA3 which we call VGGT(D)-SLAM2. All methods use
+a high-precision terrestrial laser scanner (TLS) map and apply-                rectified pinhole images, including ORB-SLAM3. Trajectories
+ing calibrated LiDAR-to-camera extrinsics. For reconstruction                  are aligned and rescaled to the ground-truth before evaluation.
+evaluation, we use the registered LiDAR scans as the ground-                      The results show that, when properly initialized, ORB-
+truth 3D model, since the TLS scan was captured months                         SLAM3 consistently outperforms fully GFM-enabled methods
+earlier and does not fully reflect the current environment. We                 in tracking. We attribute the performance gap to geometric
+additionally provide a filtered version with points outside the                inaccuracies in GFM predictions, which in turn adversely
+camera FoV removed for recall (completeness) evaluation.                       affect pose estimation. Replacing VGGT with DA3 leads to a
+                                                                               clear improvement in VGGT(D)-SLAM2, suggesting that fully
+                           V. E VALUATION                                      GFM-enabled SLAM remains a promising direction and that
+                                                                               future models may further narrow or close the performance
+   In this section, we evaluate both tracking and reconstruc-
+                                                                               gap with respect to classical methods.
+tion performance across multiple datasets. We first compare
+                                                                                  2) Mono-Inertial SLAM: We further evaluate existing meth-
+the camera tracking performance of existing GFM-enabled
+                                                                               ods on ORI dataset with inertial sensing and fisheye images.
+methods and classical approaches (Section V-A), showing
+                                                                               We include MASt3R-Fusion and OpenVINS augmented with
+that properly initialized classical methods still provide more
+                                                                               pose graph optimization (denoted as OV-SLAM). MASt3R-
+robust tracking. We then evaluate reconstruction quality on
+                                                                               SLAM suffers from CUDA out-of-memory issues, so we limit
+the ORI dataset. To further assess performance in outdoor
+                                                                               evaluation to the first 100 s. Aside from the OOM issue,
+environments, we include representative KITTI sequences 00
+                                                                               MASt3R-SLAM achieves competitive performance.
+and 05 [26], which contain frequent loop closures, as well                        Table II again shows that classical methods clearly out-
+as Blenheim-Palace-01 and Christ-Church-02 from the Oxford                     perform tightly coupled GFM-based methods, as they can
+Spires [27], which feature indoor-outdoor transitions. Ground-                 operate directly on raw fisheye images and provide mature
+truth point clouds are obtained by transforming undistorted                    support for inertial measurements. To show the flexibility
+LiDAR scans into world frame using ground-truth poses.                         of our framework to the underlying SLAM system, we use
+   For trajectory evaluation, we adopt Absolute Trajectory                     OV-SLAM for ORI, ORB-SLAM3 (mono-inertial) for Oxford
+Error (ATE). For reconstruction evaluation, we use precision,                  Spires, and ORB-SLAM3 (stereo) for KITTI in the following.
+recall, and reconstruction error. Precision measures the pro-
+portion of reconstructed points that lie within a threshold                    B. Reconstruction Evaluation
+of ground-truth points, while recall measures the proportion                     Fig. 5 presents the global reconstruction error for different
+of ground-truth points covered by the reconstruction. Re-                      methods on ORI dataset after aligning their trajectories to
+construction error is defined as the average distance from                     the ground-truth under Sim(3). Our method achieves the best
+reconstructed points to their nearest ground-truth neighbors.                  performance by a wide margin — with an average error of
+We do not report coverage error (average distance from ground                  2.9 cm, thanks to the decoupled design in which underlying
+truth to reconstructed points), as regions filtered out due                    SLAM system yields more globally consistent trajectories.
+to low prediction confidence, a common practice in GFM-                          To mitigate the influence of global trajectory quality and
+based reconstruction, can incur artificially large distances and               enable a more informative reconstruction comparison, we
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                                                           vi
+
+
+
+      Scal3R   DA3-Long    MASt3R-SLAM    MASt3R-Fusion   VGGT-SLAM2      VGGT(D)-SLAM2   Ours         Scal3R   DA3-Long     MASt3R-Fusion    VGGT-SLAM2      VGGT(D)-SLAM2      Ours    w/o Loop
+                                  Global Reconstruction Error (m)                                                                      Reconstruction Error (m)
+                                                                                                                  Chunk Length: 30 m                               Chunk Length: 200 m
+0.3
+                                                                                                 0.4                                               0.4
+0.2
+
+                                                                                                 0.2                                               0.2
+0.1
+
+
+0.0                                                                                              0.0                                               0.0
+               R01             R02               R03                R04             R05                Blenheim-01 (493 m)    Church-02 (642 m)          KITTI-00 (3723 m)     KITTI-05 (2205 m)
+
+               Fig. 5: Global reconstruction error on ORI dataset.                               Fig. 7: Chunk-wise reconstruction error on outdoor datasets. After
+                                                                                                 alignment to the ground-truth, points with depth greater than 20 m
+TABLE III: Chunk-wise reconstruction quality on the ORI dataset                                  (in local coordinate) are discarded.
+(chunk length = 10 m, threshold = 3 cm, conf. percentile = 25%).
+                               R01           R02            R03            R04        R05
+                                         Precision (%) ↑
+Scal3R (Offline)              50.32         41.10        53.84            66.64       55.50
+DA3-Long                      65.64         50.32        62.52            55.46       56.58
+MASt3R-SLAM                   Failed        58.80        64.01            54.25       64.61
+MASt3R-Fusion                 62.97         48.29        52.16            61.53       54.36
+VGGT-SLAM2                    19.85         20.19        23.81            26.16       25.78
+VGGT(D)-SLAM2                 60.61         44.13        61.18            64.20       52.38
+Ours w/o Ext.                 78.64         76.41        79.47            80.50       81.94
+Ours                          81.06         80.44        81.26            81.63       82.90      Fig. 8: Outdoor reconstruction on KITTI-00, Blenheim-Palace-01,
+                                 Reconstruction Error (m) ↓                                      and Christ-Church-02.
+Scal3R (Offline)              0.0555     0.0886      0.0553               0.0365     0.0661
+DA3-Long                      0.0359     0.0582      0.0380               0.0470     0.0481
+MASt3R-SLAM                   Failed     0.0441      0.0378               0.0536     0.0372      as the average over all chunks.
+MASt3R-Fusion                 0.0437     0.0723      0.0582               0.0382     0.0781         The mapping frame rate of our method is subsampled to
+VGGT-SLAM2                    0.1747     0.1954      0.1686               0.1522     0.1513
+VGGT(D)-SLAM2                 0.0391     0.0683      0.0409               0.0339     0.0582      3 Hz for real-time operation; the same frequency is used for
+Ours w/o Ext.                 0.0230     0.0242      0.0204               0.0218     0.0210
+Ours                          0.0216     0.0209      0.0198               0.0199     0.0198      DA3-Long and VGGT(D)-SLAM2 to ensure a fair compari-
+                                          Recall (%) ↑
+                                                                                                 son. For MASt3R-SLAM and MASt3R-Fusion, we preserve
+Scal3R (Offline)              36.94         34.15          44.08          51.87       49.66      their default frequency of 10 Hz, as they use different GFM.
+DA3-Long                      51.84         38.34          51.41          46.28       51.42
+MASt3R-SLAM                   Failed        46.95          48.73          38.67       48.58
+                                                                                                 We additionally include Scal3R [28], a purely offline recon-
+MASt3R-Fusion                 46.77         36.96          38.23          44.52       41.79      struction method, and evaluate it at 3 Hz since no default input
+VGGT-SLAM2                    21.91         18.25          18.12          28.44       27.77
+VGGT(D)-SLAM2                 40.08         31.82          50.12          52.07       53.08      image frequency is provided.
+Ours w/o Ext.                 53.97         50.74          54.31          56.71       57.92         We apply 25th-percentile confidence filtering to all methods
+Ours                          57.72         52.04          55.38          55.84       56.24
+                                                                                                 prior to evaluation. To ensure density consistency, we addition-
+Ours w/o Ext.: pose inputs disabled for GFM prediction.
+                                                                                                 ally perform voxel downsampling on the reconstructed point
+                                                                                                 clouds, using a voxel size of 2 cm for the indoor dataset (ORI)
+                                                                                                 and 10 cm for outdoor datasets (KITTI and Oxford Spires).
+                                                                                                    1) Indoor: Due to the higher GPU memory demands of
+                                                                                                 DA3-Long and VGGT(D)-SLAM2, DA3 can only process
+                                                                                                 images with a batch size of 6 when used with these methods.
+                                                                                                 For fairness, we use the same batch size for our method and a
+  DA3-Long                           MASt3R-SLAM                    MASt3R-Fusion
+                                                                                                 variant which is not provided with the pose inputs to DA3.
+                                                                                                 For Scal3R, we use batch sizes of 16 to fit the memory
+                                                                                                 constraints. Table III shows that our method outperforms
+                                                                                                 the other approaches — including when operating without
+                                                                                                 providing poses to DA3. This highlights the effectiveness of
+                                                                                                 the scale optimization of our method. With pose inputs enabled
+VGGT-SLAM2                       VGGT(D)-SLAM2                            Ours                   (benefiting from the decoupled design), it outperforms other
+                     Fig. 6: Visualization of reconstruction on R03.                             methods in precision by 10%–20%, while maintaining around
+                                                                                                 2 cm reconstruction error. In terms of recall, the improvement
+introduce chunk-wise evaluation.1 Specifically, each trajectory                                  is less pronounced as we apply 25th-percentile filtering, and
+is partitioned into chunks whose corresponding ground-truth                                      recall is less sensitive to imperfect predictions when the
+trajectory length is L. For each chunk, the estimated trajectory                                 same regions are observed from multiple viewpoints, allowing
+is aligned to the ground-truth via a Sim(3) transformation, and                                  correct predictions to compensate for erroneous ones. For
+the associated point cloud is scaled accordingly. We then apply                                  instance, Double walling in GFM-based reconstructions can
+an additional ICP refinement to register the reconstructed                                       still achieve high recall despite degraded precision.
+points to the ground-truth point cloud, from which the evalu-                                       Compared to VGGT(D)-SLAM2, which uses the same
+ation metrics are computed. The final performance is reported                                    GFM and performs both inter- and intra-submap optimization
+   1 We provide more qualitative results in the supplementary video to demon-
+                                                                                                 on SL(4), our method simplifies the optimization to scale
+strate the global consistency of our reconstruction over long trajectories and                   estimation only and anchors it to accurate poses provided by
+multiple loop closures, as well as multi-session operation.                                      classical SLAM. This design mitigates drift and errors caused
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                           vii
+
+
+
+TABLE IV: Ablation study on global reconstruction (batch size = 6).              TABLE VI: Comparison on reconstruction error (m) with and without
+                                                                                 adaptive keyframe selection on Oxford Spires dataset.
+                              R01        R02        R03       R04       R05
+                                Global Precision (%) ↑                                                              Blenheim-Palace-01              Christ-Church-02
+DepthAnything3                78.91      68.26      72.00    67.44     70.16     τt = 0.3 m, dmax = 20 m                 0.1468                         0.1299
+Ours w/o Frame Opt.           82.52      81.87      80.73    81.32     77.40     adaptive (τt , dmax )                   0.1135                         0.0863
+Ours w/o Submap Opt.          83.38      73.52      77.18    74.83     76.31
+Ours w/o Points Fus.          81.30      80.86      80.98    83.96     79.83
+Ours                          81.81      81.93      81.73    84.88     80.97          TABLE VII: Runtime breakdown (sec) for batch size 6.
+Imp. (abs. to DA3)         +2.90         +13.7      +9.73     +17.4     +10.8              DA3 Infer.   LightGlue       Frm. Opt.        Points Fus.      Smp. Opt.
+Imp. (rel. to DA3)        +3.67%        +20.0%     +13.5%    +25.9%    +15.4%
+                                                                                  Laptop    0.9275         0.3196         0.0465           0.1014          0.1223
+                     Global Reconstruction Error (m) ↓                            Jetson    4.6413         1.4319         0.2023           0.2571          0.4302
+DepthAnything3          0.0224     0.0327     0.0278         0.0319    0.0284
+Ours w/o Frame Opt.     0.0192     0.0199     0.0198         0.0200    0.0228
+Ours w/o Submap Opt.    0.0197     0.0271     0.0245         0.0262    0.0244    therefore, we conduct ablation studies with a small batch size
+Ours w/o Points Fus.    0.0201     0.0203     0.0198         0.0183    0.0221
+Ours                    0.0198     0.0198     0.0194         0.0178    0.0214    of 6 to better reveal the difference. Results in Table IV show
+Imp. (abs. to DA3)         -0.0026      -0.0129    -0.0084   -0.0141   -0.0070   that our method significantly improves precision compared to
+Imp. (rel. to DA3)         -11.6%       -39.4%     -30.2%    -44.2%    -24.6%    directly aggregating DA3 predictions, achieving up to 17%
+        TABLE V: Comparison with DA3 at batch size = 11.                         absolute improvement (Fig. 9). We observe that both frame-
+                                                                                 level and submap-level scale optimization independently im-
+                        R01           R02         R03        R04         R05
+                                                                                 prove reconstruction quality, while disabling either component
+                             Global Precision (%) ↑
+DepthAnything3         83.73      77.56        80.51         79.10      76.02
+                                                                                 can lead to performance degradation, as evidenced in R04 and
+Ours                   85.13      82.64        84.93         85.28      81.36    R05. Furthermore, point cloud fusion provides additional gains
+                         Global Reconstruction Error (m) ↓                       by reducing noise through confidence-weighted averaging.
+DepthAnything3         0.0186      0.0220       0.0195     0.0216      0.0248       Comparing Table V and Table IV, we observe that our
+Ours                   0.0173      0.0186       0.0170     0.0172      0.0214
+                                                                                 mapping framework is much less affected by reduced batch
+                                                                                 sizes compared to the direct use of DA3 (−1.60% and −8.03%
+                                                                                 in precision, respectively). This demonstrates the effectiveness
+                                                                                 of the proposed scale optimization. Notably, this characteristic
+                                                                                 is particularly important for devices with limited GPU memory
+                                                                                 or applications that require reactive mapping where the system
+                                                                                 must operate without waiting for a large number of incoming
+                                                                                 images, as is the common situation in robotics applications.
+                                                                                    2) Keyframe Selection: Table VI compares our system
+Fig. 9: Comparison between DA3 reconstruction (left) and ScaRF-                  with and without adaptive keyframe selection. Using a fixed
+SLAM (right) on R04, where red points indicate outliers.                         threshold (τt = 0.3 m) while keeping dmax = 20 m leads to
+                                                                                 higher reconstruction error due to an insufficient viewpoint
+by the geometric inaccuracies in the GFM predictions.
+                                                                                 baseline. In contrast, our keyframe selection strategy dynam-
+   2) Outdoor: For KITTI, the lower image aspect ratio allows                    ically increases τt (capped at 1 m) in far-range scenes and
+larger batch sizes: 30 for DA3-Long and VGGT(D), and 60                          adjusts dmax based on the value of τt with α = 20, thereby
+for Scal3R. In contrast, our method continues to operate with                    improving reconstruction quality.
+a batch size of 6, demonstrating its robustness under limited
+batch-size settings. MASt3R-SLAM is excluded due to GPU                          D. Runtime Analysis
+memory constraints, and MASt3R-Fusion is omitted on KITTI
+as the IMU data is unreliable.                                                      Table VII shows the runtime breakdown for processing a
+   As shown in Fig. 7, our method consistently achieves lower                    submap of 6 frames (including 1 overlapping frame), which
+reconstruction error than competing approaches. We further                       takes 1.5 s on average. This corresponds to a maximum real-
+observe that VGGT(D)-SLAM2 is prone to optimization fail-                        time keyframe rate of approximately 3.3 Hz, assuming a
+ures in outdoor scenarios after loop closure, even when the                      SLAM system runs concurrently and provides posed frames
+detected loops are correct, despite operating reliably on the                    asynchronously. In this paper, we set the keyframe frequency
+ORI dataset (Fig. 6). Therefore, we revert it to odometry mode                   to 3 Hz. We also evaluate the system on an NVIDIA Jetson
+when global optimization fails (marked by ×).                                    AGX Orin platform, where runtime increases due to lower
+                                                                                 compute capability. In both cases, the main bottleneck is the
+C. Ablation Study                                                                inference of the deep learning models (DA3 and LightGlue).
+   Given that our system differs fundamentally from existing                        A major computational cost arises from the sparse feature
+GFM-based SLAM systems, we also conduct a detailed ab-                           extraction and matching components. Our implementation is
+lation study to evaluate our proposed design. For all experi-                    very loosely coupled with the underlying SLAM system —
+ments, we use ground-truth poses as input; therefore, no chunk                   requiring only trajectory information. However, most mod-
+alignment is required, and reconstruction is evaluated globally.                 ern SLAM systems maintain a covisibility graph and track
+   1) Scale Optimization: As shown in Table V and IV,                            matched features between frames. Our method could directly
+smaller batch sizes reduce the spatial diversity of input images                 leverage this information. A more tightly coupled implemen-
+and degrade the geometric accuracy of DA3 predictions;                           tation could therefore further improve efficiency significantly.
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                             viii
+
+
+
+                                                       ← Outdoor-Indoor    [4] Y. Zhou, X. Li, S. Li, Z. Yan, C. Xia, and S. Feng, “MASt3R-Fusion:
+                                                         Transition            Integrating Feed-Forward Visual Model with IMU, GNSS for High-
+                                                                               Functionality SLAM,” arXiv preprint arXiv:2509.20757, 2025.
+                                                                           [5] D. Maggio and L. Carlone, “VGGT-SLAM 2.0: Real-Time Dense Feed-
+                                                                               Forward Scene Reconstruction,” arXiv preprint arXiv:2601.19887, 2026.
+                                                                           [6] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers, “A
+                                                                               Benchmark for the Evaluation of RGB-D SLAM Systems,” in IEEE/RSJ
+                                                                               Intl. Conf. on Intelligent Robots and Systems (IROS), 2012.
+     Session 1                                                             [7] T. Schops, T. Sattler, and M. Pollefeys, “BAD SLAM: Bundle Adjusted
+                                                                               Direct RGB-D SLAM,” in IEEE Int. Conf. Computer Vision and Pattern
+     Session 2                                                                 Recognition (CVPR), 2019.
+Fig. 10: Multi-session, multi-camera, multi-modal dense SLAM on            [8] M. Burri, J. Nikolic, P. Gohl, T. Schneider, J. Rehder, S. Omari
+data collected by ANYmal-D with Insta360 ONE RS.                               et al., “The EuRoC Micro Aerial Vehicle Datasets,” Intl. J. of Robotics
+                                                                               Research, 2016.
+                                                                           [9] C. Campos, R. Elvira, J. J. G. Rodrı́guez, J. M. Montiel, and J. D.
+E. Robot Experiment                                                            Tardós, “ORB-SLAM3: An Accurate Open-Source Library for Visual,
+   Our final experiment qualitatively evaluates ScaRF-SLAM                     Visual–Inertial, and Multimap SLAM,” IEEE Trans. Robotics, 2021.
+                                                                          [10] P. Geneva, K. Eckenhoff, W. Lee, Y. Yang, and G. Huang, “OpenVINS:
+using data collected by a quadruped robot (ANYmal-D) car-                      A Research Platform for Visual-Inertial Estimation,” in IEEE Intl. Conf.
+rying an Insta360 camera, including an outdoor-indoor tran-                    on Robotics and Automation (ICRA), 2020.
+sition and operation in highly confined spaces. It showcases              [11] T. Schneider, M. Dymczyk, M. Fehr, K. Egger, S. Lynen, I. Gilitschenski
+                                                                               et al., “maplab: An Open Framework for Research in Visual-Inertial
+multi-session, multi-camera (front and rear), and multi-modal                  Mapping and Localization,” IEEE Robotics and Automation Letters,
+(visual-inertial) SLAM with our system, highlighting the flexi-                2018.
+bility of the proposed decoupled framework and demonstrating              [12] R. A. Newcombe, S. Izadi, O. Hilliges, D. Molyneaux, D. Kim, A. J.
+                                                                               Davison et al., “KinectFusion: Real-Time Dense Surface Mapping and
+its reliable operation in practical robotic scenarios.                         Tracking,” in IEEE/ACM Intl. Sym. on Mixed and Augmented Reality
+                                                                               (ISMAR), 2011.
+                        VI. C ONCLUSION                                   [13] T. Whelan, S. Leutenegger, R. F. Salas-Moreno, B. Glocker, and A. J.
+                                                                               Davison, “ElasticFusion: Dense SLAM without a Pose Graph,” in
+   This work revisits the design choice of how GFMs should                     Robotics: Science and Systems (RSS), 2015.
+be incorporated into SLAM systems. Rather than pursuing                   [14] M. Bloesch, J. Czarnowski, R. Clark, S. Leutenegger, and A. J. Davison,
+tighter integration, we show that separating state estimation                  “CodeSLAM: Learning a Compact, Optimisable Representation for
+                                                                               Dense Visual SLAM,” in IEEE Int. Conf. Computer Vision and Pattern
+from dense reconstruction leads to a more robust and practical                 Recognition (CVPR), 2018.
+solution. Our results suggest that the limitations of current             [15] Y. Xin, X. Zuo, D. Lu, and S. Leutenegger, “SimpleMapping: Real-
+GFMs lie not in dense geometry generation, but in the relia-                   Time Visual-Inertial Dense Mapping with Deep Multi-View Stereo,” in
+                                                                               IEEE/ACM Intl. Sym. on Mixed and Augmented Reality (ISMAR), 2023.
+bility of their predictions for accurate pose estimation.                 [16] J. Jung, S. Boche, S. B. Laina, and S. Leutenegger, “Uncertainty-Aware
+   By anchoring reconstruction to the more consistent and                      Visual-Inertial SLAM with Volumetric Occupancy Mapping,” in IEEE
+reliable poses from classical SLAM systems and by optimizing                   Intl. Conf. on Robotics and Automation (ICRA), 2025.
+                                                                          [17] S. Boche, J. Jung, S. B. Laina, and S. Leutenegger, “OKVIS2-X: Open
+the scale of GFM dense point clouds, our proposed framework                    Keyframe-Based Visual-Inertial SLAM Configurable with Dense Depth
+combines the strengths of both components. This simple                         or LiDAR, and GNSS,” IEEE Trans. Robotics, 2025.
+design choice proves effective in practice, yielding consistent           [18] V. Leroy, Y. Cabon, and J. Revaud, “Grounding Image Matching in 3D
+                                                                               with MASt3R,” in Eur. Conf. on Computer Vision (ECCV), 2024.
+improvements in reconstruction. It preserves the accurate, low-           [19] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny,
+latency tracking of the classical SLAM system and is robust                    “VGGT: Visual Geometry Grounded Transformer,” in IEEE Int. Conf.
+to small GFM input batch sizes. Importantly, the method                        Computer Vision and Pattern Recognition (CVPR), 2025.
+                                                                          [20] N. Keetha, N. Müller, J. Schönberger, L. Porzi, Y. Zhang, T. Fischer
+achieves this while being compatible with existing SLAM                        et al., “MapAnything: Universal Feed-Forward Metric 3D Reconstruc-
+and navigation pipelines, making it straightforward to combine                 tion,” arXiv preprint arXiv:2509.13414, 2025.
+with other robotics components such as motion planning.                   [21] K. Deng, Z. Ti, J. Xu, J. Yang, and J. Xie, “VGGT-Long: Chunk It,
+                                                                               Loop It, Align It–Pushing VGGT’s Limits on Kilometer-Scale Long
+   Beyond the quantitative gains, our findings highlight a                     RGB Sequences,” arXiv preprint arXiv:2507.16443, 2025.
+broader insight: progress in learned geometry does not neces-             [22] T. Ding, Y. Xie, Y. Liang, M. Chatterjee, P. Miraldo, and H. Jiang,
+sarily require replacing classical geometric pipelines, but can                “LASER: Layer-Wise Scale Alignment for Training-Free Streaming 4D
+                                                                               Reconstruction,” arXiv preprint arXiv:2512.13680, 2025.
+instead be achieved through careful system level integration. In          [23] G. Zhang, S. Qian, X. Wang, and D. Cremers, “ViSTA-SLAM: Vi-
+particular, enforcing lightweight geometric constraints on top                 sual SLAM with Symmetric Two-View Association,” arXiv preprint
+of learned predictions provides a favorable balance between                    arXiv:2509.01584, 2025.
+                                                                          [24] P. Lindenberger, P.-E. Sarlin, and M. Pollefeys, “LightGlue: Local
+accuracy, efficiency, and robustness. We believe that such hy-                 Feature Matching at Light Speed,” in Intl. Conf. on Computer Vision
+brid designs will play a key role in advancing dense mapping                   (ICCV), 2023.
+systems toward real-world deployment.                                     [25] F. Dellaert and G. Contributors, “borglab/gtsam,” May 2022. [Online].
+                                                                               Available: https://github.com/borglab/gtsam)
+                           R EFERENCES                                    [26] A. Geiger, P. Lenz, and R. Urtasun, “Are We Ready for Autonomous
+                                                                               Driving? The KITTI Vision Benchmark Suite,” in IEEE Int. Conf.
+ [1] L. Carlone, A. Kim, T. Barfoot, D. Cremers, and F. Dellaert, “SLAM        Computer Vision and Pattern Recognition (CVPR), 2012.
+     Handbook: From Localization and Mapping to Spatial Intelligence,”    [27] Y. Tao, M. Á. Muñoz-Bañón, L. Zhang, J. Wang, L. F. T. Fu, and M. Fal-
+     2025.                                                                     lon, “The Oxford Spires Dataset: Benchmarking Large-Scale LiDAR-
+ [2] H. Lin, S. Chen, J. Liew, D. Y. Chen, Z. Li, G. Shi et al., “Depth        Visual Localisation, Reconstruction, and Radiance Field Methods,” Intl.
+     Anything 3: Recovering the Visual Space from Any Views,” arXiv            J. of Robotics Research, 2024.
+     preprint arXiv:2511.10647, 2025.                                     [28] T. Xie, P. Yang, Y. Jin, Y. Cai, W. Yin, W. Ren et al., “Scal3R: Scalable
+ [3] R. Murai, E. Dexheimer, and A. J. Davison, “MASt3R-SLAM: Real-            Test-Time Training for Large-Scale 3D Reconstruction,” IEEE Int. Conf.
+     Time Dense SLAM with 3D Reconstruction Priors,” in IEEE Int. Conf.        Computer Vision and Pattern Recognition (CVPR), 2026.
+     Computer Vision and Pattern Recognition (CVPR), 2025.
+

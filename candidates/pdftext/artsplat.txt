@@ -1,0 +1,801 @@
+                                           ArtSplat: Feed-Forward Articulated 3D Gaussian
+                                         Splatting from Sparse Multi-State Uncalibrated Views
+
+
+                                                             Inseo Lee1 Yoonji Kim2 Eugene Sohn1 Jiwoong Lee1
+                                                                Jungmin You1 Joonseok Lee1,† Jin-Hwa Kim1,3,†
+                                                         1
+                                                           Seoul National University 2 Sogang University 3 NAVER AI Lab
+                                                     {ian.lee, qeugene, dlwldnd5689, ujxlan409, joonseok}@snu.ac.kr
+arXiv:2605.24304v1 [cs.CV] 23 May 2026
+
+
+
+
+                                                               wayuj@sogang.ac.kr j1nhwa.kim@navercorp.com
+
+                                                                          https://artsplat.github.io
+
+                                                                                         Abstract
+                                                     Articulated object reconstruction from sparse-view images is an ill-posed problem
+                                                     that requires simultaneous inference of geometry and underlying articulation struc-
+                                                     ture. Existing methods for articulated object reconstruction based on NeRF and
+                                                     3D Gaussian Splatting (3DGS) typically rely on dense views or strong priors (e.g.,
+                                                     depth maps, joint types, predefined number of joints) and require costly per-object
+                                                     optimization. In this paper, we propose ArtSplat, the first feed-forward framework
+                                                     for articulated 3D Gaussian Splatting. It reconstructs both geometry and joint
+                                                     parameters from sparse multi-view images across multiple articulation states in a
+                                                     single forward pass. To address the challenges of single-pass articulated reconstruc-
+                                                     tion, we introduce a per-pixel joint map representation that enables the integration
+                                                     of joint parameter estimation into the feed-forward pipeline. We further propose
+                                                     a Cross-State Attention (CSA) mechanism with state tokens, which effectively
+                                                     captures discrete motion across input states. Experiments on 68 articulated ob-
+                                                     jects from PartNet-Mobility, including both single- and multi-joint configurations,
+                                                     demonstrate that ArtSplat achieves competitive performance in both geometry and
+                                                     joint estimation, while being over 400 times faster than baselines.
+
+                                         1    Introduction
+                                         An articulated object consists of rigid parts connected by joints, allowing the parts to move relative to
+                                         one another. These joints come in two types: revolute joints, which rotate about an axis (e.g., a laptop
+                                         lid or a cabinet door), and prismatic joints, which translate along an axis (e.g., a drawer). Representing
+                                         such an object, therefore, requires not only the geometry of each part but also the joint parameters
+                                         that determine how those parts move. The articulated object reconstruction is the task of recovering
+                                         both of these from observed samples. Unlike static reconstruction, the resulting representation should
+                                         be able to move along the recovered joints into any valid pose, called an articulation state, of its
+                                         parts. This makes it directly applicable to downstream tasks such as manipulation policy learning,
+                                         sim-to-real asset generation, and digital twin construction.
+                                         Early work on articulated object reconstruction adopts implicit representations such as neural radiance
+                                         fields [20], recovering both geometry and joint parameters from multi-state observations [12, 18, 28].
+                                         Recently, 3D Gaussian Splatting (3DGS) [13] is widely adopted to leverage its explicit primitives
+                                         and faster rendering to improve reconstruction quality [6, 14, 17, 19, 26, 33, 38]. Both approaches,
+                                         however, rely on test-time optimization, still requiring fitting each object from scratch over dense
+                                         (typically 50+ per articulation state) multi-view captures. These methods do not scale well to a large
+                                         number of novel objects, since both the capturing and optimization steps should be repeated for each
+                                         new object, requiring tens of minutes or even hours per object.
+                                             † Co-corresponding authors
+
+
+
+
+                                         Preprint.
+A natural alternative is to predict the reconstruction through a single feed-forward pass, which has
+been successfully applied to static scenes, where the scene does not change across input views, by
+transformer-based geometry models [31, 15, 29, 36, 41] and feed-forward 3DGS variants [3, 5, 35,
+37, 27, 11], and to dynamic scenes by their dynamic counterparts [40, 30, 4], where an ordered
+sequence of views with small motion between them are given. By contrast, articulated objects do not
+fit either case; the input views are not static as they contain parts with non-trivial movements across
+their articulation states, but they are still unordered. Given a few RGB views containing multiple
+articulation states, the task aims to recover geometry and infer how the parts move at the same time,
+from limited observations.
+In order to handle both the object geometry and articulation states within a single forward pass, we
+propose ArtSplat, a feed-forward model that predicts 3D Gaussians with joint parameters from sparse
+uncalibrated views captured at two or more articulation states. The core of our design is a joint
+prediction module that recovers how parts can move across various articulation states. Each state
+is paired with its own learnable state token, while a cross-state attention block allows each token to
+attend to the patch tokens of another state, enabling two tokens to capture the inter-state motion. A
+dual-branch DPT head [24] then decodes the patch tokens, conditioned on the state tokens, into a
+per-pixel joint map. One branch predicts joint type, axis, and pivot, which remain constant across
+states, and the other predicts rotation angle and translation distance, which change between states.
+The resulting joint map encodes joint type, axis, pivot, and motion magnitude at every pixel. Com-
+bined with 3D Gaussian primitives—whose means are unprojected from a predicted depth map
+and whose covariance, opacity, and color come from a Gaussian head—these per-pixel parameters
+articulate the Gaussians into any target articulation state for rendering.
+In summary, our contributions are as follows:
+    • We propose ArtSplat, the first feed-forward architecture that jointly predicts 3D Gaussians and
+      joint parameters from uncalibrated RGB views, removing the per-object test-time optimization
+      required by prior methods.
+    • We design a joint prediction module that explicitly captures discrete inter-state motion, enabling
+      accurate joint estimation from sparse views.
+    • Extensive experiments show that our model matches or outperforms prior baselines in recon-
+      struction and joint-estimation quality, while running 400× faster than prior works.
+
+2    Related work
+Articulated object reconstruction. Early implicit methods [18, 12, 28] optimize per-object neural
+fields from multi-view observations across articulation states. Subsequent 3D Gaussian Splatting
+(3DGS) approaches [6, 19, 33, 26, 38] have improved rendering fidelity, yet many still rely on strong
+priors such as depth, joint types [17] or predefined number of joints [19, 33]. More recent prior-free
+approach [14] has attempted to relax these assumptions. Across both paradigms, however, most
+methods remain formulated around a single joint, handling multi-part objects through iterative or
+sequential processing. Moreover, they typically require dense multi-view samples and rely on per-
+object optimization, incurring substantial computational overhead that limits practical applicability.
+Generalizable feed-forward reconstruction. A parallel line of work focuses on eliminating per-
+scene optimization via feed-forward inference, directly predicting 3D structure from input images.
+For static scenes, transformer-based models such as DUSt3R [31] and its successors [15, 29, 36, 41]
+have demonstrated remarkable capabilities in recovering 3D geometry from sparse views. Similarly,
+3DGS-based feed-forward methods [3, 5, 35, 37, 27, 11] enable efficient reconstruction in a single
+pass. However, these methods assume that the object remains static across all input views. For
+multi-state inputs of articulated objects, they cannot separate viewpoint variation from inter-state
+part motion, producing ghosting artifacts. While dynamic scene models like MonST3R [40] and
+others [4, 30] extend this to moving geometry, they typically assume dense temporal correspondence
+or small, gradual displacements across video frames. Articulated objects, in contrast, often appear in
+a few discrete states with large-magnitude motion, motivating a dedicated feed-forward framework
+tailored to such discrete, large-displacement state transitions.
+Feed-forward articulated reconstruction. Most closely related to our work are ART [16] and
+LARM [39], which have established articulated object reconstruction in a single forward pass. ART
+uses a transformer with fixed-part slots to decompose objects via SDF-based volume rendering,
+
+
+                                                   2
+conditioned on Plücker ray embeddings that require known camera poses. While providing structured
+outputs, it is limited by a predefined part count and suffers from a heavy computational bottleneck
+due to dense ray sampling at rendering. LARM, on the other hand, employs a transformer decoder
+to synthesize novel views conditioned on camera poses and joint states. Rendering an image thus
+requires a full forward pass through the transformer with the target pose and state as input, so its
+inference cost scales linearly with the number of desired views and states. In contrast, our method
+directly predicts 3D Gaussians and joint parameters from uncalibrated RGB images in a single
+forward pass, enabling efficient real-time rendering of articulated objects.
+
+3    Problem formulation
+The articulated object reconstruction task takes S articulation states with V sparse views for each
+as inputs, giving a total of N = V ·S pose-free RGB images I = {Ii,s ∈ RH×W ×3 }i=1,...,V, s=1,...,S
+of an articulated object with one or more movable parts at resolution H × W . An articulation between
+two states is either revolute, a rotation by angle θ around an axis at a pivot point (rotation requires
+axis location, not just direction), or prismatic, a displacement by d along an axis.
+The model is expected to encode the N input images and to produce predictions for multiple heads in
+a single forward pass, e.g., camera, depth, joint, and Gaussian:
+    • πi,s ∈ R9 , the per-image camera parameters from the camera head, decomposed as translation
+      t ∈ R3 , unit quaternion q ∈ R4 , and camera field-of-view f ∈ R2 .
+    • Di,s ∈ RH×W and Ci,s ∈ RH×W , the per-pixel depth and confidence maps from the depth
+      head. Note that the depth map determines the Gaussian means and, when unprojected with the
+      predicted camera πi,s , produces a point map Pi,s ∈ RH×W ×3 .
+                                         ×N
+    • The Gaussian set G = {gn }H×W n=1      is constructed from depth-derived means with Gaussian
+      attributes predicted by a Gaussian head: scale s ∈ R3 , rotation quaternion r ∈ R4 , opacity
+      α ∈ R, and view-dependent color represented with spherical harmonics of degree L = 4,
+                    2
+      c ∈ R3×(L+1) = R75 , yielding 86 parameters per Gaussian.
+    • Ji,s ∈ RH×W ×11 , the per-pixel joint map from the joint head, with channels for the joint type
+      logits over static, revolute, and prismatic (3), axis direction a (3, unit-norm), pivot location
+      p (3), revolute angle θ (1), and prismatic displacement d (1). The Gaussian transformation
+      is conditioned on the predicted joint type: revolute pixels use rotation parameters {a, p, θ},
+      prismatic pixels use translation parameters {a, d}, and static pixels remain unchanged.
+As illustrated in Fig. 1, a differentiable transformation of this Gaussian set by the joint map values
+produces a state-conditioned representation, which can then be rendered at any target viewpoint.
+
+4    ArtSplat: the proposed method
+We propose ArtSplat, a transformer-based feed-forward model that extends VGGT [29] from static
+scenes to articulated objects by introducing a per-pixel joint map representation (Sec. 4.1). As shown
+in Fig. 1, ArtSplat takes sparse multi-view images of two articulation states and predicts the camera,
+depth, Gaussian, and joint parameters in a single forward pass. Each input image is patchified and
+encoded into a set of tokens by DINOv2 [22], prepended with learnable camera and state tokens,
+and contextualized through L layers of alternating frame and global attentions. These outputs are
+decoded by task-specific heads and a joint prediction module (Sec. 4.2) into per-pixel predictions that
+together form a state-conditioned Gaussian set G (Sec. 4.3). Training is detailed in Sec. 4.4
+4.1 Joint map representation
+To reconstruct an articulated object, a model needs to determine (i) which parts can move, (ii) along
+which axes, and (iii) their rotation angle or displacement. One naive approach is to first segment the
+object into discrete parts and then regress one joint per part. However, the segmentation step relies on
+non-differentiable operations, breaking end-to-end training and making it difficult to integrate the
+pipeline into a feed-forward network. Another naive approach is to reserve a fixed number of output
+slots, with each slot predicting the joint parameters of one part. However, the number of parts varies
+across objects, and the assignment between predicted slots and ground-truth parts is often unstable
+during training, leading to inconsistent learning signals.
+We instead represent all joint parameters as a dense, per-pixel joint map J, where each pixel is
+represented as an 11-dimensional vector defined in Sec. 3. These per-pixel joint parameters directly
+
+
+                                                   3
+  S
+      State     Camera        Patch                     Prismatic Joint Axis
+      token      token        token                     Revolute Joint Axis
+
+                    𝑧0   S
+                                                       Camera          State-conditioned
+                                                        Head           Gaussians
+
+
+                                                       Gaussian
+
+
+
+
+                               VGGT Backbone
+                         …
+                                                        Head
+
+      State 0    DINO
+                                                        Depth
+                         …
+                    𝑧1   S                              Head
+
+
+                                                   f
+                                                         Joint
+                         …
+
+
+
+
+                                               S
+                                                 𝑧𝑠𝑏𝑏 Prediction          Joint Maps
+                                                                                           Novel State / View
+                                                       Module
+      State 1
+                                               S                                              Rendering
+
+
+Figure 1: Overview. Given sparse multi-view images across two states, our model predicts geometry and joint
+parameters in a forward pass. Depth and Gaussian predictions are integrated with the joint maps to produce a
+state-conditioned Gaussian set, enabling articulated novel-state rendering without per-object optimization.
+
+
+apply to its Gaussian primitive, constructed on the same pixel. By formulating articulation as a
+per-pixel regression, the joint head becomes fully differentiable and can be trained end-to-end with
+the depth and Gaussian heads, integrating articulation into our feed-forward reconstruction pipeline.
+The 11 channels of the joint map J can be categorized into two groups, either invariant across the
+articulation state or variant by pixels. As summarized in Tab. I, the invariant group Jinv ∈ R9 contains
+the properties intrinsic to the joint, e.g., the joint type logits, the axis direction, and the pivot location.
+They remain consistent for any pixel belonging to the same part across two states. On the other
+hand, the variant group Jvar ∈ R2 contains the rotation angle θ and translation displacement d, which
+describe how far the part has moved at the current state and therefore differ across states.
+4.2 Joint map prediction module
+To predict the joint map, the network must identify what changes between two states; that is, which
+pixels move along an axis and by how much. We model this with three components: state tokens
+that capture per-state information, a cross-state attention block that compares the two states, and an
+invariant/variant DPT head that turns the result into the per-pixel joint map.
+State tokens. We add a learnable state token per state, denoted by z0 , z1 ∈ RD , inspired by the
+camera-token design of VGGT [29]. The state token zs is prepended to the V views of state s. As
+the VGGT backbone’s alternating frame- and global-attention layers process the full sequence, zs
+attends to all V views of state s. We denote the resulting backbone output as zbb  D
+                                                                               s ∈R .
+Cross-state attention. To strengthen the comparison between the two states, we introduce a single
+Cross-State Attention (CSA) block in which zbb   s attends to the other state’s image features. Let
+F (s) ∈ RV ×Np ×D denote the patch tokens at the backbone’s last block, collected across all V images
+of state s (Np patches per image). Using zbb
+                                          s as the query and F
+                                                                 (1−s)
+                                                                        (the patch tokens of the other
+state) as both keys and values, CSA produces a refined summary z̃s for each state:
+              z̃s = CSA Q = zbb          (1−s)
+                                                , V = F (1−s) ,
+                                                             
+                                s , K =F                             where s ∈ {0, 1}.             (1)
+Invariant/variant decoders. The joint head uses a DPT-style [24] decoder with two branches that
+share fusion stages: a 9-channel invariant branch for the joint-wise invariant properties (e.g., type,
+axis, pivot) and the 2-channel variant branch for the state-dependent θ and d. The conditioning
+vectors are derived from the CSA outputs to match the symmetry of each branch:
+                       cinv = (z̃0 + z̃1 )/2,  cvar
+                                                s = z̃s ,   where s ∈ {0, 1}.
+                             inv
+Here, the invariant vector c is obtained by symmetrically pooling the two CSA outputs, making
+it suitable for predicting quantities shared across both states. The variant vector cvar
+                                                                                       s keeps the
+state-specific component for predictions that should differ between states.
+
+
+                                                                 4
+Let f ∈ RC×h×w denote the per-pixel feature map at a given fusion stage of the decoder. We first
+inject geometry by adding the output of a pointwise MLP, which projects the Pi,s into the feature
+dimension, then apply FiLM [23]:
+                             f ′ = f + MLP(Pi,s ),        f ′′ = γ ⊙ f ′ + β,                           (2)
+                                                                                inv
+where γ, β are linear projections of the branch’s conditioning vector (c              , cvar
+                                                                                         s ). The modulated
+feature f ′′ is then decoded by each branch into 9-channel invariant and 2-channel variant predictions,
+which are concatenated into the 11-channel joint map Ji,s .
+4.3 Articulation transform
+To move Gaussians of the same part together, a part needs to be assigned to each pixel. At training,
+we supervise the model to group Gaussians by part for the articulation transform, detailed below,
+using the true part label, available in the training data. The joint map is learned end-to-end, without
+any clustering. At inference, we assign part pseudo-labels by clustering Gaussians within each joint
+type using HDBSCAN [1], a density-based algorithm that infers the number of clusters from the data.
+For revolute joints, we cluster on the Plücker line coordinates (a, a×p), which uniquely identify the
+rotation axis as a 3D line. For prismatic joints, we cluster on the axis direction a alone, since the
+pivot is not defined for a translation. This yields a per-Gaussian pseudo-label for each part pn .
+Then, for each part p, we obtain a part-level axis ap , pivot pp , and reference angle θ̄p (revolute) or
+displacement d¯p (prismatic) by averaging the per-Gaussian predictions over all Gaussians belonging
+to the part p. Given target articulation angles θp∗ or displacements d∗p , we compute the part-level
+relative motion ∆θp = θp∗ − θ̄p or ∆dp = d∗p − d¯p , and apply it rigidly to every Gaussian for the part:
+                    (                                                             
+          ′   ′        R(apn , ∆θpn )(µn − ppn ) + ppn , q(apn , ∆θpn ) ⊗ qn          revolute,
+       (µn , qn ) =                                                                                 (3)
+                       µn + ∆dpn apn , qn                                             prismatic,
+where the rotation matrix R(a, ∆θ) is defined by Rodrigues’ formula [7], and the corresponding unit
+quaternion q(a, ∆θ) represents the same rotation of angle ∆θ about axis a, as follows:
+                        R(a, ∆θ) = I + sin(∆θ) [a]× + (1 − cos(∆θ)) [a]2× ,                             (4)
+                                                            
+                        q(a, ∆θ) = cos(∆θ/2), sin(∆θ/2) a ,                                             (5)
+where [a]× is the skew-symmetric cross-product matrix of a, and ⊗ denotes quaternion multiplication.
+                                                                                      ∗
+Applying this transform to every Gaussian yields a state-conditioned Gaussian set G (s ) that places
+each part at its target articulation and can be rendered from any viewpoint.
+4.4 Training
+It is unstable to train the joint head and the rendering objective together from scratch, since an
+inaccurate joint map often produces incorrectly transformed Gaussians, yielding a misleading photo-
+metric signal that, in turn, degrades joint prediction. We therefore split the training into two stages.
+Stage 1 optimizes the geometry and joint parameters under direct supervision, without any rendering
+objective. More details on this supervision and the construction of ground-truth annotations are
+deferred to Appendix App. B. Stage 2 resumes from the Stage 1, adding a rendering loss (RGB MSE
+and LPIPS), which both refines appearance quality and end-to-end correction to the joint map through
+the differentiable articulation transform in Eq. (3). Training in this order is empirically more stable
+than co-optimizing all losses from scratch.
+In Stage 1, we minimize the following loss:
+                  Lstage1 = λp Lpose + λd Ldepth + λj Ljoint + λc Lconsist + λs Lsmooth .               (6)
+Lpose and Ldepth supervise the camera and depth heads following VGGT [29]. The remaining three
+terms supervise the joint map. Ljoint aggregates per-channel supervision on pixels by
+             Ljoint = CE(τ , τ ∗ ) + ∥a − a∗ ∥1 + d⊥ (p, p∗ ; a∗ ) + H(θ, θ∗ ) + H(d, d∗ ),             (7)
+where τ , a, p, θ, d are the predicted joint type, axis, pivot, angle, and displacement, starred quantities
+denote ground truth, and CE is the cross-entropy loss. Note that d⊥ is the perpendicular distance
+from the predicted pivot p to the GT axis line passing through p∗ in direction a∗ :
+                          d⊥ (p, p∗ ; a∗ ) = (p − p∗ ) − (p − p∗ ) · a∗ a∗ 2 ,
+                                                                            
+                                                                                                        (8)
+
+
+                                                     5
+which is applied to penalize only deviations from the ground-truth axis line while ignoring offsets
+along the axis direction. H denotes the Huber loss [10], applied to θ and d only for revolute and
+prismatic pixels, respectively. Construction of the true joint map is detailed in Appendix B. Lconsist
+enforces the invariant prediction to be same across the two states, averaged per part. Denoting the
+                                                                                   (s)
+set of moving parts by P and the set of pixels belonging to part p in state s by Ωp , we predict the
+per-part mean as follows:
+                                                 1     X
+                                     µ(s)
+                                       p   =     (s)
+                                                              Jinv
+                                                               i .                                (9)
+                                              |Ωp |       (s)
+                                                        i∈Ωp
+
+Then, the consistency loss is given by
+                                               1 X (0)
+                                 Lconsist =        µp − µ(1)
+                                                         p             2
+                                                                           .                        (10)
+                                              |P|
+                                                 p∈P
+
+Lsmooth is a standard part-aware total variation [25] that penalizes ℓ1 differences only between adjacent
+pixels of the same part, preserving part boundaries.
+In Stage 2, we add a rendering loss Lrgb to Lstage1 :
+                                     Lstage2 = Lstage1 + λrgb Lrgb ,                                (11)
+where Lrgb combines a per-pixel MSE term and a VGG-based LPIPS perceptual term between
+rendered and ground-truth images.
+
+5   Experiments
+5.1 Experimental settings
+Dataset. We train on PartNet-Mobility [2, 21, 34], a large-scale dataset of URDF-annotated articu-
+lated objects across diverse categories, with revolute and prismatic joints connecting movable parts to
+a static base. We leverage this dataset to render multi-view, multi-state RGB images for training; full
+rendering details are provided in Appendix A. For evaluation, we hold out a total of 68 objects from
+training, consisting of 18 single-joint and 50 multi-joint objects.
+Evaluation protocol. All methods receive the same 8 input views (2 states × 4 views) and are
+evaluated on 12 held-out target views per state. We report results separately on the single-joint and
+multi-joint splits. Detailed view sampling definitions are provided in Appendix C.
+Baselines. We compare with baselines from per-object optimization methods built on implicit
+representations [18, 32] and 3DGS [19, 14, 33], covering a range of input priors from RGB-only to
+RGB-D with the number of joints supervision.
+Evaluation metrics. Following ScrewSplat [14], we adopt three categories of evaluation metrics:
+geometry, motion, and appearance. For geometry, we report Chamfer Distance separately for the
+static part (CD-s), the movable parts (CD-m, averaged over all movable parts), and the entire object
+(CD-w). For motion, we measure the angular error (Angm , ◦ ) between the estimated and ground-truth
+axes, and the axis position error (Posm ) for revolute joints, computed as the minimum distance
+between corresponding joint axes. For appearance, we report Peak Signal-to-Noise Ratio (PSNR)
+and Structural Similarity Index Measure (SSIM) on rendered images from the held-out target views.
+Architecture. The backbone is the 1B-parameter VGGT aggregator initialized from AnySplat [11]
+pretrained weights. We adapt it with rank-16 LoRA [8] adapters (scaling factor α = 16) on every
+attention projection, and add a learnable state token of dimension D = 2048; all other VGGT
+parameters are frozen. CSA is a single block with 16 attention heads and a feature dimension of 2048;
+The Joint DPT head aggregates intermediate features from layers {4, 11, 17, 23} of the backbone
+and progressively fuses them into 256-channel feature maps, from which it produces an 11-channel
+output split into the invariant (9) and variant (2) branches. The Gaussian head shares the same DPT
+layout and outputs the AnySplat Gaussian parameters together with a confidence channel.
+Optimization. We train with AdamW (β1 = 0.9, β2 = 0.95, weight decay 0.05) using a learning
+rate of 1×10−4 , with a 1,000-step warm-up followed by cosine decay to 1×10−5 . LoRA adapters
+inside the backbone use 0.1× the base learning rate. Loss weights are λp =3, λd =3, λj =5, λc =0.5,
+λs =0.1, and λrgb =1, where Lrgb = MSE + 0.1 · LPIPS. Inputs are 448×448 images, giving 32×32
+patches with the VGGT patch size of 14. Each batch contains V ·S = 8 images from a single object.
+
+
+                                                   6
+Table 1: Quantitative comparison on the PartNet-Mobility dataset. Best results are in bold, and the second best
+are underlined.
+
+ Split          Method            Prior                           Geometry (↓)         Motion (↓)     Appearance (↑)
+                                                             CD-w    CD-s    CD-m    Angm    Posm     PSNR    SSIM
+                PARIS [18]        RGB + number of joints     0.022   0.029   0.294   55.96    0.166   20.51   0.909
+ Single-joint
+
+
+                DTA [32]          RGB-D + number of joints   0.004   0.008   0.145   33.79    2.305   20.23   0.822
+                ArtGS [19]        RGB-D + number of joints   0.013   0.010   0.102   64.67    1.165   28.01   0.924
+                ReArtGS [33]      RGB + number of joints     0.045   0.129   0.443   47.87    1.993   23.44   0.865
+                ScrewSplat [14]   RGB                        0.036   0.039   0.301   26.27    2.401   22.93   0.918
+                ArtSplat (Ours)   RGB                        0.031   0.023   0.028    6.65    0.436   28.70   0.941
+                PARIS [18]        RGB + number of joints     0.017   0.029   0.335   53.08    0.221   20.03   0.913
+ Multi-joint
+
+
+
+
+                DTA [32]          RGB-D + number of joints   0.025   0.053   0.527   44.48   22.790   19.56   0.813
+                ArtGS [19]        RGB-D + number of joints   0.096   0.102   0.782   49.31    1.825   25.21   0.893
+                ScrewSplat [14]   RGB                        0.035   0.044   0.405   46.78    3.368   23.49   0.912
+                ArtSplat (Ours)   RGB                        0.034   0.024   0.030    5.79    0.864   26.30   0.921
+
+
+
+Stage 1 and Stage 2 run for 80k and 40k iterations, respectively, using gradient clipping at 0.5 and
+bf16 mixed precision on 4 NVIDIA RTX A6000 GPUs. The full training schedule takes ∼ 4 days.
+Inference. At inference, we run a single forward pass on the 8 input images and form the canonical
+set G by merging the per-pixel Gaussians with AnySplat’s differentiable voxelization at voxel size
+0.003. We then recover pseudo-labels for the parts by HDBSCAN on Plücker line coordinates
+                                                                                                   ∗
+(Sec. 4.3) and apply the articulation transform of Eq. (3) to obtain the state-conditioned set G (s ) ,
+which is rendered with the standard 3DGS rasterizer [13].
+5.2 Main results
+Tab. 1 compares our method with baselines on both single-joint and multi-joint subsets of PartNet-
+Mobility, grouped by the prior each method requires. Among all methods, only ArtSplat and
+ScrewSplat operate from RGB alone; the remaining baselines additionally require depth maps,
+ground-truth joint counts, or both.
+Geometry. Among RGB-only methods, ArtSplat achieves the best Chamfer Distance on all three
+metrics and both splits, consistently outperforming ScrewSplat. In particular, ArtSplat attains the
+lowest CD-m overall, including against baselines that rely on depth or joint-count priors. Since CD-m
+measures how well movable parts are reconstructed, it directly reflects whether the model correctly
+identifies which regions move and how they transform—the core capability ArtSplat is designed
+to learn. Notably, ArtSplat’s geometry remains robust as the number of joints increases, which we
+attribute to cross-state attention explicitly comparing the two articulation states.
+Motion. Accurate axis estimation is critical, as even small angular errors compound into large
+displacements for parts far from the joint origin. Existing methods struggle to recover accurate joint
+axis orientation, with most reporting angular errors above 30◦ regardless of the input prior. In contrast,
+ArtSplat predicts joint axes with substantially lower angular error on both single- and multi-joint
+splits, demonstrating robust axis estimation that does not degrade for objects with more joints.
+Appearance. ArtSplat achieves competitive appearance quality on both splits, which is noteworthy
+given the fundamental efficiency gap: per-object optimization methods fit each scene for hundreds of
+iterations over sampled views, whereas ArtSplat produces all Gaussians in a single feed-forward pass
+from only 8 input images.
+Qualitative comparison. As shown in Fig. 2, baselines often mispredict joint axes, causing movable
+parts to be rendered at incorrect positions or orientations and producing visible artifacts. In contrast,
+ArtSplat predicts joint axes accurately, yielding clean renderings of movable parts. Fig. 3 shows
+that ArtSplat also extracts competitive meshes while localizing joint axes more accurately than the
+baselines. As further shown in Fig. 4, ArtSplat can render the object at arbitrary articulation states
+s ∈ [0, 1], smoothly interpolating between fully closed (s = 0) and fully open (s = 1) configurations.
+Inference speed.
+Tab. 2 compares the inference speed of competing methods. As a feed-forward model, ArtSplat
+reconstructs each object in under 2 seconds, achieving over 400× speedup over existing baselines
+and approximately 700× over ScrewSplat, which also uses only RGB inputs.
+
+
+                                                              7
+                                                                                                   ArtSplat
+  Ground Truth                PARIS              DTA              ArtGS           ScrewSplat
+                                                                                                    (Ours)
+
+
+
+
+Figure 2: Qualitative comparison of novel-view renderings via Gaussian rasterization. Baselines exhibit ghosting
+and misaligned edges around the joints due to inaccurate axis estimation, whereas ArtSplat produces clean
+renderings of both static and movable parts.
+
+         Articulated object              PARIS            DTA             ArtGS       ScrewSplat    ArtSplat
+                                                                                                     (Ours)
+      State 0         State 1
+
+
+
+
+                Prismatic Joint Axis / Part
+                Revolute Joint Axis / Part
+                  Figure 3: Qualitative comparison of extracted meshes and predicted joint axes.
+
+
+
+
+                 State 0         State 0.25       State 0.5         State 0.75          State 1
+Figure 4: Illustration of Novel state rendering. Given multi-view RGB observations, ArtSplat reconstructs
+state-conditioned Gaussians and renders the object at novel articulation states s ∈ [0, 1], where s=0 and s=1
+denote the fully closed and fully open configurations, respectively.
+
+
+
+5.3    Ablation studies
+Cross-state Attention. We ablate the cross-state attention by disabling it while retaining the state
+token, so the state token cannot attend to features from the other state but still provides FiLM
+conditioning to the joint head. As in Tab. 3, this substantially degrades axis and angle estimation
+accuracy while leaving per-state geometry largely intact. This asymmetric degradation indicates that
+axis and angle estimation relies mostly on the state token aggregating features across states.
+State Token Conditioning. We further remove the state token in addition to cross-state attention, so
+image tokens are passed directly to the DPT joint head without any state-specific signal. As reported
+in Tab. 3, this variant performs worst across all joint metrics, with a particularly large drop relative to
+
+
+                                                              8
+Table 2: Per-object inference speed on PartNet-Mobility. We compare average wall-clock time to reconstruct a
+single articulated object, measured on a single NVIDIA RTX A6000 GPU with 8 input views.
+
+       Type                       Method               Prior                       Time per object ↓
+                                  PARIS [18]           RGB + number of joints          12m 57s
+                                  DTA [32]             RGB-D + number of joints        56m 07s
+       per-object optimization    ArtGS [19]           RGB-D + number of joints        15m 50s
+                                  REArtGS [33]         RGB + number of joints          1h 37m
+                                  ScrewSplat [14]      RGB                             23m 05s
+       feed-forward               ArtSplat (Ours)      RGB                               <2s
+
+Table 3: Architecture and training-schedule ablations. Each row removes or replaces one component and is
+retrained with the same schedule as the full model.
+
+                                                  Geometry (↓)        Motion (↓)   Appearance (↑)
+           Method                              CD-w CD-s CD-m Angm Posm PSNR              SSIM
+           ArtSplat (full)                     0.034 0.024 0.030      5.79 0.864 26.30     0.921
+           w/o cross-state attention           0.067   0.029   0.082 18.74 1.852 24.18     0.901
+           w/o state token conditioning        0.112   0.041   0.156 31.46 2.917 22.51     0.879
+           w/o Inv/Var split (single branch)   0.042   0.026   0.041 7.12 1.643 25.07      0.913
+           Single-stage joint training         0.058   0.030   0.069 12.85 1.428 23.74     0.895
+
+
+
+the cross-state-attention-only ablation. The gap indicates that the state token and cross-state attention
+contribute beyond what either component alone does.
+Invariant/variant DPT. We ablate the invariant/variant split by replacing the dual-branch DPT head
+with a single shared head that jointly regresses all eleven channels, without FiLM conditioning.
+As seen in Tab. 3, the single-head variant achieves comparable axis estimation but consistently
+underperforms on angle and displacement. This asymmetric degradation shows that making the
+invariant/variant distinction structural rather than learned yields more accurate variant predictions
+without sacrificing invariant-attribute quality.
+Two-stage training. We compare our two-stage training with a single-stage variant that simultane-
+ously optimizes all losses, including the rendering loss Lrgb , from the first iteration. To ensure a fair
+comparison, both schedules use the same total number of training iterations. The last row of Tab. 3
+indicates that the performance significantly drops compared to our two-stage training. We attribute
+this to potentially unstable gradients through the articulated transformation that corrupt the joint and
+point heads early in training, due to the loss Lrgb backpropagated through Gaussians parameterized by
+still-noisy joint predictions. This leads to oscillating joint losses and eventually degraded performance.
+Our two-stage schedule avoids this issue by introducing photometric supervision only after the joint
+and geometry predictions become sufficiently stable, allowing Lrgb to act as a refinement signal rather
+than a source of optimization noise. It also improves efficiency, since our Stage 1 omits differentiable
+rasterization and photometric supervision, making each iteration substantially cheaper.
+
+6   Conclusion
+We propose ArtSplat, a feed-forward framework that reconstructs articulated objects and their
+joint parameters from sparse, uncalibrated RGB views in a single forward pass, eliminating per-
+object optimization. A novel per-pixel joint map representation and a joint prediction module that
+estimates joint parameters from inter-state differences are successfully integrated into the feed-forward
+reconstruction pipeline. Extensive experiments on PartNet-Mobility demonstrate that ArtSplat
+successfully reconstructs both geometry and motion of articulated objects at significantly faster speed
+than per-object optimization methods.
+Limitations and future work. Our model currently handles only single-degree-of-freedom joints
+connected directly to a static base. Extending it to kinematic chains, where multiple joints are
+connected in series as in a robotic arm, and validating on real-world captures would be promising
+directions for future work.
+
+
+                                                        9
+Acknowledgments
+This work was also supported by Samsung Electronics, Youlchon Foundation, National Research
+Foundation of Korea (NRF) grants (RS-2021-NR05515, RS-2024-00336576, RS-2023-0022663),
+and the Institute for Information & Communication Technology Planning & Evaluation (IITP) grants
+(RS-2022-II220264, RS-2024-00353131) funded by the Korean government.
+
+References
+ [1] R. J. Campello, D. Moulavi, and J. Sander. Density-Based Clustering Based on Hierarchical Density
+     Estimates. In Proceedings of the Pacific-Asia Conference on Knowledge Discovery and Data Mining
+     (PAKDD), 2013.
+ [2] A. X. Chang, T. Funkhouser, L. Guibas, P. Hanrahan, Q. Huang, Z. Li, S. Savarese, M. Savva, S. Song,
+     H. Su, et al. Shapenet: An information-rich 3d model repository. arXiv:1512.03012, 2015.
+ [3] D. Charatan, S. L. Li, A. Tagliasacchi, and V. Sitzmann. pixelSplat: 3D Gaussian Splats from Image Pairs
+     for Scalable Generalizable 3D Reconstruction. In Proceedings of the IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition (CVPR), 2024.
+ [4] X. Chen, Y. Chen, Y. Xiu, A. Geiger, and A. Chen. Easi3R: Estimating Disentangled Motion from DUSt3R
+     Without Training. In Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV),
+     2025.
+ [5] Y. Chen, H. Xu, C. Zheng, B. Zhuang, M. Pollefeys, A. Geiger, T.-J. Cham, and J. Cai. MVSplat: Efficient
+     3D Gaussian Splatting from Sparse Multi-View Images. In Proceedings of the European Conference on
+     Computer Vision (ECCV), 2024.
+ [6] J. Guo, Y. Xin, G. Liu, K. Xu, L. Liu, and R. Hu. ArticulatedGS: Self-supervised Digital Twin Modeling
+     of Articulated Objects using 3D Gaussian Splatting. In Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition (CVPR), 2025.
+ [7] R. Hartley and A. Zisserman. Multiple View Geometry in Computer Vision. Cambridge university press,
+     2003.
+ [8] E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, W. Chen, et al. LoRA: Low-Rank
+     Adaptation of Large Language Models. In Proceedings of the International Conference on Learning
+     Representations (ICLR), 2022.
+ [9] B. Huang, Z. Yu, A. Chen, A. Geiger, and S. Gao. 2D Gaussian Splatting for Geometrically Accurate
+     Radiance Fields. In ACM SIGGRAPH 2024 conference papers, pages 1–11, 2024.
+[10] P. J. Huber. Robust Estimation of a Location Parameter. The Annals of Mathematical Statistics, 35(1):73 –
+     101, 1964.
+[11] L. Jiang, Y. Mao, L. Xu, T. Lu, K. Ren, Y. Jin, X. Xu, M. Yu, J. Pang, F. Zhao, et al. AnySplat: Feed-forward
+     3D Gaussian Splatting from Unconstrained Views. ACM Transactions on Graphics (TOG), 44(6):1–16,
+     2025.
+[12] Z. Jiang, C.-C. Hsu, and Y. Zhu. Ditto: Building Digital Twins of Articulated Objects from Interaction. In
+     Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2022.
+[13] B. Kerbl, G. Kopanas, T. Leimkühler, and G. Drettakis. 3d gaussian splatting for real-time radiance field
+     rendering. ACM Trans. Graph., 42(4):139–1, 2023.
+[14] S. Kim, J. Ha, Y. H. Kim, Y. Lee, and F. C. Park. ScrewSplat: An End-to-End Method for Articulated
+     Object Recognition. In Proceedings of the Conference on Robot Learning (CoRL), 2025.
+[15] V. Leroy, Y. Cabon, and J. Revaud. Grounding Image Matching in 3D with MASt3R. In Proceedings of
+     the European Conference on Computer Vision (ECCV), 2024.
+[16] Z. Li, C. Zhang, Z. Li, H. Howard-Jenkins, Z. Lv, C. Geng, J. Wu, R. Newcombe, J. Engel, and Z. Dong.
+     ART: Articulated Reconstruction Transformer. In Proceedings of the IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition (CVPR), 2026.
+[17] S. Lin, J. Fang, M. Z. Irshad, V. C. Guizilini, R. A. Ambrus, G. Shakhnarovich, and M. R. Walter. SplArt:
+     Articulation Estimation and Part-Level Reconstruction with 3D Gaussian Splatting. In Proceedings of the
+     IEEE/CVF International Conference on Computer Vision (ICCV), 2025.
+
+
+                                                       10
+[18] J. Liu, A. Mahdavi-Amiri, and M. Savva. PARIS: Part-level Reconstruction and Motion Analysis for
+     Articulated Objects. In Proceedings of the IEEE/CVF International Conference on Computer Vision
+     (ICCV), 2023.
+[19] Y. Liu, B. Jia, R. Lu, J. Ni, S.-C. Zhu, and S. Huang. ArtGS: Building Interactable Replicas of Complex
+     Articulated Objects via Gaussian Splatting. In Proceedings of the International Conference on Learning
+     Representations (ICLR), 2025.
+[20] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. NeRF: Representing
+     Scenes as Neural Radiance Fields for View Synthesis. Communications of the ACM, 65(1):99–106, 2021.
+[21] K. Mo, S. Zhu, A. X. Chang, L. Yi, S. Tripathi, L. J. Guibas, and H. Su. PartNet: A large-scale benchmark
+     for fine-grained and hierarchical part-level 3D object understanding. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition (CVPR), 2019.
+[22] M. Oquab, T. Darcet, T. Moutakanni, H. Vo, M. Szafraniec, V. Khalidov, P. Fernandez, D. Haziza, F. Massa,
+     A. El-Nouby, et al. DINOv2: Learning Robust Visual Features without Supervision. arXiv:2304.07193,
+     2023.
+[23] E. Perez, F. Strub, H. De Vries, V. Dumoulin, and A. Courville. FiLM: Visual Reasoning with a General
+     Conditioning Layer. In Proceedings of the AAAI Conference on Artificial Intelligence (AAAI), 2018.
+[24] R. Ranftl, A. Bochkovskiy, and V. Koltun. Vision Transformers for Dense Prediction. In Proceedings of
+     the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2021.
+[25] L. I. Rudin, S. Osher, and E. Fatemi. Nonlinear total variation based noise removal algorithms. Physica D:
+     nonlinear phenomena, 60(1-4):259–268, 1992.
+[26] L. Shen, S. Zhang, H. Li, P. Yang, Z. Huang, Z. Zhang, and H. Zhao. GaussianArt: Unified Modeling
+     of Geometry and Motion for Articulated Objects. In Proceedings of the International Conference on 3D
+     Vision (3DV), 2025.
+[27] B. Smart, C. Zheng, I. Laina, and V. A. Prisacariu. Splatt3R: Zero-shot Gaussian Splatting from Uncali-
+     brated Image Pairs. arXiv:2408.13912, 2024.
+[28] W.-C. Tseng, H.-J. Liao, L. Yen-Chen, and M. Sun. CLA-NeRF: Category-Level Articulated Neural
+     Radiance Field. In Proceedings of the IEEE International Conference on Robotics and Automation (ICRA),
+     2022.
+[29] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny. VGGT: Visual Geometry
+     Grounded Transformer. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition (CVPR), 2025.
+[30] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa. Continuous 3D Perception Model with
+     Persistent State. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     (CVPR), 2025.
+[31] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud. DUSt3R: Geometric 3D Vision Made Easy.
+     In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2024.
+[32] Y. Weng, B. Wen, J. Tremblay, V. Blukis, D. Fox, L. Guibas, and S. Birchfield. Neural Implicit Repre-
+     sentation for Building Digital Twins of Unknown Articulated Objects. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition (CVPR), 2024.
+[33] D. Wu, L. Liu, Z. Linli, A. Huang, L. Song, Q. Yu, Q. Wu, and C. Lu. REArtGS: Reconstructing and
+     Generating Articulated Objects via 3D Gaussian Splatting with Geometric and Motion Constraints. In
+     Advances in Neural Information Processing Systems (NeurIPS), 2025.
+[34] F. Xiang, Y. Qin, K. Mo, Y. Xia, H. Zhu, F. Liu, M. Liu, H. Jiang, Y. Yuan, H. Wang, L. Yi, A. X. Chang,
+     L. J. Guibas, and H. Su. SAPIEN: A simulated part-based interactive environment. In Proceedings of the
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2020.
+[35] H. Xu, S. Peng, F. Wang, H. Blum, D. Barath, A. Geiger, and M. Pollefeys. DepthSplat: Connecting
+     Gaussian Splatting and Depth. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition (CVPR), 2025.
+[36] J. Yang, A. Sax, K. J. Liang, M. Henaff, H. Tang, A. Cao, J. Chai, F. Meier, and M. Feiszli. Fast3R:
+     Towards 3D Reconstruction of 1000+ Images in One Forward Pass. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition (CVPR), 2025.
+
+
+                                                     11
+[37] B. Ye, S. Liu, H. Xu, X. Li, M. Pollefeys, M.-H. Yang, and S. Peng. No Pose, No Problem: Surprisingly
+     Simple 3D Gaussian Splats from Sparse Unposed Images. In Proceedings of the International Conference
+     on Learning Representations (ICLR), 2025.
+
+[38] T. Yu, V. Shah, M. Wahed, Y. Shen, K. A. Nguyen, and I. Lourentzou. Part2 GS: Part-aware Modeling of
+     Articulated Objects using 3D Gaussian Splatting. arXiv:2506.17212, 2025.
+
+[39] S. Yuan, R. Shi, X. Wei, X. Zhang, H. Su, and M. Liu. LARM: A Large Articulated Object Reconstruction
+     Model. In Proceedings of the SIGGRAPH Asia Conference Papers (SIGGRAPH Asia), 2025.
+[40] J. Zhang, C. Herrmann, J. Hur, V. Jampani, T. Darrell, F. Cole, D. Sun, and M.-H. Yang. MonST3R: A
+     Simple Approach for Estimating Geometry in the Presence of Motion. In Proceedings of the International
+     Conference on Learning Representations (ICLR), 2025.
+[41] S. Zhang, J. Wang, Y. Xu, N. Xue, C. Rupprecht, X. Zhou, Y. Shen, and G. Wetzstein. FLARE: Feed-
+     forward Geometry, Appearance and Camera Estimation from Uncalibrated Sparse Views. In Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2025.
+
+
+
+
+                                                    12
+Appendix
+A    Training data details
+A.1 Multi-view rendering
+For each training object, we pre-render RGB images, depth maps, and per-part segmentation masks
+from 48 camera viewpoints across 16 articulation states, yielding 48 × 16 = 768 frames per object.
+Camera placement. Cameras are distributed on the upper hemisphere via stratified jittering, looking
+at the object center with no roll. The hemisphere is covered by two layers: a main layer of 5 elevation
+bins × 8 azimuth bins (= 40 views) spanning elevation [0◦ , 72◦ ] and full 360◦ azimuth, and a top
+layer of 2 elevation bins × 4 azimuth bins (= 8 views) spanning elevation [72◦ , 85◦ ].
+Articulation state sampling. We sample 16 states per object using stratified jittering over the
+normalized articulation range [0, 1]. The range is divided into 16 equal bins, and one articulation
+value is randomly sampled within each bin. For multi-joint objects, each joint receives an independent
+random permutation of the 16 bins, so joint configurations are decorrelated across states.
+A.2 Training view sampling
+At each training iteration, we sample one object and draw 2 states uniformly from the 16 pre-rendered
+states, then select 4 views per state from the 48 available viewpoints, forming a batch of V ·S=8
+images. All supervision signals—ground-truth depth, part segmentation, camera extrinsics, and the
+joint map.
+
+B    Ground-truth joint map details
+The ground-truth joint map J∗i,s ∈ RH×W ×11 is constructed per frame from per-pixel part segmen-
+tation labels, joint annotations (type, axis, pivot), and joint positions (angle or displacement) from
+the PartNet-Mobility dataset. The channel layout is summarized in Tab. I. Following VGGT [29],
+all geometric quantities are expressed in a canonical frame defined by the first camera [R0 | t0 ],
+and further divided by a radius normalization factor r̄ (the mean distance of foreground 3D points
+from the canonical origin) so that the scale-normalized space is shared across the point map, camera
+translations, and joint map.
+For each pixel with part label ℓ (−1 = background, 0 = static base, ≥ 1 = moving part), the 11 channels
+are populated as follows:
+• Channels 0–2 (joint type): One-hot encoding of the joint type: static [1, 0, 0], revolute [0, 1, 0], or
+  prismatic [0, 0, 1].
+• Channels 3–5 (axis direction): The joint axis direction associated with the corresponding articu-
+  lated part, transformed into the canonical frame and normalized to a unit vector.
+• Channels 6–8 (pivot position): The joint pivot position associated with the articulated part,
+  transformed into the canonical frame and normalized by r̄.
+• Channel 9 (rotation angle θ): For revolute joints, the articulation value is converted into a rotation
+  angle using the joint motion range.
+• Channel 10 (displacement d): For prismatic joints, the articulation value is converted into a linear
+  displacement using the joint motion range and normalized by r̄.
+All pixels belonging to the same moving part share identical values for channels 0–8 (invariant
+properties), while channels 9–10 (variant properties) vary according to the articulation state of the
+current frame.
+
+C    Evaluation setup
+C.1 Evaluation view sampling
+All cameras are placed on the upper hemisphere looking at the object center. Views are generated via
+stratified jittering: we partition the elevation range into Ne equal intervals and the azimuth range
+into Na equal intervals, forming an Ne × Na grid of bins. Within each bin, one camera is placed at a
+uniformly random elevation and azimuth, yielding Ne · Na views in total.
+
+
+                                                  13
+Table I: Channel layout of the per-pixel joint map J (11 channels). Invariant channels describe the joint identity
+and must agree across states; variant channels describe state-dependent motion.
+
+                    Channel      Quantity               Type                             Invariant
+                       0–2       joint type logits      static / revolute / prismatic        ✓
+                       3–5       axis direction a       unit 3-vector                        ✓
+                       6–8       pivot p                3-D world point                      ✓
+                        9        rotation θ             radian (revolute)                 per-state
+                        10       displacement d         meter (prismatic)                 per-state
+
+
+Input views. Each method receives 8 images (2 states × 4 views). The 4 views per state use
+Ne =1, Na =4 over elevation [5◦ , 60◦ ] and azimuth [−180◦ , 180◦ ).
+Target views. Each state is evaluated on 12 held-out views, using Ne =3, Na =4 over elevation
+[0◦ , 90◦ ] and azimuth [−180◦ , 180◦ ). The wider elevation range ensures that target views include
+viewpoints above and below the input distribution, testing generalization rather than interpolation
+alone.
+
+D     Additional qualitative results
+Fig. II provides additional qualitative comparisons on three single-joint and three multi-joint objects
+from the test set. Notably, the bottom example contains 8 revolute and 6 prismatic joints, and ArtSplat
+still achieves favorable rendering quality compared to the baselines, highlighting its scalability to
+complex articulation structures.
+Failure cases. Fig. I illustrates two representative failure cases of ArtSplat. First, 3D Gaussians are
+inherently unstructured primitives without explicit surface connectivity, which makes high-fidelity
+mesh reconstruction challenging. Adopting surface-aligned representations such as 2D Gaussian
+Splatting [9] is a promising direction to mitigate this limitation. Second, when the articulation change
+between the two observed states is small, the predicted joint axis can deviate significantly from the
+ground truth, leading to incorrect articulation transforms and consequently degraded novel-view
+rendering. Leveraging external priors, e.g., vision-language models that explicitly reason about
+inter-state differences, could help resolve such ambiguities.
+
+
+
+
+                (a) Failure Case: Mesh Reconstruction             (b) Failure Case: Joint Axis Prediction
+
+Figure I: Representative failure cases. Left: Mesh reconstruction artifacts. Right: Rendering errors caused by
+inaccurate joint axis prediction when the articulation difference between two states is small.
+
+
+
+
+                                                           14
+                                                                                               ArtSplat
+ Ground Truth          PARIS               DTA              ArtGS          ScrewSplat
+                                                                                                (Ours)
+
+
+
+
+Figure II: Additional qualitative comparisons on novel-view rendering across diverse articulated objects from
+the test set.
+
+
+
+
+                                                     15
+

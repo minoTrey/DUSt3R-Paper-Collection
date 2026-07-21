@@ -1,0 +1,1851 @@
+                                             FILT3R: Latent State Adaptive Kalman Filter
+                                                  for Streaming 3D Reconstruction
+
+                                                                  Seonghyun Jin1 and Jong Chul Ye1⋆
+
+                                                                             KAIST AI
+                                                             jinotter3@kaist.ac.kr, jong.ye@kaist.ac.kr
+arXiv:2603.18493v1 [cs.CV] 19 Mar 2026
+
+
+
+
+                                                 Abstract. Streaming 3D reconstruction maintains a persistent latent
+                                                 state that is updated online from incoming frames, enabling constant-
+                                                 memory inference. A key failure mode is the state update rule: aggressive
+                                                 overwrites forget useful history, while conservative updates fail to track
+                                                 new evidence, and both behaviors become unstable beyond the train-
+                                                 ing horizon. To address this challenge, we propose FILT3R, a training-
+                                                 free latent filtering layer that casts recurrent state updates as stochastic
+                                                 state estimation in token space. FILT3R maintains a per-token vari-
+                                                 ance and computes a Kalman-style gain that adaptively balances mem-
+                                                 ory retention against new observations. Process noise – governing how
+                                                 much the latent state is expected to change between frames – is esti-
+                                                 mated online from EMA-normalized temporal drift of candidate tokens.
+                                                 Using extensive experiments, we demonstrate that FILT3R yields an
+                                                 interpretable, plug-in update rule that generalizes common overwrite
+                                                 and gating policies as special cases. Specifically, we show that gains
+                                                 shrink in stable regimes as uncertainty contracts with accumulated ev-
+                                                 idence, and rise when genuine scene change increases process uncer-
+                                                 tainty, improving long-horizon stability for depth, pose, and 3D recon-
+                                                 struction, compared to the existing methods. Code will be released at
+                                                 https://github.com/jinotter3/FILT3R.
+
+                                                 Keywords: Streaming 3D Reconstruction · State Estimation · Kalman
+                                                 Filtering · Length Generalization
+
+
+
+
+                                         ⋆
+                                             Corresponding author.
+2        S. Jin and JC. Ye
+
+    Video Stream (~1000 frames)
+
+
+
+
+                      CUT3R                   TTT3R                     Ours
+
+
+
+
+                            Long-horizon
+                             Instability
+
+
+                                   Training-Free
+                                   State FILT3R
+
+
+
+
+Fig. 1: FILT3R enables stable long-horizon streaming 3D reconstruction
+without resets. Top: dense input frames from a long video stream. Middle: final
+reconstructions from the same frozen streaming backbone under different latent-state
+update rules. Uniform overwrite (CUT3R) and heuristic gating (TTT3R) accumulate
+drift and/or forget previously integrated evidence, leading to long-horizon instability
+and degraded geometry. Bottom: a zoom-in around frames beyond 600 highlights that
+FILT3R preserves stable geometry over long rollouts. Trajectory colors indicate time.
+
+
+
+1    Introduction
+
+Streaming 3D reconstruction aims to predict geometry and camera motion from
+an image stream while using constant memory and low latency. Recent recur-
+rent architectures achieve this by maintaining a compact set of persistent latent
+tokens, which distill the scene’s context and evolve dynamically as new frames
+arrive [32]. In practice, performance often degrades when the sequence length
+exceeds the training horizon: small update biases accumulate into drift, and the
+latent state gradually loses information that is no longer supported by the most
+recent frame. Since a new candidate latent state should be estimated from the
+current frame and the previous state, the system must then decide how much
+to trust the candidate (fast adaptation) versus the previous state (long-term
+consistency).
+    Existing streaming update rules are mostly manually engineered to manage
+this trade-off. Uniform overwrites (e.g., CUT3R [32]) always trust the new can-
+                                                                  FILT3R        3
+
+didate, which can lead to catastrophic forgetting. While training-free gates based
+on attention statistics (e.g., TTT3R [4]) improve stability, they remain largely
+heuristic; they scale updates without an explicit representation of uncertainty or
+a principled mechanism for adaptation as confidence increases. Mathematically,
+existing streaming updates can be written as st = (1 − β t ) ⊙ st−1 + β t ⊙ s̃t ,
+where β t ∈ [0, 1]N determines how quickly past evidence is forgotten. Uniform
+overwrite (β t = 1) yields a one-step memory, while fixed-gain gates impose a
+constant forgetting half-life regardless of stream stability.
+    Inspired by this formulation, we argue that the recurrent state in streaming
+reconstruction is naturally a belief state, and that the candidate state produced
+by the decoder is a noisy measurement of that belief. This viewpoint leads di-
+rectly to our novel adaptive filtering formulation, which we call FILT3R. In
+particular, FILT3R formulates the state update as a Kalman-style interpolation
+whose gain is governed by two uncertainties: (i) process noise—how much the
+underlying scene latent is expected to change between frames—and (ii) mea-
+surement noise—how reliable the decoder’s current prediction is. Specifically,
+FILT3R adopts an adaptive Kalman filtering (AKF) framework [15] with a
+fixed measurement model. Adaptivity is centered on the process model, allowing
+Kalman gains to attenuate as tokens gain confidence during stable periods –
+thereby extending the effective memory horizon – and increase in response to
+process noise that indicates a genuine scene change. More specifically, FILT3R
+uses a fixed scalar measurement noise r and estimates only the process noise
+adaptively from temporal drift in the latent space. This formulation not only
+reduces computational complexity but also circumvents a critical failure mode,
+as validated by our empirical findings.
+    Our contribution can be summarized as follows:
+  (i) We recast streaming 3D reconstruction as stochastic state estimation in la-
+      tent token space, and introduce FILT3R, an adaptive latent filtering layer
+      for streaming 3D reconstruction.
+ (ii) FILT3R is a training-free, lightweight, and interpretable plug-and-play fil-
+      tering approach with adaptive process noise estimated from internal model
+      signals and fixed measurement noise, following the classical AKF paradigm.
+(iii) We provide extensive evaluation across short- and long-horizon streaming
+      depth, pose, and reconstruction settings, and analyze how uncertainty-aware
+      gains improve length generalization. The results confirm that FILT3R con-
+      sistently outperforms prior streaming baselines and improves long-horizon
+      stability across metrics.
+
+
+2    Related Work
+Streaming and recurrent 3D reconstruction. Classical and learning-based 3D
+streaming pipelines have progressed from short-horizon depth/pose models to on-
+line recurrent reconstruction. Representative geometric estimators include RAFT-
+style correlation, DeepV2D, and DROID-SLAM [25–27]. For online scene under-
+standing, methods such as iMAP, NICE-SLAM, Co-SLAM, Point-SLAM, and
+4       S. Jin and JC. Ye
+
+MASt3R-SLAM maintain a persistent latent map updated as frames arrive [16,
+18, 23, 30, 39]. Recent foundation-style 3D models further improve feed-forward
+reconstruction quality, from DUSt3R/MASt3R to larger multi-view architectures
+including VGGT and its follow-ups [5,11,13,20,31,33,34,36]. Streaming variants
+such as Spann3R, CUT3R, SLAM3R, Point3R, Stream3R, StreamVGGT, and
+WinT3R explicitly target long-horizon online inference under bounded mem-
+ory [10, 12, 14, 29, 32, 35, 40].
+    A central design choice is the state update rule in recurrent memories. CUT3R
+uses uniform overwrite [32], while recent training-free methods introduce adap-
+tive gating signals from attention or motion cues, including TTT3R, TTSA3R,
+and MUT3R [4, 19, 38]. In parallel, test-time adaptation methods update model
+parameters online, e.g., test-time training and entropy minimization [24, 28].
+    In streaming 3D reconstruction, errors compound with rollout length, causing
+drift and forgetting beyond the training horizon. This failure mode is visible in
+overwrite-based and heuristic-gated recurrent updates [4, 32, 38]. Our goal is to
+address this by explicitly propagating uncertainty so gains decay in stable periods
+and rise only when estimated process uncertainty indicates genuine scene change.
+
+Uncertainty estimation and filtering. Kalman filtering provides a principled
+framework for sequential estimation under linear-Gaussian assumptions [8]. Adap-
+tive Kalman filtering estimates noise covariances online when dynamics are non-
+stationary [15]. Neural and differentiable variants include Deep Kalman Filters
+and Backprop KF [7,9]. We adopt this perspective for latent token memories, us-
+ing adaptive process noise and propagated uncertainty to derive per-token gains
+while keeping measurement noise fixed.
+
+
+3     FILT3R
+
+3.1   Problem formulation
+
+We consider a recurrent streaming reconstruction model that maintains persis-
+tent state tokens st ∈ RN ×D and, given an incoming frame at time t, produces a
+candidate state token s̃t ∈ RN ×D using a decoder that attends to image tokens
+and the previous state [32]. Here, N and D refer to the number of tokens and
+token dimension, respectively.
+   Specifically, we interpret st as a belief over the scene latent at time t and s̃t
+as a noisy measurement of that belief produced by the decoder. This suggests
+modeling the dynamics with a stochastic state-space model in token space:
+
+                         \mathbf {s}_t &= \mathbf {s}_{t-1} + \mathbf {w}_t, \qquad \mathbf {w}_t \sim \mathcal {N}(\mathbf {0}, \mathbf {Q}_t), \label {eq:ssm_process}\\ \tilde {\mathbf {s}}_t &= \mathbf {s}_t + \mathbf {v}_t, \qquad \mathbf {v}_t \sim \mathcal {N}(\mathbf {0}, \mathbf {R}), \label {eq:ssm_meas}
+                                                                                                                                                                                                                                                                                                                             (2)
+
+where Qt models uncertainty in latent evolution (process noise) and R models
+uncertainty in the decoder’s prediction (measurement noise).
+                                                                                                                                                                                         FILT3R                     5
+
+                                                                                                        FILT3R
+                                                                                                                                                                                         3D scene reconstruction
+ Streaming
+                                                                    Adaptive Process                                                                     State Update
+                                                                    Noise Estimation                            Process                                                            3D
+                                                                                                                 Noise                                                            Head
+                                                                    Candidate   Cand. Buffer
+
+                                                                                                                   q!                                               ⨀
+                           Image              Candidate
+                           Tokens               State
+
+                                                                       𝑠$! − 𝑠(
+                                                                              !"#
+                                                                                                                                           s! = s!-# + k ! ⨀(𝑠$! - s!"# )
+                ViT                                                                                                                                                                3D
+                                    Decoder
+              Encoder                                                                                                                                                             Head
+
+                                                           Measurement
+                                                 𝑠$!          Noise              Gain Estimation                                                                        Updated
+                                                                                                                                        Kalman
+                                                                r                               p!"                                      Gain
+                                                                                                                                                                         State
+                                                                                     k! =
+              Persistent                                                                      p"
+                                                                                               ! +r                                         k!
+               Memory                                                                                                                                                              3D
+                                                                                                                                                                                  Head
+
+                 State     s!"#
+                                                                    Prior Variance                                                Updated Variance
+                                                                                                                                                                          s!
+              Variance     p!"#                                          p"
+                                                                          !                                                                 p!
+                                                       p"
+                                                        ! = p!"# + q !
+
+
+
+
+Fig. 2: FILT3R overview. The persistent memory st−1 is fused with the decoder’s
+candidate s̃t via a token-wise Kalman gain kt . Process noise qt is estimated adaptively
+from EMA-normalized temporal drift, while measurement noise r is a scalar hyperpa-
+rameter shared across tokens. Variance pt is propagated across time steps, enabling
+gains that naturally shrink in stable regimes and increase during scene change.
+
+
+
+    Streaming video is non-stationary: the scene can change rapidly during mo-
+tion and remain static during pauses. We therefore adopt an adaptive Kalman fil-
+tering (AKF) approach [15], estimating process noise Qt online from the model’s
+internal representations.
+    A key design choice in FILT3R is to keep measurement noise fixed using
+a single scalar shared across tokens, i.e. R = r I. The rationale is that the
+decoder is a frozen pretrained network: its prediction quality is determined by its
+architecture and training, not by the current scene dynamics. In classical AKF,
+this corresponds to the standard assumption that the sensor noise is known [15].
+    In contrast, we found that making both Qt and Rt adaptive introduces the
+risk of correlated noise estimates: scene transitions simultaneously increase tem-
+poral drift (which feeds Qt ) and attention novelty (which would feed Rt ). When
+both spike together, the gain kt can overshoot, producing the same instabil-
+ity that heuristic gates suffer from. A fixed r in our FILT3R provides a stable
+anchor, and all adaptivity enters through the process noise.
+
+
+
+3.2          Update rule
+
+
+We assume a diagonal per-token variance pt ∈ RN (one scalar per token), ap-
+proximating each token’s covariance as isotropic. Equivalently, we use diagonal
+covariance approximations Qt = diag(qt ) and Pt = diag(pt ), which yields ele-
+mentwise Kalman updates. Then, the variance prediction follows the standard
+Kalman prediction step:
+                                                                                       \mathbf {p}^{-}_t = \mathbf {p}_{t-1} + \mathbf {q}_t, \label {eq:p_pred}                                                   (3)
+6       S. Jin and JC. Ye
+
+where qt ∈ RN is the per-token process noise estimated online (Sec. 3.2), and
+the Kalman gain is given by
+
+
+                                                                                                    \mathbf {k}_t = \frac {\mathbf {p}^{-}_t}{\mathbf {p}^{-}_t + r }, \label {eq:kalman_gain}                                             (4)
+
+
+   Consequently, the state update according to AKF is a gain-weighted inter-
+polation:
+                                                      \mathbf {s}_t = \mathbf {s}_{t-1} + \mathbf {k}_t \odot (\tilde {\mathbf {s}}_t - \mathbf {s}_{t-1}). \label {eq:state_update_main}                                                  (5)
+
+and the variance is updated using the scalar Joseph form:
+
+                                                         \mathbf {p}_t = (\mathbf {1}-\mathbf {k}_t)^2 \odot \mathbf {p}^{-}_t + r\mathbf {k}_t^2. \label {eq:p_update}                                                                    (6)
+
+where ⊙ refers to the Hadamard product, and k2t = kt ⊙ kt .
+
+
+Uncertainty modeling of latent evolution. Given the update rules for st , pt , AKF
+formulation requires the process noise variance that captures how much the scene
+latent is expected to change between frames. In a static scene, qt should be small;
+during rapid motion or scene transitions, qt should be large. FILT3R estimates
+this from the temporal drift of consecutive candidate states, using a per-stream
+EMA baseline to calibrate the scale.
+    Specifically, we model the i-th token process noise through a sigmoid gate:
+
+                          q_{t,i} = q_{\min } + (q_{\max } - q_{\min }) \cdot \sigma \!\big (\alpha _q(g_{t,i} - \tau _q)\big ), \label {eq:q_gate_main}                                                                                   (7)
+
+where qmin , qmax bound the process noise, αq controls the sharpness of the tran-
+sition, and τq is the midpoint, and gt,i refers to the normalized drift score with
+respect to the running EMA baseline of the stream-level mean drift ∆    ˆt :
+
+                                                   g_{t,i} &= \Delta _{t,i}/\hat {\Delta }_t \label {eq:g} \\ \hat {\Delta }_t & = (1-\lambda _\Delta )\,\hat {\Delta }_{t-1} + \lambda _\Delta \bar {\Delta }_t \label {eq:ema_drift},
+                                                                                                                                                                                                                                           (9)
+
+where λ∆ is the EMA rate and
+
+                  \bar {\Delta }_t :=\sum _i \Delta _{t,i}/N, \quad \mbox {where}\quad \Delta _{t,i} = \|\tilde {\mathbf {s}}_{t,i} - \tilde {\mathbf {s}}_{t-1,i}\|_2. \label {eq:drift}                                                 (10)
+
+
+The normalized drift score measures whether the current drift is high or low
+relative to the stream’s running baseline.
+     Intuitively, when the drift is typical (near the EMA baseline), the sigmoid is
+near its midpoint and qt,i takes a moderate value; when the drift is unusually
+large, qt,i approaches qmax , signaling rapid scene change; when the drift is small,
+qt,i approaches qmin , indicating stability.
+                                                                    FILT3R        7
+
+Implementation issue. For numerical stability, we add small ϵ to the denomina-
+tors of (4) and (8) to avoid the division by a near zero value. The gain in (4)
+is additionally clamped to [kmin , kmax ] to prevent complete freezing or full over-
+write. Similarly, the EMA baseline is clamped to a floor ∆floor to avoid division
+instability.
+    The overhead of our AKF formulation is minimal: one N -dimensional vector
+of token variances, one per-stream EMA scalar for normalizing temporal drift,
+and one N × D buffer for the previous candidate.
+
+
+3.3   Filtering as adaptive token retention
+
+The Kalman gain kt in Eq. (5) acts as a per-token update coefficient β t :=
+kt ∈ [0, 1]N , yielding an exponential-smoothing form st = (1 − β t ) ⊙ st−1 +
+β t ⊙ s̃t . Unlike overwrite (β t ≡ 1) or fixed/heuristic gates, FILT3R propagates
+uncertainty (Eqs. (3) and (6)), so gains naturally shrink as the state becomes
+confident in stable regimes, extending the effective memory horizon, while still
+producing gain increases when inferred process noise favors adaptation.
+    More specifically, the Kalman gain (Eq. (4)) is entirely driven by the ratio
+p−t /(p −                                                      −
+        t + r). In stable regimes, qt stays near qmin , so pt gradually decreases
+as the Joseph update (Eq. (6)) shrinks the variance, causing kt to decay and
+the effective memory horizon to grow. During scene transitions, qt spikes, p−      t
+increases, and kt rises, allowing the filter to rapidly integrate new evidence. With
+qt driving p−  t , the gain in Eq. (4) increases under large drift and decreases as
+uncertainty contracts in stable regimes.
+    This formulation clarifies the relationship to prior update rules:
+ – Uniform overwrite (CUT3R): β t ≡ 1. Equivalent to r = 0 (infinite trust in
+   the measurement).
+ – Heuristic gates (TTT3R): β t computed from instantaneous attention/change
+   statistics without uncertainty propagation. Equivalent to resetting variance
+   to a constant each step.
+ – Fixed interpolation: β t ≡ β. A single point on the steady-state q/r curve
+   (see Appendix A.1).
+
+    In fact, in FILT3R, β t is derived via recursive uncertainty updates (Eqs. (3),
+(4) and (6)). This yields Kalman gains that decay at a rate of O(1/t) in static
+scenes (see Appendix A.1, Prop. 1) but spike in response to process noise sig-
+naling a scene change. To support this mechanism, Appendix A.1 provides a
+formal unrolling demonstrating that the effective memory horizon expands as
+evidence accumulates. It further includes a rigorous proof of the 1/t gain decay
+in static environments and a proposition establishing the relationship between
+the steady-state gain and the noise ratio q/r.
+8           S. Jin and JC. Ye
+
+
+
+
+                       CUT3R               TTT3R                   FILT3R
+
+    Input frames
+
+
+
+
+Fig. 3: Qualitative long-horizon streaming 3D reconstruction. CUT3R often
+suffers from catastrophic forgetting and drift, while TTT3R reduces but does not elim-
+inate long-horizon instability, leading to fragmented surfaces and inconsistent revis-
+ited regions (red boxes). FILT3R produces more coherent geometry over long rollouts.
+Ground-truth trajectory is shown in orange; the predicted trajectory is color-coded by
+time.
+                                                                    FILT3R        9
+
+4     Experiments
+
+4.1   Setup
+
+Model and update rules. We evaluate FILT3R as a drop-in replacement for the
+state update in a CUT3R-style recurrent architecture [32]. All methods share
+identical backbone weights; only the online update policy differs. FILT3R uses
+the token-wise filtering update in Eq. (5) with adaptive process noise Eq. (7)
+and gain computation in Eq. (4).
+
+Tasks and metrics. We report (i) video depth estimation with Abs Rel, δ<1.25,
+and log RMSE, (ii) camera pose estimation with ATE, RPE-translation, and
+RPE-rotation, and (iii) 3D reconstruction with Accuracy, Completeness, and
+Normal Consistency. For depth, we report both metric-scale and per-sequence
+scale-aligned metrics following common practice. For long-horizon benchmarks,
+we additionally visualize error versus sequence length to characterize drift.
+
+Datasets. Short-horizon depth is evaluated on Sintel [2], Bonn [17], and KITTI [6]
+following prior protocols. Long-horizon behavior is evaluated on extended TUM [22]
+and Bonn [17] sequences substantially longer than the training horizon. 3D re-
+construction quality is measured on 7-Scenes [21] and NRGBD [1]. Full dataset
+and preprocessing details are provided in the appendix.
+
+Baselines. We compare against CUT3R [32] (uniform overwrite) and TTT3R [4]
+(heuristic confidence scaling). We additionally report streaming reconstruction
+baseline with an explicit spatial memory architecture (Point3R). Additional com-
+parisons with TTT3R+Reset are provided in Appendix 8 and Appendix 9.
+
+Hyperparameter selection protocol. FILT3R has a small set of scalar hyperpa-
+rameters controlling process and measurement noise. To avoid per-benchmark
+tuning, we tune on a held-out development set (long-horizon TUM-200 for pose,
+and a short-horizon set for depth) and use the same hyperparameters across all
+the experiments.The list of hyperparameters is provided in the appendix
+
+Origin-aligned ATE. Standard ATE applies a global alignment over the full
+trajectory, which can partially mask progressive drift. We therefore also report
+ATEorig , aligning only the first frame and evaluating the remaining trajectory
+without further alignment, so drift accumulation is directly reflected in the error.
+
+
+4.2   Long-horizon 3D reconstruction
+
+Table 1 reports 3D reconstruction quality on 7-Scenes and NRGBD at long
+sequence lengths. On 7-Scenes, FILT3R consistently outperforms CUT3R and
+TTT3R, with the gap widening as sequences lengthen: mean accuracy improves
+from 0.040 to 0.020 at length 300 and from 0.066 to 0.024 at length 500 compared
+to TTT3R, while maintaining strong completeness and normal consistency. At
+10        S. Jin and JC. Ye
+
+Table 1: 3D reconstruction on 7-Scenes and NRGBD. Accuracy (Acc), Com-
+pleteness (Comp), and Normal Consistency (NC); Mean and Median (Med.) are re-
+ported. Point3R runs out of memory (OOM) at length 1000.
+
+                              (a) 7-Scenes (lengths 300 / 500 / 1000)
+                           Length 300                         Length 500                         Length 1000
+Method
+                   Acc↓      Comp↓        NC↑         Acc↓       Comp↓        NC↑        Acc↓       Comp↓        NC↑
+               Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med.
+CUT3R         0.134 0.090 0.076 0.041 0.544 0.565 0.183 0.133 0.093 0.036 0.530 0.544 0.233 0.170 0.101 0.017 0.511 0.515
+Point3R       0.045 0.025 0.032 0.013 0.564 0.598 0.057 0.026 0.025 0.008 0.556 0.584                OOM
+TTT3R         0.040 0.025 0.024 0.005 0.566 0.602 0.066 0.038 0.032 0.006 0.551 0.576 0.145 0.092 0.051 0.010 0.525 0.536
+FILT3R (ours) 0.020 0.009 0.022 0.004 0.568 0.603 0.024 0.011 0.023 0.004 0.559 0.589 0.054 0.028 0.028 0.005 0.535 0.550
+
+                               (b) NRGBD (lengths 300 / 400 / 500)
+                           Length 300                         Length 400                          Length 500
+Method
+                   Acc↓      Comp↓        NC↑         Acc↓       Comp↓        NC↑        Acc↓       Comp↓        NC↑
+               Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med.
+CUT3R         0.216 0.122 0.073 0.017 0.583 0.629 0.293 0.212 0.103 0.042 0.561 0.592 0.313 0.238 0.141 0.045 0.558 0.585
+Point3R       0.065 0.037 0.012 0.003 0.617 0.693 0.084 0.040 0.020 0.003 0.613 0.684 0.112 0.046 0.028 0.003 0.614 0.687
+TTT3R         0.102 0.044 0.024 0.004 0.613 0.684 0.144 0.064 0.072 0.011 0.598 0.656 0.170 0.095 0.090 0.019 0.590 0.642
+FILT3R (ours) 0.079 0.027 0.012 0.004 0.628 0.710 0.086 0.036 0.026 0.005 0.623 0.701 0.096 0.042 0.035 0.005 0.621 0.697
+
+
+
+Table 2: Long-horizon camera pose on TUM-RGBD. We report standard ATE
+(with global Procrustes alignment) and origin-aligned ATE (ATEorig ), which aligns
+only the first frame and therefore exposes progressive drift. FILT3R provides clear
+long-horizon stability gains.
+
+                             TUM-400                           TUM-600                            TUM-800
+Method
+                  ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓ ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓ ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓
+CUT3R         0.109        0.302     0.010   0.381 0.145     0.425    0.008    0.430 0.173      0.493    0.008   0.486
+TTT3R         0.055        0.128     0.010   0.328 0.084     0.176    0.009    0.365 0.097      0.214    0.009   0.387
+FILT3R (ours) 0.033        0.074     0.009   0.305 0.042     0.082    0.009    0.332 0.057      0.107    0.009   0.362
+
+
+
+
+length 1000—well beyond the training horizon—Point3R runs out of memory,
+while CUT3R and TTT3R degrade substantially; FILT3R continues to produce
+coherent geometry, confirming that uncertainty propagation compounds in value
+over long rollouts. On NRGBD, FILT3R improves over CUT3R and TTT3R at
+all lengths and remains competitive with prior streaming baselines at shorter
+horizons.
+
+
+4.3      Long-horizon camera pose estimation
+
+As shown in Table 2, FILT3R substantially reduces long-horizon trajectory error
+on extended TUM-RGBD sequences. The improvements are most pronounced
+under origin-aligned ATE, which directly exposes progressive drift: at 800 frames,
+ATEorig drops from 0.214 (TTT3R) and 0.493 (CUT3R) to 0.107 with FILT3R.
+Standard ATE also improves (0.097 → 0.057 at 800 frames). Local relative er-
+rors are similar to TTT3R in translation (RPE-t ≈ 0.009), while rotation error
+decreases (0.387 → 0.362 at 800 frames), suggesting FILT3R primarily mitigates
+slow drift and catastrophic forgetting rather than short-term relative motion.
+                                                                                 FILT3R             11
+
+4.4   Long-horizon video depth estimation
+
+
+Table 3: Long-horizon video depth on Bonn (metric scale). Sequences are
+truncated to the indicated length. FILT3R maintains stable metric depth predictions
+as sequence length grows, whereas competing methods suffer from accumulating drift.
+
+                         Bonn-300                    Bonn-400                    Bonn-500
+Method
+                Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓
+CUT3R            0.107    88.7      0.162    0.107    89.6      0.161    0.101    90.6      0.156
+TTT3R            0.108    90.1      0.163    0.104    91.2      0.158    0.100    92.1      0.154
+FILT3R (ours)    0.093    93.8      0.152    0.090    94.1      0.149    0.089    94.4      0.148
+
+
+
+
+    Table 3 evaluates metric-scale depth on extended Bonn sequences (300–500
+frames), beyond the training horizon. FILT3R achieves the best performance
+at every truncation length. Compared to TTT3R, FILT3R reduces Abs Rel
+from 0.108 to 0.093 at 300 frames and from 0.100 to 0.089 at 500 frames, while
+improving δ<1.25 from 90.1 to 93.8 and from 92.1 to 94.4. The consistently lower
+log RMSE indicates improved robustness to rare but severe outlier predictions
+that can arise from overwriting a stable latent state with a noisy candidate
+update. Figure 4 (bottom) further shows FILT3R maintains lower error across
+sequence prefixes, indicating reduced drift accumulation.
+
+4.5   Short-horizon regression check
+Finally, we verify that FILT3R does not sacrifice short-horizon accuracy for
+long-horizon stability. Table 4 compares the three update rules under identical
+backbone weights. FILT3R matches or improves short-horizon accuracy, while
+providing clear long-horizon stability gains. Under metric-scale evaluation the
+gains are larger: Abs Rel drops from 1.029 (CUT3R) and 0.977 (TTT3R) to
+0.772 on Sintel, and from 0.103 / 0.090 to 0.067 on Bonn. Full comparisons
+including optimization-based and full-attention baselines are in Appendix E.
+
+4.6   Efficiency
+Table 5 and Figure 5 compare runtime and memory. Full-attention architectures
+(VGGT, DA3) and Point3R scale linearly with sequence length, with Point3R
+running out of memory beyond ∼600 frames on a 32 GB GPU. FILT3R maintains
+effectively the same constant-memory footprint as CUT3R while TTT3R nearly
+doubles memory due to cached attention maps for attention-map-based gating.
+
+4.7   Analysis
+To understand why FILT3R improves long-horizon stability, we analyze its in-
+duced update dynamics on long TUM-RGBD sequences. FILT3R behaves as an
+12        S. Jin and JC. Ye
+
+
+
+
+     (a) TUM-RGBD: ATE vs. length              (b) TUM-RGBD: ATEorig vs. length
+
+
+
+
+      (c) Bonn: Abs Rel vs. length                (d) Bonn: δ<1.25 vs. length
+
+Fig. 4: Long-horizon metrics vs. sequence length. Top (a, b): Camera pose on
+TUM-RGBD (50–1000 frames). FILT3R’s drift grows more slowly. Bottom (c, d):
+Metric scale video depth on Bonn (50–500 frames). FILT3R consistently mitigates drift
+and improves over the baselines as the sequence progresses.
+
+Table 4: Short-horizon depth (controlled streaming comparison). All methods
+share identical weights; only the update rule differs.
+
+ Align. Method                     Sintel           Bonn               KITTI
+                              AbsRel↓ δ<1.25 ↑ AbsRel↓ δ<1.25 ↑ AbsRel↓ δ<1.25 ↑
+           CUT3R              0.421     47.9    0.078    93.7      0.118     88.1
+ Scale     TTT3R              0.405     48.9    0.069    95.4      0.114     90.4
+           FILT3R (ours)      0.407     54.5    0.061    97.0      0.110     91.0
+           CUT3R              1.029     23.8    0.103    88.5      0.122     85.5
+ Metric    TTT3R              0.977     24.5    0.090    94.2      0.110     89.1
+           FILT3R (ours)      0.772     27.3    0.067    96.7      0.115     88.8
+
+
+
+uncertainty-calibrated conservative updater: as confidence accumulates, prop-
+agated uncertainty contracts and the effective gain settles into a low-update
+regime, which reduces the applied update magnitude. This matches the error
+profile in Table 2: FILT3R substantially lowers ATEorig while leaving short-
+horizon RPE nearly unchanged, indicating that its main benefit is not more
+                                                                                                                                     FILT3R                        13
+
+                                                                                        35
+
+
+
+
+                                                     Peak CUDA Memory Allocated (GiB)
+                                                                                                       OOM@150           OOM@400     OOM@600
+                                                                                        30                                               RTX 5090 limit (32 GiB)
+Table 5: Runtime and GPU memory
+(500 frames). Benchmark on NRGBD                                                        25                                                       VGGT
+                                                                                                                                                 DA3
+(512×384, warmup=2, 10 runs). FILT3R                                                    20                                                       CUT3R
+                                                                                                                                                 TTT3R
+                                                                                        15
+(ours) avoids attention-map caching,                                                                                                             Point3R
+                                                                                        10                                                       FILT3R(ours)
+matching CUT3R’s footprint.
+                                                                                         5
+                                                                                         0
+                                                                                             0   100    200    300     400   500   600     700   800       900   1000
+                                                                                                                     Sequence Length (N)
+Method               Attn    FPS↑       Mem(MB)↓
+CUT3R                 –     25.27±.05     3503       Fig. 5: Peak GPU mem. vs. frames.
+TTT3R                 ✓     24.69±.05     6294       Full-attention  methods     (VGGT,
+FILT3R (adpt. rt )    ✓     24.83±.04     6294
+                                                     DA3) and Point3R grow with length;
+FILT3R (ours)         –     25.14±.04     3503
+                                                     CUT3R/FILT3R stay constant. FILT3R
+                                                     overlaps CUT3R, confirming negligible
+                                                     overhead.
+
+Table 6: Ablation study of FILT3R components. All variants use identical frozen
+backbone weights and identical inference code; only the online update policy is changed.
+We report long-horizon pose on TUM-800 and long-horizon metric depth on Bonn-500.
+Lower is better (↓) except δ<1.25 (↑).
+
+                                             TUM-800 (pose)                                                           Bonn-500 (metric depth)
+ Variant
+                                     ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓ AbsRel↓ δ<1.25 ↑ logRMSE↓
+ FILT3R (full)                       0.057   0.107                   0.009                             0.362          0.089          94.4              0.148
+ Fixed-Q (fixed r)                   0.100   0.229                   0.009                             0.393          0.099          91.9              0.155
+ No variance propagation (reset-P)   0.149   0.489                   0.009                             0.446          0.099          91.1              0.154
+ Fixed-β EMA (β=0.05, tuned)         0.049   0.078                   0.010                             0.658          0.093          93.5              0.152
+ No EMA normalization for drift      0.058   0.109                   0.010                             0.367          0.091          94.1              0.150
+ Adaptive measurement noise (rt )    0.074   0.148                   0.009                             0.372          0.093          93.9              0.151
+
+
+
+
+aggressive correction at transition frames, but less persistent overwrite of the
+latent state and therefore slower cumulative drift. The adaptive process-noise
+term still matters because it temporarily relaxes this conservative regime on
+difficult frames, allowing the model to remain responsive without reverting to
+continual high-gain updates; consistent with this interpretation, removing uncer-
+tainty propagation in Table 6 substantially degrades long-horizon performance.
+Detailed transition-level statistics are provided in Appendix 9.
+
+
+4.8    Ablations
+
+All variants in Table 6 share identical frozen backbone weights and identical
+inference code; we only change the online state update. FILT3R’s update is fully
+determined by the gain β t = kt in Eq. (5), which in turn depends on (i) the
+process noise qt (Eq. (7)), (ii) the measurement noise r (Eq. (4)), and (iii)
+whether uncertainty is propagated through the variance recursion (Eqs. (3)–(6)).
+The ablations isolate each of these design choices.
+14     S. Jin and JC. Ye
+
+(i) Adaptive process noise is necessary for targeted adaptation. Fixed-Q replaces
+the drift-driven qt with a constant. This removes the ability to temporarily
+increase the update strength during genuine motion bursts or scene change.
+As a result, long-horizon drift grows substantially (e.g., ATEorig increases from
+0.107 to 0.229), and depth accuracy also degrades (AbsRel 0.089 → 0.099). This
+indicates that adaptivity should enter through the process model rather than a
+fixed gate.
+
+(ii) Variance propagation enables confidence accumulation. No variance prop-
+agation (reset-P) keeps the same gain formula but discards the recursive uncer-
+tainty update. Without accumulated confidence, the gain cannot systematically
+shrink in stable intervals, so the model keeps injecting per-frame measurement
+noise into the state, leading to severe long-horizon drift (ATEorig 0.107 → 0.489)
+and worse depth (AbsRel 0.089 → 0.099). This confirms that the Kalman-style
+propagation (not just the functional form of the gain) is important.
+
+(iii) A tuned fixed-gain EMA can reduce ATE, but it harms local motion and
+depth. Fixed-β EMA uses a constant update st = (1 − β)st−1 + β s̃t with
+β = 0.05 tuned on a development set. Interestingly, this can yield lower trajec-
+tory ATE on TUM-800 (0.049 vs. 0.057) and also improve ATEorig (0.078 vs.
+0.107), suggesting that a conservative fixed update can suppress some global
+drift. However, it does so by uniformly damping updates, which noticeably de-
+grades local relative motion: rotation error increases sharply (RPE-r 0.362 →
+0.658). At the same time, depth quality is still worse than FILT3R. Overall, fixed-
+β behaves like a global low-pass filter : it can reduce drift under some metrics,
+but it cannot simultaneously preserve accurate short-term motion and maintain
+depth quality across long rollouts. This highlights the need for uncertainty-aware
+and transition-aware gains rather than a single fixed forgetting rate.
+
+(iv) EMA normalization is a stabilizer but not the dominant factor here. No
+EMA normalization removes the running baseline ∆ˆt in Eq. (9). On these
+benchmarks, drift magnitudes are already relatively well-scaled, so the effect is
+modest (e.g., ATEorig 0.107 → 0.109; AbsRel 0.089 → 0.091). We keep EMA
+normalization as a robust default because it mitigates early/late scale shifts and
+reduces gain jitter when drift statistics vary across scenes and sequences.
+
+(v) Adaptive measurement noise hurts long-horizon stability and adds overhead.
+Adaptive rt replaces the fixed scalar r with a per-token measurement noise
+estimated from attention statistics, following the intuition that tokens attending
+strongly to image evidence should be trusted more (lower rt,i ). However, this
+variant degrades long-horizon performance compared to the full model: ATEorig
+increases from 0.107 to 0.148 and ATE from 0.057 to 0.074, while depth also
+worsens (AbsRel 0.089 → 0.093, δ<1.25 94.4 → 93.9). We believe the reason
+is that attention-aligned novelty is correlated with temporal drift: during scene
+transitions, both qt increases (from large drift) and rt,i decreases (from high at-
+tention to novel content), causing the gain to spike more aggressively than either
+                                                                  FILT3R       15
+
+signal alone would warrant. This co-excitation amplifies updates precisely when
+stability matters most, undermining the filter’s conservative accumulation of con-
+fidence. Since adaptive rt additionally requires caching attention maps—nearly
+doubling GPU memory to match attention-based gating baselines (Tab. 5)—we
+favor the simpler and more stable design: a fixed scalar r as a measurement-noise
+anchor, with all adaptivity concentrated in the process noise qt .
+
+
+5   Conclusion
+We introduced FILT3R, a principled, training-free solution to the long-horizon
+drift and catastrophic forgetting that typically degrade streaming 3D reconstruc-
+tion. By casting recurrent token updates as an adaptive Kalman filtering prob-
+lem, FILT3R explicitly propagates per-token uncertainty to dynamically balance
+historical memory retention with fast adaptation. Crucially, this uncertainty-
+aware state fusion acts as a plug-and-play stabilizer. Relying solely on internal
+temporal drift to estimate process noise—anchored by a single, fixed measure-
+ment noise scalar—it unifies and outperforms prior heuristic update rules with-
+out requiring any retraining. Our extensive evaluations across video depth, cam-
+era pose, and 3D reconstruction demonstrate that FILT3R significantly extends
+the effective memory horizon, paving the way for highly stable, continuous, and
+long-form online scene understanding.
+16    S. Jin and JC. Ye
+
+Appendix Index
+
+This appendix is organized as follows.
+A. Method, theoretical analysis, and comparison with fixed-EMA   17
+smoothing
+   A.1 Growth of the effective memory horizon                    18
+   A.2 Implemented gain floor                                    22
+   A.3 Distinguishing FILT3R from fixed-EMA smoothing            22
+B. Why periodic hard resets are not sufficient                   26
+C. Evaluation protocol and reproducibility                       27
+D. Additional long-horizon depth results on KITTI                31
+E. Complete short-horizon tables                                 32
+F. Hyperparameter details                                        34
+G. Additional qualitative evidence of long-horizon stability     34
+                                                                                                                                                                                                  FILT3R                                  17
+
+A             Method, theoretical analysis, and comparison with
+              fixed-EMA smoothing
+Update rule recap. FILT3R modifies only the recurrent state-update rule, while
+backbone weights, decoder weights, and all other aspects of recurrent inference
+remain unchanged. Specifically, let s̃t,i denote the decoder’s candidate token for
+the i-th token at frame t, let pt,i denote the propagated per-token variance, and
+let r be the fixed scalar measurement noise shared across all tokens and exper-
+iments. FILT3R computes a normalized drift score from consecutive candidate
+states and maps it to per-token process noise via a sigmoid gate:
+
+  \Delta _{t,i} = \lVert \tilde {s}_{t,i} - \tilde {s}_{t-1,i} \rVert _2, \qquad \hat {\Delta }_t = (1-\lambda _\Delta )\hat {\Delta }_{t-1} + \lambda _\Delta \bar {\Delta }_t, \qquad \bar {\Delta }_t = \frac {1}{N}\sum _i \Delta _{t,i}, 
+
+                                                                                                                                                                                                                                    (11)
+
+                          g_{t,i} = \Delta _{t,i}/\hat {\Delta }_t, \qquad q_{t,i} = q_{\min } + (q_{\max } - q_{\min }) \sigma \!\big (\alpha _q (g_{t,i} - \tau _q)\big ). \label {eq:q_gate_main_appendix}                       (12)
+where σ(·) denotes the sigmoid. The resulting process noise qt,i enters the scalar
+Kalman-style update:
+
+                                                               p^-_{t,i} = p_{t-1,i} + q_{t,i}, \qquad k_{t,i} = \frac {p^-_{t,i}}{p^-_{t,i} + r},                                                                                  (13)
+
+
+                          s_{t,i} = (1-k_{t,i}) s_{t-1,i} + k_{t,i} \tilde {s}_{t,i}, \qquad p_{t,i} = (1-k_{t,i})^2 p^-_{t,i} + k_{t,i}^2 r . \label {eq:joseph}                                                                   (14)
+The complete per-frame procedure is summarized in Algorithm 1.
+    The chain of effects is as follows: large drift raises qt,i , larger qt,i raises the
+predicted variance p−               −
+                      t,i , larger pt,i raises the gain kt,i , and a larger gain makes
+the state move more aggressively toward the new candidate. Conversely, if the
+stream remains stable for many frames, then qt,i stays small and the Joseph up-
+date in Eq. (14) contracts the posterior variance pt,i , which reduces future gains
+and makes the latent state increasingly conservative. This is beneficial because
+the decoder’s candidate s̃t is a noisy single-frame estimate: in stable regions,
+the accumulated state is a more reliable scene representation, and conservative
+updates preserve this advantage.
+    This is the key distinction from TTT3R. TTT3R is also adaptive, but its gate
+is computed directly from current-frame cues (e.g., attention/change statistics)
+and does not maintain a propagated covariance state. FILT3R separates these
+two roles: qt,i provides frame-dependent adaptivity, while pt,i carries forward
+accumulated confidence. As a result, FILT3R’s gain depends not only on what
+is happening in the current frame, but also on how much consistent evidence has
+already been accumulated across the preceding history.
+    For numerical stability, a small ε is added to the denominators of the gain
+and normalized drift computations, the gain is clamped to [kmin , kmax ], and the
+EMA drift baseline is clamped to a floor ∆floor . The additional state beyond the
+baseline consists of one N -dimensional variance vector, one scalar EMA baseline
+per stream, and one buffer storing the previous candidate state.
+18      S. Jin and JC. Ye
+
+
+
+
+     (a) TUM-RGBD: ATE vs. length                                                    (b) TUM-RGBD: ATEorig vs. length
+
+
+
+
+      (c) Bonn: Abs Rel vs. length                                                                (d) Bonn: δ<1.25 vs. length
+
+Fig. 6: FILT3R slows long-horizon error growth. Across both camera pose and
+metric-scale depth, FILT3R’s errors grow more slowly than those of overwrite (CUT3R)
+and heuristic gating (TTT3R) as the evaluated prefix length increases. This is the
+central empirical pattern that the remainder of the appendix explains.
+
+
+
+Notation and first-frame handling. Notation follows the main paper. In Sec. A.1,
+we write βt,i := kt,i only to make the smoothing interpretation explicit; all other
+symbols are unchanged. On the first valid frame, the latent state is initialized by
+direct overwrite with the current candidate, the covariance is set to p0 for every
+token, and the previous-candidate buffer is set to the current candidate state.
+The drift EMA is not preseeded separately: when the first temporal difference
+becomes available, its running value is initialized from that mean drift and then
+clamped to ∆floor .
+
+
+
+A.1    Growth of the effective memory horizon
+
+
+The Kalman gain kt,i acts as a per-token update coefficient βt,i := kt,i ∈ [0, 1],
+yielding a time-varying exponential smoothing:
+
+                              s_{t,i} = (1-\beta _{t,i}) s_{t-1,i} + \beta _{t,i} \tilde {s}_{t,i}. \label {eq:ema_form}        (15)
+                                                                                                                                                                                                        FILT3R             19
+
+Algorithm 1 FILT3R replaces only the latent-state update. The recur-
+rent architecture, decoder, and backbone checkpoint are otherwise identical to
+the baseline.
+Require: Previous latent state st−1 , covariance pt−1 , candidate state s̃t−1 , and mea-
+   surement noise r
+1: Decode the current frame with the frozen streaming backbone to obtain candidate
+   state s̃t .
+2: Compute temporal drift from s̃t and s̃t−1 ; update the EMA drift baseline.
+3: Estimate per-token process noise qt with Eq. (7).
+4: Predict covariance: p− t = pt−1 + qt .
+5: Compute Kalman gain: kt = p−          −
+                                    t /(pt + r).
+6: Update latent state: st = (1 − kt ) ⊙ st−1 + kt ⊙ s̃t .
+7: Update covariance with the scalar Joseph recursion (Eq. 14).
+8: Store s̃t and pt for the next frame.
+
+
+
+Unrolling this recursion gives a weighted history of past candidates:
+
+
+              s_{t,i} = \Big (\prod _{u=1}^{t}(1-\beta _{u,i})\Big )s_{0,i} + \sum _{\tau =1}^{t} \Big ( \beta _{\tau ,i}\prod _{u=\tau +1}^{t}(1-\beta _{u,i}) \Big )\tilde {s}_{\tau ,i}. \label {eq:unroll_weights}    (16)
+
+
+A constant gain βt,i ≡ β gives a fixed exponential memory horizon. If βt,i de-
+creases over time, older candidates decay more slowly and the effective memory
+horizon expands.
+    We can distinguish TTT3R and FILT3R more clearly. Both methods are
+adaptive in the broad sense that their update coefficients can change with time.
+The difference is how that change is generated. TTT3R changes its gate from
+current cues, but it does not propagate a covariance state whose contraction
+makes the gate depend on accumulated confidence. FILT3R does. Its gain at time
+t depends both on the current process-noise estimate qt,i and on the recursively
+propagated uncertainty pt−1,i . Therefore the same amount of instantaneous drift
+can lead to a smaller update after a long stable stretch than it would immediately
+after a transition.
+    The following proposition isolates this mechanism in the cleanest possible
+setting. It is intentionally idealized: the scene is static, q = 0, and no implemen-
+tation clamps are applied.
+
+
+Proposition 1 (Static scenes yield naturally shrinking gains). Consider
+a scalar token in a static regime: the true latent is constant s⋆ , measurements
+are s̃t = s⋆ + vt with vt ∼ N (0, r), and process noise is zero (q = 0). Then the
+Kalman recursion gives
+
+
+                   p_t = \frac {1}{\frac {1}{p_0} + \frac {t}{r}} = \mathcal {O}\!\left (\frac {1}{t}\right ), \qquad k_t = \frac {p_{t-1}}{p_{t-1}+r} = \frac {1}{t + r/p_0}. \label {eq:static_gain_decay}              (17)
+20     S. Jin and JC. Ye
+
+Proof. With q = 0, the prediction step is p−                  −    −
+                                           t = pt−1 and kt = pt /(pt + r). The
+Joseph update (Eq. 14) gives
+
+               p_t &= (1-k_t)^2 \,p_t^- + k_t^2\, r = \frac {r^2}{(p_t^- + r)^2}\, p_t^- + \frac {(p_t^-)^2}{(p_t^- + r)^2}\, r \notag \\ &= \frac {p_t^-\, r\,(r + p_t^-)}{(p_t^- + r)^2} = \frac {p_t^-\, r}{p_t^- + r} = (1-k_t)\,p_t^-. \label {eq:joseph_simplifies}
+
+                                                                                                                                                                                                                                                                            (18)
+
+Therefore 1/pt = 1/pt−1 + 1/r, which telescopes to 1/pt = 1/p0 + t/r. Substi-
+tuting into kt = pt−1 /(pt−1 + r) yields Eq. (17).
+
+    Proposition 1 shows that, under repeated consistent observations, precision
+accumulates linearly, the posterior variance shrinks as O(1/t), and the gain
+shrinks at the same order. The filter therefore behaves like an average over
+an ever longer history rather than an update with a fixed forgetting rate. Over-
+write (CUT3R, kt ≡ 1) lacks this mechanism, and an instantaneous gate such
+as TTT3R may vary from frame to frame but has no propagated covariance
+recursion that forces this specific gain decay as confidence accumulates.
+    The next proposition considers a different regime, constant q > 0. Unlike
+Proposition 1, which isolates the idealized zero-process-noise mechanism, this
+result characterizes the finite steady-state operating point of the same scalar
+recursion. In Sec. A.2 we use it to interpret the implemented gain floor when qt,i
+settles near qmin .
+
+Proposition 2 (Steady-state gain vs. q/r). For the scalar random-walk
+model with constant process noise q > 0 and measurement noise r > 0, the
+posterior variance converges to a unique positive steady state
+
+
+                                                                                                              p^\star = \frac {\sqrt {q^2+4qr}-q}{2}, \label {eq:pstar}                                                                                                     (19)
+
+and the corresponding steady-state Kalman gain is
+
+
+                                                       k^\star = \frac {p^\star +q}{p^\star +q+r} = \frac {\sqrt {q^2+4qr}+q}{\sqrt {q^2+4qr}+q+2r}. \label {eq:steady_gain}                                                                                                (20)
+
+
+Proof. At steady state the posterior variance satisfies pt = pt−1 = p⋆ . We derive
+the fixed-point equation in three steps.
+   Step 1: Predicted variance. The prediction step gives p− = p⋆ + q.
+   Step 2: Steady-state gain. The Kalman gain is k ⋆ = p− /(p− + r) = (p⋆ +
+q)/(p⋆ + q + r).
+   Step 3: Fixed-point equation. For the Kalman gain above, the Joseph form
+simplifies to (1 − k ⋆ ) p− (as shown in Eq. 18), giving the fixed-point condition
+
+                                       p^\star = (1-k^\star )\,p^- = \frac {r}{p^- + r}\cdot p^- = \frac {r\,(p^\star + q)}{p^\star + q + r}. 
+                                                                                                  FILT3R   21
+
+                                                                                              CUT3R
+
+
+                                              TTT3R
+
+
+
+
+                                    Fixed-𝜷
+                                                          FILT3R
+                     stable scene: low 𝒒 𝒕                                transition/motion: higher 𝒒 𝒕
+
+
+
+
+Fig. 7: How different update rules relate to the gain curve. With fixed r, the
+steady-state Kalman gain is determined by the noise ratio (q/r). Overwrite (CUT3R)
+corresponds to the limit (k → 1). A fixed gate chooses one constant operating point.
+FILT3R adapts qt and therefore moves along the curve, becoming conservative in stable
+regimes and reopening at transitions. TTT3R is also adaptive, but its gate is heuristic
+and based on current cues rather than propagated covariance, so it is shown schemat-
+ically off the steady-state curve.
+
+
+
+By cross-multiplying and expanding the left side, the r p⋆ terms cancel, yielding
+the quadratic
+                              (p^\star )^2 + q\,p^\star - qr = 0. \label {eq:pstar_quadratic}  (21)
+                                                        ⋆             ⋆  ⋆
+                                                 p p back into k = (p +
+The quadratic formula gives Eq. (19). Substituting
+     ⋆                             ⋆                 2
+q)/(p + q + r) and noting that p + q = (q + q + 4qr)/2 yields Eq. (20).
+Finally, to show the convergence, write the scalar variance recursion as
+
+                                p_t = f(p_{t-1}), \qquad f(p)=\frac {r(p+q)}{p+q+r}. 
+
+For all p\ge 0,
+
+                                          f'(p)=\frac {r^2}{(p+q+r)^2}<1, 
+
+so f is a contraction on [0,\infty ). Therefore the positive fixed point is unique and
+the recursion converges to it.
+
+    Proposition 2 gives the right interpretation of the adaptive process-noise
+term: with fixed r, the ratio q/r determines the operating point on the gain
+curve. A fixed gate chooses one point on this curve. TTT3R can still change
+its gate heuristically from frame to frame, but it does so without a propagated
+covariance state and therefore without the same confidence-accumulation mech-
+anism. FILT3R combines both ingredients: qt provides frame-dependent adap-
+tivity, while pt carries accumulated confidence across time.
+22                          S. Jin and JC. Ye
+
+                                               Early window                                      Late window                                         Predicted floor kfloor = 0.132
+                                               TUM-800                                                                                                                                     Bonn-500
+                           0.4                                                                                                                0.4                                                         0.356
+     Mean effective gain                                                          0.344 0.331
+
+
+
+
+                                                                                                                        Mean effective gain
+                           0.3                                                                                                                0.3                                                                 0.285
+
+
+                           0.2   0.158 0.145                                                                                                  0.2       0.167
+                                                                                                                                                                         0.147
+
+                           0.1                                                                                                                0.1
+
+                           0.0                                                                                                                0.0
+                                   FILT3R                                                TTT3R                                                                 FILT3R                                       TTT3R
+
+Fig. 8: The deployed filter settles near a finite gain floor rather than freezing
+completely. The dashed line marks the implementation-faithful prediction kfloor
+                                                                             ⋆
+                                                                                  ≈
+0.132 from Eq. (22). Here, the early and late windows denote the first and last 20%
+of frames of each analyzed sequence. Across both TUM-800 and Bonn-500, FILT3R’s
+late-window mean gain remains only 0.013–0.015 above this floor, while TTT3R stays
+substantially more reactive. This is consistent with FILT3R entering a conservative
+stable regime and reopening only when transition frames push qt upward.
+
+
+
+A.2                        Implemented gain floor
+
+If a token remains in a stable regime so that qt,i ≈ qmin , Proposition 2 implies
+the unclamped steady-state gain
+
+                                                  k_{\mathrm {floor}}^\star = \frac {\sqrt {q_{\min }^2+4q_{\min }r}+q_{\min }} {\sqrt {q_{\min }^2+4q_{\min }r}+q_{\min }+2r}. \label {eq:gain_floor}                    (22)
+
+                                                                         ⋆
+For the actual hyperparameters (qmin = 0.02, r = 1.0), Eq. (22) gives kfloor  ≈
+0.132 before applying the clamp. The practical interpretation is therefore not
+that FILT3R freezes completely, but that it settles into a substantially more
+conservative update regime while preserving responsiveness to scene change.
+    This distinction matters for interpretation. The idealized O(1/t) result ex-
+plains why recursive uncertainty propagation expands the effective memory hori-
+zon relative to overwrite or fixed-gain updates. The implemented model inherits
+the same qualitative mechanism, but its asymptotic behavior is controlled by
+qmin and [kmin , kmax ]. Figure 8 shows that on long sequences, FILT3R’s gain
+approaches the predicted floor, confirming that the update has converged to its
+stable-regime operating point.
+
+
+A.3                        Distinguishing FILT3R from fixed-EMA smoothing
+
+The central difference between FILT3R and overwrite, heuristic gating, or fixed-
+EMA smoothing is that FILT3R propagates uncertainty. This propagation allows
+the update to become increasingly conservative as evidence accumulates, while
+still reopening when elevated process noise signals a genuine scene transition.
+                                                                             FILT3R           23
+
+Table 7: FILT3R versus fixed smoothing: ablations on TUM-800 and Bonn-
+500. Removing adaptive process noise or variance propagation weakens long-horizon
+stability. A tuned fixed-β EMA can suppress certain global drift metrics, but does so by
+uniformly damping all updates, which substantially degrades local rotation accuracy.
+No single constant coefficient matches FILT3R’s joint performance across long-horizon
+drift, local motion accuracy, and depth quality.
+
+                                            TUM-800 (pose)           Bonn-500 (metric depth)
+Variant
+                                    ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓ AbsRel↓ δ<1.25 ↑ logRMSE↓
+FILT3R (full)                       0.057   0.107   0.009    0.362   0.089   94.4     0.148
+Fixed-Q (fixed r)                   0.100   0.229   0.009    0.393   0.099   91.9     0.155
+No variance propagation (reset-P)   0.149   0.489   0.009    0.446   0.099   91.1     0.154
+Fixed-β EMA (β=0.05, tuned)         0.049   0.078   0.010    0.658   0.093   93.5     0.152
+No EMA normalization for drift      0.058   0.109   0.010    0.367   0.091   94.1     0.150
+Adaptive measurement noise (rt )    0.074   0.148   0.009    0.372   0.093   93.9     0.151
+
+
+
+
+FILT3R does not merely select a different constant for the gate; it changes
+the dynamics of the gate itself, making it time-dependent through propagated
+uncertainty.
+    A natural alternative hypothesis is that a globally conservative fixed EMA
+already explains the observed long-horizon gains. The fixed-β comparison in
+Table 6 reveals a more nuanced picture: very small fixed β can indeed sup-
+press TUM-800 drift and even improve Bonn-500 Abs Rel, but at the cost of
+over-smoothing local motion. For instance, reading from the extended sweep in
+Figure 10, β = 0.01 reduces TUM-800 ATEorig to 0.080 and Bonn-500 Abs Rel
+to 0.085, yet its TUM-800 RPE-r jumps to 1.91; even β = 0.03 yields RPE-r
+of 1.25. FILT3R therefore acts as a selective smoother: it contracts updates as
+evidence accumulates, but does not commit to a single forgetting rate for the
+entire stream.
+    In our experiments, the fixed-β baseline in Table 6 uses the development-
+set choice β = 0.05. In the fixed-EMA development sweep, β is selected by
+minimizing the sum of camera and depth metrics for TUM-200 and Bonn-150.
+The longer-horizon test benchmarks in Figure 10 were not used in that choice.
+
+Exact definitions of the ablations. Fixed-Q replaces Eq. (7) with a stream-
+independent constant qt,i ≡ q̄ while keeping variance propagation and fixed
+r. The ablation defaults to q̄ = 12 (qmin + qmax ) = 0.26 (qmin = 0.02, qmax = 0.5).
+No variance propagation (reset-P) resets pt−1,i to the initialization value before
+each update, so the gain uses the same functional form but cannot accumulate
+confidence across frames. Fixed-β EMA removes the Kalman variance recursion
+and sets kt,i ≡ β for all tokens and frames. No EMA normalization feeds raw
+drift magnitudes into the same sigmoid gate instead of the normalized score
+gt,i . Adaptive measurement noise replaces the scalar r with token-wise rt,i esti-
+mated from normalized attention entropy while leaving the rest of the update
+unchanged. For the reported ablation, let at,i,j denote the absolute aggregated
+cross-attention from state token i to image token j in the first cross-attention
+24      S. Jin and JC. Ye
+
+layer, let
+                p_{t,i,j}=\frac {a_{t,i,j}}{\sum _j a_{t,i,j}+\varepsilon }, \qquad H_{t,i}=-\frac {\sum _j p_{t,i,j}\log p_{t,i,j}}{\log K+\varepsilon }, 
+
+where K is the number of image tokens, and let Ĥt be the EMA of the sequence-
+mean entropy with update rate 0.05. The ablation then uses
+
+                                r_{t,i}=r_{\min }+r_{\mathrm {scale}}\, \sigma \!\Big (\alpha _r\big (H_{t,i}/\hat {H}_t-\tau _r\big )\Big ), 
+
+with rmin = 1.0, rscale = 1.0, αr = 8.0, and τr = 1.0. The entropy signal is taken
+from the first cross-attention layer in all reported adaptive-rt runs.
+
+Diagnostic conventions used in Figures 8 and 9. The gain-floor summary in Fig-
+ure 8 uses the first and last 20% of frames as the early and late windows. For
+the transition timelines inPFigure 9, the transition score is the per-frame mean
+normalized drift ḡt = N1 i gt,i from Eq. (7). The plotted score is an MA-11
+curve, meaning a trailing moving average over the previous 11 frames (includ-
+ing frame t). The transition threshold is the 90th percentile of this smoothed
+FILT3R score, and detected transition windows are contiguous regions above
+that threshold. Effective gain denotes the per-frame mean of the applied per-
+token gain kt,i after clamping, posterior covariance denotes the per-frame mean
+of the post-update variance pt,i , and the update ratio is
+
+                                                  \rho _t= \frac {\frac {1}{N}\sum _i \lVert s_{t,i}-s_{t-1,i}\rVert _2} {\frac {1}{N}\sum _i \lVert \tilde {s}_{t,i}-s_{t-1,i}\rVert _2}, 
+
+that is, the mean applied update magnitude divided by the mean candidate-
+update magnitude.
+                                                                                                                                   FILT3R   25
+
+                                                           TUM transition dynamics
+                                                     A. Transition score and detected windows
+                        1.5                                                                             raw temporal score
+                                                                                                        FILT3R temporal score (MA-11)
+                                                                                                        transition threshold
+
+
+
+
+             score
+                        1.0
+                        0.5
+
+                                                    B. Effective gain (transition-localized spikes)
+           mean gain   1.00                                                                                              FILT3R
+                       0.75                                                                                              TTT3R
+                                                                                                                         No-propagation
+                       0.50
+                       0.25
+
+                                        C. Posterior covariance (confidence accumulation vs persistence)
+                        1.5                                                                                              FILT3R
+                                                                                                                         TTT3R
+             mean cov
+
+
+
+
+                        1.0                                                                                              No-propagation
+                        0.5
+
+                                                    D. Update ratio || _applied|| / || _candidate||
+                       1.00                                                                                              FILT3R
+                       0.75                                                                                              TTT3R
+                                                                                                                         No-propagation
+           ratio
+
+
+
+
+                       0.50
+                       0.25
+                              0   100         200            300           400         500            600              700            800
+                                                                        frame
+
+                                         (a) TUM-800 transition timeline
+                                                           Bonn transition dynamics
+                                                      A. Transition score and detected windows
+                        2.0
+                                                                                                            raw temporal score
+                        1.5                                                                                 FILT3R temporal score (MA-11)
+                                                                                                            transition threshold
+             score
+
+
+
+
+                        1.0
+                        0.5
+
+                                                    B. Effective gain (transition-localized spikes)
+                       1.00                                                                                               FILT3R
+           mean gain
+
+
+
+
+                       0.75                                                                                               TTT3R
+                                                                                                                          No-propagation
+                       0.50
+                       0.25
+
+                                        C. Posterior covariance (confidence accumulation vs persistence)
+                        1.5                                                                                               FILT3R
+                                                                                                                          TTT3R
+             mean cov
+
+
+
+
+                        1.0                                                                                               No-propagation
+                        0.5
+
+                                                    D. Update ratio || _applied|| / || _candidate||
+                       1.00                                                                                               FILT3R
+                       0.75                                                                                               TTT3R
+                                                                                                                          No-propagation
+           ratio
+
+
+
+
+                       0.50
+                       0.25
+                              0   50        100           150        200         250         300              350            400
+                                                                        frame
+
+                                         (b) Bonn-500 transition timeline
+
+Fig. 9: FILT3R contracts updates in stable regimes and reopens at transi-
+tions. Panel A plots the per-frame mean temporal score ḡt together with its MA-11
+smoothing, the 90th-percentile transition threshold, and the detected above-threshold
+windows. Panels B–D report the corresponding mean effective gain, mean posterior
+covariance, and update ratio ρt . Detected transition windows raise process noise, while
+propagated covariance keeps FILT3R in a substantially lower-update regime than both
+TTT3R and the no-propagation ablation. This behavior provides the mechanistic ex-
+planation for the slower error growth observed in Figure 4.
+26                         S. Jin and JC. Ye
+
+                                                                    Fixed- EMA sweep on long-horizon benchmarks
+
+                  0.105                                                                                             FILT3R                      0.096
+                                                                                 1.75
+                  0.100                                                                                                                         0.094
+
+
+
+
+                                                                                                                             Bonn-500 Abs Rel
+                                                                                 1.50
+TUM-800 ATEorig
+
+
+
+
+                                                                 TUM-800 RPE-r
+                  0.095                                                          1.25                                                           0.092
+                  0.090                                                          1.00                                                           0.090
+                  0.085                                                          0.75                                                           0.088
+                  0.080                                FILT3R
+                                                                                 0.50                                                           0.086
+                           0.02   0.04   0.06   0.08     0.10                           0.02   0.04   0.06   0.08     0.10                              0.02    0.04    0.06   0.08   0.10
+
+
+
+Fig. 10: Extended long-horizon fixed-β sweep. Very small fixed EMA coefficients
+can outperform FILT3R on individual long-horizon metrics, but only by globally over-
+smoothing the stream: the same settings that reduce ATEorig or improve depth also
+produce substantially elevated TUM-800 RPE-r. FILT3R occupies a stronger operating
+region because it does not commit to a single forgetting rate for the entire rollout.
+
+                                                                             Fixed- EMA sweep on the development set
+                  0.18                                                       0.36                                                               0.105
+                  0.16
+                                                                                                                                                0.100
+
+
+
+
+                                                                                                                              dev Abs Rel
+                  0.14
+dev ATEorig
+
+
+
+
+                                                                             0.34
+                                                                dev RPE-r
+
+
+
+
+                  0.12
+                                                                                                                                                0.095
+                  0.10                                                       0.32
+                  0.08
+                                                                                                                                                0.090
+                  0.06                                                       0.30
+                            0.2   0.4    0.6    0.8     1.0                              0.2    0.4   0.6    0.8      1.0                                 0.2     0.4    0.6    0.8   1.0
+
+
+
+Fig. 11: Development-set fixed-β sweep. This sweep provides context for rep-
+resentative fixed-EMA operating points and shows the development-set optimum at
+β = 0.05 under the explicit objective above. The more informative comparison is the
+long-horizon sweep above: a fixed gate can be tuned toward one regime, yet it remains
+globally conservative rather than transition-aware.
+
+
+
+B                         Why periodic hard resets are not sufficient
+
+An alternative strategy for managing long-horizon drift is to periodically reset
+the recurrent state. We compare against the periodic hard-reset baseline used in
+the official TTT3R evaluation setup: the recurrent state is reinitialized every 100
+frames while the frozen backbone and evaluator settings remain unchanged. At
+each reset, the persistent state and local memory return to their start-of-sequence
+values and the temporal buffers are cleared. While resets can reduce within-
+segment drift, they also discard accumulated scene context and risk introducing
+scale discontinuities at reset boundaries. The relevant criterion is whether resets
+preserve a coherent belief state over the full sequence, not merely whether they
+reduce within-segment drift.
+    Tables 8 and 9 address this question on TUM-RGBD (camera pose) and
+Bonn (depth), respectively. On TUM-RGBD (Table 8), TTT3R+Reset does im-
+prove locally aligned metrics such as ATE and RPE at moderate lengths, yet
+FILT3R remains substantially better on origin-aligned trajectory error at all
+evaluated horizons—for example, ATEorig at TUM-800 is 0.107 for FILT3R ver-
+sus 0.221 for TTT3R+Reset. On Bonn (Table 9), per-sequence scale alignment
+                                                                                          FILT3R             27
+
+Table 8: Resets improve within-segment metrics but fail to reduce cumula-
+tive drift. On TUM-RGBD, TTT3R+Reset improves certain locally aligned metrics,
+yet FILT3R remains substantially better on origin-aligned trajectory error, which di-
+rectly exposes accumulated drift.
+
+                         TUM-400                        TUM-600                           TUM-800
+Method
+              ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓ ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓ ATE↓ ATEorig ↓ RPE-t↓ RPE-r↓
+CUT3R         0.109   0.302   0.010    0.381   0.145   0.425   0.008    0.430   0.173    0.493   0.008   0.486
+Point3R       0.119   0.179   0.028    0.640   0.133   0.205   0.026    0.912   0.157    0.241   0.024   1.127
+TTT3R         0.055   0.128   0.010    0.328   0.084   0.176   0.009    0.365   0.097    0.214   0.009   0.387
+TTT3R+Reset 0.047     0.140   0.008    0.308   0.059   0.181   0.007    0.331   0.077    0.221   0.007   0.338
+FILT3R (ours) 0.033   0.074   0.009    0.305   0.042   0.082   0.009    0.332   0.057    0.107   0.009   0.362
+
+
+Table 9: Reset depth comparison on Bonn. (a) Per-sequence scale alignment at
+300, 400, and 500 frames shows that resets can help transiently. (b) Under metric-
+scale evaluation, however, FILT3R remains consistently stronger as the horizon grows,
+because it avoids the scale inconsistencies introduced at reset boundaries.
+
+            (a) Per-sequence scale (Bonn-300 / Bonn-400 / Bonn-500)
+                         Bonn-300                        Bonn-400                         Bonn-500
+Method
+                Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓
+CUT3R            0.090    93.8        0.150     0.091     93.5         0.150     0.086      94.0     0.145
+Point3R          0.083    94.7        0.149     0.083     94.6         0.147     0.081      94.8     0.145
+TTT3R            0.079    95.0        0.142     0.078     95.1         0.139     0.075      95.3     0.136
+TTT3R+Reset      0.085    94.3        0.147     0.082     94.5         0.142     0.081      94.8     0.141
+FILT3R (ours)    0.080    95.1        0.143     0.078     95.3         0.140     0.076      95.4     0.138
+
+                 (b) Metric scale (Bonn-300 / Bonn-400 / Bonn-500)
+                         Bonn-300                        Bonn-400                         Bonn-500
+Method
+                Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓
+CUT3R            0.107    88.7        0.162     0.107     89.6         0.161     0.101      90.6     0.156
+Point3R          0.095    94.4        0.155     0.092     94.3         0.152     0.092      94.4     0.151
+TTT3R            0.108    90.1        0.163     0.104     91.2         0.158     0.100      92.1     0.154
+TTT3R+Reset      0.097    92.2        0.157     0.094     92.9         0.151     0.094      93.5     0.151
+FILT3R (ours)    0.093    93.8        0.152     0.090     94.1         0.149     0.089      94.4     0.148
+
+
+
+
+masks the issue: resets appear helpful at shorter horizons. Under metric-scale
+evaluation, however, FILT3R consistently outperforms the reset baseline as the
+horizon grows, because it avoids the scale discontinuities that resets introduce at
+segment boundaries. Figure 12 visualizes these trends as a function of sequence
+length, and Figure 13 shows representative qualitative failure cases where resets
+cause visible scale jumps.
+
+
+C     Evaluation protocol and reproducibility
+
+Common setup. Unless stated otherwise, CUT3R, TTT3R, TTT3R+Reset, and
+FILT3R share the same frozen CUT3R checkpoint as in the main paper; only
+the online update rule differs. Point3R results are reproduced with the official
+codebase. Unless stated otherwise, every quantitative result in this appendix uses
+28      S. Jin and JC. Ye
+
+
+
+
+     (a) TUM-RGBD: ATE with reset               (b) TUM-RGBD: ATEorig with reset
+
+
+
+
+      (c) Bonn: Abs Rel with reset                   (d) Bonn: δ<1.25 with reset
+
+Fig. 12: Resets improve short segments but not the persistent state. The reset
+baseline reduces locally aligned drift at moderate lengths, but its benefit diminishes as
+scale discontinuities accumulate across reset boundaries. FILT3R instead maintains a
+single continuously filtered state throughout the rollout.
+
+
+the main FILT3R model with a single set of hyperparameters across all tasks. For
+each dataset, we extract frames at the native frame rate and truncate sequences
+to fixed prefix lengths; we refer to these as prepared sequences throughout.
+
+Training-bound reference and evaluator settings. The public backbone check-
+point is cut3r_512_dpt_4_64.pth. This released CUT3R model is trained on
+4–64 views, so Table 10 reports evaluation lengths relative to the conservative
+64-view upper training bound. The same table also collects the evaluator-side
+settings that materially affect the reported metrics: alignment mode for pose,
+scale handling for depth, valid-depth masks, and reconstruction crop / ICP set-
+tings.
+
+Initialization, reset, and efficiency-benchmark details. On the first valid frame
+of a stream, the state is updated by direct overwrite with the current candidate,
+the covariance is initialized uniformly to p0 , and the previous-candidate buffer is
+                                                                                                             FILT3R                 29
+
+
+
+
+                              Hard Reset
+ TTT3R
+ +Reset
+   FILT3R
+
+
+
+
+Fig. 13: Representative reset failure cases. Resetting discards previously accu-
+mulated scene context, causing scale jumps near reset boundaries and inconsistent
+behavior on revisited regions. FILT3R avoids these artifacts by maintaining a contin-
+uously filtered latent state.
+
+Table 10: Exact evaluator settings and relation to the released checkpoint’s
+training bound. The checkpoint tag and README specify a 4–64-view model; we
+therefore state how far each benchmark extends beyond the 64-view upper bound.
+
+Benchmark          Training ref.          Prefix lengths          Prefix / 64    Evaluator details
+TUM-RGBD pose CUT3R 4–64 views                50–1000            0.78×–15.63× ATE uses align=True, correct_scale=True; ATEorig
+                                                                              uses align_origin=True; RPE is evaluated at ∆=1
+                                                                              frame with similarity alignment.
+Bonn depth       CUT3R 4–64 views              50–500             0.78×–7.81× Main long-horizon table uses metric scale; the reset com-
+                                                                              parison additionally reports per-sequence scale align-
+                                                                              ment. Valid pixels satisfy GT depth > 0 and < 70m; pre-
+                                                                              dictions are bicubically resized and averaged with valid-
+                                                                              pixel weighting.
+KITTI depth      CUT3R 4–64 views         300 / 400 / 500         4.69×–7.81× Both metric-scale and per-sequence-scale metrics are re-
+                                                                              ported. The evaluator keeps the dataset’s native depth
+                                                                              range (max_depth=None) and uses the same valid-pixel-
+                                                                              weighted aggregation.
+7-Scenes recon   CUT3R 4–64 views   100 / 200 / 300 / 500 / 1000 1.56×–15.63× Input size 512 with a 224-pixel center crop for point
+                                                                              cloud optimization. With ICP applied to report Accu-
+                                                                              racy, Completeness, and Normal Consistency.
+NRGBD recon      CUT3R 4–64 views         300 / 400 / 500         4.69×–7.81× The same reconstruction evaluator is used on the nine
+                                                                              prepared NRGBD scenes.
+
+
+
+
+set to that same candidate. The drift EMA is initialized only when the first tem-
+poral difference is available and is then clamped to ∆floor . For TTT3R+Reset,
+we follow the official 100-frame hard-reset setup: the persistent state and local
+memory are reinitialized to their start-of-sequence values and temporal buffers
+are cleared, with no interval tuning on the evaluation sets. For the runtime /
+memory benchmark in the main paper, the protocol is NRGBD at 500 frames
+and 512×384 resolution, with 2 warmup runs and 10 timed runs, on a single-RTX
+5090 32GB GPU.
+30     S. Jin and JC. Ye
+
+Long-horizon camera pose on TUM-RGBD. Following [4], we evaluate eight
+prepared TUM-dynamics sequences:
+ – freiburg3_sitting_{halfsphere,rpy,static,xyz}
+
+ – freiburg3_walking_{halfsphere,rpy,static,xyz}.
+    For each prepared prefix length in {50, 100, 150, 200, 300, 400, 500, 600,
+700, 800, 900, 1000}, we evaluate the full prefix and average metrics across
+the eight sequences. ATE is computed with global similarity alignment via evo
+package; ATEorig uses origin alignment only to expose accumulated drift; RPE
+is computed at ∆ = 1 frame.
+
+Long-horizon video depth on Bonn. Following [4], we evaluate the five long Bonn
+sequences balloon2, crowd2, crowd3, person_tracking2, and synchronous.
+Prepared prefix lengths are {50, 100, 150, 200, 250, 300, 350, 400, 450, 500}. The
+main-paper long-horizon depth table uses metric-scale evaluation; the reset table
+additionally reports per-sequence scale alignment. Depth metrics are aggregated
+with valid-pixel weighting.
+
+Long-horizon video depth on KITTI. Following [4], we additionally report both
+per-sequence-scale and metric-scale depth on prepared KITTI validation clips
+truncated to 300, 400, and 500 frames. Depth metrics are aggregated with valid-
+pixel weighting.
+
+3D reconstruction. 7-Scenes evaluation uses the prepared scene set with the
+frame budgets used in the paper (100, 200, 300, 500, and 1000). For 7-Scenes,
+we subsample every 2nd frame (stride 2) for sequence lengths below 500 and use
+every frame (stride 1) for the length-1000 evaluation. NRGBD evaluation uses
+the nine prepared scenes breakfast_room, complete_kitchen, green_room,
+grey_white_room, kitchen, morning_apartment, staircase, thin_geometry,
+and whiteroom. The reconstruction setup uses resolution 512 as input with a
+224-pixel center crop for the ICP algorithm. Metrics are Accuracy, Completeness,
+and Normal Consistency.
+
+Short-horizon benchmarks. Following [4], short-horizon depth is evaluated on the
+prepared Sintel split (14 sequences), the Bonn dynamics set with standard length
+(110), and KITTI validation crops. The short-horizon reconstruction table uses
+7-Scenes at 100 and 200 frames, which therefore use stride 2.
+
+Model selection and freeze point. A single fixed set of FILT3R hyperparameters
+is used across all tasks. We do not deploy different hyperparameters for pose and
+depth. Unlike the fixed-β baseline in Sec. A, the final fixed-R FILT3R model was
+not selected by a post hoc sweep on the long-horizon test tables. No single hidden
+scalar objective was used for that final model; the goal was one shared operating
+point that remained competitive on both the pose and depth development sets.
+Candidate fixed-R configurations were screened once on the pose development
+                                                                                      FILT3R   31
+
+Table 11: Targeted perturbation check around the main configuration. These
+runs come from retained evaluation logs and are intended as a local sensitivity check
+rather than a dense robustness study. The nearby setting stays in the same qualitative
+regime across both pose and reconstruction.
+
+                                      (a) TUM-800 pose
+               Variant                                        ATE↓ ATEorig ↓ RPE-r↓
+               Ours                              0.057               0.107    0.362
+               Gate variant (qmax =0.8, τq =4.0) 0.057               0.107    0.364
+
+                    (b) 7-Scenes reconstruction at length 300
+               Variant                             Acc (mean)↓ Comp (mean)↓ NC (mean)↑
+               Ours                                   0.020        0.022      0.568
+               Gate variant (qmax =0.8, τq =4.0)      0.020        0.022      0.568
+
+
+
+
+set (TUM-200) and on a held-out short-horizon depth development set, after
+which one shared configuration was frozen and reused for every result reported
+in the main paper and this appendix. The neighboring variant (higher-ceiling,
+later-opening gate) in Table 11 and the isolated long-horizon wins of smaller
+fixed-β values were observed only in retained evaluation runs after this freeze
+point and did not influence model choice. Table 11 therefore serves as a targeted
+local sensitivity check rather than a dense robustness study.
+
+Per-sequence robustness statistics. The gains in the main tables are not driven
+by a single favorable sequence. Table 12 summarizes the per-sequence runs at
+the longest horizons for which outputs are available for all compared methods:
+TUM-800 for pose and Bonn-400 for metric depth. FILT3R wins all eight TUM
+sequences on ATEorig and wins three of the five Bonn sequences on Abs Rel,
+while also achieving the best mean and worst-case depth errors.
+
+
+D    Additional long-horizon depth results on KITTI
+Discussion. Under per-sequence scale alignment (Table 13a), FILT3R consis-
+tently outperforms both CUT3R and TTT3R across all KITTI horizons. Under
+metric-scale evaluation (Table 13b), however, TTT3R holds a small edge over
+FILT3R—for example, Abs Rel of 0.132 versus 0.134 at KITTI-500—while both
+remain substantially better than CUT3R. We hypothesize that this is related
+to KITTI’s predominantly forward-driving motion, which produces relatively
+steady temporal drift and thus a setting where TTT3R’s heuristic gate may al-
+ready be well-calibrated. Even in this regime, the gap to FILT3R remains small
+(within 0.002 Abs Rel at KITTI-500), while FILT3R remains stronger whenever
+per-sequence scale alignment is available.
+32       S. Jin and JC. Ye
+
+Table 12: Per-sequence robustness at long horizons. TUM-800 pose uses all eight
+prepared TUM-dynamics sequences. Bonn-400 metric depth uses the five long Bonn
+sequences, which is the longest horizon for which per-sequence outputs are available
+for all compared methods.
+
+                                      (a) TUM-800 pose
+     Method              ATEorig mean±std↓ worst↓ wins↑ RPE-r mean±std↓ worst↓ wins↑
+     CUT3R                  0.493 ± 0.318     1.137    0      0.486 ± 0.240       0.862   0
+     TTT3R                  0.214 ± 0.097     0.427    0      0.387 ± 0.158       0.588   0
+     TTT3R+Reset            0.221 ± 0.060     0.290    0     0.338 ± 0.113        0.483   5
+     FILT3R (ours)         0.107 ± 0.029      0.136    8      0.362 ± 0.148       0.581   3
+
+                                 (b) Bonn-400 metric depth
+     Method              Abs Rel mean±std↓ worst↓ wins↑ δ<1.25 mean±std↑ worst↑ wins↑
+     CUT3R                  0.111 ± 0.049    0.190     0         88.3 ± 12.7      64.1    1
+     TTT3R                  0.108 ± 0.053    0.196     0         90.3 ± 10.2      71.6    1
+     TTT3R+Reset            0.097 ± 0.040    0.148     2          92.4 ± 6.5      82.1    1
+     FILT3R (ours)         0.092 ± 0.035     0.139     3         93.8 ± 4.4       87.5    2
+
+
+Table 13: Long-horizon video depth on KITTI. (a) Per-sequence scale alignment
+and (b) metric-scale evaluation are both reported on prepared KITTI validation clips
+truncated to 300, 400, and 500 frames.
+
+          (a) Per-sequence scale (KITTI-300 / KITTI-400 / KITTI-500)
+                         KITTI-300                   KITTI-400                    KITTI-500
+Method
+                Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓
+CUT3R            0.122    87.5       0.165   0.127    86.9       0.170    0.130    86.5       0.175
+TTT3R            0.111    90.3       0.152   0.115    89.7       0.159    0.118    89.2       0.165
+FILT3R (ours)    0.108    91.1       0.149   0.112    90.2       0.156    0.116    89.6       0.162
+
+                (b) Metric scale (KITTI-300 / KITTI-400 / KITTI-500)
+                         KITTI-300                   KITTI-400                    KITTI-500
+Method
+                Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓ Abs Rel↓ δ<1.25 ↑ log RMSE↓
+CUT3R            0.133    83.8       0.179   0.143    82.0       0.187    0.151    80.3       0.194
+TTT3R            0.117    88.6       0.161   0.125    87.3       0.169    0.132    86.5       0.176
+FILT3R (ours)    0.119    88.6       0.161   0.127    87.3       0.169    0.134    86.2       0.177
+
+
+
+
+E    Complete short-horizon tables
+
+Tables 14 and 15 present the full short-horizon comparisons for depth and
+reconstruction, respectively. These tables include optimization-based and full-
+attention baselines in addition to the streaming methods compared in the main
+paper.
+    On short-horizon depth (Table 14), FILT3R is the strongest streaming method
+on Sintel and Bonn under metric-scale evaluation and remains competitive on
+KITTI; under per-sequence scale alignment it is competitive across all three
+datasets.
+                                                                                     FILT3R         33
+
+Table 14: Video depth estimation on short sequences (full comparison).
+Both per-sequence scale and metric-scale results are shown. Rows marked with \dagger  are
+reproduced from prior work.
+
+Alignment Method                     Type            Sintel               Bonn             KITTI
+                                                Abs Rel↓ δ<1.25 ↑ Abs Rel↓ δ<1.25 ↑ Abs Rel↓ δ<1.25 ↑
+               DUSt3R-GA\dagger  [33] Optim      0.656         45.2   0.155   83.3    0.144    81.3
+               MASt3R-GA\dagger  [11] Optim      0.641         43.9   0.252   70.1    0.183    74.5
+               MonST3R-GA\dagger  [37] Optim     0.378         55.8   0.067   96.3    0.168    74.4
+               Easi3R\dagger  [3]       FA       0.377         55.9   0.059   97.0    0.102    91.2
+               VGGT\dagger              FA       0.287         66.1   0.055   97.1    0.070    96.5
+               DA3 [13]                 FA       0.278         70.3   0.052   97.2    0.045    98.0
+Per-seq. scale Spann3R\dagger  [29]    Stream    0.622         42.6   0.144   81.3    0.198    73.7
+               Point3R\dagger          Stream    0.452         48.9   0.060   96.0    0.136    84.2
+               CUT3R\dagger            Stream    0.421         47.9   0.078   93.7    0.118    88.1
+               TTT3R\dagger            Stream    0.405         48.9   0.069   95.4    0.114    90.4
+               STREAM3Rα \dagger  [10] Stream    0.478         51.1   0.075   94.1    0.116    89.6
+               StreamVGGT\dagger  [40] Stream    0.323         65.7   0.059   97.2    0.173    72.1
+               MUT3R\dagger            Stream    0.451         48.6   0.070   96.2    0.116    88.3
+               FILT3R (ours)           Stream    0.407         54.5   0.061   97.0    0.110    91.0
+               MASt3R-GA\dagger      Optim       1.022         14.3   0.272   70.6    0.467    15.2
+               DA3 [13]               FA         0.529          6.2   0.147   88.8    0.237    28.5
+             CUT3R\dagger            Stream      1.029         23.8   0.103   88.5    0.122    85.5
+Metric scale Point3R\dagger          Stream      0.777         17.1   0.137   94.7    0.191    73.8
+             TTT3R                   Stream      0.977         24.5   0.090   94.2    0.110    89.1
+             STREAM3Rα \dagger       Stream      1.041         21.0   0.084   94.4    0.234    57.6
+             MUT3R\dagger            Stream      0.820         25.2   0.086   96.0    0.125    85.8
+             FILT3R (ours)           Stream      0.772         27.3   0.067   96.7    0.115    88.8
+
+
+
+
+Table 15: 3D reconstruction on 7-Scenes at short sequences (100 and 200
+frames). Even near the training horizon, FILT3R is already competitive with or
+slightly better than prior streaming updates, though the gap is considerably smaller
+than in the long-horizon settings reported above.
+
+                                   Length 100                                 Length 200
+Method
+                        Acc↓         Comp↓               NC↑          Acc↓       Comp↓        NC↑
+                    Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med.
+CUT3R         0.033 0.018 0.022 0.005 0.592 0.644 0.089 0.053 0.048 0.017 0.566 0.600
+TTT3R         0.020 0.008 0.016 0.004 0.596 0.649 0.028 0.015 0.023 0.005 0.582 0.627
+FILT3R (ours) 0.017 0.006 0.017 0.004 0.595 0.648 0.019 0.008 0.022 0.004 0.584 0.629
+
+
+
+
+Scope of the empirical claim. The short-horizon gains are smaller than the long-
+horizon ones, so our central empirical claim is long-horizon stabilization rather
+than universal dominance across all regimes.
+34      S. Jin and JC. Ye
+
+F    Hyperparameter details
+
+Table 16 lists the complete set of hyperparameters used by FILT3R. These values
+are fixed across all tasks and benchmarks reported in both the main paper and
+this appendix. As discussed in Sec. A.2, the positive qmin together with gain
+clamping implies that the deployed filter has a finite stable-regime gain floor
+rather than an asymptotically vanishing gain.
+
+
+                      Table 16: FILT3R hyperparameters.
+
+                 Symbol Description                           Value
+                 p0          Initial per-token variance       1.5
+                 kmin , kmax Kalman gain clamp bounds         0.01, 0.99
+                 qmin , qmax Process noise bounds             0.02, 0.5
+                 αq , τq     Process-noise sigmoid parameters 20, 3.0
+                 r           Fixed measurement-noise scalar 1.0
+                 λ∆          Drift EMA rate                   0.05
+                 ∆floor      Drift EMA floor                  0.01
+                 ε           Numerical stability constant     10−6
+
+
+
+
+G     Additional qualitative evidence of long-horizon
+      stability
+
+
+
+                CUT3R                    TTT3R                   FILT3R
+
+
+
+
+Fig. 14: TUM-RGBD trajectory visualizations. FILT3R stays closer to the
+ground-truth trajectory over long horizons than both the overwrite and heuristic-gating
+baselines, particularly after the rollout extends well beyond the training horizon.
+                                                                      FILT3R       35
+
+
+
+
+                        CUT3R      TTT3R         FILT3R          GT
+              t = 50
+Crowd3
+
+              t = 150
+              t = 450
+              t = 50
+Synchronous
+
+              t = 150
+              t = 250
+
+
+
+
+Fig. 15: Bonn depth prediction visualizations. FILT3R stays closer to the ground-
+truth depth over long horizons than both the overwrite and heuristic-gating baselines,
+producing more metric-aligned depth predictions with sharper detail.
+36      S. Jin and JC. Ye
+
+References
+ 1. Azinović, D., Martin-Brualla, R., Goldman, D.B., Nießner, M., Thies, J.: Neural
+    rgb-d surface reconstruction. In: Proceedings of the IEEE/CVF Conference on
+    Computer Vision and Pattern Recognition (CVPR). pp. 6290–6301 (June 2022)
+ 2. Butler, D.J., Wulff, J., Stanley, G.B., Black, M.J.: A naturalistic open source movie
+    for optical flow evaluation. In: Proceedings of the European Conference on Com-
+    puter Vision (ECCV). pp. 611–625 (2012)
+ 3. Chen, X., Chen, Y., Xiu, Y., Geiger, A., Chen, A.: Easi3R: Estimating disentangled
+    motion from DUSt3R without training. In: Proceedings of the IEEE/CVF Inter-
+    national Conference on Computer Vision (ICCV). pp. 9158–9168 (2025), https:
+    //openaccess.thecvf.com/content/ICCV2025/html/Chen_Easi3R_Estimating_
+    Disentangled_Motion_from_DUSt3R_Without_Training_ICCV_2025_paper.html
+ 4. Chen, X., Chen, Y., Xiu, Y., Geiger, A., Chen, A.: TTT3R: 3d reconstruction
+    as test-time training. In: International Conference on Learning Representations
+    (ICLR) (2026), https://openreview.net/forum?id=aMs6FtNaY5
+ 5. Deng, K., Ti, Z., Xu, J., Yang, J., Xie, J.: Vggt-long: Chunk it, loop it, align
+    it – pushing vggt’s limits on kilometer-scale long rgb sequences (2025), https:
+    //arxiv.org/abs/2507.16443
+ 6. Geiger, A., Lenz, P., Urtasun, R.: Are we ready for autonomous driving? the KITTI
+    vision benchmark suite. In: Proceedings of the IEEE Conference on Computer
+    Vision and Pattern Recognition (CVPR). pp. 3354–3361 (2012). https://doi.
+    org/10.1109/CVPR.2012.6248074, https://www.cvlibs.net/publications/
+    Geiger2012CVPR.pdf
+ 7. Haarnoja, T., Zhou, A., Abbeel, P., Levine, S.: Backprop KF: Learning discrimina-
+    tive deterministic state estimators. In: Advances in Neural Information Processing
+    Systems (NeurIPS). vol. 29 (2016), https://proceedings.neurips.cc/paper/
+    2016/hash/697e382cfd25b07a3e62275d3ee132b3-Abstract.html
+ 8. Kalman, R.E.: A new approach to linear filtering and prediction problems. Journal
+    of Basic Engineering 82(1), 35–45 (1960)
+ 9. Krishnan, R.G., Shalit, U., Sontag, D.: Deep kalman filters (2015), https://arxiv.
+    org/abs/1511.05121
+10. Lan, Y., Luo, Y., Hong, F., Zhou, S., Chen, H., Lyu, Z., Dai, B., Yang, S., Loy, C.C.,
+    Pan, X.: STream3R: Scalable sequential 3d reconstruction with causal transformer.
+    In: International Conference on Learning Representations (ICLR) (2026), https:
+    //openreview.net/forum?id=RTTYGeC2Io, poster
+11. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: Proceedings of the European Conference on Computer Vision (ECCV). pp.
+    71–91 (2024). https://doi.org/10.1007/978-3-031-73220-1_5, https://link.
+    springer.com/chapter/10.1007/978-3-031-73220-1_5
+12. Li, Z., Zhou, J., Wang, Y., Guo, H., Chang, W., Zhou, Y., Zhu, H., Chen, J., Shen,
+    C., He, T.: Wint3r: Window-based streaming reconstruction with camera token
+    pool. In: International Conference on Learning Representations (ICLR) (2026),
+    https://openreview.net/forum?id=PjviszIZf1
+13. Lin, H., Chen, S., Liew, J., Chen, D.Y., Li, Z., Zhao, Y., Shi, G., Feng, J., Kang,
+    B., Peng, S., Guo, H., Zhou, X.: Depth anything 3: Recovering the visual space
+    from any views. In: International Conference on Learning Representations (ICLR)
+    (2026), https://openreview.net/forum?id=yirunib8l8
+14. Liu, Y., Dong, S., Wang, S., Yin, Y., Yang, Y., Fan, Q., Chen, B.: Slam3r: Real-
+    time dense scene reconstruction from monocular rgb videos. In: Proceedings of the
+                                                                        FILT3R         37
+
+    IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR).
+    pp. 16651–16662 (2025)
+15. Mehra, R.K.: On the identification of variances and adaptive kalman filtering. IEEE
+    Transactions on Automatic Control 15(2), 175–184 (1970). https://doi.org/10.
+    1109/TAC.1970.1099422
+16. Murai, R., Dexheimer, E., Davison, A.J.: Mast3r-slam: Real-time dense slam with
+    3d reconstruction priors. In: Proceedings of the IEEE/CVF Conference on Com-
+    puter Vision and Pattern Recognition (CVPR). pp. 16695–16705 (2025)
+17. Palazzolo, E., Behley, J., Lottes, P., Giguère, P., Stachniss, C.: ReFusion: 3d re-
+    construction in dynamic environments for rgb-d cameras exploiting residuals. In:
+    IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS).
+    pp. 7855–7862 (2019). https://doi.org/10.1109/IROS40897.2019.8967590,
+    https://www.ipb.uni-bonn.de/pdfs/palazzolo2019iros.pdf
+18. Sandström, E., Li, Y., Van Gool, L., Oswald, M.R.: Point-slam: Dense neural point
+    cloud-based SLAM. In: Proceedings of the IEEE/CVF International Conference on
+    Computer Vision (ICCV). pp. 18433–18444 (2023)
+19. Shen, G., Deng, T., Qin, X., Wang, N., Wang, J., Wang, Y., Chen, Y., Wang, H.,
+    Wang, J.: Mut3r: Motion-aware updating transformer for dynamic 3d reconstruc-
+    tion (2025), https://arxiv.org/abs/2512.03939
+20. Shen, Y., Zhang, Z., Qu, Y., Zheng, X., Ji, J., Zhang, S., Cao, L.: Fastvggt: Fast
+    visual geometry transformer. In: International Conference on Learning Represen-
+    tations (ICLR) (2026), https://openreview.net/forum?id=asl8NJlIMe
+21. Shotton, J., Glocker, B., Zach, C., Izadi, S., Criminisi, A., Fitzgibbon, A.: Scene
+    coordinate regression forests for camera relocalization in rgb-d images. In: Pro-
+    ceedings of the IEEE Conference on Computer Vision and Pattern Recognition
+    (CVPR). pp. 2930–2937 (2013)
+22. Sturm, J., Engelhard, N., Endres, F., Burgard, W., Cremers, D.: A benchmark for
+    the evaluation of rgb-d SLAM systems. In: IEEE/RSJ International Conference on
+    Intelligent Robots and Systems (IROS). pp. 573–580 (2012)
+23. Sucar, E., Liu, S., Ortiz, J., Davison, A.J.: iMAP: Implicit mapping and position-
+    ing in real-time. In: Proceedings of the IEEE/CVF International Conference on
+    Computer Vision (ICCV). pp. 6229–6238 (2021)
+24. Sun, Y., Wang, X., Liu, Z., Miller, J., Efros, A.A., Hardt, M.: Test-time training
+    with self-supervision for generalization under distribution shifts. In: Proceedings of
+    the 37th International Conference on Machine Learning. Proceedings of Machine
+    Learning Research, vol. 119, pp. 9229–9248 (2020), https://proceedings.mlr.
+    press/v119/sun20b.html
+25. Teed, Z., Deng, J.: Deepv2d: Video to depth with differentiable structure from
+    motion. In: International Conference on Learning Representations (ICLR) (2020),
+    https://openreview.net/forum?id=HJeO7RNKPr
+26. Teed, Z., Deng, J.: Raft: Recurrent all-pairs field transforms for optical flow. In:
+    Proceedings of the European Conference on Computer Vision (ECCV) (2020)
+27. Teed, Z., Deng, J.: Droid-slam: Deep visual slam for monocular, stereo, and rgb-
+    d cameras. In: Ranzato, M., Beygelzimer, A., Dauphin, Y., Liang, P., Vaughan,
+    J.W. (eds.) Advances in Neural Information Processing Systems. vol. 34, pp. 16558–
+    16569. Curran Associates, Inc. (2021), https://proceedings.neurips.cc/paper_
+    files/paper/2021/file/89fcd07f20b6785b92134bd6c1d0fa42-Paper.pdf
+28. Wang, D., Shelhamer, E., Liu, S., Olshausen, B., Darrell, T.: Tent: Fully test-
+    time adaptation by entropy minimization. In: International Conference on Learning
+    Representations (ICLR) (2021), https://arxiv.org/abs/2006.10726
+38      S. Jin and JC. Ye
+
+29. Wang, H., Agapito, L.: 3d reconstruction with spatial memory. In: 2025 Interna-
+    tional Conference on 3D Vision (3DV). pp. 78–89 (2025). https://doi.org/10.
+    1109/3DV66043.2025.00013
+30. Wang, H., Wang, J., Agapito, L.: Co-SLAM: Joint coordinate and sparse paramet-
+    ric encodings for neural real-time SLAM. In: Proceedings of the IEEE/CVF Con-
+    ference on Computer Vision and Pattern Recognition (CVPR). pp. 13293–13302
+    (2023)
+31. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: VGGT:
+    Visual geometry grounded transformer. In: Proceedings of the IEEE/CVF Confer-
+    ence on Computer Vision and Pattern Recognition (CVPR). pp. 5294–5306 (2025)
+32. Wang, Q., Zhang, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d per-
+    ception model with persistent state. In: Proceedings of the IEEE/CVF Conference
+    on Computer Vision and Pattern Recognition (CVPR). pp. 10510–10522 (2025)
+33. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition (CVPR). pp. 20697–20709 (2024)
+34. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. In: International
+    Conference on Learning Representations (ICLR) (2026), https://openreview.
+    net/forum?id=DTQIjngDta, poster
+35. Wu, Y., Zheng, W., Zhou, J., Lu, J.: Point3r: Streaming 3d reconstruction with
+    explicit spatial pointer memory. In: Advances in Neural Information Processing
+    Systems (NeurIPS) (2025), https://openreview.net/forum?id=yk1iqV9Etr
+36. Yang, J., Sax, A., Liang, K.J., Henaff, M., Tang, H., Cao, A., Chai, J., Meier, F.,
+    Feiszli, M.: Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition (CVPR). pp. 21924–21935 (2025)
+37. Zhang, J., Herrmann, C., Hur, J., Jampani, V., Darrell, T., Cole, F., Sun, D., Yang,
+    M.H.: MonST3R: A simple approach for estimating geometry in the presence of
+    motion. In: International Conference on Learning Representations (ICLR) (2025),
+    https://openreview.net/forum?id=lJpqxFgWCM, spotlight
+38. Zheng, Z., Xiang, X., Zhang, J.: TTSA3R: Training-free temporal-spatial adaptive
+    persistent state for streaming 3d reconstruction (2026), https://arxiv.org/abs/
+    2601.22615
+39. Zhu, Z., Peng, S., Larsson, V., Xu, W., Bao, H., Cui, Z., Oswald, M.R., Pollefeys,
+    M.: NICE-SLAM: Neural implicit scalable encoding for SLAM. In: Proceedings of
+    the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR).
+    pp. 12786–12796 (2022)
+40. Zhuo, D., Zheng, W., Guo, J., Wu, Y., Zhou, J., Lu, J.: Streaming visual geome-
+    try transformer. In: International Conference on Learning Representations (ICLR)
+    (2026), https://openreview.net/forum?id=5APgTKsnx8
+

@@ -1,0 +1,504 @@
+                                           GRS-SLAM3R: Real-Time Dense SLAM with Gated Recurrent State
+                                         Guole Shen1,* , Tianchen Deng1,* , Yanbo Wang1 , Yongtao Chen1 , Yilin Shen1 , Jiuming Liu1 , Jingchuan Wang1
+                                                                                1 Shanghai Jiao Tong University
+arXiv:2509.23737v1 [cs.CV] 28 Sep 2025
+
+
+
+
+                                         Fig. 1: Scene Reconstruction Performance. We demonstrate the effectiveness of our method in a large-scale, multi-room
+                                         apartment scene (∼ 100 m2 ). Our approach outperforms existing DUSt3R-based methods in terms of reconstruction quality
+                                         and completeness.
+
+                                            Abstract— DUSt3R-based end-to-end scene reconstruction                 the sparsity of these maps makes it difficult for humans
+                                         has recently shown promising results in dense visual SLAM.                to interpret how the system perceives and interacts with
+                                         However, most existing methods only use image pairs to estimate           the environment. Moreover, such representations fall short
+                                         pointmaps, overlooking spatial memory and global consistency.
+                                         To this end, we introduce GRS-SLAM3R, an end-to-end SLAM                  of the requirements for tasks like collision avoidance and
+                                         framework for dense scene reconstruction and pose estimation              motion planning. To address these limitations, research has
+                                         from RGB images without any prior knowledge of the scene or               shifted toward dense scene reconstruction, as demonstrated
+                                         camera parameters. Unlike existing DUSt3R-based frameworks,               by systems like DTAM [4] and Kintinuous [5]. Despite
+                                         which operate on all image pairs and predict per-pair point               their progress, these dense methods often suffer from high
+                                         maps in local coordinate frames, our method supports sequen-
+                                         tialized input and incrementally estimates metric-scale point             memory consumption and slow processing speeds, limiting
+                                         clouds in the global coordinate. In order to improve consistent           their applicability in real-time and large-scale scenarios. Re-
+                                         spatial correlation, we use a latent state for spatial memory and         searchers then focus on integrating implicit scene representa-
+                                         design a transformer-based gated update module to reset and               tion [6] and 3D Gaussian Splatting [7] with SLAM systems,
+                                         update the spatial memory that continuously aggregates and                leading to the emergence of NeRF-based SLAM methods [8],
+                                         tracks relevant 3D information across frames. Furthermore, we
+                                         partition the scene into submaps, apply local alignment within            [9], [10], [11], [12] and 3DGS-based SLAM methods [13],
+                                         each submap, and register all submaps into a common world                 [14], [15], [16], [17]. However, all these methods rely on
+                                         frame using relative constraints, producing a globally consistent         accurate camera intrinsics and depth image inputs, which
+                                         map. Experiments on various datasets show that our framework              are often difficult to obtain in real-world scenarios.
+                                         achieves superior reconstruction accuracy while maintaining                  DUSt3R [18] shows unprecedented performance and gen-
+                                         real-time performance.
+                                                                                                                   eralization across various real-world scenarios. It operates on
+                                                                                                                   image pairs and uses a global alignment method to align the
+                                                               I. INTRODUCTION
+                                                                                                                   predicted pointmap into the global map. Some works like
+                                            Dense visual SLAM has been a long-standing challenge in                CUT3R [19] and Spann3R [20] further improve the frame-
+                                         computer vision, aiming to reconstruct the scene and estimate             work with a continuous update state and an external memory
+                                         camera poses directly from image inputs. Over the years,                  database. With the introduction of DUSt3R [18], researchers
+                                         several traditional methods [1], [2], [3] have been developed,            have begun to combine the DuSt3R framework into dense
+                                         relying on handcrafted descriptors for image matching and                 SLAM. SLAM3r [21] and MASt3R-SLAM [22] is the pio-
+                                         representing scenes with sparse feature point maps. However,              neer work of DUSt3R-based SLAM. Specifically, SLAM3R
+                                                                                                                   proposes a multi-frame registration framework consisting of
+                                            Guole Shen, Tianchen Deng, Yanbo Wang, Yongtao Chen, Yilin Shen,       the Image-to-Points (I2P) network and the Local-to-World
+                                         Jiuming Liu, Jingchuan Wang are with the Institute of Medical Robotics,
+                                         School of Automation and Intelligent Sensing, Shanghai Jiao Tong Uni-     (L2W) network, while MASt3R-SLAM leverages the prior
+                                         versity, Shanghai 200240, Key Laboratory of System Control and Infor-     from MASt3R and introduces a feature matching based
+                                         mation Processing, Ministry of Education of China, Shanghai 200240.       SLAM pipeline. However, these approaches overlook the
+                                         The first two authors contribute equally to this paper. (*corresponding
+                                         author: jingchuan.wang@sjtu.edu.cn)                                       importance of multi-frame spatial correlation and spatial
+                                                                                                                   memory that are crucial for large-scale and long-sequence
+Fig. 2: System overview. The input to our system is a stream of RGB images, and the output of the GRS-SLAM3R system
+consists of camera poses and dense point clouds. On the left side of the figure, we illustrate our scene representation based
+on a gated recurrent mechanism. Each input frame is encoded into image tokens via an encoder, which interact with a latent
+state Mt that is updated through reset and update gates. The updated state M̂t is then decoded to produce the corresponding
+pose and point cloud in the world coordinate system. On the right side, we present the multi-submap scene representation.
+
+scene reconstruction.                                           frames to estimate depth and pose [4], [23], but were limited
+   To address this, we propose an incremental SLAM frame-       by drift, noise, and incomplete reconstructions. To enhance
+work that introduces a latent state to enable metric-scale      robustness and completeness, later approaches incorporate
+point cloud estimation, with all reconstructions consistently   learned priors for depth and visual features [24], [25], com-
+aligned in the world coordinate system. Importantly, directly   bining data-driven inference with geometric optimization.
+updating the latent state with each incoming frame may          This hybrid strategy improves reconstruction quality but
+introduce accumulated drift and noise, particularly under       introduces runtime overhead and generalization issues. More
+significant viewpoint changes. To mitigate this, we design      recent systems tightly couple learning and optimization [26],
+a gated recurrent mechanism and innovatively introduce two      [27], achieving better accuracy, though dense monocular
+transformer-based gating units: an update gate and a reset      SLAM still struggles with real-time performance and global
+gate, which respectively select the relevant information from   consistency in unconstrained environments.
+the current frame, and discard the irrelevant information
+from the memory. Furthermore, we use a keyframe-based           B. 3D Reconstruction
+submap representation with per-submap state reset to reduce        Dense 3D reconstruction remains a fundamental yet chal-
+drift; inter-submap registration and local refinement aligns    lenging task in computer vision. Traditional methods follow a
+submaps while preserving global consistency and local ac-       sequential pipeline: Structure-from-Motion (SfM) [28], [29],
+curacy. Overall, our contributions are shown as follows:        [30], [31], [32], [33] recovers sparse geometry and camera
+   • We propose GRS-SLAM3R, a novel end-to-end incre-           poses through keypoint detection, matching, triangulation,
+      mental dense SLAM framework with gated recurrent          and bundle adjustment. Multi-View Stereo (MVS) [34], [35],
+      model and hierarchical submap alignment, achieving        [36], [37], [38] estimates dense geometry from known poses.
+      accurate scene reconstruction and pose estimation.        While recent works improve individual components with
+   • A novel latent state with gated recurrent model is         learned features [39], neural bundle adjustment [40], and
+      proposed for consistent spatial correlation. The gated    explore depth prediction [41], [42], [43], [44] as an alterna-
+      recurrent model includes two transformer-based gates      tive means to enhance geometry estimation, these pipelines
+      for updating and resetting the memory.                    remain sensitive to early-stage errors and typically require
+   • We propose a multi-submap scene representation with        camera calibration and offline optimization. Neural rendering
+      hierarchical alignment: intra-submap local refinement     methods like NeRF [6] and 3D Gaussian Splatting [7] offer
+      and inter-submap registration that stitches submaps       high fidelity but still rely on known poses and per-scene
+      into a coherent map. Experiments on various datasets      optimization.
+      demonstrate the superiority of the proposed method in
+      both mapping and tracking.                                C. DUSt3R-Based Online Continuous 3D Reconstruction
+                                                                   DUSt3R [18] introduces a groundbreaking paradigm shift
+                    II. R ELATED WORK
+                                                                by directly regressing a pointmap, a standard representation
+A. Dense Monocular SLAM                                         in visual localization, from a pair of images without relying
+  Dense monocular SLAM aims to reconstruct geometry             on any prior knowledge of the scene. This approach chal-
+using only RGB images, avoiding the need for depth sensors.     lenges conventional assumptions and opens up new possi-
+Early methods optimize photometric consistency between          bilities for dense reconstruction from minimal input. Several
+recent works extend DUSt3R’s pointmap-based reconstruc-
+tion to online and continuous settings. Spann3R [20] uses an
+external spatial memory to perform incremental scene recon-
+struction in a unified coordinate system. CUT3R [19] incor-
+porates recurrent states for sequential integration. However,
+these methods often suffer from drift and geometric inconsis-
+tency due to the lack of global correction. SLAM3R [21] and
+MASt3R-SLAM [22] are the most relevant SLAM systems to
+our work. SLAM3R performs incremental mapping through
+the Local-to-World (L2W) network, while MASt3R-SLAM
+builds on the MASt3R [45] two-view prior and integrates
+efficient point map matching, tracking, fusion, and global
+optimization. However, both methods overlook the spatial
+memory and multi-frame correlation, resulting in a lack of
+consistency during the mapping process.
+
+                       III. M ETHOD
+   In this paper, we propose GRS-SLAM3R, a novel monoc-
+ular RGB SLAM system for high-quality online dense 3D
+reconstruction.                                                  Fig. 3: Gate structure. We illustrate the detailed structures
+   Our system     processes a sequence of monocular RGB          of the reset and update gates we designed. Both gates take
+                          N                                      the historical latent state and the current frame as inputs, and
+images It ∈ RH×W ×3 t=1 without relying on external pose
+         
+
+or depth supervision. The output of our system is the dense      compute the gating weights through a combination of self-
+3D pointcloud Xt ∈ RM×3 , where M is the number of 3D            attention and cross-attention mechanisms.
+points, the corresponding confidence Ct , and the pose Pt .
+We show the overview of our system in Fig. 2. We design a
+persistent latent state representation with gated update model      However, directly integrating new image features Ft into
+for spatial correlation and long-range memory (Sec. III-         the state without regulation can result in drift, the intro-
+A). Furthermore, We use a submap-reset representation that       duction of noise, and contamination of long-term memory,
+updates the latent state locally, preventing state degradation   which becomes particularly problematic in long sequences.
+and reducing long-range drift. To integrate multiple submaps,    To address these challenges, we design a gated update
+we adopt inter-submap registration and intra-submap refine-      mechanism inspired by the traditional GRU structure [47],
+ment.(Sec. III-B).                                               which selectively integrates new information while preserv-
+                                                                 ing existing memory. The image tokens Ft will interact with
+A. Scene Reconstruction                                          the memory in two directions. We update the state with
+   Existing approaches like DUSt3R [18] operate on pairs         information from the current image feature, then we retrieve
+of images, which limits their scalability and suitability for    contextual cues from the state to incorporate knowledge
+real-time, incremental reconstruction. To address this, we       accumulated from past frames. This mechanism ensures
+propose an incremental scene representation framework with       stable state updates and accurate information propagation,
+a latent state. Specifically, we design a gated update mecha-    enabling effective spatial correlation across multiple frames
+nism that employs two transformer-based gates to effectively     and consistent scene reconstruction over long sequences.
+update the latent state of the current frame while discarding       To this end, we design two transformer-based gates in the
+irrelevant information, thereby preventing the introduction of   decoder: a reset gate Gr (·) and an update gate Gu (·). The
+noise into the memory. In contrast to pairwise predictions in    reset gate determines how the current input information is
+DUSt3R [18], our method can directly output point maps in        combined with the previous memory, while the update gate
+the world coordinate, which better fits the requirements of      controls how much of the previous memory is preserved and
+online SLAM systems.                                             carried over to the current time step. The detailed structure
+   1) Gated Recurrent Model: At each time step t, the            of the gates is shown in Fig. 3. The input of the reset gate
+system receives an input image It , which is first encoded       Gr (·) is image tokens of the current frame Ft and the memory
+into token representations Ft through a vision transformer       state of the last time step Mt−1 . The output of the reset gate
+encoder [46]:                                                    Ut determines which parts of the previous memory Mt−1
+                                                                 should be suppressed before incorporating new observations,
+                        Ft = Encoder(It )                  (1)
+                                                                 thereby regulating the influence of outdated or irrelevant
+Inspired by CUT3R [19], we incorporate a latent memory           information. The gates can be formulated as:
+state Mt that progressively accumulates scene information
+                                                                            Rt = Gr (Mt−1 , Ft ),   Ut = Gu (Mt−1 , Ft )     (2)
+across sequential observations. We represent the latent state
+as a set of tokens.                                              The input of update gate Gu (·) is the same as the reset
+gate. The update gate controls how much information Mt−1                  a) Frontend Submap Construction and Keyframe Selec-
+should be carried forward, determining the extent to which          tion: As each new frame It arrives, we evaluate covisibility
+the memory from the previous timestep is preserved. The             with the last keyframe Ik and the current submap’s anchor
+output of the reset gate Gr is then applied element-wise to         Ias (the first frame of submap Ss ). If Cov(It , Ik ) < τkf , we
+the memory:                                                         promote It to a keyframe within Ss . If Cov(It , Ias ) < τanchor ,
+                        Mtreset = Rt ⊙ Mt−1                   (3)   we start a new submap Ss+1 , reset the latent state, and set It
+                                                                    as its anchor. Each submap maintains its own latent memory
+   Then, we obtain the reset memory Mtreset where irrelevant        and local coordinate frame. This submap–reset policy bounds
+or outdated information is discarded. To integrate the updated      error accumulation within a submap and prevents long-
+memory with current observations, we design a transformer-          horizon drift from propagating through the recurrent state.
+based decoder, in which the memory tokens interact with the               b) Local Submap Alignment: We perform local align-
+current frame features Ft and the pose token zt :                   ment within each submap. We construct a local connectivity
+                                                                    graph Gl = (Vl , El ) for each submap. The vertex set Vl
+           [M̂t , zt′ ⊕ Ft′ ] = Decoder [Mtreset , zt ⊕ Ft ]
+                                                            
+                                                              (4)   includes all frames in the submap, and the edge set El is
+                                                                    built by treating each keyframe k ∈ Kl as a center and
+where M̂t denotes updated memory state, Ft′ are the enriched        connecting it with its temporally adjacent keyframes and
+frame features, and zt′ is a dedicated pose token capturing         ordinary frames within a fixed window. Specifically, for a
+global scene-level information. The decoder applies cross-          keyframe n, we define a local neighbor {n − k, . . . , n + k}
+attention between memory tokens and image tokens at each            and construct pairwise edges with all frames in this group.
+block, enabling bidirectional information flow across mem-          Each edge is associated with predicted dense pointmaps and
+ory, image, and pose tokens.                                        confidence maps, and contributes to the local alignment loss.
+   The final memory state is then updated via gated update:         We use local alignment to register all frames within each
+                                                                    submap to the world coordinate system, jointly optimizing
+               Mt = Ut ⊙ M̂t + (1 −Ut ) ⊙ Mt−1                (5)
+                                                                    the pose and point cloud of each frame.
+   This two-stage gating process enables our system to selec-                                    HW
+tively suppress unreliable memory content while adaptively                   Llocal
+                                                                               S
+                                                                                    = ∑ ∑ ∑ Civ,e ξiv,S − σeS PeS Xiv,e                (9)
+integrating informative new observations, enhancing long                                e∈ElS v∈e i=1
+sequence consistency and robustness.
+   After the gated memory update, explicit metric-scale 3D          where ξ v,S denotes the optimized local pointmap for
+pointclouds can be extracted from zt′ and Ft′ for each frame.       keyframe v in submap S, PeS is the per-edge rigid transform
+Specifically, we can generate dense 3D point clouds in both         that maps X v,e to the submap coordinate, and σeS > 0 is an
+the local camera frame and the global world frame, along            optional per-edge scale. Minimizing Llocal
+                                                                                                             S    jointly refines the
+with 6-DoF camera poses:                                            poses and pointmaps of frames within S, producing a self-
+                                                                    consistent local reconstruction.
+                    X̂tself , Ĉtself = Headself (Ft′ )       (6)
+                                                                         c) Inter-Submap Alignment: We construct a pose graph
+                                                                    with submap poses Ts ∈ SE(3) as nodes and edges from
+               X̂tworld , Ĉtworld = Headworld (Ft′ , zt′ )   (7)   adjacent-submap alignments and loop closures, Because all
+                                                                    submaps share a common metric scale, the inter-submap
+                         P̂t = Headpose (zt′ )                (8)   constraint is a pure rigid transform ∆Ts,s+1 ∈ SE(3). When
+                                                                    Ss is finalized, we query all previous keyframes and retain
+where Headself (·) and Headworld (·) are implemented as
+                                                                    the top-ranked loop hat exceeds the score threshold, yield-
+DPT [48], and Headpose (·) is implemented as an MLP
+                                                                    ing additional relative constraints ∆Ti, j . and then solve the
+network, respectively. All pointmaps and poses are in metric
+                                                                    resulting pose-graph optimization.
+scale.
+                                                                                                 −1 T −1 T )2         −1      2
+                                                                        min{Ts } ∑(u,v)∈E Log(∆Tu,v  u    v Σ + Log(Ts0 T̄s0 ) Σ      (10)
+B. Hierarchical Submap Alignment                                                                                                  0
+
+
+
+   While the gated memory mechanism facilitates the se-             where the small-noise prior (s0 , T̄s0 , Σ0 ) fixes the global
+lection of historical memories, it suffers from accumulated         gauge. Constraints are added incrementally, adding a loop
+drift in long-sequence. To address this issue, we propose a         appends a factor and triggers Levenberg–Marquardt re-
+multi-submap scene representation method, where submaps             optimization.
+are segmented based on changes in keyframe viewpoints.
+We adopt a hierarchical alignment scheme: local alignment           C. Training loss
+within each submap and inter-submap registration for global
+consistency. This two-level process limits error accumulation         Given a sequence of N images, we follow CUT3R [19] and
+over long sequences and preserves fine-grained geometric            supervise with a confidence-weighted 3D regression loss and
+accuracy, improving cross-submap coherence.                         a pose loss.
+                                                                     Method             Chess   Fire     Heads   Office   Pump.    RedKit.   Stairs   Avg.
+     a) Regression loss: We supervise dense pointmap pre-
+                                                                     CUT3R [19]          5.90   5.34      6.37   13.85    14.73       9.44    6.67    8.90
+diction with a scale-aware, confidence-weighted loss. Let xi         MASt3R-SLAM [22]    7.24   5.78      3.68   13.31    12.87      10.07    6.68    8.52
+                                                                     Ours                5.30   5.31      4.09   13.43    14.41       8.95    6.81    8.27
+be the ground-truth 3D point and x̂i the prediction at pixel i
+(confidence ci ∈ [0, 1]). Denoting normalization factors by s       TABLE I: Qualitative pose estimation runtime on 7Scenes
+(GT) and ŝ (prediction), we define                                 dataset [56]. We report per-scene ATE RMSE in centimeters.
+                      M                         
+            Lregr = ∑ ci x̂ŝi − xsi 2 − β log ci .      (11)                 Method                     Acc.[cm]             Comp.[cm]
+                     i=1                                                                               Mean   Median         Mean  Median
+When the ground-truth pointmaps are already in metric scale,                  DUSt3R-GA [18]           0.144     0.019       0.154       0.018
+                                                                              MASt3R-GA [45]           0.085     0.033       0.063       0.028
+we set ŝ = s to remove scale ambiguity.
+     b) Pose loss: Let the predicted pose be P̂t = (q̂t , τ̂t )               Spann3R [20]             0.416     0.323       0.417       0.285
+                                                                              CUT3R [19]               0.099     0.031       0.076       0.026
+with quaternion q̂t and translation τ̂t at time t; (qt , τt ) are             Ours                     0.089     0.030       0.072       0.025
+the ground-truths. We minimize rotational and translational
+discrepancies (the latter normalized consistently with the          TABLE II:           Reconstruction           results      on      the     NRGBD
+regression loss):                                                   dataset [55].
+                     N 
+                                                                    estimated via the Umeyama algorithm, followed by ICP
+                                                 
+           Lpose = ∑ ∥q̂t − qt ∥2 + τ̂ŝt − τst 2 .          (12)
+                    t=1                                             refinement to minimize residual geometric error.
+                                                                         c) Implementation Detail: All the training experiments
+      c) Curriculum training: We resize the longer image
+                                                                    are conducted on eight NVIDIA A100 GPUs with 80 GB
+side to 512 and adopt a three-stage curriculum for stable
+                                                                    of memory each. The inference and SLAM experiments are
+convergence. We adopt a three-stage curriculum: first, we
+                                                                    conduct on a RTX 4090 GPU.
+train on 4-frame sequences, freezing the encoder and part
+of the decoder and updating only the two gating mod-                B. Camera Pose Estimation
+ules; second, we keep the encoder frozen, unfreeze the                 Our method demonstrates robust and competitive pose
+decoder, and train the decoder together with the gating             estimation performance across both small- and large-scale
+modules; finally, we extend sequences to 64 frames and fine-        scenes, particularly when compared with existing DUST3R-
+tune the decoder, gating modules, and prediction heads.The          based online approaches. On smaller indoor datasets (e.g.,
+latter stages strengthen inter-frame reasoning and improve          7-Scenes), the gated recurrent update stabilizes per-frame
+long-range spatial modeling. We train our network on a              poses and consistently lowers ATE (Table I). In challenging
+various set of 10 datasets, covering synthetic and real-            large-scale, multi-room scenes such as Apartment, shown in
+world data, scene-level and object-centric scenes, as well as       Table IV, existing methods suffer from drift or trajectory
+both indoor and outdoor scenes. Examples of our datasets            collapse under long-range motion or abrupt camera rotation.
+include CO3Dv2 [49], ARKitScenes [50], ScanNet [51],                Figure 1 illustrates that CUT3R [19] fails to reconstruct
+WildRGBD [52], BlendedMVS [53], Matterport3D [54].                  the scene, SLAM3R [21] and MASt3R-SLAM [22] suffer
+                     IV. E XPERIMENTS                               from significant pose drift in certain rooms, whereas our
+                                                                    method maintains consistent and stable tracking throughout
+A. Experimental Setup                                               the scene. Our multi-submap scene representation method
+   We evaluate our method in terms of surface reconstruc-           bounds the drift and reduces the risk of accumulated drift
+tion quality, camera pose estimation accuracy, and real-time        over long sequences. As shown in Fig. 5, on complex
+performance.                                                        indoor sequences, CUT3R [19] drifts after sharp turns,
+      a) Test Datasets: We evaluate the effectiveness of our        SLAM3R [21] breaks in long corridors, and MASt3R-
+method on small-scale real-world scenes using NRGBD [55]            SLAM [22] exhibits significant scale variation, with the
+and a subset of 18 sequences from 7-Scenes [56]. To further         reconstructed scene size abruptly decreasing after a certain
+demonstrate performance in long sequences and large-scale           sequence length. In comparison, our method is able to
+scenarios, we evaluate on the Apartment dataset [57] (multi-        reconstruct corridor structures with stable scale and spatial
+room, ∼ 100 m2 ) and on the NES dataset [58] [12]. NES              consistency.
+spans > 1000 m2 with a total trajectory length of 1,482.75 m.
+      b) Evaluation Metrics: We use absolute trajectory er-         C. Surface Reconstruction
+ror (ATE-RMSE) to evaluate camera tracking. We eval-                  Our method achieves high-quality scene reconstruction
+uate reconstruction quality using accuracy and complete-            across different datasets. We follow the [19] setting to
+ness. Following NICER-SLAM [59], Spann3R [20], and                  evaluate performance on sparsely sampled images from the
+SLAM3R [21], we generate ground-truth point clouds by               NRGBD dataset, which contains minimal or no view overlap,
+projecting depth maps into 3D using known camera intrinsics         as shown in Table II. The results indicate that the recurrent
+and poses for each test sequence. To account for potential          mechanism preserves key geometry across frames and en-
+scale discrepancies across methods, we adopt the alignment          ables spatial reasoning by selectively integrating structural
+strategy of SLAM3R [21]: a global similarity transform              cues, even with minimal overlap. According to the results
+ Method                Chess            Fire           Heads           Office       Pumpkin       RedKitchen        Stairs        Average      FPS
+                    Acc. / Comp.    Acc. / Comp.    Acc. / Comp.    Acc. / Comp.   Acc. / Comp.   Acc. / Comp.   Acc. / Comp.   Acc. / Comp.
+ DUSt3R [18]         2.26 / 2.13     1.04 / 1.50     1.66 / 0.98     4.62 / 4.74    1.73 / 2.43    1.95 / 2.36   3.37 / 10.75    2.19 / 3.24   <1
+ MASt3R [45]         2.08 / 2.12     1.54 / 1.43     1.06 / 1.04     3.23 / 3.19    5.68 / 3.07    3.50 / 3.37   2.36 / 13.16    3.04 / 3.90   <1
+ Spann3R [20]        2.23 / 1.68     0.88 / 0.92     2.67 / 0.98     5.86 / 3.54    2.25 / 1.85    2.68 / 1.80    5.65 / 5.15    3.42 / 2.41   > 50
+ CUT3R [19]          2.46 / 1.99     1.52 / 1.43     2.10 / 1.13     3.81 / 3.05    2.98 / 2.48    2.49 / 2.24   3.35 / 10.53    2.67 / 3.27   ∼ 20
+ SLAM3R [21]         1.63 / 1.31     0.84 / 0.83     2.95 / 1.22     2.32 / 2.26    1.81 / 2.05    1.84 / 1.94    4.19 / 6.91    2.13 / 2.34   ∼ 25
+ MASt3R-SLAM [22]    2.41 / 1.70     1.57 / 1.33     1.71 / 1.16     3.47 / 2.98    2.86 / 2.37    2.83 / 2.16    3.32 / 9.53    2.60 / 3.03   ∼ 15
+ Ours                1.49 / 1.32     1.26 / 1.32     1.22 / 0.83     4.17 / 3.41    2.27 / 2.25    2.19 / 2.19    2.22 / 4.55    2.12 / 2.27   ∼ 15
+
+TABLE III: Reconstruction results and runtime (FPS) on 7Scenes [56]. We report Accuracy and Completion in centimeters.
+
+
+
+
+Fig. 4: Qualitative scene reconstruction results. We demonstrate the mapping performance of our method on chess seq-05
+in 7scenes [56]. The region outlined on the image is marked in red to signify lower predictive accuracy, in green to signify
+higher accuracy, and in yellow to represent the ground truth results.
+
+
+
+
+Fig. 5: Qualitative scene reconstruction results. We demonstrate the mapping performance of our method on the NES
+dataset. For MASt3R-SLAM [22], due to the scale reduction in the latter part of the sequence, we provide an enlarged view
+of this region alongside the full-scene overview. The boxed region highlights the scale-reduced area.
+
+
+  Method                Acc.[cm] ↓      Comp.[cm] ↓       ATE[m] ↓           forgetting, which are crucial for spatial memory consistency
+  CUT3R [19]                48.49           39.85            2.39            and robustness. Our recurrent model helps maintain geomet-
+  SLAM3R [21]               21.67           27.66              –             ric consistency across frames, while local refinement im-
+  MASt3R-SLAM [22]           8.72            5.80            0.72
+  Ours                       6.79            5.62            0.16            proves surface alignment and enhances fine-grained details.
+                                                                             In large-scale scenes, as shown in Table IV, Fig. 1 and Fig. 5,
+TABLE IV: Quantitative results on the Apartment                              our method achieves accurate and consistent reconstruction,
+dataset [57]. ATE is not reported for SLAM3R [21]                            which indicates the effectiveness of our framework. Com-
+as it does not produce explicit camera pose estimates during                 pared with MASt3R-SLAM [22] and SLAM3R [21], our
+inference.                                                                   framework builds consistent spatial multi-view correlations
+                                                                             through the gated recurrent model, and further enhances
+                                                                             reconstruction consistency via hierarchical alignment.
+in Table III, our approach maintains stable and high-quality
+reconstructions in small indoor scenes such as 7Scenes.                      D. Time Analysis
+Spann3R [20] and CUT3R[19] both incorporate spatial mem-                       In Table III, we present the runtime analysis of our frame-
+ory mechanisms, similar to our approach. However, they do                    work and other methods. Our method runs at approximately
+not effectively address the challenges of memory update and                  15 FPS on a single RTX 4090 GPU, achieving a favorable
+                                                                  transformer-based update and reset gates that selectively
+                                                                  control information flow. Furthermore, we propose a multi-
+                                                                  submap representation strategy combined with a hierarchical
+                                                                  alignment mechanism, which aligns submaps in a globally
+                                                                  consistent manner while locally optimizing point clouds and
+                                                                  poses within each submap. Experimental results on extensive
+                                                                  datasets verify the effectiveness of our method.
+
+Fig. 6: Ablation on Gated Recurrent model. We conduct an                                       R EFERENCES
+ablation study on the Apartment dataset [57] to evaluate the       [1] R. Mur-Artal and J. D. Tardós, “Orb-slam2: An open-source slam
+                                                                       system for monocular, stereo, and rgb-d cameras,” IEEE Transactions
+effectiveness of the gated recurrent state. The gate update            on Robotics, vol. 33, no. 5, pp. 1255–1262, 2017.
+module significantly enhances the accuracy and consistency         [2] T. Deng, H. Xie, J. Wang, and W. Chen, “Long-term visual simulta-
+of scene reconstruction.                                               neous localization and mapping: Using a bayesian persistence filter-
+                                                                       based global map prediction,” IEEE Robotics & Automation Magazine,
+                                                                       vol. 30, no. 1, pp. 36–49, 2023.
+            Modules             Reconstruction (cm)   ATE (m)      [3] H. Xie, T. Deng, J. Wang, and W. Chen, “Robust incremental long-
+                                                                       term visual topological localization in changing environments,” IEEE
+  Gate   Local Align   Submap    Acc.     Comp.                        Transactions on Instrumentation and Measurement, vol. 72, pp. 1–14,
+   ✗         ✗           ✗      48.49      39.85       2.39            2022.
+   ✗         ✓           ✓       8.87       6.30       0.33        [4] R. A. Newcombe, S. J. Lovegrove, and A. J. Davison, “Dtam: Dense
+   ✓         ✓           ✗      28.95      24.93       1.38            tracking and mapping in real-time,” in 2011 international conference
+   ✓         ✗           ✓       7.32       6.18       0.23            on computer vision. IEEE, 2011, pp. 2320–2327.
+   ✓         ✓           ✓       6.79       5.62       0.16        [5] T. Whelan, H. Johannsson, M. Kaess, J. J. Leonard, and J. McDonald,
+                                                                       “Kintinuous: Spatially extended kinectfusion,” in RSS Workshop on
+TABLE V: Ablation of Gate, Local Align, and Submap.                    RGB-D: Advanced Reasoning with Depth Cameras, 2012.
+                                                                   [6] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoor-
+✓/✗indicate module enabled/disabled. Using all three mod-              thi, and R. Ng, “Nerf: Representing scenes as neural radiance fields
+ules yields the best performance.                                      for view synthesis,” in ECCV, 2020.
+                                                                   [7] B. Kerbl, G. Kopanas, T. Leimkühler, and G. Drettakis, “3d gaussian
+                                                                       splatting for real-time radiance field rendering.” ACM Trans. Graph.,
+                                                                       vol. 42, no. 4, pp. 139–1, 2023.
+balance between speed and accuracy compared to existing            [8] Z. Zhu, S. Peng, V. Larsson, W. Xu, H. Bao, Z. Cui, M. R. Oswald,
+                                                                       and M. Pollefeys, “Nice-slam: Neural implicit scalable encoding for
+online SLAM baselines.                                                 slam,” in CVPR, June 2022, pp. 12 786–12 796.
+                                                                   [9] T. Deng, G. Shen, T. Qin, J. Wang, W. Zhao, J. Wang, D. Wang,
+E. Ablation Study                                                      and W. Chen, “Plgslam: Progressive neural scene represenation with
+   In this section, we conduct various experiments to verify           local to global bundle adjustment,” in Proceedings of the IEEE/CVF
+                                                                       Conference on Computer Vision and Pattern Recognition, 2024, pp.
+the effectiveness of our method. Table V illustrates a quanti-         19 657–19 666.
+tative evaluation with different settings. We conduct an abla-    [10] T. Deng, Y. Wang, H. Xie, H. Wang, R. Guo, J. Wang, D. Wang,
+tion study by respectively removing the gated update model,            and W. Chen, “Neslam: Neural implicit mapping and self-supervised
+                                                                       feature tracking with depth completion and denoising,” IEEE Trans-
+the submap scene representation, and the local alignment               actions on Automation Science and Engineering, pp. 1–1, 2025.
+to prove the effectiveness of our modules. In comparison,         [11] S. Zhu, G. Wang, H. Blum, J. Liu, L. Song, M. Pollefeys, and H. Wang,
+both the submap representation and the state update model              “Sni-slam: Semantic neural implicit slam,” in Proceedings of the
+                                                                       IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+significantly contribute to the accuracy of scene reconstruc-          2024, pp. 21 167–21 177.
+tion. Moreover, the hierarchical alignment plays a crucial role   [12] T. Deng, G. Shen, X. Chen, S. Yuan, H. Shen, G. Peng, Z. Wu,
+in enhancing tracking performance and maintaining overall              J. Wang, L. Xie, D. Wang, H. Wang, and W. Chen, “Mcn-slam:
+                                                                       Multi-agent collaborative neural slam with hybrid implicit neural scene
+consistency. As shown in Figure 6, we present an ablation              representation,” arXiv preprint arXiv:2506.18678, 2025.
+study of the gated recurrent model without local alignment.       [13] C. Yan, D. Qu, D. Wang, D. Xu, Z. Wang, B. Zhao, and X. Li, “Gs-
+Without the gated model, it fails to effectively regulate its          slam: Dense visual slam with 3d gaussian splatting,” arXiv preprint
+                                                                       arXiv:2311.11700, 2023.
+latent state, resulting in the accumulation of inconsistent       [14] N. Keetha, J. Karhade, K. M. Jatavallabhula, G. Yang, S. Scherer,
+geometry and a loss of structural coherence. In contrast, our          D. Ramanan, and J. Luiten, “Splatam: Splat track & map 3d gaussians
+gated update method enables the selective integration of new           for dense rgb-d slam,” in Proceedings of the IEEE/CVF Conference on
+                                                                       Computer Vision and Pattern Recognition, 2024, pp. 21 357–21 366.
+observations, preserving spatial consistency across frames.       [15] T. Deng, Y. Chen, L. Zhang, J. Yang, S. Yuan, D. Wang, and W. Chen,
+                                                                       “Compact 3d gaussian splatting for dense visual slam,” arXiv preprint
+                       V. C ONCLUSION                                  arXiv:2403.11247, 2024.
+                                                                  [16] M. Li, S. Liu, H. Zhou, G. Zhu, N. Cheng, T. Deng, and H. Wang,
+   In this paper, we present a real-time dense end-to-end              “Sgs-slam: Semantic gaussian splatting for neural dense slam,” in
+SLAM framework that achieves accurate scene reconstruc-                European Conference on Computer Vision. Springer, 2024, pp. 163–
+tion and camera tracking. We design a persistent latent state          179.
+                                                                  [17] S. Liu, H. Zhou, L. Li, Y. Liu, T. Deng, Y. Zhou, and M. Li,
+that serves as a spatial memory, continuously interacting with         “Structure gaussian slam with manhattan world hypothesis,” arXiv
+the current frame to update both its point cloud and pose,             preprint arXiv:2405.20031, 2024.
+while simultaneously refining the memory itself. To prevent       [18] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud, “Dust3r:
+                                                                       Geometric 3d vision made easy,” in Proceedings of the IEEE/CVF
+noise accumulation in the spatial memory and to improve                Conference on Computer Vision and Pattern Recognition, 2024, pp.
+the decoding of the current frame’s geometry, we introduce             20 697–20 709.
+[19] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa,            [42] S. F. Bhat, R. Birkl, D. Wofk, P. Wonka, and M. Müller, “Zoedepth:
+     “Continuous 3d perception model with persistent state,” arXiv preprint        Zero-shot transfer by combining relative and metric depth,” arXiv
+     arXiv:2501.12387, 2025.                                                       preprint arXiv:2302.12288, 2023.
+[20] H. Wang and L. Agapito, “3d reconstruction with spatial memory,”         [43] Z. Li and N. Snavely, “Megadepth: Learning single-view depth pre-
+     arXiv preprint arXiv:2408.16061, 2024.                                        diction from internet photos,” in Proceedings of the IEEE conference
+[21] Y. Liu, S. Dong, S. Wang, Y. Yin, Y. Yang, Q. Fan, and B. Chen,               on computer vision and pattern recognition, 2018, pp. 2041–2050.
+     “Slam3r: Real-time dense scene reconstruction from monocular rgb         [44] C. Godard, O. Mac Aodha, M. Firman, and G. J. Brostow, “Digging
+     videos,” arXiv preprint arXiv:2412.09401, 2024.                               into self-supervised monocular depth estimation,” in Proceedings of
+[22] R. Murai, E. Dexheimer, and A. J. Davison, “Mast3r-slam: Real-                the IEEE/CVF international conference on computer vision, 2019, pp.
+     time dense slam with 3d reconstruction priors,” arXiv preprint                3828–3838.
+     arXiv:2412.12392, 2024.                                                  [45] V. Leroy, Y. Cabon, and J. Revaud, “Grounding image matching in 3d
+[23] J. Engel, T. Schöps, and D. Cremers, “Lsd-slam: Large-scale di-              with mast3r,” in European Conference on Computer Vision. Springer,
+     rect monocular slam,” in European conference on computer vision.              2024, pp. 71–91.
+     Springer, 2014, pp. 834–849.                                             [46] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai,
+[24] K. Tateno, F. Tombari, I. Laina, and N. Navab, “Cnn-slam: Real-time           T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, et al.,
+     dense monocular slam with learned depth prediction,” in Proceedings           “An image is worth 16x16 words: Transformers for image recognition
+     of the IEEE conference on computer vision and pattern recognition,            at scale,” arXiv preprint arXiv:2010.11929, 2020.
+     2017, pp. 6243–6252.                                                     [47] J. Chung, C. Gulcehre, K. Cho, and Y. Bengio, “Empirical evaluation
+[25] M. Bloesch, J. Czarnowski, R. Clark, S. Leutenegger, and A. J.                of gated recurrent neural networks on sequence modeling,” arXiv
+     Davison, “Codeslam — learning a compact, optimisable representation           preprint arXiv:1412.3555, 2014.
+     for dense visual slam,” in Proceedings of the IEEE Conference on         [48] R. Ranftl, A. Bochkovskiy, and V. Koltun, “Vision transformers for
+     Computer Vision and Pattern Recognition (CVPR), June 2018.                    dense prediction,” in Proceedings of the IEEE/CVF international
+[26] Z. Teed and J. Deng, “Droid-slam: Deep visual slam for monocular,             conference on computer vision, 2021, pp. 12 179–12 188.
+     stereo, and rgb-d cameras,” Advances in neural information processing    [49] J. Reizenstein, R. Shapovalov, P. Henzler, L. Sbordone, P. Labatut,
+     systems, vol. 34, pp. 16 558–16 569, 2021.                                    and D. Novotny, “Common objects in 3d: Large-scale learning and
+[27] L. Koestler, N. Yang, N. Zeller, and D. Cremers, “Tandem: Tracking            evaluation of real-life 3d category reconstruction,” in Proceedings of
+     and dense mapping in real-time using deep multi-view stereo,” in              the IEEE/CVF international conference on computer vision, 2021, pp.
+     Conference on Robot Learning. PMLR, 2022, pp. 34–45.                          10 901–10 911.
+[28] P. Lindenberger, P.-E. Sarlin, V. Larsson, and M. Pollefeys, “Pixel-     [50] A. Dehghan, G. Baruch, Z. Chen, Y. Feigin, P. Fu, T. Gebauer, D. Kurz,
+     perfect structure-from-motion with featuremetric refinement,” in Pro-         T. Dimry, B. Joffe, A. Schwartz, et al., “Arkitscenes: A diverse real-
+     ceedings of the IEEE/CVF international conference on computer                 world dataset for 3d indoor scene understanding using mobile rgb-d
+     vision, 2021, pp. 5987–5997.                                                  data.” NeurIPS Datasets and Benchmarks, vol. 2, no. 6, p. 16, 2021.
+[29] A. Sameer, “Building rome in a day,” Proc. ICCV, 2009, 2009.             [51] A. Dai, A. X. Chang, M. Savva, M. Halber, T. Funkhouser, and
+[30] J. L. Schonberger and J.-M. Frahm, “Structure-from-motion revisited,”         M. Niessner, “Scannet: Richly-annotated 3d reconstructions of indoor
+     in Proceedings of the IEEE conference on computer vision and pattern          scenes,” in Proceedings of the IEEE Conference on Computer Vision
+     recognition, 2016, pp. 4104–4113.                                             and Pattern Recognition (CVPR), July 2017.
+[31] C. Sweeney, T. Sattler, T. Hollerer, M. Turk, and M. Pollefeys, “Opti-   [52] H. Xia, Y. Fu, S. Liu, and X. Wang, “Rgbd objects in the wild: scaling
+     mizing the viewing graph for structure-from-motion,” in Proceedings           real-world 3d object learning from rgb-d videos,” in Proceedings of the
+     of the IEEE international conference on computer vision, 2015, pp.            IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     801–809.                                                                      2024, pp. 22 378–22 389.
+[32] L. Pan, D. Baráth, M. Pollefeys, and J. L. Schönberger, “Global        [53] Y. Yao, Z. Luo, S. Li, J. Zhang, Y. Ren, L. Zhou, T. Fang, and L. Quan,
+     structure-from-motion revisited,” in European Conference on Com-              “Blendedmvs: A large-scale dataset for generalized multi-view stereo
+     puter Vision. Springer, 2024, pp. 58–77.                                      networks,” in Proceedings of the IEEE/CVF conference on computer
+[33] N. Snavely, S. M. Seitz, and R. Szeliski, “Photo tourism: exploring           vision and pattern recognition, 2020, pp. 1790–1799.
+     photo collections in 3d,” in ACM siggraph 2006 papers, 2006, pp.         [54] A. Chang, A. Dai, T. Funkhouser, M. Halber, M. Niessner, M. Savva,
+     835–846.                                                                      S. Song, A. Zeng, and Y. Zhang, “Matterport3d: Learning from rgb-d
+                                                                                   data in indoor environments,” arXiv preprint arXiv:1709.06158, 2017.
+[34] Y. Yao, Z. Luo, S. Li, T. Fang, and L. Quan, “Mvsnet: Depth inference
+                                                                              [55] D. Azinović, R. Martin-Brualla, D. B. Goldman, M. Nießner, and
+     for unstructured multi-view stereo,” in Proceedings of the European
+                                                                                   J. Thies, “Neural rgb-d surface reconstruction,” in Proceedings of the
+     conference on computer vision (ECCV), 2018, pp. 767–783.
+                                                                                   IEEE/CVF Conference on Computer Vision and Pattern Recognition
+[35] Y. Furukawa, C. Hernández, et al., “Multi-view stereo: A tutorial,”
+                                                                                   (CVPR), June 2022, pp. 6290–6301.
+     Foundations and trends® in Computer Graphics and Vision, vol. 9,
+                                                                              [56] J. Shotton, B. Glocker, C. Zach, S. Izadi, A. Criminisi, and A. Fitzgib-
+     no. 1-2, pp. 1–148, 2015.
+                                                                                   bon, “Scene coordinate regression forests for camera relocalization in
+[36] S. M. Seitz, B. Curless, J. Diebel, D. Scharstein, and R. Szeliski,
+                                                                                   rgb-d images,” in Proceedings of the IEEE conference on computer
+     “A comparison and evaluation of multi-view stereo reconstruction
+                                                                                   vision and pattern recognition, 2013, pp. 2930–2937.
+     algorithms,” in 2006 IEEE computer society conference on computer
+                                                                              [57] J. Straub, T. Whelan, L. Ma, Y. Chen, E. Wijmans, S. Green, J. J.
+     vision and pattern recognition (CVPR’06), vol. 1. IEEE, 2006, pp.
+                                                                                   Engel, R. Mur-Artal, C. Ren, S. Verma, et al., “The replica dataset:
+     519–528.
+                                                                                   A digital replica of indoor spaces,” arXiv preprint arXiv:1906.05797,
+[37] Y. Furukawa and J. Ponce, “Accurate, dense, and robust multiview
+                                                                                   2019.
+     stereopsis,” IEEE transactions on pattern analysis and machine intel-
+                                                                              [58] T. Deng, G. Shen, C. Xun, S. Yuan, T. Jin, H. Shen, Y. Wang, J. Wang,
+     ligence, vol. 32, no. 8, pp. 1362–1376, 2009.
+                                                                                   H. Wang, D. Wang, et al., “Mne-slam: Multi-agent neural slam for
+[38] J. L. Schönberger, E. Zheng, J.-M. Frahm, and M. Pollefeys, “Pixel-          mobile robots,” in Proceedings of the Computer Vision and Pattern
+     wise view selection for unstructured multi-view stereo,” in Computer          Recognition Conference, 2025, pp. 1485–1494.
+     Vision–ECCV 2016: 14th European Conference, Amsterdam, The               [59] Z. Zhu, S. Peng, V. Larsson, Z. Cui, M. R. Oswald, A. Geiger, and
+     Netherlands, October 11-14, 2016, Proceedings, Part III 14. Springer,         M. Pollefeys, “Nicer-slam: Neural implicit scene encoding for rgb
+     2016, pp. 501–518.                                                            slam,” in 2024 International Conference on 3D Vision (3DV). IEEE,
+[39] D. DeTone, T. Malisiewicz, and A. Rabinovich, “Superpoint: Self-              2024, pp. 42–52.
+     supervised interest point detection and description,” in Proceedings
+     of the IEEE Conference on Computer Vision and Pattern Recognition
+     (CVPR) Workshops, June 2018.
+[40] C. Tang and P. Tan, “Ba-net: Dense bundle adjustment network,” ICLR,
+     2018.
+[41] L. Piccinelli, Y.-H. Yang, C. Sakaridis, M. Segu, S. Li, L. Van Gool,
+     and F. Yu, “Unidepth: Universal monocular metric depth estimation,”
+     in Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition, 2024, pp. 10 106–10 116.
+

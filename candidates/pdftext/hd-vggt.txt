@@ -1,0 +1,711 @@
+                                                                       HD-VGGT:
+                                                      High-Resolution Visual Geometry Transformer
+
+                                             Tianrun Chen1,2,∗,† , Yuanqi Hu1,∗ , Yidong Han3,∗ , Hanjie Xu1,∗ , Deyi Ji4,∗ , Qi Zhu4,∗ ,
+                                             Chunan Yu5 , Xin Zhang1 , Cheng Chen1 , Chaotao Ding1 , Ying Zang3 , Xuanfu Li6 ,
+arXiv:2603.27222v2 [cs.CV] 10 Apr 2026
+
+
+
+
+                                                                            Jin Ma6 , Lanyun Zhu7
+                                               KOKONI 3D, Moxin Technology, 2 Zhejiang University, 3 Huzhou University, 4 Univeristy of
+                                               1
+
+                                             Science and Technology of China, 5 Nanjing University of Science and Technology, 6 Huawei,
+                                                                                 7
+                                                                                   Tongji University
+                                                                                 †
+                                                                                     Project Lead, ∗ Equal Contribution
+
+
+                                                                                               Abstract
+                                                   High-resolution imagery is essential for accurate 3D reconstruction, as many geometric details
+                                                   only emerge at fine spatial scales. Recent feed-forward approaches, such as the Visual Geometry
+                                                   Grounded Transformer (VGGT), have demonstrated the ability to infer scene geometry from large
+                                                   collections of images in a single forward pass. However, scaling these models to high-resolution
+                                                   inputs remains challenging: the number of tokens in transformer architectures grows rapidly
+                                                   with both image resolution and the number of views, leading to prohibitive computational and
+                                                   memory costs. Moreover, we observe that visually ambiguous regions, such as repetitive patterns,
+                                                   weak textures, or specular surfaces, often produce unstable feature tokens that degrade geometric
+                                                   inference, especially at higher resolutions. We introduce HD-VGGT, a dual-branch architecture for
+                                                   efficient and robust high-resolution 3D reconstruction. A low-resolution branch predicts a coarse,
+                                                   globally consistent geometry, while a high-resolution branch refines details via a learned feature
+                                                   upsampling module. To handle unstable tokens, we propose Feature Modulation, which suppresses
+                                                   unreliable features early in the transformer. HD-VGGT leverages high-resolution images and
+                                                   supervision without full-resolution transformer costs, achieving state-of-the-art reconstruction
+                                                   quality.
+
+                                                   Correspondence: Tianrun Chen, Lanyun Zhu
+
+
+
+
+                                         1     Introduction
+                                         Recovering the three-dimensional structure of the world from images is a central goal of computer vision.
+                                         Accurate 3D reconstruction enables machines to perceive and interact with complex environments, powering
+                                         applications from robotics and autonomous navigation to augmented reality and digital content creation.
+                                         Classical pipelines built on Structure-from-Motion (SfM) and Multi-View Stereo (MVS) [1, 2] have made
+                                         remarkable progress over the past decades, but they rely on intricate multi-stage optimization procedures that
+                                         are computationally expensive and often brittle in challenging real-world conditions.
+                                           1 We thank Jianyuan Wang for his insightful discussions. We acknowledge the support from Hisilicon, the ZJU Kunpeng &
+
+                                         Ascend Center of Excellence, and the Dream Set Off - Kunpeng & Ascend Seed Program.
+
+
+
+
+                                                                                                    1
+Recent advances in deep learning are beginning to reshape this landscape. Instead of carefully orchestrated
+optimization pipelines, feed-forward models aim to infer scene geometry directly from images. Among them,
+the Visual Geometry Grounded Transformer (VGGT) [3] represents a major step forward. By leveraging
+global self-attention, VGGT jointly processes hundreds of views and predicts camera poses together with
+dense scene geometry in a single forward pass. This paradigm shift, from iterative optimization to large-scale
+neural inference, opens a promising path toward faster and more scalable 3D reconstruction systems.
+Despite this progress, achieving high-resolution reconstruction remains a fundamental challenge. Fine geometric
+structures, such as thin objects, sharp edges, and subtle surface variations, are often only visible at high spatial
+resolutions. At the same time, increasing the number of input views typically provides stronger geometric
+constraints and improves reconstruction accuracy. An ideal reconstruction system should therefore be able
+to process many high-resolution images efficiently, fully exploiting the rich visual information available in
+real-world image collections.
+However, scaling VGGT to this regime is inherently difficult. In transformer-based architectures, the number
+of tokens grows rapidly with both the number of input images and their spatial resolution. As either
+factor increases, computation and memory requirements quickly become prohibitive. In practice, this forces
+existing feed-forward reconstruction models to operate under strict limits on image resolution and view count,
+preventing them from fully leveraging the information necessary for high-fidelity reconstruction.
+Beyond this scalability bottleneck, we further observe a phenomenon that limits reconstruction accuracy.
+In visually ambiguous regions, such as repetitive patterns, weak textures, or specular surfaces, the early
+layers of transformer-based models often produce statistically unstable feature tokens. These tokens respond
+inconsistently across views and propagate noise through subsequent layers, ultimately degrading geometric
+reasoning. As image resolution increases, such unstable regions become more prominent, making them a
+critical obstacle for high-precision reconstruction.
+In this work, we introduce HD-VGGT, a new architecture designed for efficient and robust high-resolution
+feed-forward 3D reconstruction. Our approach adopts a memory-efficient dual-branch design. A low-resolution
+branch first estimates a globally consistent coarse 3D representation using the original VGGT backbone.
+Rather than scaling the entire network to higher resolutions, which would incur prohibitive computational cost,
+we design a dedicated feature upsampling module that forms the core of a high-resolution refinement branch.
+This module fuses coarse 3D features with high-resolution image features, enabling the model to leverage both
+the geometric structure already inferred and the rich visual information present in high-resolution inputs. In
+doing so, the network can benefit from high-resolution supervision while avoiding the quadratic complexity
+explosion of full-resolution transformer processing.
+To further improve robustness, we introduce a Feature Modulation mechanism that detects unstable feature
+tokens in early transformer layers and attenuates their influence during feature propagation. By reducing the
+impact of unreliable features, this mechanism produces cleaner geometric signals and enables more stable
+multi-view reasoning.
+Taken together, these ideas lead to a reconstruction framework that is both scalable and robust. HD-VGGT
+enables feed-forward models to operate at substantially higher resolutions while maintaining computational
+efficiency, and it improves geometric reliability in challenging visual conditions. We believe this direction
+opens new opportunities for large-scale, high-fidelity 3D reconstruction, bringing feed-forward approaches
+closer to the level of detail and robustness required for real-world applications.
+
+2     Related Work
+2.1   Feed-Forward 3D Reconstruction
+The field of modern visual perception has experienced a fundamental evolution toward scalable, data-driven
+representation learning and unified modeling strategies. This evolution has driven substantial improvements
+across a broad range of computer vision applications, from semantic interpretation to geometric inference
+[3–12]. Feed-forward 3D reconstruction has emerged as a dominant paradigm, offering an efficient alternative
+to classical optimization-based SfM [1] and MVS [2] pipelines. The seminal DUSt3R [13] introduced the
+
+
+                                                         2
+concept of direct point map regression from image pairs, a direction quickly advanced by numerous follow-up
+works. These include architectural refinements for scalability like Fast3R [14], as well as methods for handling
+long video sequences like Spann3R [15]. The introduction of global attention in VGGT [3] marked a significant
+step towards more robust multi-view understanding, with variants like π 3 [10] addressing issues such as
+reference-view bias. Concurrently, methods like Dens3R [16] and CUT3R [17] have explored denser geometric
+predictions and mixed static/dynamic data training. Other notable contributions include FLARE [18]
+and AnySplat [19], which bridge foundation models with 3D Gaussian Splatting for novel view synthesis.
+Despite this rapid progress, a common limitation persists: these models are predominantly designed for and
+evaluated on standard-resolution imagery. The challenge of efficiently scaling these powerful architectures to
+high-resolution inputs, without compromising accuracy, remains a critical and underexplored frontier.
+
+2.2     High-Resolution Deep Learning
+The challenge of processing high-resolution imagery is not unique to 3D vision. The broader computer vision
+community has explored numerous strategies to mitigate the computational burden of high-resolution inputs
+in deep neural networks [20–33]. These include the development of efficient transformer variants with linear
+or near-linear complexity attention mechanisms [34], the use of multi-scale architectures that process images
+at different resolutions [35], and patch-based processing techniques that divide large images into smaller,
+manageable chunks. Our work builds upon the insights from this field, but instead of modifying the core
+attention mechanism, we adopt a hierarchical, dual-branch approach that separates coarse, global reasoning
+from fine-grained, local refinement, offering a more direct solution to the problem of high-resolution 3D
+reconstruction.
+
+3     Method
+3.1     Preliminaries: Revisiting VGGT Bottleneck
+The standard VGGT architecture processes a set of N images {Ii ∈ RH0 ×W0 ×3 }N       i=1 . Each image is passed
+through a Vision Transformer (ViT) backbone, such as DINOv2 [36], to produce a sequence of K0 patch
+tokens Fi ∈ RK0 ×C . The core of VGGT is a deep transformer that applies global self-attention across the
+concatenated tokens from all N views, a total of N · K0 tokens. The computational and memory complexity
+of this global attention operation is O((N · K0 )2 · C), which is quadratic in the total number of tokens.
+This quadratic scaling presents a significant barrier to high-resolution processing. If we aim to double the input
+resolution to 2H0 × 2W0 , the number of tokens per image, K, increases by a factor of four (i.e., K ≈ 4K0 ).
+Consequently, the complexity of the global attention mechanism explodes by a factor of 42 = 16, rendering
+high-resolution reconstruction computationally infeasible with current hardware. This fundamental limitation
+motivates our hierarchical approach.
+
+3.2     HD-VGGT: A Hierarchical Dual-Branch Architecture
+To circumvent the quadratic complexity bottleneck while harnessing the detail present in high-resolution
+imagery, we propose a dual-branch architecture, as illustrated in Figure 1. The design philosophy is to
+decouple the task of establishing a global, coarse geometric scaffold from the task of refining fine-grained local
+details.
+
+3.2.1    Low-Resolution Branch
+This branch is responsible for efficient, global 3D inference. It takes as input a set of images {IiLR }N
+                                                                                                        i=1
+downsampled to a standard resolution (e.g., 518 × 518 pixels). These images are processed by a standard
+VGGT backbone, which consists of a DINOv2 feature extractor and a deep transformer network Tcoarse :
+
+
+                                    {Ficoarse , g coarse } = Tcoarse ({IiLR }N
+                                                                             i=1 )                             (1)
+
+
+
+
+                                                          3
+                                           Learned Feature Lifting
+
+
+
+
+                                                Down
+
+
+
+
+                                                                                                                       Transformer Layer
+
+
+                                                                                                                                               Transformer Layer
+                                                                                               Transformer Layer
+                              Residual
+                               Block
+                                                                              Tokens                               …                       …
+
+
+
+
+                                                Down
+                                                                   K      V
+                             Feature                          Window
+                          Agnostic Layer                 Q    Attention
+                                                                                                                                                                                                                High-Resolution
+                                                                                                                                                                                                                 3D Point Maps
+
+
+
+
+                                                                                                                                                                                                         DPT Head
+                                                                                                                                                                                   Discard
+
+
+                                                              …                                                                                                                                                      Low-Resolution
+                                                                                                                                                                                                                      3D Point Maps
+                                                                                                                                                                   …
+
+
+
+
+                                                                                                                                                                                                         Pose Head
+                        Attention Attention      Attention        Attention             Global              Frame                           Global                      Global
+                          Layer     Layer          Layer            Layer              Attention           Attention                       Attention                   Attention
+                                              DINO                                                                                          mask                                      Tokens                          Camera Pose
+                                           Attention Layers                                                                                                                                                             Mask
+
+
+                                                                                                                                           Mean
+                       Temporal Window
+
+
+
+
+                                                                                                                                                                                                  Mask Refine
+                                                                                                                                                                                      Aggregate
+                                                                                                                                            Var
+
+
+
+
+                                                Selected Layer                                                             Token Masking
+
+
+Figure 1 Overview of the HD-VGGT architecture. A low-resolution branch first computes a coarse 3D feature volume.
+A high-resolution branch then uses a learned feature upsampler guided by the high-resolution image to produce detailed
+features, which are processed by a lightweight refiner transformer to yield the final high-fidelity output.
+
+
+This branch outputs a set of coarse, low-resolution 3D-aware feature maps {Ficoarse ∈ Rh×w×c } and a set of
+initial camera parameters g coarse . By operating at a low resolution, this branch efficiently establishes the
+overall scene structure and camera poses, providing a robust scaffold for the subsequent refinement stage.
+
+3.2.2   High-Resolution Branch
+This branch is designed for detail refinement and operates in two stages:
+1) Learned Feature Upsampling. The transition from the coarse geometric scaffold F coarse to a high-resolution
+representation presents a critical challenge. A naive interpolation, such as bilinear or nearest upsampling, can
+be formulated as a linear combination of neighboring feature vectors:
+                                         X
+                           F hr (p) =         (1 − |p′x − qx |)(1 − |p′y − qy |)F coarse (q)                  (2)
+                                                       q∈N (p′ )
+
+where p is a coordinate in the high-resolution grid, p′ = p/s is its corresponding scaled coordinate in the
+low-resolution grid (with s being the downsampling factor), and N (p′ ) are the four nearest integer-coordinate
+neighbors.This operation, while computationally trivial, acts as a low-pass filter, inevitably leading to the loss
+of high-frequency geometric and textural details, which are essential for high-fidelity reconstruction.
+
+                                                                                          4
+To overcome this information-theoretic bottleneck, we posit that the high-resolution image I HR itself contains
+the necessary high-frequency cues to guide the upsampling process. We therefore employ a learned, guidance-
+based feature upsampling module, denoted U, inspired by recent advances in this area [37]. The core idea is to
+model the upsampling process as a conditional generation problem, where the high-resolution feature map F hr
+is generated conditioned on both the coarse feature map F coarse and the high-resolution guidance image I HR .
+We formulate this as learning a mapping U : (Rh×w×c , RH×W ×3 ) → RH×W ×c . The module first extracts high-
+frequency details from the guidance image using a shallow convolutional network ϕguidance . Concurrently, the
+coarse features are upsampled to the target resolution using a simple interpolation followed by a convolutional
+refinement network ϕf eat . The two streams are then fused and processed by a final convolutional network
+ϕf use :
+
+                                     Fguide = ϕguidance (I HR )                                                 (3)
+                                    Finterp = ϕf eat (Interpolate(F coarse ))                                   (4)
+                                            hr
+                                        F        = ϕf use (concat(Fguide , Finterp ))                           (5)
+
+This formulation allows the network to learn to inject high-frequency, spatially-precise details from the
+guidance image into the geometrically sound but coarse feature map, effectively reversing the information loss
+from downsampling and producing a feature representation that is both geometrically consistent and rich in
+fine-grained detail.
+2) High-Resolution Refiner. The upsampled feature maps {Fihr }N    i=1 are then processed by a lightweight refiner
+transformer, Tref ine . This network is significantly shallower than the backbone transformer (e.g., 6 layers vs.
+24 layers) and can employ more efficient, localized attention mechanisms, as the global geometry has already
+been resolved. Its purpose is to refine the high-resolution features, enforce multi-view consistency at a fine
+scale, and regress the final, high-fidelity outputs:
+
+
+                                      {Df inal , g f inal } = Tref ine ({Fihr }N
+                                                                               i=1 )                            (6)
+
+This hierarchical decomposition allows HD-VGGT to achieve a high-resolution output without ever needing to
+compute global self-attention over a massive number of high-resolution tokens, thus maintaining computational
+tractability.
+
+3.3     Feature Modulation for Robust Geometric Inference
+The pursuit of high-fidelity geometric reconstruction at elevated resolutions necessitates a profound under-
+standing of the underlying feature manifold. An ideal multi-view feature representation should constitute
+a low-dimensional, isometrically embedded Riemannian manifold, where geodesic distances correspond to
+semantic and geometric dissimilarities. However, real-world scenes invariably contain what we term geometric
+singularities, such as regions of repetitive texture, textureless surfaces, or specular highlights. These singulari-
+ties disrupt the smooth structure of the feature manifold, introducing high-frequency noise and topological
+defects that corrupt the geometric signal. From an information-theoretic perspective, these regions represent
+points of high Kolmogorov complexity and Shannon entropy, fundamentally challenging the assumption of
+cross-view feature consistency.
+Inspired by the analysis of dynamic scenes [38], we posit that these static geometric singularities are, from a
+statistical standpoint, isomorphic to dynamic events. Both phenomena manifest as a breakdown in spatio-
+temporal feature consistency, leading to a high-variance stochastic process when observing a 3D point’s features
+across multiple views. To address this, we introduce a principled, training-free framework for identifying and
+suppressing these anomalous feature tokens by analyzing the higher-order statistics of the feature space.
+
+3.3.1   Manifold Anomaly Detection via Kernelized Gramian Statistics
+The standard attention mechanism, which operates on first-order feature vectors, is insufficient to capture the
+complex, non-linear distortions introduced by geometric singularities. We therefore elevate our analysis to a
+
+
+                                                              5
+Reproducing Kernel Hilbert Space (RKHS) defined by the feature embeddings themselves. The geometry
+of the data in this space is captured by the Gram matrix. For a given layer l and a pair of views (t, s), we
+compute the cross-view Gramians:
+
+                                                 Ql,t QTl,s                           T
+                                                                               Kl,t Kl,s
+                                     GQQ
+                                      l,t,s =      √        ,       GKK
+                                                                     l,t,s =     √                           (7)
+                                                      c                             c
+
+These Gramians serve as kernel matrices that encode the complete second-order geometry of the feature
+manifold between views.
+We model the sequence of these Gramians across a temporal window of neighboring views W(t) as a matrix-
+valued stochastic process. The first and second moments of this process provide a powerful description of the
+manifold’s stability. We define two statistical operators, the temporal expectation EW [·] and the temporal
+variance VW [·], to estimate these moments over a set of layers Li,j :
+                                              X
+                                             Si−j = EW [ELi,j [GX
+                                                                l,t,s ]]                                     (8)
+                                               X
+                                             Vi−j = VW [ELi,j [GX
+                                                                l,t,s ]]                                     (9)
+       X
+Here, Si−j represents the stationary component (the expected geometric structure) of the manifold, while
+  X
+Vi−j quantifies its volatility or “information-theoretic surprise”—a direct measure of anomalous behavior.
+Following the hierarchical Bayesian inference framework proposed in [38], we construct a posterior anomaly
+saliency map, Sanomaly , by fusing multi-scale priors derived from different network depths:
+
+                                     Sanomaly = ωshallow ⊙ ωmiddle ⊙ ωdeep                                  (10)
+
+where the priors are defined as:
+                                                       KK            QK
+                                      ωshallow = (1 − Sshallow ) ⊙ Vshallow                                 (11)
+                                                     QQ
+                                      ωmiddle = 1 − Smiddle                                                 (12)
+                                                      QQ       QQ
+                                       ωdeep = (1 − Vdeep ) ⊙ Sdeep                                         (13)
+
+In this formulation, ωshallow acts as a high-frequency semantic anomaly prior, ωmiddle provides a mid-frequency
+geometric instability prior, and ωdeep serves as a low-frequency spatial regularization prior. Their product
+yields a robust posterior estimate of the anomaly probability for each token.
+
+3.3.2   Manifold Regularization via Projection Gradient Flow
+The initial anomaly map, Minitial = [Sanomaly > α], represents a coarse segmentation of the manifold’s
+singularities. To refine this, we perform a manifold regularization step guided by the gradient flow of the
+projection error. We consider the 3D point cloud as a discrete sampling of the scene manifold, and define a
+vector field on this manifold based on reprojection errors. The total aggregated gradient for a point, ∇A , is a
+function of the geometric residual rd,i and photometric residual rc,i :
+                                             N                                   N
+                                          1 X                      1 X
+                                   ∇A =       ∥wi rd,i ∇rd,i ∥ + λ     ∥wi rc,i ∥                           (14)
+                                          N i                      N i
+
+where wi masks the computation to the initially stable regions. The magnitude of this gradient represents the
+local distortion of the manifold. By thresholding this distortion metric, we obtain a refined anomaly mask
+Mref ined that more accurately delineates the boundaries of the geometric singularities.
+
+3.3.3   Information-Gated Attentional Suppression
+Finally, we must prevent the propagation of uncertainty from these identified anomalous regions. We
+conceptualize this as an information-gating problem. A naive, full-depth suppression would be equivalent to
+
+
+                                                                6
+Table 1 Camera pose estimation on RealEstate10K, Sintel, and TUM-dynamics. Our method demonstrates robust
+and accurate pose estimation.
+
+                    RealEstate10K (mixed, static)     Sintel (outdoor, dynamic)   TUM-dynamics (indoor, dynamic)
+Method
+                   RRA@30↑    RTA@30↑     AUC@30↑     ATE↓     RPEt ↓   RPEr ↓    ATE↓    RPEt ↓      RPEr ↓
+Fast3R [14]         99.05       81.86       61.68      0.371    0.298    13.75    0.090   0.101        1.425
+CUT3R [17]          99.82       95.10       81.47      0.217    0.070    0.636    0.047   0.015        0.451
+FLARE [18]          99.69       95.23       80.01      0.207    0.090    3.015    0.026   0.013        0.475
+VGGT [3]            99.97       93.13       77.62      0.167    0.062    0.491    0.012   0.010        0.312
+π 3 [10]            99.99       95.62       85.90      0.074    0.040    0.282    0.014   0.009        0.312
+WorldMirror [49]    99.99       95.81       86.28      0.096    0.058    0.490    0.010   0.009        0.297
+HD-VGGT (Ours)      99.99       96.15       87.01      0.071    0.038    0.275    0.009   0.008        0.281
+
+
+
+completely closing the information channel, leading to out-of-distribution behavior. Instead, we implement a
+targeted early-stage information-gating mechanism. We apply the refined mask Mref ined only to the shallow
+layers Lshallow , where the feature encoding is most susceptible to corruption. The gating is achieved by
+nullifying the Key vectors of anomalous tokens:
+                                 ′
+                                Kp,l = (1 − Mref ined,p ) · Kp,l ,   ∀l ∈ Lshallow                             (15)
+
+This operation effectively closes the information gate for corrupted data streams at their source, preventing
+error amplification in deeper layers. This ensures that the subsequent geometric reasoning and high-resolution
+refinement stages operate on a purified, high-integrity information substrate, which is a critical prerequisite
+for achieving state-of-the-art reconstruction fidelity.
+
+4     Experiments
+4.1   Experimental Setup
+Datasets. We evaluate HD-VGGT across a diverse set of standard benchmarks to demonstrate its versatility.
+For camera pose estimation, we use RealEstate10K [39] for static scenes, Sintel [40] and TUM-dynamics
+[41] for dynamic environments, and CO3Dv2 [42] for object-centric analysis. Point map reconstruction is
+evaluated on 7-Scenes [43], NRGBD [44], DTU [45], and high-resolution MVS-SYNTH [46]. For monocular
+depth estimation, we test on ScanNet [47] and NYUv2 [48] under various pose conditions, including scenarios
+without ground-truth camera priors.
+Evaluation Metrics. We follow task-specific protocols for a fair comparison. For camera pose, we report AUC
+at 10◦ and 30◦ , RRA, RTA, and trajectory metrics including ATE and RPE. Point map quality is measured
+by Accuracy and Completeness (Mean and Median in cm). Depth estimation is quantified using Abs Rel and
+δ1 accuracy, with all predictions aligned to the ground-truth scale via least-squares fitting.
+Baselines. We compare our method against a broad spectrum of state-of-the-art feed-forward frameworks.
+These include geometry transformers such as VGGT, π 3 , and WorldMirror, as well as DUSt3R-paradigm
+models including DUSt3R, MASt3R, Fast3R, and CUT3R. We also evaluate against other influential works
+like FLARE, DA3, and MonST3R. To isolate the impact of our proposed components, we include an ablation
+model HD-VGGT (w/o FM) which disables the Feature Modulation mechanism.
+Implementation Details. The model is trained for 2 weeks on a cluster of 16 Ascend 910C within CloudMatrix384
+supernode. We adopt a similar training strategy to VGGT, including data scheduling, optimizer settings, and
+loss formulations.
+
+4.2    Main Results
+We conduct a comprehensive evaluation of HD-VGGT against state-of-the-art methods on a wide range of
+standard benchmarks, following the protocols established by recent works like WorldMirror [49]. We focus on
+three core tasks: Camera Pose Estimation, Point Map Reconstruction, and Monocular Depth Estimation.
+
+                                                         7
+        (a) RGB           (b) DA3           (c) ! !          (d) VGGT             (e) Ours        (f) GT
+
+Figure 2 Qualitative comparison of monocular depth estimation. Our method produces more accurate and detailed
+results, which are indicated by dotted boxes
+
+ Table 2 Comparison of camera pose estimation on CO3Dv2. Metrics are Pose AUC ↑ at 10◦ and 30◦ thresholds.
+
+                        Method              Pose AUC ↑ (@10)       Pose AUC ↑ (@30)
+                        DUSt3R [13]                   70.1                 76.7
+                        MASt3R [50]                   78.2                 81.8
+                        VGGT [3]                      83.3                 88.2
+                        HD-VGGT (Ours)                86.5                 90.4
+
+
+
+4.2.1   Camera Pose Estimation
+We evaluate the camera pose estimation performance of HD-VGGT across four diverse datasets: RealEstate10K
+(static), Sintel (dynamic outdoor), TUM-dynamics (dynamic indoor), and CO3Dv2 (object-centric). As
+summarized in Table 1 and Table 2, our model consistently outperforms state-of-the-art methods such as π 3 ,
+WorldMirror, and MASt3R across all scenarios. On RealEstate10K, HD-VGGT achieves a superior AUC@30
+of 87.01%, while on the more challenging CO3Dv2 benchmark, it significantly improves the high-precision Pose
+AUC@10 to 86.5%, demonstrating exceptional accuracy in both scene-level and object-level alignment. In
+dynamic environments, our method reduces the Absolute Trajectory Error (ATE) to 0.071 on Sintel and 0.009
+on TUM-dynamics, outperforming previous feed-forward frameworks. These results indicate that the high-
+resolution dual-branch architecture, enhanced by feature modulation, effectively mitigates ambiguities caused
+by transient dynamics and specular reflections, leading to more robust and precise global pose optimization.
+
+4.2.2   Point Map Reconstruction
+For the point map reconstruction task, HD-VGGT is evaluated on the 7-Scenes, NRGBD, and DTU benchmarks,
+where it establishes a new state-of-the-art by significantly outperforming all baseline models across all metrics.
+As shown in Table 3, our method achieves superior precision with an accuracy of 3.9 cm on 7-Scenes and 2.4
+cm on NRGBD, while also reaching a new benchmark on the challenging DTU dataset with a mean accuracy
+of 95.3 cm. These improvements demonstrate that the high-resolution input allows the model to capture
+significantly finer geometric details and produce more precise point clouds compared to standard-resolution
+
+
+                                                         8
+   (a) RGB          (b) ! !                (c) VGGT               (d) DA3         (e) Ours             (f) GT
+                          Figure 3 Qualitative comparison of Point map reconstruction.
+
+Table 3 Point map reconstruction on 7-Scenes, NRGBD, and DTU. Our HD-VGGT sets a new state-of-the-art across
+all benchmarks.
+
+                          7-Scenes (scene)                       NRGBD (scene)                  DTU (object)
+Method             Acc. (cm) ↓      Comp. (cm) ↓      Acc. (cm) ↓        Comp. (cm) ↓   Acc. (cm) ↓      Comp. (cm) ↓
+                   Mean Med.        Mean Med.         Mean Med.          Mean Med.      Mean Med.        Mean    Med.
+Fast3R [14]         9.6       6.5   14.5     9.3      13.5        9.1    16.3    10.4   334.0   191.9    292.9   112.5
+CUT3R [17]          9.4       5.1   10.1      5.0     10.4        4.1     7.9     3.1   474.2   260.0    340.0   131.6
+FLARE [18]          8.5       5.8   14.2     10.4      5.3        2.4     5.1     2.5   254.1   146.8    317.4   142.0
+VGGT [3]            4.6       2.6   5.7      3.4      5.1         2.9    6.6     3.8    133.8   77.9     189.6    99.2
+π 3 [10]            4.8       2.8   7.2      4.7      2.6         1.5    2.8     1.4    119.8   64.6     184.9    60.7
+WorldMirror [49]    4.3       2.6   4.9      2.8      4.1         2.0    4.5     1.9    101.7   56.4     178.0    69.0
+HD-VGGT (Ours)      3.9       2.1    4.5      2.5      2.4         1.3    2.6    1.2    95.3    51.2     165.4   61.1
+
+
+
+feed-forward architectures.
+
+4.2.3   Monocular Depth Estimation
+We evaluate the monocular depth estimation performance of HD-VGGT on the ScanNet and NYUv2 datasets.
+As presented in Table 4 and Table 5, our method achieves the best performance across all metrics, yielding an
+AbsRel of 0.049 on ScanNet and 0.035 on NYUv2. Compared to the base VGGT and recent SOTA methods
+like π 3 and WorldMirror, HD-VGGT shows a significant improvement in depth accuracy (AbsRel) and pixel
+reliability (δ1 ). Furthermore, we assess the robustness of our depth estimation on ScanNet under different
+pose conditions. Even in the more challenging setting without ground-truth poses (w/o GT Pose), HD-VGGT
+maintains high precision with an AbsRel of 0.121, outperforming competitive frameworks such as MASt3R and
+DUSt3R. These results underscore the efficacy of our dual-branch architecture, which leverages high-resolution
+features to recover precise local geometry while maintaining strong global structural consistency, even in
+complex indoor environments where camera priors are unavailable.
+
+
+
+
+                                                             9
+                         Table 4 Monocular depth estimation on ScanNet and NYUv2.
+
+                                                   ScanNet              NYUv2
+                          Method
+                                              AbsRel ↓       δ1 ↑    AbsRel ↓     δ1 ↑
+                          DUSt3R [13]           0.081        0.909    0.143       0.814
+                          MASt3R [50]           0.110        0.865    0.115       0.848
+                          VGGT [3]              0.056        0.951    0.062       0.969
+                          π 3 [10]              0.054        0.956    0.038       0.986
+                          WorldMirror [49]      0.052        0.957    0.063       0.968
+                          HD-VGGT (Ours)        0.049        0.961    0.035       0.988
+
+Table 5 Monocular Depth estimation on ScanNet under different pose conditions. Metrics are Abs Rel ↓ evaluated
+with and without ground-truth (GT) poses.
+
+                                               Depth Abs Rel ↓       Depth Abs Rel ↓
+                           Method
+                                                (w/ GT Pose)         (w/o GT Pose)
+                           DUSt3R [13]               0.145                0.182
+                           MASt3R [50]               0.131                0.165
+                           VGGT [3]                  0.119                0.140
+                           HD-VGGT (Ours)            0.102                0.121
+
+
+
+4.3    Qualitative Analysis
+We present a visual comparison of monocular depth estimation results in Figure 2 to further highlight the
+advantages of our high-resolution dual-branch architecture. While state-of-the-art methods provide reasonable
+global layouts, they often suffer from over-smoothing and "bleeding" artifacts around object boundaries. In
+contrast, HD-VGGT yields depth maps with superior sharpness and structural fidelity. Specifically, in complex
+indoor scenes, our model successfully preserves the geometry of fine-grained objects, such as lamp poles and
+chair legs, which typically disappear in low-resolution feature maps. Moreover, the surfaces of walls and floors
+in our results are more planar and consistent, demonstrating that the High-Resolution Refiner effectively
+utilizes detailed visual cues to resolve depth ambiguities that occur at coarser scales.
+We also provide a visual comparison of 3D point map reconstructions in Figure 3. We observe that while
+the baseline VGGT can recover the general layout of the scenes, they frequently fail to capture complex or
+thin-structured objects. In contrast, HD-VGGT yields significantly more complete and dense reconstructions.
+By effectively modulating high-resolution features, our model suppresses geometric noise while preserving
+fine-grained spatial details. These results qualitatively confirm that HD-VGGT achieves a superior balance
+between global structural consistency and local geometric precision, even in scenes with high structural
+complexity.
+
+5     Conclusion and Discussion
+In this work, we presented HD-VGGT, a new architecture for efficient and robust high-resolution feed-forward
+3D reconstruction. By introducing a dual-branch design with a dedicated feature upsampling module, our
+method enables the model to exploit high-resolution imagery and supervision without scaling the entire
+transformer backbone. In addition, the proposed Feature Modulation mechanism improves robustness by
+suppressing unstable feature tokens that arise in visually ambiguous regions. Together, these components
+allow HD-VGGT to produce more accurate and detailed reconstructions while maintaining computational
+efficiency.
+Our results demonstrate that scaling feed-forward reconstruction models to higher resolutions requires not
+only architectural efficiency but also improved feature stability. We hope that the ideas presented in this
+
+
+                                                        10
+work—particularly cross-resolution geometric refinement and feature-level robustness mechanisms—can inspire
+future research toward more scalable and reliable neural 3D reconstruction systems.
+Looking forward, we believe that further integrating geometric reasoning, large-scale image collections, and
+high-resolution neural representations will continue to push the limits of feed-forward 3D reconstruction,
+bringing these systems closer to practical deployment in real-world applications.
+
+
+
+
+                                                    11
+References
+ [1] Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings of the IEEE
+     conference on computer vision and pattern recognition, pages 4104–4113, 2016.
+ [2] Johannes L Schönberger, Enliang Zheng, Jan-Michael Frahm, and Marc Pollefeys. Pixelwise view selection for
+     unstructured multi-view stereo. In European conference on computer vision, pages 501–518. Springer, 2016.
+ [3] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 5294–5306, 2025.
+ [4] Eduardo Arnold, Jamie Wynn, Sara Vicente, Guillermo Garcia-Hernando, Aron Monszpart, Victor Prisacariu,
+     Daniyar Turmukhambetov, and Eric Brachmann. Map-free visual relocalization: Metric pose relative to a single
+     image. In European Conference on Computer Vision, pages 690–708. Springer, 2022.
+ [5] Qi Zhu, Jiangwei Lao, Deyi Ji, Junwei Luo, Kang Wu, Yingying Zhang, Lixiang Ru, Jian Wang, Jingdong
+     Chen, Ming Yang, et al. Skysense-o: Towards open-world remote sensing interpretation with vision-centric
+     visual-language modeling. In IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR),
+     2025.
+ [6] Lanyun Zhu, Deyi Ji, Tianrun Chen, Peng Xu, Jieping Ye, and Jun Liu. Ibd: Alleviating hallucinations in large
+     vision-language models via image-biased decoding. In IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, 2024.
+ [7] You Shen, Zhipeng Zhang, Yansong Qu, Xiawu Zheng, Jiayi Ji, Shengchuan Zhang, and Liujuan Cao. Fastvggt:
+     Training-free acceleration of visual geometry transformer. arXiv preprint arXiv:2509.02560, 2025.
+ [8] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David Novotny.
+     Common objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction. In Proceedings
+     of the IEEE/CVF international conference on computer vision, pages 10901–10911, 2021.
+ [9] Lanyun Zhu, Tianrun Chen, Jianxiong Yin, Simon See, De Wen Soh, and Jun Liu. Replay master: Automatic
+     sample selection and effective memory utilization for continual semantic segmentation. IEEE Transactions on
+     Pattern Analysis and Machine Intelligence, 2025.
+[10] Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang,
+     Chunhua Shen, and Tong He. pi3: Scalable permutation-equivariant visual geometry learning. arXiv e-prints,
+     pages arXiv–2507, 2025.
+[11] Lanyun Zhu, Deyi Ji, Tianrun Chen, Haiyang Wu, De Wen Soh, and Jun Liu. CPCF: A cross-prompt contrastive
+     framework for referring multimodal large language models. In Forty-second International Conference on Machine
+     Learning, 2025.
+[12] Deyi Ji, Lanyun Zhu, Siqi Gao, Qi Zhu, Yiru Zhao, Peng Xu, Yue Ding, Hongtao Lu, Jieping Ye, Feng Wu, et al.
+     View-centric multi-object tracking with homographic matching in moving uav. IEEE Transactions on Geoscience
+     and Remote Sensing, 2026.
+[13] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d
+     vision made easy. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     20697–20709, 2024.
+[14] Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier,
+     and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass. In Proceedings of the
+     IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), June 2025.
+[15] Hengyi Wang and Lourdes Agapito. 3d reconstruction with spatial memory. arXiv preprint arXiv:2408.16061,
+     2024.
+[16] Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang,
+     Xiaokang Yang, Yichao Yan, et al. Dens3r: A foundation model for 3d geometry prediction. arXiv preprint
+     arXiv:2507.16290, 2025.
+[17] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A Efros, and Angjoo Kanazawa. Continuous 3d
+     perception model with persistent state. arXiv preprint arXiv:2501.12387, 2025.
+
+
+
+                                                         12
+[18] Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue, Christian Rupprecht, Xiaowei Zhou, Yujun Shen, and
+     Gordon Wetzstein. Flare: Feed-forward geometry, appearance and camera estimation from uncalibrated sparse
+     views, 2026.
+[19] Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui Ren, Yichen Jin, Xudong Xu, Mulin Yu, Jiangmiao Pang,
+     Feng Zhao, Dahua Lin, and Bo Dai. Anysplat: Feed-forward 3d gaussian splatting from unconstrained views,
+     2025.
+[20] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining Guo. Swin transformer:
+     Hierarchical vision transformer using shifted windows. In Proceedings of the IEEE/CVF international conference
+     on computer vision, pages 10012–10022, 2021.
+[21] Deyi Ji, Feng Zhao, Lanyun Zhu, Wenwei Jin, Hongtao Lu, and Jieping Ye. Discrete latent perspective learning
+     for segmentation and detection. In International Conference on Machine Learning, pages 21719–21730, 2024.
+[22] Qi Zhu, Jiangwei Lao, Deyi Ji, Junwei Luo, Kang Wu, Yingying Zhang, Lixiang Ru, Jian Wang, Jingdong Chen,
+     Ming Yang, et al. Skysense-o: Towards open-world remote sensing interpretation with vision-centric visual-
+     language modeling. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 14733–14744, 2025.
+[23] Deyi Ji, Feng Zhao, Hongtao Lu, Mingyuan Tao, and Jieping Ye. Ultra-high resolution segmentation with
+     ultra-rich context: A novel benchmark. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition, pages 23621–23630, 2023.
+[24] Deyi Ji, Haoran Wang, Mingyuan Tao, Jianqiang Huang, Xian-Sheng Hua, and Hongtao Lu. Structural and
+     statistical texture knowledge distillation for semantic segmentation. In Proceedings of the IEEE/CVF Conference
+     on Computer Vision and Pattern Recognition, pages 16876–16885, 2022.
+[25] Lanyun Zhu, Tianrun Chen, Qianxiong Xu, Xuanyi Liu, Deyi Ji, Haiyang Wu, De Wen Soh, and Jun Liu.
+     Popen: Preference-based optimization and ensemble for lvlm-based reasoning segmentation. In Proceedings of
+     the Computer Vision and Pattern Recognition Conference, pages 30231–30240, 2025.
+[26] Deyi Ji, Feng Zhao, Hongtao Lu, Feng Wu, and Jieping Ye. Structural and statistical texture knowledge distillation
+     and learning for segmentation. IEEE Transactions on Pattern Analysis and Machine Intelligence, 47(5):3639–3656,
+     2025.
+[27] Lanyun Zhu, Tianrun Chen, Deyi Ji, Jieping Ye, and Jun Liu. Not every patch is needed: Towards a more efficient
+     and effective backbone for video-based person re-identification. arXiv preprint arXiv:2501.16811, 2025.
+[28] Deyi Ji, Wenwei Jin, Hongtao Lu, and Feng Zhao. Pptformer: Pseudo multi-perspective transformer for uav
+     segmentation. arXiv preprint arXiv:2406.19632, 2024.
+[29] Lanyun Zhu, Deyi Ji, Shiping Zhu, Weihao Gan, Wei Wu, and Junjie Yan. Learning statistical texture for semantic
+     segmentation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages
+     12537–12546, 2021.
+[30] Deyi Ji, Feng Zhao, and Hongtao Lu. Guided patch-grouping wavelet transformer with spatial congruence for
+     ultra-high resolution segmentation. arXiv preprint arXiv:2307.00711, 2023.
+[31] Lanyun Zhu, Tianrun Chen, Deyi Ji, Jieping Ye, and Jun Liu. Llafs: When large language models meet few-shot
+     segmentation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages
+     3065–3075, 2024.
+[32] Deyi Ji, Haoran Wang, Hanzhe Hu, Weihao Gan, Wei Wu, and Junjie Yan. Context-aware graph convolution
+     network for target re-identification. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 35,
+     pages 1646–1654, 2021.
+[33] Lanyun Zhu, Tianrun Chen, Deyi Ji, Peng Xu, Jieping Ye, and Jun Liu. Llafs++: Few-shot image segmentation
+     with large language models. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2025.
+[34] Yi Tay, Mostafa Dehghani, Dara Bahri, and Donald Metzler. Efficient transformers: A survey. ACM Computing
+     Surveys, 55(6):1–28, 2022.
+[35] Wenhai Wang, Enze Xie, Xiang Li, Deng-Ping Fan, Kaitao Song, Ding Liang, Tong Lu, Ping Luo, and Ling Shao.
+     Pyramid vision transformer: A versatile backbone for dense prediction without convolutions. In Proceedings of
+     the IEEE/CVF international conference on computer vision, pages 568–578, 2021.
+
+
+                                                          13
+[36] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+     Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. Dinov2: Learning robust visual features without
+     supervision. arXiv preprint arXiv:2304.07193, 2023.
+[37] Thomas Wimmer, Prune Truong, Marie-Julie Rakotosaona, Michael Oechsle, Federico Tombari, Bernt Schiele,
+     and Jan Eric Lenssen. AnyUp: Universal Feature Upsampling. arXiv preprint arXiv:2510.12764, 2025.
+[38] Yu Hu, Chong Cheng, Sicheng Yu, Xiaoyang Guo, and Hao Wang. Vggt4d: Mining motion cues in visual geometry
+     transformers for 4d scene reconstruction. arXiv preprint arXiv:2511.19971, 2025.
+[39] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe, and Noah Snavely. Stereo magnification: Learning
+     view synthesis using multiplane images. arXiv preprint arXiv:1805.09817, 2018.
+[40] D. J. Butler, J. Wulff, G. B. Stanley, and M. J. Black. A naturalistic open source movie for optical flow evaluation.
+     In European Conf. on Computer Vision (ECCV), pages 611–625, 2012.
+[41] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers. A benchmark for the evaluation of rgb-d slam
+     systems. In Proc. of the International Conference on Intelligent Robot Systems (IROS), Oct. 2012.
+[42] Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David Novotny.
+     Common objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction, 2021.
+[43] Mai Bui, Shadi Albarqouni, Slobodan Ilic, and Nassir Navab. Scene coordinate and correspondence learning for
+     image-based localization, 2018.
+[44] Dunja Azinović, Ricardo Martin-Brualla, Dan B. Goldman, Matthias Nießner, and Justus Thies. Neural rgb-d
+     surface reconstruction. In CVPR, 2022.
+[45] Rasmus Jensen, Anders Dahl, Henrik Aanaes, and Vedrana Andersen Dahl. Large scale multi-view stereopsis
+     evaluation. In CVPR, 2014.
+[46] Po-Han Huang, Kevin Matzen, Johannes Kopf, Narendra Ahuja, and Jia-Bin Huang. Deepmvs: Learning
+     multi-view stereopsis. In IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2018.
+[47] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias Nießner. Scannet:
+     Richly-annotated 3d reconstructions of indoor scenes. In CVPR, 2017.
+[48] Nathan Silberman, Derek Hoiem, Pushmeet Kohli, and Rob Fergus. Indoor segmentation and support inference
+     from rgbd images. In ECCV, 2012.
+[49] Yifan Liu, Zhiyuan Min, Zhenwei Wang, Junta Wu, Tengfei Wang, Yixuan Yuan, Yawei Luo, and Chunchao
+     Guo. Worldmirror: Universal 3d world reconstruction with any-prior prompting. arXiv preprint arXiv:2510.10726,
+     2025.
+[50] Vincent Leroy, Yohann Cabon, and Jerome Revaud. Grounding image matching in 3d with mast3r, 2024.
+
+
+
+
+                                                           14
+

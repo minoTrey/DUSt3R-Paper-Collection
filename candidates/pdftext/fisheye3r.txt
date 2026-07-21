@@ -1,0 +1,1247 @@
+                                            Fisheye3R: Adapting Unified 3D Feed-Forward
+                                                Foundation Models to Fisheye Lenses
+
+                                                         Ruxiao Duan1,2 , Erin Hong2 , Dongxu Zhao2 ,
+                                                        Eric Turner2 , Alex Wong1 , and Yunwen Zhou2
+
+                                                                       Yale University
+                                                                         1
+
+                                                            {ruxiao.duan, alex.wong}@yale.edu
+                                                                         2
+                                                                           Google
+arXiv:2603.28896v2 [cs.CV] 1 Jul 2026
+
+
+
+
+                                                   {ruxiao, honge, dongxuz, elturner, verse}@google.com
+
+
+
+                                              Abstract. Feed-forward foundation models for multi-view 3-dimensional
+                                              (3D) reconstruction have been trained on large-scale datasets of perspec-
+                                              tive images; when tested on wide field-of-view images, e.g., from a fish-
+                                              eye camera, their performance degrades. This degradation arises from
+                                              changes in spatial arrangements of pixels induced by the non-linear pro-
+                                              jection model that maps 3D points onto the 2D image plane. While one
+                                              may surmise that training on fisheye images would resolve this problem,
+                                              there are far fewer fisheye images with ground truth than perspective
+                                              images, which limits generalization. To enable inference on imagery ex-
+                                              hibiting high radial distortion, we propose Fisheye3R, a novel adaptation
+                                              framework that extends these multi-view 3D reconstruction foundation
+                                              models to natively accommodate fisheye inputs without performance re-
+                                              gression on perspective images. To address the scarcity of fisheye images
+                                              and ground truth, we introduce flexible learning schemes that support
+                                              self-supervised adaptation using only unlabeled perspective images and
+                                              supervised adaptation without any fisheye training data. Extensive ex-
+                                              periments across three foundation models, including VGGT, π 3 , and Ma-
+                                              pAnything, demonstrate that our approach consistently improves camera
+                                              pose, depth, point map, and field-of-view estimation on fisheye images.
+                                              Code is available at https://github.com/android-xr/fisheye3r.
+
+                                              Keywords: 3D Reconstruction · Fisheye · Adaptation
+
+
+                                        1    Introduction
+                                        Generalist feed-forward foundation models [20, 44, 49] have recently emerged as
+                                        a dominant paradigm in multi-view 3D reconstruction (3R) from uncalibrated
+                                        images, unifying traditionally disparate geometric tasks (camera pose, depth,
+                                        point map, and field-of-view estimation) into a single, cohesive framework. As
+                                        they are trained on large-scale datasets of abundant perspective (rectilinear)
+                                        images, these foundation models generalize well across 3D scenes. Yet, when
+                                        evaluated on images captured by fisheye cameras, which are commonly used in
+                                        spatial applications from robotics to Augmented/Virtual Reality (AR/VR) [4,24,
+                                        36, 55] due to their large scene coverage for situational awareness, these models
+2       R. Duan et al.
+
+
+
+      Ground Truth          FoV=180°       FoV=150°      FoV=120°        FoV=90°
+    Sparse Point Cloud
+
+
+
+
+Fig. 1: Foundation models for 3D reconstruction generally fail on fisheye images. Top:
+Ground truth sparse LiDAR points of a fisheye image, with undistorted perspective
+images of varying FoVs. Bottom: Reconstructed point clouds from the corresponding
+images by [20]; the leftmost one is calibrated by our method. Naively undistorting
+the fisheye image for 3D reconstruction either sacrifices scene coverage or introduces
+extreme resampling artifacts and peripheral stretching that deviate from the model’s
+training distribution, as evident from the mismatch of predicted and actual FoVs.
+
+produce degraded outcomes due to curvilinear distortions inherent to fisheye
+optics (Fig. 1). As many spatial applications are deployed on platforms with
+wide field-of-view (FoV) cameras or mixed-camera systems, e.g., comprising both
+perspective and fisheye cameras, these foundation models have been unsuitable
+for direct integration into these commercial systems.
+    A conventional approach to handling wide FoV images is to pre-process them
+through a rectification step, which transforms the fisheye images to a rectilinear
+pinhole viewport. Yet, this comes with a significant loss of peripheral coverage
+(due to cropping), which was the precise advantage that motivated the use of
+wide FoV cameras in the first place. On the other hand, retaining the original
+fisheye FoV in perspective images results in images with extreme resampling
+artifacts. Furthermore, the undistorted image would similarly degrade the per-
+formance of downstream models due to processing of ultra-wide-angle projec-
+tions that lie far outside the natural distribution of their training data, which
+again leads to performance degradation as illustrated in Fig. 1. Additionally,
+the rectification process incurs latency and relies on accurate calibration, where
+errors accumulate and propagate through the vision system and further degrade
+estimates.
+    An alternative approach is to train a model from scratch or finetune an ex-
+isting model specifically for fisheye images; however, unlike the abundance of
+publicly available perspective image datasets, there is a comparatively small
+corpus of fisheye images, and even fewer fisheye images with ground truth to
+support 3D tasks. This fisheye data scarcity makes it challenging to train a
+foundation model that generalizes well across diverse 3D scenes. While finetun-
+ing may be an option, this risks model parameters drifting away from a desirable
+minimum, resulting in a loss of fidelity or generalizability. In both cases, the re-
+                                                                Fisheye3R       3
+
+sulting model becomes camera-specific, requiring separate models to be deployed
+for mixed-camera systems, which in turn increases operational overhead.
+    Finally, one may also train a foundation model from scratch on a joint cor-
+pus of perspective and fisheye datasets. Not only is this computationally taxing
+for multi-view foundation models, but it also presents a high imbalance of data
+between the two camera types, resulting in trade-offs between fidelity and gen-
+eralizability [32]. We consider whether there exists a middle ground that enables
+a model to infer with similar fidelity on both perspective and fisheye images to
+avoid the operational overhead of deploying multiple models, but also without
+the computational overhead of large-scale training.
+    Given that existing foundation models already exhibit high generalizability
+across 3D scenes and that errors stem primarily from curvilinear distortions,
+we aim to recalibrate the fisheye input, not in the image space as done con-
+ventionally, but in the model’s latent space, such that its embeddings become
+conducive to an existing foundation model pre-trained on perspective images. To
+this end, we propose Fisheye3R, a lightweight and efficient adaptation framework
+that can potentially extend any pre-trained foundation model to fisheye imagery
+with similar fidelity as perspective images and without loss of generalizability.
+    Taking advantage of the transformer architectures [8] in foundation 3R mod-
+els, we adopt a token-based adaptation strategy, where trainable calibration
+tokens are inserted into transformer blocks to extend the performance of a given
+pre-trained model to fisheye images. The influence of these tokens is controlled
+by a masked attention scheme, where their effect is eliminated for perspective
+images and activated on fisheye images, enabling the model to remain back-
+wards compatible with perspective imagery. Considering the limited availability
+of ground truth for fisheye images on 3D tasks, we propose three distinct learning
+schemes to accommodate various degrees of data accessibility: (i) self-supervised
+learning with unlabeled perspective RGB images only; (ii) supervised learning
+with annotated perspective data; and (iii) supervised learning with perspective
+and fisheye data. Through extensive evaluation, we demonstrate that Fisheye3R
+consistently improves 3D reconstruction performance on fisheye images across
+all three schemes, providing a versatile solution regardless of data constraints.
+Our work offers the following advantages:
+
+ – Generalizability. We apply our framework generically to adapt three unified
+   multi-view feed-forward foundation 3D reconstruction models [20, 44, 49].
+ – Efficiency. We show that the models can be adapted through the insertion
+   of some lightweight learnable tokens, requiring minimal training time and
+   negligible computational overhead compared to full-parameter finetuning.
+ – Backwards compatibility. We demonstrate that the model can fully preserve
+   the original performance on perspective data while gaining the unique capa-
+   bility to handle heterogeneous camera models within a single sequence.
+ – Data flexibility. Our method supports three different learning schemes tai-
+   lored to varying data regimes, with which we observe consistent improve-
+   ments on fisheye data, even with unlabeled perspective images for training.
+4       R. Duan et al.
+
+2     Related Work
+
+Traditional 3D Reconstruction. To recover 3D geometry from single or mul-
+tiple views, traditional methodologies typically employ Structure-from-Motion
+(SfM) [1, 10, 14, 30, 34, 37, 38, 50] to estimate sparse point clouds and camera
+parameters, followed by Multi-View Stereo (MVS) [7, 15, 35, 43, 53, 57] to recon-
+struct dense scene geometry. These multi-stage pipelines rely on a sequence of
+independent tasks, including keypoint detection, feature extraction, matching,
+triangulation, and bundle adjustment, where optimization noise and errors can
+accumulate at each step.
+Feed-Forward 3D Reconstruction. Recently, transformer-based models have
+emerged to estimate 3D geometry from multiple images. DUSt3R [47] regressed
+point maps from image pairs, while MASt3R [21] further improved upon this by
+adding local feature regression to enhance reconstruction accuracy. Subsequent
+variants further extended their capabilities to dynamic scenes [56], streaming
+data [46], and parallelized reconstruction [52].
+Unified 3D Feed-Forward Models. Unified 3D foundation models serve as
+general-purpose geometric backbones capable of solving multiple downstream
+tasks simultaneously. VGGT [44] unifies 3D vision by treating it as a sequence-to-
+sequence translation problem, regressing camera parameters, depth maps, point
+maps, and point tracks from uncalibrated images in a single forward pass. π 3 [49]
+addresses VGGT’s limitation regarding reference frame dependency by introduc-
+ing a permutation-equivariant architecture, enabling robust prediction of local
+point maps and camera poses regardless of the input order. MapAnything [20]
+further expands the versatility by leveraging a multi-modal encoder to infer met-
+ric geometry from images and optional priors.
+Fisheye-Aware 3D Perception. Utilizing uncalibrated fisheye inputs for 3D
+reconstruction remains a challenging problem due to arbitrary distortions. Tra-
+ditional pipelines rely on integrating explicit calibration [13, 19, 28, 33] into geo-
+metric solvers [4, 27, 58], while recent learning-based attempts often circumvent
+native distortion by learning from canonical projections [6, 16, 22, 45, 59]. Other
+data-driven approaches focus on isolated subtasks: [39, 42] target intrinsic cali-
+bration, while [25] adapts stereo depth via warping. More recently, [32] proposes
+a universal model for local camera 3D estimation using spherical basis functions,
+while [11] employs calibration tokens and [12] proposes distortion extenders to
+adapt monocular depth estimation models to fisheye cameras.
+
+
+3     Method
+
+3.1   Problem Setup and Representations
+
+Multi-view feed-forward 3D reconstruction models [20, 44, 49] estimate camera
+pose and dense geometric attributes (e.g., depth, point maps, ray directions) from
+a set of uncalibrated RGB images capturing the same 3D scene. This process
+generally consists of three stages.
+                                                                                                                                                                                                                                                                                                                                                                                                          Fisheye3R           5
+
+      Distortion       Image Encoding                                                                                                                     Alternating Attention                                                                                                                                                                                 Decoding                                         Image Tokens
+                                                                                                                                                                                                                                                                                                                                                                                      Pose
+                                                                                                                                                                                                                                                                                                                                                                                                             Class Tokens
+                                                                                                                                                                                                                                                                                                                                                                                                             Calibration Tokens
+
+                                                                                                                                                                                                                                                                                                                                                                  Ray Directions                              Undistortion
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                            Ray Depth
+
+
+
+
+                               ×L0                                       ×(L1 - L0)                                                                                                                                         ×L2
+Fig. 2: Fisheye adaptation framework with perspective training data. Our
+method leverages existing perspective datasets by synthesizing curvilinear distortion
+in the input sequences. The distorted images are processed by the frozen transformer
+backbone, where learnable calibration tokens are injected into the encoder layers. The
+decoder predicts dense geometric attributes, which are undistorted for loss compu-
+tation. Supervision is derived either from ground truth or through a self-supervised
+distillation of the model’s own predictions on the original perspective sequence.
+
+Image encoding. Consider a sequence of S images (Is )Ss=1 from a scene where
+Is ∈ RH×W ×3 . Each frame is independently passed to some pre-trained image
+encoder, typically DINOv2 [29], for feature extraction. Specifically, for each s ∈
+[S] = {1, . . . , S}, the image Is is divided into N = HW/P 2 patches of size P × P
+                                                           (0)             (0)
+pixels, which are then projected to patch embeddings {xs,n }N  n=1 where xs,n ∈ R
+                                                                                  d
+                                            (0)          d
+and concatenated with a class token xs,0 = xclass ∈ R as
+
+                      \boldsymbol {x}_s^{(0)} = \left [ \boldsymbol {x}_{s,0}^{(0)}, \boldsymbol {x}_{s,1}^{(0)}, \dots , \boldsymbol {x}_{s,N}^{(0)} \right ] \in \R ^{(1+N) \times d},                                                                                                                                                                                                                                     (1)
+
+where [·] denotes concatenation and d is the embedding dimension. For an en-
+                                           (ℓ)
+coder with L1 layers, the encoder module fE at a layer ℓ ∈ [L1 ] derives
+
+                                            \label {eq:enc} \boldsymbol {x}_s^{(\ell )} = f_\text {E}^{(\ell )} \left ( \boldsymbol {x}_s^{(\ell -1)} \right ) \in \R ^{(1+N) \times d}                                                                                                                                                                                                                                      (2)
+
+through multi-head self-attention and MLP blocks [8]. After the last layer, the
+                                                  (0)    (L )          N ×d
+N patch tokens are passed to the next stage as z s = [xs,n1 ]Nn=1 ∈ R       .
+Alternating attention. With a total of L2 alternating attention (AA) blocks,
+each block ℓ ∈ [L2 ] sequentially applies frame-wise and global self-attention as
+
+
+                                   \label {eq:frame} \boldsymbol {z}_s'^{(\ell )} &= f_\text {F}^{(\ell )} \left ( \boldsymbol {z}_s^{(\ell -1)} \right ) \in \R ^{N \times d}, \; \forall s \in [S], \\ \label {eq:global} \left [ \boldsymbol {z}_s^{(\ell )} \right ]_{s=1}^S &= f_\text {G}^{(\ell )} \left ( \left [ \boldsymbol {z}_s'^{(\ell )} \right ]_{s=1}^S \right ) \in \R ^{SN \times d},
+
+                                                                                                                                                                                                                                                                                                                                                                                                                             (4)
+
+where the tokens of each frame attend to each other in frame-wise attention layer
+ (ℓ)
+fF and the tokens across all frames attend to each other in global attention layer
+6                                                                                            R. Duan et al.
+
+                (ℓ)
+fG . The order of frame and global attention can vary depending on the model’s
+architectural design.
+                                                                      (L )
+Scene representation prediction. The outputs of the AA module {z s 2 }Ss=1
+are passed to decoder fD as
+
+                                                                                                                                                                                                                                                                                                                                                                      E_s, D_s = f_\text {D}\left ( \boldsymbol {z}_s^{(L_2)} \right ),                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    (5)
+
+where Es = [Rs |ts ] denotes camera pose for frame s with rotation Rs ∈ R3×3 and
+translation ts ∈ R3 , and Ds ∈ RH×W ×C is the combination of dense predictions
+whose types vary across different architectures: VGGT [44] predicts depth map
+in the local camera coordinates and point map in the global world coordinates;
+π 3 [49] predicts a local point map and infers the global point map from the
+local one and the predicted camera pose; MapAnything [20] predicts local ray
+directions and ray depths to derive local camera coordinates, from which global
+point coordinates are inferred with the predicted pose.
+
+3.2                                                                      Model Adaptation with Calibration Tokens
+While foundation models trained on massive rectilinear datasets excel at pro-
+cessing sequences of perspective images, they fail to generalize to fisheye imagery.
+When presented with fisheye inputs, the frozen backbone generates features that
+fall outside the learned data manifold of perspective images, resulting in distorted
+geometric reconstructions and erroneous camera pose estimates.
+     To bridge this gap, we align fisheye feature representations with those of per-
+spective images by introducing K learnable calibration tokens into each trans-
+former layer. As illustrated in Fig. 2, these tokens are inserted into all the encoder
+layers except the initial L0 layers to modulate the high-level features. The learn-
+able tokens “recalibrate” the values of fisheye features such that they resemble
+those of perspective images to enable a pre-trained model to infer attributes
+of the 3D scene with high fidelity. Specifically, we reformulate the transformer
+encoder, frame-wise, and global attention layers from Eqs. (2) to (4) as
+             \left [ \boldsymbol {x}_s^{(\ell )}, \left [ \boldsymbol {\phi }_{\text {E},k}'^{(\ell )} \right ]_{k=1}^K \right ] &= f_\text {E}^{(\ell )} \left (\left [ \boldsymbol {x}_s^{(\ell -1)}, \left [ \boldsymbol {\phi }_{\text {E},k}^{(\ell )} \right ]_{k=1}^K \right ]\right ), \; \forall \ell \in (L_0, L_1], \\ \left [ \boldsymbol {z}_s'^{(\ell )}, \left [ \boldsymbol {\phi }_{\text {F},k}'^{(\ell )} \right ]_{k=1}^K \right ] &= f_\text {F}^{(\ell )} \left (\left [ \boldsymbol {z}_s^{(\ell -1)}, \left [ \boldsymbol {\phi }_{\text {F},k}^{(\ell )} \right ]_{k=1}^K \right ]\right ), \; \forall \ell \in [L_2], \\ \left [ \left [ \boldsymbol {z}_s^{(\ell )} \right ]_{s=1}^S, \left [ \boldsymbol {\phi }_{\text {G},k}'^{(\ell )} \right ]_{k=1}^K \right ] &= f_\text {G}^{(\ell )} \left (\left [ \left [\boldsymbol {z}_s'^{(\ell )} \right ]_{s=1}^S, \left [ \boldsymbol {\phi }_{\text {G},k}^{(\ell )} \right ]_{k=1}^K \right ]\right ), \; \forall \ell \in [L_2],
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           (8)
+
+                                                                                                    (ℓ)
+where ϕM,k ∈ Rd represents the k-th calibration token at the ℓ-th layer of mod-
+ule M ∈ {E, F, G}. In other words, at each encoder and frame-wise attention
+layer, K calibration tokens adapt the N image tokens separately. At each global
+attention layer, K calibration tokens adapt the SN image tokens of the en-
+tire sequence jointly. Each layer has its own set of calibration tokens, which
+are dropped immediately at each layer to localize the latent calibration effect
+                                                                                                                                                                                                       Fisheye3R     7
+
+to each layer. During training, only calibration tokens are learned, while the
+original backbone is entirely frozen for efficiency and to preserve the model’s
+knowledge on perspective images.
+
+3.3   Learning
+We denote the entire feed-forward model by f . With a perspective image se-
+quence I p = (Isp )Ss=1 , we predict
+                                                                              \hat {E}^\text {p}, \hat {D}^\text {p} = f\left ( I^\text {p} \right ),                                                               (9)
+
+where Ê p and D̂p denote the predicted camera poses and dense geometry outputs
+for the perspective sequence. To adapt the model to fisheye data, we can use a
+sequence of fisheye images I f = (Isf )Ss=1 for training, i.e.,
+                                                                          \hat {E}^\text {f}, \hat {D}^\text {f} = f\left ( I^\text {f}, \boldsymbol {\phi } \right ),                                             (10)
+
+where ϕ is the set of all calibration tokens and Ê f , D̂f are outputs corresponding
+to the fisheye sequence.
+    The ideal scenario assumes abundant fisheye data is available for training;
+given this is not the case in practice, we opt for an alternative of generating
+fisheye images from perspective ones. Particularly, we adopt Kannala-Brandt
+distortion model [19] for fisheye image synthesis from perspective images: Isf =
+T (Isp ) for each frame s where T denotes the distortion transformation from
+perspective to fisheye image. The inverse distortion operation can be represented
+by T −1 , which is used to obtain undistorted geometric predictions from fisheye
+predictions as D̂sp = T −1 (D̂sf ). The camera extrinsic parameters are unrelated
+to the camera type, thus they do not need to be transformed: Êsp = Êsf .
+    Finally, the calibration tokens can be learned by supervising the outputs. The
+supervision type depends on the data availability. We propose three supervision
+schemes according to the types of data available.
+Self-supervised learning with perspective images (SSL). If only perspec-
+tive RGB images I p are available with no ground truth, we generate pseudo-
+labels using the original model’s predictions for self-supervision. Inspired by
+AugUndo [51], the loss function can therefore be expressed as
+
+                            \mathcal {L}_\text {SSL}^\text {p} = \mathcal {L} \left (f(I^\text {p}) ; T^{-1} \!\circ \! f(T(I^\text {p}), \boldsymbol {\phi }) \right ). \label {eq:loss_ssl}                      (11)
+
+Supervised learning with perspective images (SL). If both perspective
+images I p and their ground truth (E p , Dp ) are available, they can be directly
+used for supervision as
+
+                       \mathcal {L}_\text {SL}^\text {p} = \mathcal {L} \left ((E^\text {p}, D^\text {p}); T^{-1} \!\circ \! f(T(I^\text {p}), \boldsymbol {\phi }) \right ). \label {eq:loss_sl}                  (12)
+
+Supervised learning with fisheye images (SL+). If fisheye images I f with
+ground truth (E f , Df ) are available, we can train the calibration tokens via
+
+                                             \mathcal {L}_\text {SL}^\text {f} = \mathcal {L} \left ((E^\text {f}, D^\text {f}); f(I^\text {f}, \boldsymbol {\phi }) \right ). \label {eq:loss_slp}                (13)
+8       R. Duan et al.
+
+
+       Feature Extraction                                     Frame Attention Masks
+
+               ×L0 Layers                                                      Global Attention Mask
+                            Linear Classifier
+
+                                                Perspective
+
+                                                Fisheye
+
+                                                Perspective
+
+
+
+                                                                                      =1     =0
+
+Fig. 3: Masked attention for mixture sequences. To handle a sequence of mixed
+camera types, we introduce a masked attention mechanism to block the influence of
+calibration tokens on perspective image tokens. After L0 layers of feature extraction
+in image encoder, the class tokens are passed to a linear classifier for camera type
+prediction. Then, frame-wise and global attention masks are created accordingly and
+used in all the remaining encoder layers, including the L1 − L0 ones in the image
+encoder, and the L2 frame and L2 global attention layers in alternating attention.
+
+The loss function L is the loss used by the original 3D reconstruction method.
+Undistortion T −1 is applied to the dense geometry outputs but not the pose.
+Supervision is consistently applied at the spatial resolution of the ground truth
+observation, preventing artifacts that may arise from resampling.
+
+
+3.4   Controlled Adaptation with Masked Attention
+
+We further extend the model to handle unknown and potentially mixed types of
+cameras in a sequence during inference. Though calibration tokens can learn to
+align fisheye features to perspective ones effectively, we observe that they may
+not be backwards compatible with perspective images once trained, i.e., given
+perspective images, the calibration tokens are likely to modulate their features,
+leading to performance degradation on perspective data. This can be explained
+by the increased task complexity for calibration tokens to not only calibrate
+fisheye features but also preserve perspective ones simultaneously. Therefore, we
+propose to control the effect of calibration tokens depending on the camera type
+of images observed by using a masked attention scheme (Fig. 3). The effect of
+calibration tokens is eliminated by a binary mask for perspective images, but is
+activated for fisheye images. This mechanism ensures backwards compatibility
+with perspective images and enables inference on mixed-camera sequences.
+Camera type classification. Due to the significant difference between per-
+spective and fisheye images in terms of distortion characteristics, classifying the
+two types of images from their feature vectors is feasible. As we have the class
+tokens readily available from the image encoder as a compact representation of
+the image feature, we employ them to determine the camera type of an image.
+                                                       (L )
+Formally, for a frame Is , we extract its class token xs,00 from the L0 -th layer and
+                                     d
+pass it to an image classifier ψ : R → (0, 1), which can be as simple as a linear
+                                                                                                                                                                                                                                                                                                                                                                                   Fisheye3R                                                                                        9
+
+                                                                                     Pose (Angular) Pose (Distance)  Depth Map                                                                                                                                                                                                     Point Map        FoV Map
+       Dataset & Method
+                                                                                   RRA↑ RTA↑ AUC↑ ATE↓ RPEt↓RPEr↓ Rel↓ RMSE↓ δ1 ↑                                                                                                                                                                                               Acc↓ Comp↓ CD↓ hErr↓ vErr↓ AUC↑
+                   VGGT [44]      0.956 0.759 0.381 0.200 0.420 13.877 0.287 0.440 0.618 0.122 0.102 0.112 12.962 10.253 0.305
+                    w/ SSL        0.999 0.813 0.533 0.148 0.284 6.097 0.234 0.354 0.744 0.077 0.052 0.065 7.092 5.708 0.605
+                     w/ SL        0.999 0.910 0.656 0.097 0.190 4.855 0.230 0.343 0.742 0.074 0.046 0.060 4.439 3.614 0.722
+ScanNet++ [55]
+
+
+                    w/ SL+        0.999 0.916 0.677 0.088 0.168 4.363 0.222 0.327 0.759 0.073 0.046 0.060 4.602 3.606 0.718
+                     π 3 [49]     0.989 0.814 0.463 0.164 0.347 10.651 0.282 0.421 0.661 0.095 0.073 0.084 8.288 6.332 0.551
+                    w/ SSL        0.999 0.844 0.571 0.114 0.220 6.146 0.239 0.357 0.741 0.070 0.050 0.060 3.926 3.090 0.773
+                     w/ SL        0.999 0.872 0.617 0.101 0.194 5.424 0.239 0.350 0.744 0.068 0.048 0.058 3.036 2.561 0.810
+                    w/ SL+        0.999 0.926 0.719 0.072 0.139 3.710 0.212 0.320 0.771 0.064 0.044 0.054 2.941 3.018 0.873
+                 MapAnything [20] 0.993 0.848 0.519 0.163 0.310 8.851 0.274 0.394 0.672 0.091 0.076 0.083 6.631 4.821 0.647
+                    w/ SSL        0.999 0.972 0.766 0.070 0.143 4.569 0.190 0.283 0.785 0.057 0.050 0.054 3.146 2.575 0.875
+                     w/ SL        0.999 0.959 0.730 0.080 0.164 5.032 0.195 0.289 0.786 0.059 0.050 0.054 4.011 3.049 0.853
+                    w/ SL+        0.999 0.970 0.774 0.066 0.134 4.370 0.171 0.263 0.810 0.058 0.045 0.051 3.264 2.074 0.927
+                   VGGT [44]      0.964 0.777 0.458 0.134 0.260 10.055 0.189 0.739 0.732 0.237 0.179 0.208 7.382 7.566 0.475
+                    w/ SSL        0.997 0.882 0.662 0.079 0.150 2.761 0.110 0.502 0.885 0.140 0.098 0.119 1.992 1.992 0.983
+                     w/ SL        0.995 0.931 0.746 0.048 0.095 2.242 0.082 0.354 0.930 0.080 0.053 0.066 1.418 1.344 1.000
+                    w/ SL+        0.998 0.948 0.778 0.038 0.073 1.820 0.076 0.334 0.934 0.072 0.045 0.059 1.665 1.598 1.000
+                     π [49]
+                      3
+                                  0.984 0.893 0.601 0.078 0.157 7.148 0.111 0.410 0.909 0.126 0.106 0.116 4.044 3.961 0.927
+ADT [31]
+
+
+
+
+                    w/ SSL        1.000 0.953 0.776 0.035 0.069 2.241 0.075 0.332 0.937 0.075 0.054 0.064 1.217 0.989 1.000
+                     w/ SL        0.996 0.945 0.768 0.041 0.079 3.325 0.073 0.323 0.940 0.068 0.047 0.058 1.161 1.068 1.000
+                    w/ SL+        0.996 0.960 0.819 0.034 0.066 2.799 0.087 0.362 0.915 0.074 0.039 0.056 1.211 1.534 0.997
+                 MapAnything [20] 0.959 0.793 0.448 0.125 0.264 9.601 0.145 0.411 0.860 0.164 0.130 0.147 8.313 8.141 0.399
+                    w/ SSL        0.996 0.908 0.704 0.060 0.126 3.525 0.090 0.333 0.921 0.079 0.056 0.068 2.032 2.015 1.000
+                     w/ SL        0.997 0.903 0.691 0.063 0.134 3.421 0.091 0.337 0.920 0.081 0.054 0.068 1.987 2.001 1.000
+                    w/ SL+        1.000 0.934 0.753 0.045 0.080 2.111 0.087 0.330 0.925 0.072 0.043 0.058 1.338 1.101 1.000
+                   VGGT [44]      0.829 0.968 0.440 0.768 2.624 20.242 0.270 6.736 0.565 1.029 1.580 1.304 19.430 7.273 0.212
+                    w/ SSL        0.945 0.989 0.592 0.537 1.814 12.882 0.200 5.678 0.724 0.956 1.249 1.102 15.737 5.880 0.313
+                     w/ SL        0.982 0.991 0.649 0.443 1.503 10.290 0.204 4.456 0.694 0.893 1.148 1.021 11.953 4.247 0.435
+                    w/ SL+        1.000 0.993 0.904 0.117 0.356 2.409 0.111 3.955 0.890 0.644 0.808 0.726 4.790 2.252 0.757
+KITTI360 [24]
+
+
+
+
+                     π 3 [49]     0.955 0.961 0.548 0.428 1.840 11.717 0.153 4.159 0.806 0.772 1.081 0.927 11.731 4.316 0.444
+                    w/ SSL        0.981 0.986 0.649 0.365 1.457 9.938 0.101 3.923 0.897 0.758 0.895 0.827 8.864 3.804 0.531
+                     w/ SL        0.965 0.993 0.634 0.404 1.531 11.555 0.105 4.091 0.893 0.749 0.909 0.829 7.816 3.203 0.566
+                    w/ SL+        1.000 0.993 0.942 0.092 0.239 1.484 0.097 3.645 0.922 0.399 0.475 0.437 6.316 4.001 0.751
+                 MapAnything [20] 0.818 0.947 0.428 1.215 3.023 20.568 0.258 5.775 0.607 1.097 1.505 1.301 18.034 6.642 0.259
+                    w/ SSL        0.906 0.989 0.540 0.707 2.152 15.528 0.156 4.294 0.809 0.933 1.098 1.015 15.739 6.025 0.291
+                     w/ SL        0.906 0.982 0.538 0.682 2.141 15.342 0.153 4.458 0.814 0.938 1.094 1.016 15.750 5.998 0.295
+                    w/ SL+        1.000 0.992 0.917 0.152 0.350 1.565 0.091 3.282 0.922 0.549 0.601 0.575 2.963 1.938 0.805
+
+Table 1: Quantitative results of fisheye adaptation on three models, three datasets,
+and three learning schemes. Compared to the baselines, the cell colors denote an im-
+provement of 10%-30% , 30%-50% , and 50%+ . The best numbers are marked in bold.
+
+
+classifier with sigmoid activation. Consequently, a binary predicted camera type
+can be obtained for each frame s as
+
+                                                                                                                                   M_s = \mathbb {I}\left ( \psi \left (\boldsymbol {x}_{s,0}^{(L_0)} \right ) > 0.5 \right ) \in \{0, 1\},                                                                                                                                                                                                                       (14)
+
+where I denotes the indicator function and Ms is 1 for fisheye and 0 for perspec-
+tive.
+Attention masking. With such binary camera type predictions, the frame-wise
+attention mask MF,s for each frame s and the global attention mask MG for the
+sequence can be respectively constructed as
+
+
+
+
+          M_{\text {F},s} = \begin {pmatrix} \mathbf {1}_{N \times N} & M_s \cdot \mathbf {1}_{N \times K} \\ \mathbf {1}_{K \times N} & \mathbf {1}_{K \times K} \end {pmatrix}, \qquad M_\text {G} = \begin {pmatrix} \mathbf {1}_{SN \times SN} & \begin {pmatrix} M_1 \cdot \mathbf {1}_{N \times K} \\ M_2 \cdot \mathbf {1}_{N \times K} \\ \vdots \\ M_S \cdot \mathbf {1}_{N \times K} \end {pmatrix} \\ \mathbf {1}_{K \times SN} & \mathbf {1}_{K \times K} \end {pmatrix},  (15)
+10       R. Duan et al.
+
+       Input       Ground Truth   MapAnything+Ours    MapAnything    π3              VGGT
+
+
+
+
+     Input       Ground Truth MapAnything+Ours       MapAnything    π3              VGGT
+
+
+
+
+                                      MapAnything+Ours                    MapAnything
+
+
+
+
+        Ground Truth
+
+                                             π3                              VGGT
+
+
+
+
+Fig. 4: Qualitative comparison of FoV, depth, and point map estimation on an indoor
+(top) and outdoor (bottom) fisheye sequence. We apply calibration tokens to MapAny-
+thing and consistently produce more geometrically consistent reconstructions compared
+to the baseline models. The yellow arrows highlight the regions where our calibration
+tokens effectively rectify significant geometric distortions.
+
+
+where N is the number of image tokens per frame, K is the number of calibration
+tokens per layer, and 1 represents a matrix of ones. The (i, j)-th entry of each
+mask controls whether the j-th input token affects the i-th output token. Then,
+MF,s are passed to the remaining L1 − L0 image encoder layers and L2 frame-
+wise layers in the AA module, while MG is passed to the global attention layers
+in the AA module. Altogether, these masks nullify the effect of calibration tokens
+on perspective frames.
+                                                                Fisheye3R      11
+
+4     Experiments
+
+4.1   Settings
+
+Datasets. We train the models with 3 learning schemes as mentioned in Sec. 3.3.
+For SSL and SL, we use 6 perspective datasets for training: ScanNet++ (per-
+spective) [55], MegaDepth [23], BlendedMVS [54], TartanAir [48], MVS-Synth
+[18], and ParallelDomain-4D [41], spanning both real and synthetic, indoor and
+outdoor scenes. For SL+, we additionally add two fisheye datasets for train-
+ing: ASE [9] and KITTI360 [24]. For testing, we evaluate the performance on 3
+fisheye datasets: ScanNet++ (fisheye) [55], ADT [31], and KITTI360 [24].
+Metrics. We evaluate the models on 4 different tasks and 15 quantitative met-
+rics following [20, 39, 49]. For camera pose estimation, we use Relative Rotation
+Accuracy (RRA), Relative Translation Accuracy (RTA), and Area Under Curve
+(AUC) of the accuracy-threshold curve at 30◦ as angular accuracy metrics and
+Absolute Trajectory Error (ATE), Relative Pose Error for translation (RPEt),
+and Relative Pose Error for rotation (RPEr) as distance error metrics. For depth
+map estimation, we use Absolute Relative Error (Rel), Root Mean Squared Er-
+ror (RMSE), and δ1 accuracy. For point map estimation, we use Accuracy (Acc),
+Completeness (Comp), and Chamfer Distance (CD). For FoV map estimation,
+we use median error for horizontal (hErr) and vertical (vErr) FoVs in degrees,
+as well as the Area Under Curve (AUC) up to a 10◦ threshold for FoV.
+Models. We apply our method on three foundation reconstruction models,
+VGGT [44], π 3 [49], and MapAnything [20], based on their public checkpoints.
+
+
+4.2   Results
+
+Quantitative improvements on fisheye datasets. Table 1 summarizes the
+quantitative results on three datasets of fisheye sequences. Fisheye3R yields con-
+sistent and substantial performance gains over the baseline models, demonstrat-
+ing that calibration tokens can effectively bridge the geometric domain gap be-
+tween perspective and fisheye imagery. Remarkably, even self-supervised learn-
+ing using only unlabeled perspective RGB images boosts performance on fisheye
+data by a large margin, achieving a 50%+ improvement in 26/135 tests across
+all models and metrics. This highlights our framework’s potential to scale with
+larger corpora of unlabeled data for further enhancement. The introduction of
+annotated perspective data further strengthens these results, with 37/135 met-
+rics showing improvements exceeding 50%. Performance ultimately peaks when
+incorporating annotated fisheye data, where a 50%+ improvement is achieved
+in 77/135 cases. This shows that while Fisheye3R is highly effective in data-
+constrained regimes, it scales efficiently as more supervision becomes available.
+Qualitative comparisons. We qualitatively compare our method with pre-
+vious unified feed-forward foundation models in Fig. 4. Our method achieves
+significantly more accurate 3D scene reconstruction from the sequence of fisheye
+images thanks to the calibration tokens. While traditional foundation models
+12         R. Duan et al.
+
+
+
+
+Fig. 5: Performance analysis on hybrid sequences of ScanNet++ with varying perspec-
+tive image ratios. Pre-trained: the vanilla MapAnything backbone without adapta-
+tion. C.T. (Fisheye Training): calibration tokens trained on fully fisheye sequences.
+C.T. (Mix Training): tokens trained on mixture sequences of both camera types.
+C.T. (Mix Training + M.A.): masked attention introduced during mixed training.
+
+
+     Heterogeneous Cameras                      3D Reconstructions
+
+
+
+
+Fig. 6: Reconstructions over a hybrid camera system in driving scenes [24]. The left and
+right fisheye cameras capture the two sides of the scene, while the front-facing perspec-
+tive camera bridges the two views. Without a model capable of handling heterogeneous
+cameras, reconstructions from the two fisheye views would remain disconnected.
+
+
+
+are incapable of accurately predicting 3D scene geometry from distorted fish-
+eye lenses, our method produces reconstructions with higher fidelity and better
+alignment with ground truth.
+Performance on hybrid inputs. We analyze the calibration performance
+across hybrid sequences containing both perspective and fisheye frames in Fig. 5
+and Fig. 6. By varying the ratio of perspective images, Fig. 5 shows that while
+calibration tokens excel at optimizing pure fisheye sequences, they suffer from
+parameter drift caused by specialized training on fisheye images, leading to per-
+formance degradation on perspective images. Conversely, while training tokens
+on mixed-camera sequences preserves perspective accuracy, it weakens adapta-
+tion to fisheye data. By contrast, our proposed masked attention mechanism
+not only enables backwards compatibility by retaining the model’s native per-
+formance on perspective data, but also unleashes the representational power of
+calibration tokens for fisheye adaptation, achieving the most robust performance
+across all perspective ratios. The reconstructions in Fig. 6 illustrate a practical
+deployment scenario of our mixed-camera model for autonomous driving, where
+a vehicle is equipped with heterogeneous cameras. Leveraging the forward-facing
+perspective camera to connect the left and right fisheye views, our method recon-
+structs a single, geometrically consistent panoramic scene from hybrid sensors.
+                                                                                   Fisheye3R           13
+
+        Camera Type Classification: Accuracy                  Point Map Estimation: Chamfer Distance
+
+
+
+
+            Feature Extraction Layer (L0)                        Calibration Tokens per Layer (K)
+
+Fig. 7: Ablation studies of hyperparameters. Feature extraction depth (left): Clas-
+sification accuracy of camera types as a function of the number of frozen initial layers
+(L0 ). Token density (right): Impact of the number of calibration tokens per layer
+(K) on reconstruction accuracy, measured by Chamfer Distance. Experiments are con-
+ducted on ScanNet++ with MapAnything backbone.
+
+
+
+   Perspective   T-SNE Embeddings of Image Tokens                          Fisheye Images
+                                               Perspective
+
+                                                Fisheye
+                                                 Fisheye
+                                               (Calibrated)
+
+
+     Fisheye                                                                Attention Maps
+
+
+
+
+Fig. 8: Visualizing the impact of calibration tokens on the feature space with MapA-
+nything. Feature alignment (left): Image tokens from the last alternating attention
+layer of a perspective and fisheye image pair, with fisheye tokens derived from the model
+before and after calibration. Attention maps (right): Three fisheye test images and
+their average attention weights from image to calibration tokens in the image encoder.
+
+
+
+Ablation experiments. We present two ablation studies in Fig. 7. First, we
+analyze the feature extraction depth (L0 ) required for robust camera type clas-
+sification. While deeper layers provide the class token with higher-level semantic
+information, increasing L0 conversely reduces the number of subsequent layers
+(L1 − L0 ) available for feature alignment via calibration tokens. As shown in
+Fig. 7 (left), classification accuracy saturates at approximately L0 = 12 lay-
+ers. We identify this as the optimal bottleneck, as it reserves the remaining 12
+encoder layers for calibration, thereby maximizing the potential for geometric
+adaptation. Second, we evaluate the number of calibration tokens (K) per layer
+in Fig. 7 (right), which reveals that even a single token (K = 1) per layer
+brings the majority of the performance gain, demonstrating the efficiency of the
+proposed token-based alignment. While increasing the token count yields fur-
+ther marginal improvements, the reconstruction quality peaks approximately at
+K = 8. Therefore, we adopt L0 = 12 and K = 8 as the default configuration for
+the experiments.
+Feature alignment. We employ t-SNE [26] to visualize the patch-level em-
+beddings of a perspective and fisheye image pair in Fig. 8 (left). As shown in
+14         R. Duan et al.
+
+     Model     KB (OOD)     Fisheye624       MEI     Equidistant Stereographic Equiangular Orthographic
+     π 3 CD↓     0.230        0.228          0.264     0.219        0.211        0.241        0.375
+     +Ours       0.116        0.117          0.095     0.107        0.088        0.116        0.182
+ Improvement    49.7%         48.5%          64.1%     51.1%        58.1%        52.0%        51.5%
+
+Table 2: Reconstruction CD of π on Stanford2D3DS with various projection models.
+                                         3
+
+Although our method employs Kannala-Brandt (KB) for synthesis, it generalizes well
+to KB with out-of-distribution (OOD) parameters and other projection models.
+
+
+
+
+the embedding space, the original fisheye features (light blue) exhibit a dis-
+tinct distributional shift and deviate significantly from the perspective manifold
+(brown). This geometric domain gap explains the performance degradation ob-
+served when applying the pre-trained foundation model directly to fisheye data.
+By introducing calibration tokens, the adapted fisheye embeddings (dark blue)
+are effectively realigned to the perspective distribution. This demonstrates that
+the tokens are able to bridge the geometric gap by projecting fisheye patches
+into a shared representation space consistent with the model’s original training
+distribution.
+
+Attention map visualization. To further understand the spatial influence of
+our framework, we visualize the attention weights that image tokens pay to the
+calibration tokens in Fig. 8 (right). These attention maps serve as an indicator
+of the corrective influence exerted by the calibration tokens on specific image
+patches. It can be observed that patches in the peripheral regions that suffer from
+the most significant radial distortion pay more attention to calibration tokens
+(red). This suggests that the calibration tokens selectively target regions where
+the features are most divergent from the perspective distribution, prioritizing the
+correction of extreme geometric warping at fisheye image boundaries to restore
+global feature consistency.
+
+Generalization to other projection models. To evaluate the projection
+model domain gap in a controlled setting and to eliminate dataset-dependent
+confounding effects, we render fisheye images from Stanford2D3DS dataset [2]
+with varying projection models and measure the improvement of reconstruc-
+tion quality of our approach in Tab. 2. The results indicate that although only
+Kannala-Brandt model is employed for fisheye synthesis, the learned calibration
+tokens generalize well to other projection models.
+
+Generalization to panoramic images. While this work primarily focuses
+on extending foundation models to fisheye imagery, calibration tokens have the
+potential to generalize to images from other camera models as well, such as
+panoramic images. Figure 9 presents multi-view reconstructions from 360◦ im-
+ages, where calibration tokens are trained on Matterport3D [5] and tested on
+Stanford2D3DS [2]. The result implies that calibration tokens can be general-
+ized to camera models beyond fisheye.
+                                                                 Fisheye3R      15
+
+      Scene Image          Ground Truth     MapAnything+Ours     MapAnything
+
+
+
+
+         Fig. 9: Generalization of calibration tokens to panoramic images.
+
+
+5   Discussion
+
+Projective geometry describes the mapping between 3D points and 2D image
+pixels. Different camera lenses induce different projection functions, resulting
+in different spatial arrangements of pixels in the images formed. As existing
+models are trained on perspective images, they take on such biases implicitly.
+When tested on images with curvilinear distortion, even for 3D scenes previously
+observed, local operations such as patch embedding operate on a different set
+of visual patterns that induce a covariate shift in the latent features, leading to
+out-of-distribution behavior and performance degradation. As the change occurs
+in the value of the features distributed over the spatial domain, our work aims
+to recalibrate them with learnable tokens to align with the original training
+distribution of perspective features. While this can be viewed as a form of camera
+domain adaptation, our masked attention mechanism enables a single network
+to support different camera models by selectively controlling the activation of
+adaptation based on camera types.
+Limitations. The proposed method is limited to transformer architectures due
+to its dependency on token-based adaptation. The fidelity of self-supervised
+adaptation also depends on the original model’s performance. While this is par-
+tially mitigated by the use of ground truth in the supervised setting, one may
+be limited for tasks that do not have annotations readily available.
+
+
+Acknowledgments
+
+This work is supported by Google Gift Funding and NSF-2112562 Athena AI
+Institute. Additionally, we thank Federico Tombari for his valuable guidance and
+constructive feedback during the course of this project.
+16      R. Duan et al.
+
+References
+ 1. Agarwal, S., Furukawa, Y., Snavely, N., Simon, I., Curless, B., Seitz, S.M., Szeliski,
+    R.: Building rome in a day. Communications of the ACM 54(10), 105–112 (2011)
+    4
+ 2. Armeni, I., Sax, S., Zamir, A.R., Savarese, S.: Joint 2d-3d-semantic data for indoor
+    scene understanding. arXiv preprint arXiv:1702.01105 (2017) 14
+ 3. Besl, P.J., McKay, N.D.: Method for registration of 3-d shapes. In: Sensor fusion
+    IV: control paradigms and data structures. vol. 1611, pp. 586–606. Spie (1992) 22
+ 4. Caruso, D., Engel, J., Cremers, D.: Large-scale direct slam for omnidirectional
+    cameras. In: 2015 IEEE/RSJ international conference on intelligent robots and
+    systems (IROS). pp. 141–148. IEEE (2015) 1, 4
+ 5. Chang, A., Dai, A., Funkhouser, T., Halber, M., Niessner, M., Savva, M., Song,
+    S., Zeng, A., Zhang, Y.: Matterport3d: Learning from rgb-d data in indoor envi-
+    ronments. arXiv preprint arXiv:1709.06158 (2017) 14
+ 6. Deng, J., Wang, Y., Meng, H., Hou, Z., Chang, Y., Chen, G.: Omnistereo: Real-time
+    omnidireactional depth estimation with multiview fisheye cameras. In: Proceedings
+    of the Computer Vision and Pattern Recognition Conference. pp. 1003–1012 (2025)
+    4
+ 7. Ding, Y., Yuan, W., Zhu, Q., Zhang, H., Liu, X., Wang, Y., Liu, X.: Transmvsnet:
+    Global context-aware multi-view stereo network with transformers. In: Proceedings
+    of the IEEE/CVF conference on computer vision and pattern recognition. pp.
+    8585–8594 (2022) 4
+ 8. Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner,
+    T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., et al.: An image is
+    worth 16x16 words: Transformers for image recognition at scale. arXiv preprint
+    arXiv:2010.11929 (2020) 3, 5
+ 9. Engel, J., Somasundaram, K., Goesele, M., Sun, A., Gamino, A., Turner, A., Ta-
+    lattof, A., Yuan, A., Souti, B., Meredith, B., et al.: Project aria: A new tool for
+    egocentric multi-modal ai research. arXiv preprint arXiv:2308.13561 (2023) 11, 21
+10. Frahm, J.M., Fite-Georgel, P., Gallup, D., Johnson, T., Raguram, R., Wu, C., Jen,
+    Y.H., Dunn, E., Clipp, B., Lazebnik, S., et al.: Building rome on a cloudless day.
+    In: European conference on computer vision. pp. 368–381. Springer (2010) 4
+11. Gangopadhyay, S., Kim, J.H., Chen, X., Rim, P., Park, H., Wong, A.: Extend-
+    ing foundational monocular depth estimators to fisheye cameras with calibration
+    tokens. In: Proceedings of the IEEE/CVF International Conference on Computer
+    Vision (2025) 4
+12. Gangopadhyay, S., Wong, A.: From perspective to fisheye depth estimation and
+    open-vocabulary segmentation. In: European Conference on Computer Vision.
+    Springer (2026) 4
+13. Geyer, C., Daniilidis, K.: A unifying theory for central panoramic systems and
+    practical implications. In: European conference on computer vision. pp. 445–461.
+    Springer (2000) 4
+14. Gherardi, R., Farenzena, M., Fusiello, A.: Improving the efficiency of hierarchical
+    structure-and-motion. In: 2010 IEEE computer society conference on computer
+    vision and pattern recognition. pp. 1594–1600. IEEE (2010) 4
+15. Gu, X., Fan, Z., Zhu, S., Dai, Z., Tan, F., Tan, P.: Cascade cost volume for
+    high-resolution multi-view stereo and stereo matching. In: Proceedings of the
+    IEEE/CVF conference on computer vision and pattern recognition. pp. 2495–2504
+    (2020) 4
+                                                                      Fisheye3R        17
+
+16. Guo, Y., Garg, S., Miangoleh, S.M.H., Huang, X., Ren, L.: Depth any camera: Zero-
+    shot metric depth estimation from any camera. In: Proceedings of the Computer
+    Vision and Pattern Recognition Conference. pp. 26996–27006 (2025) 4
+17. Hu, E.J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., Chen, W.,
+    et al.: Lora: Low-rank adaptation of large language models. Iclr 1(2), 3 (2022) 24
+18. Huang, P.H., Matzen, K., Kopf, J., Ahuja, N., Huang, J.B.: Deepmvs: Learning
+    multi-view stereopsis. In: Proceedings of the IEEE conference on computer vision
+    and pattern recognition. pp. 2821–2830 (2018) 11, 21
+19. Kannala, J., Brandt, S.S.: A generic camera model and calibration method for
+    conventional, wide-angle, and fish-eye lenses. IEEE transactions on pattern analysis
+    and machine intelligence 28(8), 1335–1340 (2006) 4, 7
+20. Keetha, N., Müller, N., Schönberger, J., Porzi, L., Zhang, Y., Fischer, T.,
+    Knapitsch, A., Zauss, D., Weber, E., Antunes, N., et al.: Mapanything: Univer-
+    sal feed-forward metric 3d reconstruction. arXiv preprint arXiv:2509.13414 (2025)
+    1, 2, 3, 4, 6, 9, 11, 20, 21, 22
+21. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: European conference on computer vision. pp. 71–91. Springer (2024) 4
+22. Li, M., Hu, X., Dai, J., Li, Y., Du, S.: Omnidirectional stereo depth estimation
+    based on spherical deep network. Image and Vision Computing 114, 104264 (2021)
+    4
+23. Li, Z., Snavely, N.: Megadepth: Learning single-view depth prediction from internet
+    photos. In: Proceedings of the IEEE conference on computer vision and pattern
+    recognition. pp. 2041–2050 (2018) 11, 21
+24. Liao, Y., Xie, J., Geiger, A.: Kitti-360: A novel dataset and benchmarks for urban
+    scene understanding in 2d and 3d. IEEE Transactions on Pattern Analysis and
+    Machine Intelligence 45(3), 3292–3310 (2022) 1, 9, 11, 12, 21
+25. Lichy, D., Su, H., Badki, A., Kautz, J., Gallo, O.: Fova-depth: Field-of-view agnostic
+    depth estimation for cross-dataset generalization. In: 2024 International Conference
+    on 3D Vision (3DV). pp. 1–10. IEEE (2024) 4
+26. Van der Maaten, L., Hinton, G.: Visualizing data using t-sne. Journal of machine
+    learning research 9(11) (2008) 13
+27. Matsuki, H., Von Stumberg, L., Usenko, V., Stückler, J., Cremers, D.: Omnidi-
+    rectional dso: Direct sparse odometry with fisheye cameras. IEEE Robotics and
+    Automation Letters 3(4), 3693–3700 (2018) 4
+28. Mei, C., Rives, P.: Single view point omnidirectional camera calibration from pla-
+    nar grids. In: Proceedings 2007 IEEE International Conference on Robotics and
+    Automation. pp. 3945–3950. IEEE (2007) 4
+29. Oquab, M., Darcet, T., Moutakanni, T., Vo, H., Szafraniec, M., Khalidov, V.,
+    Fernandez, P., Haziza, D., Massa, F., El-Nouby, A., et al.: Dinov2: Learning robust
+    visual features without supervision. arXiv preprint arXiv:2304.07193 (2023) 5
+30. Pan, L., Baráth, D., Pollefeys, M., Schönberger, J.L.: Global structure-from-motion
+    revisited. In: European Conference on Computer Vision. pp. 58–77. Springer (2024)
+    4
+31. Pan, X., Charron, N., Yang, Y., Peters, S., Whelan, T., Kong, C., Parkhi, O.,
+    Newcombe, R., Ren, Y.C.: Aria digital twin: A new benchmark dataset for ego-
+    centric 3d machine perception. In: Proceedings of the IEEE/CVF International
+    Conference on Computer Vision. pp. 20133–20143 (2023) 9, 11, 21
+32. Piccinelli, L., Sakaridis, C., Segu, M., Yang, Y.H., Li, S., Abbeloos, W., Van Gool,
+    L.: Unik3d: Universal camera monocular 3d estimation. In: Proceedings of the
+    Computer Vision and Pattern Recognition Conference. pp. 1028–1039 (2025) 3, 4
+18      R. Duan et al.
+
+33. Scaramuzza, D., Martinelli, A., Siegwart, R.: A flexible technique for accurate
+    omnidirectional camera calibration and structure from motion. In: Fourth IEEE
+    International Conference on Computer Vision Systems (ICVS’06). pp. 45–45. IEEE
+    (2006) 4
+34. Schonberger, J.L., Frahm, J.M.: Structure-from-motion revisited. In: Proceedings
+    of the IEEE conference on computer vision and pattern recognition. pp. 4104–4113
+    (2016) 4
+35. Schönberger, J.L., Zheng, E., Frahm, J.M., Pollefeys, M.: Pixelwise view selection
+    for unstructured multi-view stereo. In: European conference on computer vision.
+    pp. 501–518. Springer (2016) 4
+36. Schops, T., Sattler, T., Pollefeys, M.: Bad slam: Bundle adjusted direct rgb-d slam.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition. pp. 134–144 (2019) 1
+37. Snavely, N., Seitz, S.M., Szeliski, R.: Photo tourism: exploring photo collections in
+    3d. In: ACM siggraph 2006 papers, pp. 835–846 (2006) 4
+38. Sweeney, C., Sattler, T., Hollerer, T., Turk, M., Pollefeys, M.: Optimizing the
+    viewing graph for structure-from-motion. In: Proceedings of the IEEE international
+    conference on computer vision. pp. 801–809 (2015) 4
+39. Tirado-Garín, J., Civera, J.: Anycalib: On-manifold learning for model-agnostic
+    single-view camera calibration. In: Proceedings of the IEEE/CVF International
+    Conference on Computer Vision. pp. 8044–8055 (2025) 4, 11, 22
+40. Umeyama, S.: Least-squares estimation of transformation parameters between two
+    point patterns. IEEE Transactions on pattern analysis and machine intelligence
+    13(4), 376–380 (2002) 22
+41. Van Hoorick, B., Wu, R., Ozguroglu, E., Sargent, K., Liu, R., Tokmakov, P., Dave,
+    A., Zheng, C., Vondrick, C.: Generative camera dolly: Extreme monocular dynamic
+    novel view synthesis. In: European Conference on Computer Vision. pp. 313–331.
+    Springer (2024) 11, 21
+42. Veicht, A., Sarlin, P.E., Lindenberger, P., Pollefeys, M.: Geocalib: Learning single-
+    image calibration with geometric optimization. In: European Conference on Com-
+    puter Vision. pp. 1–20. Springer (2024) 4
+43. Wang, F., Galliani, S., Vogel, C., Speciale, P., Pollefeys, M.: Patchmatchnet:
+    Learned multi-view patchmatch stereo. In: Proceedings of the IEEE/CVF con-
+    ference on computer vision and pattern recognition. pp. 14194–14203 (2021) 4
+44. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the Computer Vision
+    and Pattern Recognition Conference. pp. 5294–5306 (2025) 1, 3, 4, 6, 9, 11
+45. Wang, N.H., Solarte, B., Tsai, Y.H., Chiu, W.C., Sun, M.: 360sd-net: 360 stereo
+    depth estimation with learnable cost volume. In: 2020 IEEE International Confer-
+    ence on Robotics and Automation (ICRA). pp. 582–588. IEEE (2020) 4
+46. Wang, Q., Zhang, Y., Holynski, A., Efros, A.A., Kanazawa, A.: Continuous 3d
+    perception model with persistent state. In: Proceedings of the Computer Vision
+    and Pattern Recognition Conference. pp. 10510–10522 (2025) 4
+47. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE/CVF conference on computer
+    vision and pattern recognition. pp. 20697–20709 (2024) 4
+48. Wang, W., Zhu, D., Wang, X., Hu, Y., Qiu, Y., Wang, C., Hu, Y., Kapoor, A.,
+    Scherer, S.: Tartanair: A dataset to push the limits of visual slam. in 2020 ieee.
+    In: RSJ International Conference on Intelligent Robots and Systems (IROS). pp.
+    4909–4916 11, 21
+                                                                     Fisheye3R       19
+
+49. Wang, Y., Zhou, J., Zhu, H., Chang, W., Zhou, Y., Li, Z., Chen, J., Pang, J., Shen,
+    C., He, T.: π 3 : Permutation-equivariant visual geometry learning. arXiv preprint
+    arXiv:2507.13347 (2025) 1, 3, 4, 6, 9, 11, 22
+50. Wu, C.: Towards linear-time incremental structure from motion. In: 2013 Interna-
+    tional Conference on 3D Vision-3DV 2013. pp. 127–134. IEEE (2013) 4
+51. Wu, Y., Liu, T.Y., Park, H., Soatto, S., Lao, D., Wong, A.: Augundo: Scaling
+    up augmentations for monocular depth completion and estimation. In: European
+    Conference on Computer Vision. pp. 274–293. Springer (2024) 7
+52. Yang, J., Sax, A., Liang, K.J., Henaff, M., Tang, H., Cao, A., Chai, J., Meier, F.,
+    Feiszli, M.: Fast3r: Towards 3d reconstruction of 1000+ images in one forward pass.
+    In: Proceedings of the Computer Vision and Pattern Recognition Conference. pp.
+    21924–21935 (2025) 4
+53. Yao, Y., Luo, Z., Li, S., Fang, T., Quan, L.: Mvsnet: Depth inference for unstruc-
+    tured multi-view stereo. In: Proceedings of the European conference on computer
+    vision (ECCV). pp. 767–783 (2018) 4
+54. Yao, Y., Luo, Z., Li, S., Zhang, J., Ren, Y., Zhou, L., Fang, T., Quan, L.: Blended-
+    mvs: A large-scale dataset for generalized multi-view stereo networks. In: Proceed-
+    ings of the IEEE/CVF conference on computer vision and pattern recognition. pp.
+    1790–1799 (2020) 11, 21
+55. Yeshwanth, C., Liu, Y.C., Nießner, M., Dai, A.: Scannet++: A high-fidelity dataset
+    of 3d indoor scenes. In: Proceedings of the IEEE/CVF International Conference
+    on Computer Vision. pp. 12–22 (2023) 1, 9, 11, 21
+56. Zhang, J., Herrmann, C., Hur, J., Jampani, V., Darrell, T., Cole, F., Sun, D.,
+    Yang, M.H.: Monst3r: A simple approach for estimating geometry in the presence
+    of motion. arXiv preprint arXiv:2410.03825 (2024) 4
+57. Zhao, D., Lichy, D., Perrin, P.N., Frahm, J.M., Sengupta, S.: Mvpsnet: Fast gen-
+    eralizable multi-view photometric stereo. In: Proceedings of the IEEE/CVF Inter-
+    national Conference on Computer Vision. pp. 12525–12536 (2023) 4
+58. Zhao, G., Liu, Y., Qi, W., Ma, F., Liu, M., Ma, J.: Fisheyedepth: A real scale self-
+    supervised depth estimation model for fisheye camera. In: 2025 IEEE International
+    Conference on Robotics and Automation (ICRA). pp. 3780–3787. IEEE (2025) 4
+59. Zhao, H., Chen, X., Li, Y., Wang, Q., Lu, H., Gao, F.: Fastvidar: Real-time omni-
+    directional depth estimation via alternative hierarchical attention. arXiv preprint
+    arXiv:2509.23733 (2025) 4
+    Fisheye3R: Adapting Unified 3D Feed-Forward
+        Foundation Models to Fisheye Lenses
+                          Supplementary Material
+
+
+6    Implementation Details
+
+Datasets. We report the dataset details in Tab. 3. For training with perspective
+data, we adopt the training split of [20] on these 6 datasets. For training with
+fisheye data, we select 30 scenes from ASE and 6 scenes from KITTI360 for
+SL+. For evaluation, we use the test split of [20] for ScanNet++, all the scenes
+of ADT, and 3 scenes of KITTI360. Train-test split is enforced at the scene level
+to ensure no test sequence is seen by the model during training.
+Sequence sampling. The sampling scheme roughly follows [20]. The sequence
+length is randomly sampled from 2–24 images per sequence during training, and
+from 4, 8, 16, and 32 during evaluation. A pairwise covisibility matrix is pre-
+computed for each scene based on the ground-truth depth maps beforehand for
+all datasets except KITTI360 with extra-long sequences, i.e., from each source
+image, the percentage of its pixels visible from each target image is calculated.
+Then, after the first reference frame is randomly selected from a scene, the
+remaining frames are added incrementally by including images with at least
+25% of pixels covisible from any sampled images. For KITTI360, due to its
+large number of frames per scene, we randomly sample the remaining frames
+uniformly from an interval centered at the first frame, with the frames ordered
+by their timestamps. During training, we set a maximum number of images
+per GPU to 24, thus equivalently 1–12 sequences per GPU, depending on the
+sampled sequence length. With 4 GPUs for training, the model is trained with
+an effective batch of 4–48 sequences per iteration.
+Image processing. Training augmentations include random resizing, cropping,
+color jittering, gray-scale conversion, and Gaussian blur. Images are resized such
+that the longer edge is 518 pixels, while the shorter edge is adjusted to the
+nearest multiple of 14 that preserves the aspect ratio.
+Distortion synthesis. We apply Kannala-Brandt model to synthesize fisheye
+distortions from perspective images. Specifically, each 3D ray direction d =
+(x, y, z) is mapped to the image plane by first computing the incident angle
+
+
+                                         \theta = \arctan \frac {\sqrt {x^2 + y^2}}{z},                         (16)
+
+and modeling the radial distance from the principal point as a polynomial of θ:
+
+                       r(\theta ) = \theta + k_1 \theta ^3 + k_2 \theta ^5 + k_3 \theta ^7 + k_4 \theta ^9 ,    (17)
+                                                                                                                    Fisheye3R             21
+
+
+     Split                       Dataset                            Type           Environment Scenes Images/Scene
+                  ScanNet++ [55]        Real                                            Indoor                896               1059.6
+                  MegaDepth [23]        Real                                           Outdoor                 266               153.5
+     Train       BlendedMVS [54]      Synthetic                                          Both                  450               232.5
+ (Perspective)     TartanAir [48]     Synthetic                                          Both                   46              7205.3
+                  MVS-Synth [18]      Synthetic                                        Outdoor                 114               100.0
+               ParallelDomain-4D [41] Synthetic                                        Outdoor                1452               947.7
+     Train                   ASE [9]                            Synthetic               Indoor                  30              608.2
+   (Fisheye)               KITTI360 [24]                          Real                 Outdoor                  6              16098.0
+                         ScanNet++ [55]                             Real                Indoor                  30              1435.3
+     Test
+   (Fisheye)                ADT [31]                                Real                Indoor                 236               70.3
+                          KITTI360 [24]                             Real               Outdoor                   3             15060.0
+Table 3: Summary of datasets used in our experiments. We report dataset type,
+environment, number of scenes, and the average number of images per scene.
+
+
+
+
+where k1 , k2 , k3 , k4 are distortion coefficients. The final corresponding pixel co-
+ordinates (u, v) in the fisheye image are given by
+
+               u = f_x \frac {x}{\sqrt {x^2+y^2}} r(\theta ) + c_x, \qquad v = f_y \frac {y}{\sqrt {x^2+y^2}} r(\theta ) + c_y ,         (18)
+
+
+where (fx , fy ) and (cx , cy ) denote the focal lengths and the principal point.
+During training, we randomly set the focal length to be [1, 1.2] times the orig-
+inal perspective focal length and shift the principal point by [-10, 10] pixels
+from the original principal point, with coefficients being uniformly sampled from
+k1 , k2 , k3 ∈ (−0.5, 0.5) and k4 ∈ (−0.05, 0.05) to synthesize different distortions.
+For mixture training with both camera types, each sequence is randomly selected
+to be either fully perspective, fully fisheye, or hybrid. For a hybrid sequence, each
+frame has a 0.5 probability of being distorted.
+Training. The 3D reconstruction loss function L used by the three learning
+schemes in Eqs. (11) to (13) follows the implementation of the MapAnything
+codebase [20], including supervision on camera poses, ray directions, depth maps,
+point maps, etc. For calibration token implementation, we insert K = 8 tokens
+to each transformer encoder layer in the image encoder and alternating attention
+module, except the first L0 = 12 layers of the image encoder, as more calibra-
+tion tokens yield negligible performance gain. Ablation in Tab. 4 shows that
+excluding the first 12 layers from calibration would not degrade the performance
+significantly. For each model, we freeze its original backbone and initialize cali-
+bration tokens with values sampled from a normal distribution with mean zero
+and standard deviation 1e-6. The calibration tokens are then trained for 40,000
+iterations by AdamW optimizer with a learning rate gradually decaying from
+1e-5 to 1e-7. Gradient checkpointing is enabled on the encoders to reduce the
+GPU memory consumption during training.
+22                   R. Duan et al.
+
+                          Trainable Memory   Pose       Depth                  Point       FoV
+       Method
+                         Parameters (GiB) RPEt↓ RPEr↓ Rel↓ δ1 ↑             Acc↓ Comp↓ hErr↓ vErr↓
+      Baseline 1,228,491,222          >48     0.310 8.851   0.274 0.672     0.091 0.076   6.631 4.821
+                E∗
+                          294,912     37.12   0.144 4.595   0.181   0.798   0.064   0.048 3.546 2.358
+                E         147,456     34.85   0.147 4.680   0.180   0.802   0.063   0.049 3.548 2.392
+ C.T. (K = 8)
+
+
+
+                     F    98,304      32.02   0.143 4.658   0.177   0.808   0.060   0.047 3.412 2.226
+                    G     98,304      32.58   0.148 4.760   0.179   0.808   0.060   0.047 3.419 2.204
+                E F       245,760     34.86   0.136 4.516   0.175   0.808   0.059   0.046 3.351 2.180
+                E   G     245,760     35.23   0.140 4.556   0.174   0.809   0.059   0.046 3.289 2.073
+                  FG      196,608     32.59   0.138 4.581   0.176   0.806   0.058   0.045 3.295 2.098
+                E FG      344,064     35.24   0.134 4.370   0.171   0.810   0.058   0.045 3.264 2.074
+                 r=4      1,032,192   34.85   0.142   4.603 0.178 0.804 0.060 0.046       3.668   2.394
+ LoRA
+
+
+
+
+                 r=8      2,064,384   34.86   0.142   4.560 0.173 0.808 0.059 0.046       3.454   2.242
+                r = 16    4,128,768   34.88   0.139   4.494 0.172 0.808 0.058 0.046       3.380   2.177
+                r = 32    8,257,536   34.93   0.137   4.410 0.170 0.810 0.057 0.045       3.398   2.198
+
+Table 4: Ablation study of calibration tokens (C.T.) inserted to different modules and
+comparison to LoRA (with different ranks r). Reconstruction metrics are reported on
+MapAnything model and fully fisheye sequences of ScanNet++. Modules to calibrate:
+E∗ = image encoder (all L1 = 24 layers); E = image encoder (the last L1 − L0 = 12
+layers), F = frame-wise attention layers in alternating attention, G = global attention
+layers in alternating attention. K = 8 calibration tokens are inserted to each layer.
+
+
+
+
+Evaluation. We generally follow the protocols of prior work [20,39,49] for evalu-
+ating 3D reconstruction. Specifically, predicted depth maps are aligned to ground
+truth by applying a scale and shift per sequence. The predicted point maps are
+aligned to the ground truth using the Umeyama algorithm [40] to estimate a sim-
+ilarity transformation, followed by a refinement step by Iterative Closest Point
+(ICP) [3]. Then, the point cloud metrics are computed based on the mean of
+nearest-neighbor distances between the predicted and ground-truth points.
+
+Camera type classification. The camera type classifier is implemented as a
+simple linear model (i.e., logistic regression), which is pre-trained prior to learn-
+ing the calibration tokens and converges in one minute with no GPU, achieving
+99.9%+ accuracy on the test data. This implies that distinguishing fisheye images
+from perspective is relatively straightforward from their features, due to their
+distinct distortion patterns. A more complex classifier could potentially yield
+further improvements, but given that the classification accuracy has already
+saturated on our test data, we adopt a simple linear classifier for efficiency.
+
+Masked attention implementation. The masked attention mechanism is im-
+plemented by the attn_mask argument in torch.nn.functional.scaled_dot_
+product_attention() function in PyTorch.
+
+Hardware configurations. The models are trained on a machine with 4 NVIDIA
+RTX A6000 GPUs (48GiB each) and 56 dual Intel Xeon Gold 6258R CPU cores.
+                                                                 Fisheye3R       23
+
+
+                                                      Speed     Memory
+                          Method
+                                                      (FPS)      (GiB)
+                         Baseline                      31.1      14.72
+                   + Calibration Tokens                31.1      14.72
+         + Calibration Tokens + Masked Attention       29.1      15.26
+Table 5: Average inference frames per second (FPS) and peak GPU memory across the
+test sequences with MapAnything model and an A6000 GPU. The inference overhead
+is mainly from masked attention (6% in runtime and 4% in memory), which is only
+introduced when the test sequences have unknown and potentially mixed camera types.
+
+
+7   Further Discussions
+Additional qualitative results. We provide more visual examples of 3D re-
+constructions in Figs. 11 to 13. In each figure, the first row presents some scene
+images, while the remaining ones show the ground-truth and predicted point
+clouds. The green and red bounding boxes highlight regions where distortions are
+corrected by calibration tokens most significantly. These examples demonstrate
+that Fisheye3R consistently improves geometric fidelity of the reconstructions,
+particularly in areas affected by strong lens distortion or challenging viewing
+angles. Camera poses are also estimated more accurately, as reflected by the
+improved alignment of point maps from different views, especially on sequences
+with wider FoV and longer length (Fig. 13).
+Training efficiency. For training, the peak GPU memory usage is reported in
+Tab. 4, and the total training time is approximately 20 hours per model with 4
+GPUs. Moreover, the model can be trained using fully fisheye sequences instead
+of mixed-camera types, without employing masked attention during training,
+and masked attention can be applied only at inference. We observe that this
+strategy speeds up training and has a negligible impact on the final performance
+on hybrid inputs.
+Inference efficiency. We report the inference efficiency of the baseline model
+before and after introducing calibration tokens and masked attention in Tab. 5,
+measured in frames per second (FPS) and peak GPU memory usage. Calibration
+tokens themselves introduce negligible computational overhead in both runtime
+and memory, indicating that adapting the model to fully fisheye sequences can
+be achieved with essentially no additional computational cost. Only when the
+camera type is unknown and mixed sequences must be supported is masked
+attention required to selectively activate calibration tokens, costing a modest
+overhead of approximately 6% in runtime and 4% in memory.
+Ablation on calibrated modules. We study the effect of inserting calibration
+tokens into different components of the model in Tab. 4. All models are evaluated
+on fully fisheye sequences, where masked attention is not involved. In this setting,
+one could in principle calibrate all L1 = 24 layers of the image encoder to
+maximize the potential performance gain. However, comparing the second (E∗ )
+and third (E) rows of Tab. 4, we observe no significant difference in performance,
+suggesting that calibrating the first L0 = 12 layers provides little benefit, even
+24       R. Duan et al.
+
+                          Fisheye                    Perspective (Undistorted)
+
+     Input
+
+
+     Sparse
+     Ground
+      Truth
+                      (Calibrated)                          (Uncalibrated)
+
+ Prediction
+
+
+
+Fig. 10: Qualitative comparison of 3D reconstruction on fisheye vs. undistorted im-
+agery with MapAnything. Our calibrated model (left) directly processes raw fisheye
+sequences, yielding a geometrically consistent point cloud with accurate camera pose
+estimations (green arrows). In contrast, the uncalibrated baseline (right) operating on
+undistorted perspective images suffers from significant pose drift and geometric mis-
+alignment (red arrows) due to loss of cross-view covisibility from undistortion.
+
+
+
+when camera type classification is not required. A possible explanation is that
+early-layer features have not yet captured sufficient distortion-related semantics
+for effective correction.
+Additional comparisons. We compare calibration tokens with LoRA [17] in
+Tab. 4. LoRA with different ranks is inserted to the same attention layers as
+calibration tokens, except the first L0 = 12 encoder layers. Overall, LoRA re-
+quires substantially more parameters for adaptation. Particularly, LoRA with
+rank r = 32 introduces 24 times more training parameters than calibration to-
+kens. Both methods cost approximately 35GiB GPU memory. For reconstruction,
+calibration tokens achieve the best pose and FoV estimation accuracy, while the
+two approaches perform similarly in depth and point map estimation.
+Fisheye undistortion. An alternative for processing fisheye imagery in 3D re-
+construction is to perform undistortion to generate perspective images, which are
+then processed by the original uncalibrated foundation model. However, this ap-
+proach is fundamentally limited, as it requires precise prior calibration of camera
+parameters and introduces significant computational overhead. More critically,
+the rectification process discards the wide FoV characteristic of fisheye lenses,
+often severing crucial cross-view covisibility that would otherwise exist in the
+native fisheye frames, as illustrated in Fig. 10. By shrinking the effective over-
+lap between views, undistortion not only reduces total scene coverage but also
+destabilizes the geometric constraints required for pose estimation, leading to
+structural drift. Therefore, developing a distortion-aware model is essential for
+efficient wide-area reconstruction. A scene that traditionally requires hundreds
+of perspective images to ensure sufficient inter-frame overlap can be effectively
+modeled with tens of wide-FoV fisheye views (Fig. 13).
+                                                                          Fisheye3R    25
+
+
+
+
+Scene Image
+Ground Truth
+MapAnything+Ours
+MapAnything
+π3
+VGGT
+
+
+
+
+                   Fig. 11: Qualitative examples of 3D reconstructions on ScanNet++.
+26                 R. Duan et al.
+
+
+
+
+Scene Image
+Ground Truth
+MapAnything+Ours
+MapAnything
+π3
+VGGT
+
+
+
+
+                      Fig. 12: Qualitative examples of 3D reconstructions on ADT.
+                                                                          Fisheye3R   27
+
+
+
+
+Scene Images
+Ground Truth
+MapAnything+Ours
+MapAnything
+π3
+VGGT
+
+
+
+
+                   Fig. 13: Qualitative examples of 3D reconstructions on KITTI360.
+

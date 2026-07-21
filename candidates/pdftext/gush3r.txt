@@ -1,0 +1,839 @@
+                                               GUSH3R: Everyone Everywhere All at Once as
+                                                              Gaussians
+
+                                                      Keito Abe,    Kaede Shiohara∗, Takashi Otonari,         Toshihiko Yamasaki
+                                                                              The University of Tokyo
+                                                             {abe, shiohara, otonari, yamasaki}@cvm.t.u-tokyo.ac.jp
+                                                             Project page: https://abkeito.github.io/gush3r-page/
+arXiv:2607.05243v1 [cs.CV] 6 Jul 2026
+
+
+
+
+                                                                                                                                      GUSH3R
+
+
+
+
+                                        Figure 1: GUSH3R (Gaussian-Unified Scene Human 3D Reconstruction) takes a monocular video
+                                        as input and produces dynamic human-scene representations using 3D Gaussians.
+
+
+                                                                                        Abstract
+
+                                                    Reconstructing dynamic human-scene environments from monocular videos is a
+                                                    challenging problem that requires jointly modeling scene geometry, camera motion,
+                                                    and non-rigid human dynamics while enabling photorealistic rendering. Recent
+                                                    feed-forward methods can efficiently predict geometry, but they are often limited to
+                                                    non-photorealistic representations such as point clouds and meshes, or they fail to
+                                                    handle non-rigid objects, particularly dynamic humans. To fill this gap, we present
+                                                    GUSH3R (Gaussian-Unified Scene Human 3D Reconstruction), a feed-forward
+                                                    framework for online dynamic human-scene reconstruction. From a monocular
+                                                    human-scene video, our method reconstructs dynamic humans (everyone) and
+                                                    static scenes (everywhere) in a single forward pass (all at once) as 3D Gaussian
+                                                    Splatting (3DGS) primitives (as gaussians), which are geometrically consistent and
+                                                    capable of novel view synthesis. Experiments on monocular human-scene datasets
+                                                    demonstrate that our approach achieves competitive novel view synthesis quality
+                                                    while significantly improving inference efficiency compared to optimization-based
+                                                    methods.
+
+
+                                           ∗ Project lead.
+
+
+
+
+                                        Preprint.
+1     Introduction
+Reconstructing dynamic human-scene environments from monocular videos is an important problem
+in computer vision, with applications in novel view synthesis [23, 32], virtual and augmented
+reality [68], and digital human modeling [20]. Given only a monocular video, the goal of dynamic
+human-scene reconstruction is to jointly recover scene geometry, camera motion, and dynamic
+humans, while enabling photorealistic novel view synthesis.
+Existing 3D/4D reconstruction approaches can be broadly categorized into optimization-based and
+feed-forward methods. Optimization-based methods, including Neural Radiance Fields (NeRF) [41]
+and 3D Gaussian Splatting (3DGS) [26]-based approaches, optimize 3D/4D scene representations
+for each scene [41, 26, 63, 40, 46]. While these methods achieve high reconstruction quality, the
+optimization process is costly, making them impractical for fast or real-time inference [11, 65, 72].
+Moreover, in the 4D reconstruction setting, most methods require multi-view videos [63, 40, 17] or
+additional sensors such as LiDAR or depth [36], limiting their applicability in real-world scenarios.
+In contrast, feed-forward methods predict 3D geometry directly from images in a single forward
+pass, enabling fast inference [61, 27, 58, 23, 33, 60, 69]. These approaches generalize well to unseen
+scenes by leveraging strong geometric priors learned from large-scale data [49, 66, 34, 30, 19, 64,
+12, 50, 2, 55, 54, 21, 73, 6, 44, 13]. Yet, handling dynamic humans and achieving photorealistic
+rendering quality at the same time remains a significant challenge [23, 10].
+As summarized in Table 1, existing feed-forward methods either do not explicitly model dynamic
+humans or do not provide photorealistic renderable representations. In this work, we take a first step
+toward feed-forward photorealistic, renderable dynamic human-scene reconstruction from monocular
+videos. To this end, we leverage geometric and human priors [10] and lift them into a unified
+3DGS representation. Our representation consists of dynamic human Gaussians and static scene
+Gaussians, whose appearance is predicted by respective decoders for humans and scenes. Our method
+enables feed-forward reconstruction of dynamic human-scene environments while preserving the
+photorealistic rendering quality of a 3DGS representation.
+Our contributions are as follows:
+
+       • We tackle a new problem setting, feed-forward photorealistic, renderable dynamic human-
+         scene reconstruction from monocular videos, and establish a strong baseline.
+       • We design an architecture that bridges human-scene foundation models and photorealistic
+         rendering by leveraging geometric priors and SMPL-X [45] representations.
+       • We demonstrate that our method achieves competitive novel view synthesis quality against
+         decomposition-based feed-forward baselines and an optimization-based human-scene base-
+         line, while being significantly more efficient.
+
+2     Related Work
+2.1   3D Reconstruction
+
+Early approaches to 3D reconstruction typically rely
+on multi-view geometry pipelines such as structure-      Method          Streaming   Dynamic human   Photo-reality
+from-motion (SfM) [1, 52, 16, 35] and multi-view         VGGT [58]          ✗             ✗               ✗
+stereo (MVS) [18, 53], which recover camera poses        AnySplat [23]      ✗             ✗               ✓
+                                                         CUT3R [60]         ✓             ✗               ✗
+and explicit 3D structure from image correspon-          Human3R [10]       ✓             ✓               ✗
+dences. Neural rendering methods such as NeRF [41]       Ours               ✓             ✓               ✓
+
+and Gaussian-based methods such as 3DGS [26] have
+                                                        Table 1: Concept-level comparison of feed-
+also been introduced, which represent scenes using
+                                                        forward models. Here, “Streaming” denotes
+continuous or point-based representations optimized
+                                                        causal frame-by-frame processing without ac-
+through differentiable rendering, enabling photoreal-
+                                                        cess to future frames, “Dynamic human” in-
+istic novel view synthesis. While these approaches
+                                                        dicates explicit modeling of non-rigid human
+produce high-quality reconstructions, they rely on
+                                                        motion, and “Photo-reality” refers to a ren-
+iterative optimization over camera parameters and
+                                                        derable representation suitable for novel view
+scene representations, making inference computa-
+                                                        synthesis.
+tionally expensive [28, 11].
+
+
+                                                  2
+Recent feed-forward reconstruction methods [61, 27, 15, 58] predict scene geometry, including point
+maps and camera parameters, directly from input images, enabling fast inference and generalization
+to unseen scenes without per-scene optimization. They achieve this by learning strong geometric
+priors from large-scale data [49, 66, 34, 30, 19, 64, 12, 50, 2, 55, 54, 21, 73, 6, 44, 13] and leveraging
+transformer-based architectures with the help of strong backbone features [14, 43]. Feed-forward
+approaches have also been extended to photorealistic rendering with 3DGS representations [23, 33].
+For example, AnySplat [23] directly predicts Gaussian parameters from images, using the geometric
+priors of VGGT [58].
+However, these feed-forward approaches primarily focus on static scenes and often struggle when
+dynamic objects are present, leading to inconsistent geometry and degraded reconstruction quality [23,
+33]. Our work addresses this limitation by explicitly disentangling dynamic humans from static
+scenes and models them separately within a unified 3DGS framework.
+
+2.2   4D Reconstruction
+
+Reconstructing dynamic scenes from image sequences has also been widely studied. Many existing
+approaches [63, 46, 59, 9, 3] rely on optimization-based pipelines that model scene dynamics using
+deformation fields or canonical representations. They typically require multi-view synchronized
+video inputs [3, 63, 7, 29] and costly optimization, limiting their scalability and applicability in real-
+world scenarios. More recently, several works [60, 69, 8, 75] attempt feed-forward reconstruction of
+dynamic scenes from monocular videos. For example, CUT3R [60] directly predicts time-varying
+scene structures from input images using a recurrent architecture by introducing state tokens.
+However, existing methods either rely on expensive optimization for high-quality reconstruction [63,
+59] or adopt simplified geometric representations in feed-forward settings [69, 60], resulting in a
+trade-off between efficiency and representation quality. In contrast, our method adopts a 3D Gaussian
+representation within a feed-forward framework, enabling both efficient inference and photorealistic
+rendering.
+
+2.3   Human-Scene Reconstruction
+
+Human-scene reconstruction aims to jointly recover the 3D scene geometry, human motion, and
+camera poses from visual observations. Early approaches typically formulate this problem as a global
+optimization over multiple elements, including camera poses, reconstructed scenes [61, 15, 31], and
+SMPL [38, 45] mesh parameters [42, 4], often regularized with learned motion priors. Several works
+further adopt renderable representations such as NeRF or 3DGS [65, 74, 72, 20], achieving high
+visual fidelity but requiring costly test-time optimization.
+To improve efficiency, recent works explore feed-forward alternatives such as HAMSt3R [51]
+and JOSH3R [37]. More recently, Human3R [10] proposes a one-step feed-forward model that
+predicts static scenes as point clouds and dynamic humans as SMPL-X meshes [45] in a single
+forward pass. While these methods provide strong geometric priors, their outputs are not a unified
+renderable representation, since scenes and humans are represented as point clouds and parametric
+meshes, respectively. In contrast, our method transforms both static scenes and dynamic humans
+into a common 3D Gaussian representation, enabling coherent and photorealistic human-scene
+reconstruction in a feed-forward manner.
+
+
+3     Method
+
+3.1   Overview
+
+Given a monocular video {It }, where It denotes the input frame at time t, our goal is to reconstruct
+a dynamic human-scene representation with accurate geometry and photorealistic appearance. We
+decompose the entire scene Gt into a static scene and dynamic humans, represented as a set of scene
+Gaussians Gst aggregated across time until frame t and time-dependent human Gaussians {Ght,k } for
+each frame t, where k indexes individual humans.
+We build upon a human-scene foundation model [10] that provides geometric priors and structured
+token representations. Our key idea is to leverage these priors while disentangling appearance
+
+
+                                                    3
+                                                          Scene Gaussian Decoder
+        Video                                                                            $
+                                                                                        𝐺!-#
+                               3D Points 𝑋!
+
+                                                        DPT                             Merge
+
+                             Image Tokens 𝐹’!                  Per-pixel Gaussian
+                                                                                                Scene Gaussian 𝐺!"
+                                Vertices 𝑉                    Human Gaussian Decoder
+                Human3R
+  𝐼!
+
+
+
+
+                                                …
+
+
+
+
+                                                                    …
+                                                                                         LBS
+                                                        HGT
+                                                                  Per-vertex Gaussian
+                           Human Token Set {ℎ!,# }                                                                   Human-Scene Gaussian G!
+                                                                                                Human Gaussian 𝐺!#
+                           Memory Set {𝑚!,# }                  New Memory 𝑚!"#,%
+
+
+
+
+                          SMPL Param Set {𝑝!,# }
+
+
+Figure 2: Overview of the proposed framework. GUSH3R reconstructs a dynamic human-scene
+representation from a monocular video using two newly introduced branches: the Scene Gaussian
+Decoder and the Human Gaussian Decoder. Each frame is processed by the foundation model
+Human3R [10] to extract human token Ht′ and image token It′ along with scene point clouds Xt
+and human mesh vertices Vt . The Scene Gaussian Decoder takes the point clouds Xt as geometric
+prior and predicts scene Gaussians Gst from the image token using Dense Prediction Transformer
+(DPT) [48]. Human Gaussian Decoder takes the human meshes Vt as geometric prior and predicts
+human Gaussians Ght from the image token and human token using Human Gaussian Transformer
+(HGT). The predicted human and scene Gaussians are then merged in the same metric space to render
+the final human-scene representation Gt .
+
+
+modeling for the static scene and dynamic humans. Specifically, we introduce a Scene Gaussian
+Decoder and a Human Gaussian Decoder, detailed in Sec. 3.3 and Sec. 3.4, respectively. These
+designs allow us to reconstruct the full scene in a feed-forward manner from monocular input. An
+overview is shown in Fig. 2.
+
+3.2    Preliminaries
+
+Human-Scene Foundation Model. We build upon a unified feed-forward model for human-scene
+reconstruction, referred to as Human3R [10]. Given a monocular video {It }, the model jointly
+estimates camera pose Tt , scene point maps Xt , and a set of human meshes as vertices {Vt,k } where
+t indexes time and k indexes individual humans.
+Scene geometry is represented as point clouds, and human bodies are represented as parametric
+SMPL-X [45] meshes. Given the local human pose (relative axis-angle rotations) θ ∈ R52×3 , shape
+β ∈ R10 , facial expression α ∈ R10 , and global human root transformation P = [R|t] ∈ SE(3)
+parameterized by global orientation R ∈ SO(3) and translation t ∈ R3 , the model outputs an
+expressive 3D human mesh with 10,475 vertices Vt,k :
+                                                     Vt,k = SMPL-X(θ, β, α, P ).                                                         (1)
+
+The backbone [43, 4] follows a recurrent formulation. Each frame It is encoded into image tokens
+Ft . Then the model obtains human detections using a detector [4] with a confidence threshold,
+which produces a set of 2D locations ut,k for each frame. Each human token ht,k is obtained by
+sampling Ft at the detected human location ut,k . All human tokens at frame t are concatenated as
+Ht = {ht,k }. At the same time, the model maintains a persistent state St and a learnable parameter
+zt corresponding to camera state, jointly updating all tokens through a decoder:
+                                  [Ft′ , zt′ , Ht′ ], St = Decoder([Ft , zt , Ht ], St−1 ).                                              (2)
+From the updated image, camera, and human tokens, Human3R predicts scene point maps Xt , camera
+poses Tt , and human parameters {pt,k } for all detected humans. This design enables disentangled
+representations of scene and human via image and human tokens, respectively, while jointly reasoning
+through a shared recurrent state. In our method, we leverage the reconstructed point clouds X and
+human mesh vertices V as geometric priors and further utilize both image tokens F and human
+tokens H to extract appearance features for downstream modeling.
+
+
+                                                                         4
+3D Gaussian Splatting. To achieve photorealistic rendering of both scene and human, we adopt 3D
+Gaussian Splatting (3DGS) [26], which represents a 3D scene as a set of anisotropic Gaussian primi-
+tives. Each Gaussian g models a local volumetric element and is parameterized as: µg , αg , qg , sg , cg
+where µg ∈ R3 denotes the 3D position, αg ∈ R represents opacity, qg ∈ R4 encodes rotation as
+a quaternion, and sg ∈ R3 defines anisotropic scaling. The appearance cg ∈ R3 is modeled using
+view-dependent color, typically parameterized with spherical harmonics.
+
+3.3   3D Scene Reconstruction
+
+Scene Gaussian Decoder. We represent the static scene by progressively aggregating per-frame
+             s
+Gaussians gt,i , each corresponding to pixel i in frame t, into a unified static Gaussian set Gst . Given
+the reconstructed scene point maps Xt = {xt,i } obtained from the foundation model, we initialize
+each Gaussian center µt,i directly with the corresponding 3D point xt,i , where µt,i denotes the
+center of the Gaussian corresponding to pixel i at time t.
+Next, we decode the Human3R image tokens Ft′ into per-pixel features Ct,i D
+                                                                            using a DPT-style
+decoder [48]. To incorporate direct appearance cues from the input image, we also extract CNN
+image features CtI from It using a CNN-based image encoder. We fuse the two feature maps and
+predict the Gaussian parameters using an MLP FG :
+                                                                  D      I
+                                 αt,i , qt,i , st,i , ct,i = FG (Ct,i , Ct,i ).                       (3)
+These parameters define a Gaussian primitive:
+                                    s
+                                   gt,i = (µt,i , qt,i , st,i , αt,i , ct,i ).                        (4)
+
+Filtering and Voxelization. At each timestep t, newly predicted Gaussians Ĝst = {gt,i
+                                                                                    s
+                                                                                       }i are filtered
+using confidence scores [60] and human detection scores [4] to suppress contributions from dynamic
+human regions. In addition, to handle long video sequences while maintaining memory efficiency,
+we introduce a voxelization scheme for the accumulated scene Gaussians inspired by AnySplat [23].
+Since our model operates in a metric space, we define a fixed voxel size in real-world scale and
+discretize the 3D space accordingly. This allows consistent aggregation of Gaussians across frames
+without scale ambiguity and for unseen scenes. At each timestep, newly predicted Gaussians are
+merged with the existing set through voxelization:
+                                      Gst ← Voxelize(Gst−1 , G̃st ),                                  (5)
+
+where Gst denotes the accumulated scene Gaussian set up to timestep t, and G̃st denotes the filtered
+per-frame Gaussians newly predicted at timestep t. Within each voxel, we retain the Gaussian
+center corresponding to the highest confidence, while the remaining parameters are aggregated
+using confidence-weighted averaging. This filtering and voxelization strategy preserves high-quality
+geometry while preventing memory growth from scaling linearly with the input size.
+
+3.4   Dynamic Human Reconstruction
+
+Human Gaussian Decoder. For each k-th human at timestamp t, we used the SMPL-X [45] mesh
+vertices Vt,k as geometric anchors for human Gaussians. Given these vertex anchors, the Human
+Gaussian Decoder transfers image appearance features to the canonical body space and predicts the
+corresponding Gaussian attributes.
+We define four types of tokens to capture different aspects of the human representation of the k-th
+human at timestamp t:
+
+       • Human tokens ht,k — representing the person-level context from Human3R (where the
+         human is)
+       • Vertex tokens Vt,k — representing 3D SMPL-X vertices in the canonical A-pose with
+         positional encoding (which body part it corresponds to)
+       • Image tokens Ft′ — extracted from the input image (what the human looks like)
+       • Memory tokens mk — storing accumulated appearance features for each person over time
+         (what the human looked like before)
+
+
+                                                       5
+We apply a cross-attention transformer, named Human Gaussian Transformer (HGT), where human,
+vertex, and memory tokens serve as queries, and image tokens serve as keys and values:
+                      ′
+                    Vt,k = HGT(Q = [ht,k , Vt,k , mk ], K = Ft′ , V = Ft′ ).                      (6)
+                                                                         ′
+We denote the vertex features extracted from the transformer output as Vt,k . These vertex features
+are fed into an MLP FH to predict Gaussian parameters for each vertex:
+                                                                         ′
+                            (αt,k,v , qt,k,v , st,k,v , ct,k,v ) = FH (Vt,k,v ),                  (7)
+where v indexes the vertices of the canonical SMPL-X mesh. The Gaussians are defined in the
+canonical A-pose space and are transformed to the posed space via linear blend skinning (LBS) using
+SMPL-X parameters.
+Appearance Memory. To maintain a consistent appearance over time, we assign memory tokens mk
+to each tracked person. The memory tokens implicitly carry appearance information accumulated from
+previous frames and are used as an additional query token in the Human Gaussian Decoder. During
+inference, identities are associated across frames using matching based on SMPL-X parameters.
+When a person is matched to a previous track, the corresponding memory token is reused and updated,
+allowing the model to preserve person-specific appearance even under occlusion or viewpoint changes.
+
+3.5   Training Details
+
+Training Setup. We train the Scene Gaussian Decoder and the Human Gaussian Decoder separately
+while keeping the foundation model, Human3R [10] frozen. This allows each decoder to specialize
+in its own representation without disrupting the shared geometric prior. For both training stages, we
+input sequential images to ensure the model understands the temporal relationships.
+Scene Gaussian Decoder. We train the Scene Gaussian Decoder using the following objective:
+                    Lscene = λmse Lmse + λlpips Llpips + λdep Ldep + λreg Lreg .                  (8)
+Here, Lmse and Llpips [70] supervise the rendered scene against the input image, while Ldep super-
+vises the rendered depth against the ground truth (GT) depth to enforce the geometric consistency.
+For all these loss functions, we use GT masks to supervise only background regions. Lreg regularizes
+Gaussian scales to avoid degenerate elongated Gaussians [22]:
+                                                                   
+                                       1 X          max(si )
+                               Lreg =       max               − τ, 0 ,                           (9)
+                                      N i           min(si )
+where si denotes the scale parameters of the i-th Gaussian and τ is a threshold hyperparameter.
+We train the Scene Gaussian Decoder on the BEDLAM [5] dataset following Human3R [10], which
+consists of monocular video sequences with diverse human motions and appearances. In addition,
+we use DL3DV [34], a multi-view image dataset of real-world scenes, to improve generalization to
+real-world settings.
+Human Gaussian Decoder. We train the Human Gaussian Decoder using the following objective,
+which is defined for each person at each frame
+                     Lhuman = λmse Lmse + λpart Lpart + λsil Lsil + λreg Lreg .                 (10)
+Here, Lmse and Lsil supervise the rendered human appearance and silhouette using pixel-wise MSE
+and binary cross entropy, respectively, while Lreg penalizes degenerate Gaussian shapes as in the
+Scene Gaussian Decoder. We additionally use a partial LPIPS loss to improve fine-grained human
+appearance:
+                                             X
+                                ˆ I) +                              ˆ crop (I) ,
+                                                                                
+              Lpart = LPIPS(I,                       LPIPS cropr (I),      r                 (11)
+                                          r∈{upper,face}
+
+where Iˆ and I denote the rendered and input images, and cropr (·) extracts the upper-body or face
+region.
+We train the Human Gaussian Decoder using BEDLAM [5] following Human3R [10], which provides
+diverse human motions and SMPL-X supervision. To improve generalization to real-world settings,
+we additionally use Motion-X++ [71] with high-quality human motions and various appearances.
+
+
+                                                     6
+           Frame 1            Frame 2                  Frame 3                Frame 1               Frame 2               Frame 3
+
+
+
+
+GT
+Baseline
+Ours
+
+
+
+
+Figure 3: Qualitative comparison on single-human scene reconstruction against the baseline
+using NeuMan [24]. The baseline refers to the decomposition-based baseline; a combination of
+AnySplat [23], LHM [47], and Human3R [10]. Although our method works in a streaming setting
+using only past frames, it achieves comparable reconstruction quality while providing faster inference.
+
+  Method                                NeuMan [24] (4-view)     NeuMan [24] (16-view)     EMDB [25] (4-view)    EMDB [25] (16-view)   FPS
+                                        PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓                      ↑
+  Optimization-based method
+  HSR [65]                               20.6   0.58      0.58   18.3       0.57    0.59   20.2   0.67    0.50   16.2   0.68    0.51     -
+  Feed-forward Baselines
+  AnySplat [23]                          15.2   0.33      0.42   15.4       0.35    0.48   14.4   0.45    0.45   13.2   0.46    0.51   (6.77)
+  AnySplat [23]+LHM [47]+Human3R [10]    13.9   0.32      0.46   15.0       0.35    0.46   15.5   0.46    0.44   14.7   0.47    0.49    0.16
+  AnySplat [23]+LHM [47]+GT              14.6   0.32      0.43   15.9       0.37    0.43   13.9   0.44    0.48   13.4   0.45    0.52    0.42
+  Ours                                   18.6   0.55      0.28   16.6       0.39    0.44   18.1   0.60    0.30   18.0   0.57    0.41   1.70
+              Table 2: Single-human scene novel view synthesis on NeuMan [24] and EMDB [25].
+
+
+ 4          Experiments
+ 4.1          Experimental Setups
+
+We evaluate our method on dynamic human-scene reconstruction, focusing on the photorealistic ren-
+dering quality for both dynamic humans and static scenes. Since no existing feed-forward method di-
+rectly addresses our setting, we compare against both an optimization-based human-scene method and
+decomposition-based feed-forward baselines. For the optimization-based baseline, we use HSR [65],
+which provides publicly available code. For the decomposition-based baselines, we reconstruct the
+static background with AnySplat [23], reconstruct humans with LHM [47], and compose them in a
+common coordinate frame. We report three variants: AnySplat, AnySplat+LHM+Human3R, and
+AnySplat+LHM+GT. AnySplat does not explicitly model humans, while the latter two use SMPL-X
+poses from Human3R and ground truth, respectively. Further details of the baselines and training are
+provided in Appendix A.2 and Appendix A.1. We first evaluate novel view synthesis on single-human
+scenes in Sec. 4.2, followed by multi-human scenes in Sec. 4.3 and ablation studies in Sec. 4.4.
+
+ 4.2          Single-Human Scene Reconstruction
+
+We evaluate the quality of novel view synthesis on NeuMan [24] and EMDB [25], both of which
+contain monocular videos of dynamic single-human scenes. As shown in Fig. 3, decomposition-based
+baselines often leave visible artifacts around humans and scene boundaries, reflecting the difficulty
+of aligning separately reconstructed humans and scenes. In contrast, our method produces coherent
+human-scene renderings while maintaining comparable visual quality for both the human body and
+the surrounding scene.
+We then quantitatively evaluate novel view synthesis on both NeuMan and EMDB. For each target
+frame, we render the target view by applying the camera parameters and SMPL-X [45] parameters
+at the target frame to Gaussians built from the input frames. We use peak signal-to-noise ratio
+(PSNR), structural similarity index measure (SSIM) [62], learned perceptual image patch similarity
+(LPIPS) [70], and frames per second (FPS) as evaluation metrics.
+As shown in Table 2, HSR achieves higher PSNR and SSIM due to per-scene optimization, whereas
+our method obtains better LPIPS while being orders of magnitude faster. Compared with the
+
+
+                                                                        7
+           Frame 1         Frame 2                 Frame 3             Frame 1              Frame 2                  Frame 3
+
+
+
+
+GT
+Baseline
+Ours
+
+
+
+
+ Figure 4: Qualitative comparison on multi-human scene reconstruction against the baseline us-
+ ing BEDLAM [5]. The baseline approach refers to the decomposition-based baseline; a combination
+ of AnySplat [23], LHM [47], and Human3R [10].
+
+    Method                                        Human-Scene                    Scene                       Human              FPS
+                                          PSNR↑     SSIM↑    LPIPS↓    PSNR↑     SSIM↑   LPIPS↓   PSNR↑      SSIM↑     LPIPS↓     ↑
+    AnySplat [23]                          15.9       0.43      0.42    16.2     0.50     0.37        14.3    0.87      0.14    (6.77)
+    AnySplat [23]+LHM [47]+Human3R [10]    14.5       0.31      0.47    14.5     0.38     0.46        14.7    0.88      0.11     0.16
+    AnySplat [23]+LHM [47]+GT              15.1       0.35      0.43    15.0     0.40     0.42        16.9    0.90      0.08     0.20
+    Ours                                   17.0       0.53      0.34    17.5     0.59     0.30        13.5    0.87      0.13     1.45
+Table 3: Multi-human scene novel view synthesis on BEDLAM [5]. We evaluate the full
+image (Human-Scene), background regions (Scene), and human regions (Human) against the
+decomposition-based baselines.
+
+
+
+ decomposition-based baselines, our method improves both rendering quality and FPS, suggesting
+ that joint human-scene reconstruction is more effective than post-hoc composition.
+
+ 4.3          Multi-Human Scene Reconstruction
+
+We evaluate our method on multi-human scenes, which require reconstructing multiple dynamic
+humans and their interactions with the surrounding scene. We begin with qualitative comparisons
+of novel view synthesis on the BEDLAM [5] test split against the decomposition-based baselines.
+As shown in Fig. 4, the decomposition-based baselines can reconstruct the background to some
+extent and humans in good quality, but often suffer from inaccurate human-scene alignment and
+visible composition artifacts. In contrast, our method reconstructs the static environment and multiple
+dynamic humans within a unified 3D Gaussian representation.
+We then quantify these observations about novel view synthesis on the BEDLAM test split. As
+shown in Table 3, our method achieves the best performance on the full human-scene evaluation,
+demonstrating the benefit of avoiding post-hoc composition. On human regions, our method remains
+competitive with the human-specific LHM baseline, despite not using ground-truth SMPL-X poses at
+test time. Most importantly, our method is substantially faster than the decomposition-based baselines,
+since it works in a feed-forward manner by leveraging shared geometric priors.
+ Finally, Fig. 5 shows additional qualitative results beyond the BEDLAM test split. The examples
+ cover diverse scenes [25, 24, 57] with varying numbers of people, poses, camera motions, and layouts,
+ demonstrating generalization to different multi-human configurations.
+
+ 4.4          Ablation Study
+
+We conduct ablation studies to analyze the contributions of key components in our model. We
+separately evaluate the Scene Gaussian Decoder and the Human Gaussian Decoder under the various
+input settings on the NeuMan [24] dataset shown in Table 4.
+ Scene Gaussian Decoder. GT depth supervision consistently improves PSNR, SSIM, and LPIPS,
+ indicating that explicit geometric guidance helps regularize Gaussian placement and improves scene
+ reconstruction. In contrast, adding DL3DV [34] provides only marginal gains, suggesting that stable
+ geometry is more critical than additional appearance diversity in this setting.
+
+
+                                                                   8
+Figure 5: Qualitative 4D human-scene reconstruction results. GUSH3R produces coherent
+dynamic human-scene reconstructions across diverse scenarios with different numbers of people,
+body poses, and camera viewpoints from a monocular video.
+
+ Setting / Variant                4-view                    8-view                    16-view
+                          PSNR↑   SSIM↑    LPIPS↓   PSNR↑   SSIM↑    LPIPS↓   PSNR↑   SSIM↑     LPIPS↓
+ Scene
+ Full model                19.7   0.60      0.26     17.8   0.49      0.37     17.4    0.47      0.39
+ w/o depth loss            19.3   0.58      0.29     17.6   0.48      0.40     17.1    0.46      0.43
+ w/o DL3DV [34]            19.5   0.59      0.28     17.7   0.48      0.37     17.3    0.47      0.39
+ Human
+ Full model                11.6   0.74      0.20     13.0   0.81      0.17     12.6    0.78      0.19
+ w/o Motion-X++ [71]       11.4   0.74      0.22     13.0   0.80      0.18     12.4    0.77      0.20
+ w/o Partial LPIPS Loss    11.6   0.74      0.21     12.9   0.79      0.18     12.5    0.77      0.20
+ w/o memory tokens         11.5   0.74      0.21     13.0   0.80      0.18     12.5    0.77      0.19
+ w/o cross-attention       10.2   0.72      0.24     11.7   0.78      0.20     11.3    0.76      0.21
+Table 4: Ablation study on Scene Gaussian Decoder and Human Gaussian Decoder. We report
+performance under different view settings on Neuman [24].
+
+
+
+Human Gaussian Decoder. Removing cross-attention leads to the largest degradation, highlighting
+its importance for transferring image appearance to canonical human Gaussians. Motion-X++ [71]
+and memory tokens further improve perceptual quality and temporal consistency, respectively. Partial
+LPIPS has limited impact on PSNR/SSIM, as these metrics underrepresent perceptual improvements.
+
+
+5   Conclusion
+
+In this paper, we presented a novel feed-forward framework for dynamic human-scene reconstruc-
+tion from a monocular video. Our method bridges the gap between geometric reconstruction and
+photorealistic rendering by extending the geometric and human priors of a pretrained human-scene
+foundation model. We represent the human-scene environment using a unified 3DGS formulation,
+with a Scene Gaussian Decoder for the static scene and a Human Gaussian Decoder for dynamic
+humans. Through experiments, we demonstrated competitive novel view synthesis performance
+on dynamic human scenes against optimization-based and decomposition-based baselines, while
+significantly improving inference efficiency. Overall, our results suggest that combining foundation
+models with structured representations such as 3DGS is a promising direction for scalable and
+photorealistic dynamic human-scene reconstruction.
+
+
+                                                    9
+6   Acknowledgements
+This work was partially supported by JST ASPIRE Program, Japan, Grant Number JPMJAP2303;
+JST ACT-X (JPMJAX25C5); JST SPRING, Grant Number JPMJSP2108; and JSPS KAKENHI Grant
+Number 26K21245.
+
+References
+ [1] S. Agarwal, N. Snavely, I. Simon, S. M. Seitz, and R. Szeliski. Building rome in a day. In ICCV,
+     2009.
+ [2] M. L. Antequera, P. Gargallo, M. Hofinger, S. R. Bulo, Y. Kuang, and P. Kontschieder. Mapillary
+     planet-scale depth dataset. In ECCV, 2020.
+ [3] A. Bansal, M. Vo, Y. Sheikh, D. Ramanan, and S. Narasimhan. 4d visualization of dynamic
+     events from unconstrained multi-view videos. In CVPR, 2020.
+ [4] F. Baradel, M. Armando, S. Galaaoui, R. Brégier, P. Weinzaepfel, G. Rogez, and T. Lucas.
+     Multi-hmr: Multi-person whole-body human mesh recovery in a single shot. In ECCV, 2024.
+ [5] M. J. Black, P. Patel, J. Tesch, and J. Yang. BEDLAM: A synthetic dataset of bodies exhibiting
+     detailed lifelike animated motion. In CVPR, 2023.
+ [6] Y. Cabon, N. Murray, and M. Humenberger. Virtual kitti 2. arXiv preprint arXiv:2001.10773,
+     2020.
+ [7] A. Cao and J. Johnson. Hexplane: A fast representation for dynamic scenes. In CVPR, 2023.
+ [8] X. Chen, Y. Chen, Y. Xiu, A. Geiger, and A. Chen. Ttt3r: 3d reconstruction as test-time training.
+     In ICLR, 2026.
+ [9] X. Chen, Z. Xiong, Y. Chen, G. Li, N. Wang, H. Luo, L. Chen, H. Sun, B. WANG, G. Chen,
+     et al. Dggt: Feedforward 4d reconstruction of dynamic driving scenes using unposed images.
+     arXiv preprint arXiv:2512.03004, 2025.
+[10] Y. Chen, X. Chen, Y. Xue, A. Chen, Y. Xiu, and P.-M. Gerard. Human3r: Everyone everywhere
+     all at once. In ICLR, 2026.
+[11] Y. Chen, Q. Wu, M. Harandi, and J. Cai. How far can we compress instant-ngp-based nerf? In
+     CVPR, 2024.
+[12] A. Dai, A. X. Chang, M. Savva, M. Halber, T. Funkhouser, and M. Nießner. Scannet: Richly-
+     annotated 3d reconstructions of indoor scenes. In CVPR, 2017.
+[13] M. Deitke, D. Schwenk, J. Salvador, L. Weihs, O. Michel, E. VanderBilt, L. Schmidt, K. Ehsani,
+     A. Kembhavi, and A. Farhadi. Objaverse: A universe of annotated 3d objects. In CVPR, 2023.
+[14] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani,
+     M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, and N. Houlsby. An image is worth 16x16
+     words: Transformers for image recognition at scale. In ICLR, 2021.
+[15] B. P. Duisterhof, L. Zust, P. Weinzaepfel, V. Leroy, Y. Cabon, and J. Revaud. Mast3r-sfm: a
+     fully-integrated solution for unconstrained structure-from-motion. In 3DV, 2025.
+[16] J.-M. Frahm, P. Fite-Georgel, D. Gallup, T. Johnson, R. Raguram, C. Wu, Y.-H. Jen, E. Dunn,
+     B. Clipp, S. Lazebnik, and M. Pollefeys. Building rome on a cloudless day. In ECCV, 2010.
+[17] S. Fridovich-Keil, G. Meanti, F. R. Warburg, B. Recht, and A. Kanazawa. K-planes: Explicit
+     radiance fields in space, time, and appearance. In CVPR, 2023.
+[18] S. Galliani, K. Lasinger, and K. Schindler. Massively parallel multiview stereopsis by surface
+     normal diffusion. In ICCV, 2015.
+
+
+                                                 10
+[19] K. Greff, F. Belletti, L. Beyer, C. Doersch, Y. Du, D. Duckworth, D. J. Fleet, D. Gnanapragasam,
+     F. Golemo, C. Herrmann, T. Kipf, A. Kundu, D. Lagun, I. Laradji, H.-T. (Derek)Liu, H. Meyer,
+     Y. Miao, D. Nowrouzezahrai, C. Oztireli, E. Pot, N. Radwan, D. Rebain, S. Sabour, M. S. M.
+     Sajjadi, M. Sela, V. Sitzmann, A. Stone, D. Sun, S. Vora, Z. Wang, T. Wu, K. M. Yi, F. Zhong,
+     and A. Tagliasacchi. Kubric: A scalable dataset generator. In CVPR, 2022.
+[20] C. Guo, T. Jiang, X. Chen, J. Song, and O. Hilliges. Vid2avatar: 3d avatar reconstruction from
+     videos in the wild via self-supervised scene decomposition. In CVPR, 2023.
+[21] P.-H. Huang, K. Matzen, J. Kopf, N. Ahuja, and J.-B. Huang. Deepmvs: Learning multi-view
+     stereopsis. In CVPR, 2018.
+[22] J. Hyung, S. Hong, S. Hwang, J. Lee, J. Choo, and J.-H. Kim. Effective rank analysis and
+     regularization for enhanced 3d gaussian splatting. In NeurIPS, 2024.
+[23] L. Jiang, Y. Mao, L. Xu, T. Lu, K. Ren, Y. Jin, X. Xu, M. Yu, J. Pang, F. Zhao, et al. Anysplat:
+     Feed-forward 3d gaussian splatting from unconstrained views. TOG, 44(6):1–16, 2025.
+[24] W. Jiang, K. M. Yi, G. Samei, O. Tuzel, and A. Ranjan. Neuman: Neural human radiance field
+     from a single video. In ECCV, 2022.
+[25] M. Kaufmann, J. Song, C. Guo, K. Shen, T. Jiang, C. Tang, J. J. Zárate, and O. Hilliges. EMDB:
+     The Electromagnetic Database of Global 3D Human Pose and Shape in the Wild. In ICCV,
+     2023.
+[26] B. Kerbl, G. Kopanas, T. Leimkühler, and G. Drettakis. 3d gaussian splatting for real-time
+     radiance field rendering. TOG, 42(4):1–14, 2023.
+[27] V. Leroy, Y. Cabon, and J. Revaud. Grounding image matching in 3d with mast3r. In ECCV,
+     2024.
+[28] S. Li, H. Li, Y. Wang, Y. Liao, and L. Yu. Steernerf: Accelerating nerf rendering via smooth
+     viewpoint trajectory. In CVPR, 2023.
+[29] T. Li, M. Slavcheva, M. Zollhoefer, S. Green, C. Lassner, C. Kim, T. Schmidt, S. Lovegrove,
+     M. Goesele, R. Newcombe, and Z. Lv. Neural 3d video synthesis from multi-view video. In
+     CVPR, 2022.
+[30] Z. Li and N. Snavely. Megadepth: Learning single-view depth prediction from internet photos.
+     In CVPR, 2018.
+[31] Z. Li, R. Tucker, F. Cole, Q. Wang, L. Jin, V. Ye, A. Kanazawa, A. Holynski, and N. Snavely.
+     Megasam: Accurate, fast and robust structure and motion from casual dynamic videos. In
+     CVPR, 2025.
+[32] H. Liang, J. Ren, A. Mirzaei, A. Torralba, Z. Liu, I. Gilitschenski, S. Fidler, C. Oztireli, H. Ling,
+     Z. Gojcic, and J. Huang. Feed-forward bullet-time reconstruction of dynamic scenes from
+     monocular videos. In NeurIPS, 2025.
+[33] H. Lin, S. Chen, J. H. Liew, D. Y. Chen, Z. Li, Y. Zhao, S. Peng, H. Guo, X. Zhou, G. Shi,
+     J. Feng, and B. Kang. Depth anything 3: Recovering the visual space from any views. In ICLR,
+     2026.
+[34] L. Ling, Y. Sheng, Z. Tu, W. Zhao, C. Xin, K. Wan, L. Yu, Q. Guo, Z. Yu, Y. Lu, X. Li,
+     X. Sun, R. Ashok, A. Mukherjee, H. Kang, X. Kong, G. Hua, T. Zhang, B. Benes, and A. Bera.
+     Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In CVPR, 2024.
+[35] S. Liu, Y. Gao, T. Zhang, R. Pautrat, J. L. Schönberger, V. Larsson, and M. Pollefeys. Robust
+     incremental structure-from-motion with hybrid features. In ECCV, 2024.
+[36] X. Liu, C. R. Qi, and L. J. Guibas. Flownet3d: Learning scene flow in 3d point clouds. In
+     CVPR, 2019.
+[37] Z. Liu, J. Lin, W. Wu, and B. Zhou. Joint optimization for 4d human-scene reconstruction in
+     the wild. In ICLR, 2026.
+
+
+                                                   11
+[38] M. Loper, N. Mahmood, J. Romero, G. Pons-Moll, and M. J. Black. SMPL: A skinned
+     multi-person linear model. TOG, 34(6):1–16, 2015.
+[39] I. Loshchilov and F. Hutter. Decoupled weight decay regularization. In ICLR, 2019.
+[40] J. Luiten, G. Kopanas, B. Leibe, and D. Ramanan. Dynamic 3d gaussians: Tracking by persistent
+     dynamic view synthesis. In 3DV, 2024.
+[41] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. Nerf:
+     Representing scenes as neural radiance fields for view synthesis. In ECCV, 2020.
+[42] L. Müller, H. Choi, A. Zhang, B. Yi, J. Malik, and A. Kanazawa. Reconstructing people, places,
+     and cameras. In CVPR, 2025.
+[43] M. Oquab, T. Darcet, T. Moutakanni, H. V. Vo, M. Szafraniec, V. Khalidov, P. Fernandez,
+     D. HAZIZA, F. Massa, A. El-Nouby, M. Assran, N. Ballas, W. Galuba, R. Howes, P.-Y. Huang,
+     S.-W. Li, I. Misra, M. Rabbat, V. Sharma, G. Synnaeve, H. Xu, H. Jegou, J. Mairal, P. Labatut,
+     A. Joulin, and P. Bojanowski. DINOv2: Learning robust visual features without supervision.
+     TMLR, 2024.
+[44] X. Pan, N. Charron, Y. Yang, S. Peters, T. Whelan, C. Kong, O. Parkhi, R. Newcombe, and C. Y.
+     Ren. Aria digital twin: A new benchmark dataset for egocentric 3d machine perception. In
+     ICCV, 2023.
+[45] G. Pavlakos, V. Choutas, N. Ghorbani, T. Bolkart, A. A. A. Osman, D. Tzionas, and M. J. Black.
+     Expressive body capture: 3D hands, face, and body from a single image. In CVPR, 2019.
+[46] A. Pumarola, E. Corona, G. Pons-Moll, and F. Moreno-Noguer. D-nerf: Neural radiance fields
+     for dynamic scenes. In CVPR, 2021.
+[47] L. Qiu, X. Gu, P. Li, Q. Zuo, W. Shen, J. Zhang, K. Qiu, W. Yuan, G. Chen, Z. Dong, and L. Bo.
+     Lhm: Large animatable human reconstruction model for single image to 3d in seconds. In
+     ICCV, 2025.
+[48] R. Ranftl, A. Bochkovskiy, and V. Koltun. Vision transformers for dense prediction. In ICCV,
+     2021.
+[49] J. Reizenstein, R. Shapovalov, P. Henzler, L. Sbordone, P. Labatut, and D. Novotny. Common
+     objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction. In
+     ICCV, 2021.
+[50] M. Roberts, J. Ramapuram, A. Ranjan, A. Kumar, M. A. Bautista, N. Paczan, R. Webb, and J. M.
+     Susskind. Hypersim: A photorealistic synthetic dataset for holistic indoor scene understanding.
+     In ICCV, 2021.
+[51] S. Rojas, M. Armando, B. Ghanem, P. Weinzaepfel, V. Leroy, and G. Rogez. Hamst3r: Human-
+     aware multi-view stereo 3d reconstruction. In ICCV, 2025.
+[52] J. L. Schonberger and J.-M. Frahm. Structure-from-motion revisited. In CVPR, 2016.
+[53] J. L. Schönberger, E. Zheng, J.-M. Frahm, and M. Pollefeys. Pixelwise view selection for
+     unstructured multi-view stereo. In ECCV, 2016.
+[54] J. Straub, T. Whelan, L. Ma, Y. Chen, E. Wijmans, S. Green, J. J. Engel, R. Mur-Artal, C. Ren,
+     S. Verma, A. Clarkson, M. Yan, B. Budge, Y. Yan, X. Pan, J. Yon, Y. Zou, K. Leon, N. Carter,
+     J. Briales, T. Gillingham, E. Mueggler, L. Pesqueira, M. Savva, D. Batra, H. M. Strasdat, R. D.
+     Nardi, M. Goesele, S. Lovegrove, and R. Newcombe. The replica dataset: A digital replica of
+     indoor spaces. arXiv preprint arXiv:1906.05797, 2019.
+[55] A. Szot, A. Clegg, E. Undersander, E. Wijmans, Y. Zhao, J. Turner, N. Maestre, M. Mukadam,
+     D. Chaplot, O. Maksymets, A. Gokaslan, V. Vondrus, S. Dharur, F. Meier, W. Galuba, A. Chang,
+     Z. Kira, V. Koltun, J. Malik, M. Savva, and D. Batra. Habitat 2.0: Training home assistants to
+     rearrange their habitat. In NeurIPS, 2021.
+
+
+                                                12
+[56] S. Umeyama. Least-squares estimation of transformation parameters between two point patterns.
+     TPAMI, 13(4):376–380, 1991.
+[57] T. von Marcard, R. Henschel, M. Black, B. Rosenhahn, and G. Pons-Moll. Recovering accurate
+     3d human pose in the wild using imus and a moving camera. In ECCV, 2018.
+[58] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny. Vggt: Visual geometry
+     grounded transformer. In CVPR, 2025.
+[59] Q. Wang, V. Ye, H. Gao, W. Zeng, J. Austin, Z. Li, and A. Kanazawa. Shape of motion: 4d
+     reconstruction from a single video. In ICCV, 2025.
+[60] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa. Continuous 3d perception
+     model with persistent state. In CVPR, 2025.
+[61] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud. Dust3r: Geometric 3d vision made
+     easy. In CVPR, 2024.
+[62] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli. Image quality assessment: from
+     error visibility to structural similarity. TIP, 13(4):600–612, 2004.
+[63] G. Wu, T. Yi, J. Fang, L. Xie, X. Zhang, W. Wei, W. Liu, Q. Tian, and X. Wang. 4d gaussian
+     splatting for real-time dynamic scene rendering. In CVPR, 2024.
+[64] H. Xia, Y. Fu, S. Liu, and X. Wang. Rgbd objects in the wild: Scaling real-world 3d object
+     learning from rgb-d videos. arXiv preprint arXiv:2401.12592, 2024.
+[65] L. Xue, C. Guo, C. Zheng, F. Wang, T. Jiang, H.-I. Ho, M. Kaufmann, J. Song, and O. Hilliges.
+     Hsr: holistic 3d human-scene reconstruction from monocular videos. In ECCV, 2024.
+[66] Y. Yao, Z. Luo, S. Li, J. Zhang, Y. Ren, L. Zhou, T. Fang, and L. Quan. Blendedmvs: A
+     large-scale dataset for generalized multi-view stereo networks. In CVPR, 2020.
+[67] B. Ye, B. Chen, H. Xu, D. Barath, and M. Pollefeys. Yonosplat: You only need one model for
+     feedforward 3d gaussian splatting. In ICLR, 2026.
+[68] H. Zhai, X. Zhang, B. Zhao, H. Li, Y. He, Z. Cui, H. Bao, and G. Zhang. Splatloc: 3d gaussian
+     splatting-based visual localization for augmented reality. TVCG, 31(5):3591–3601, 2025.
+[69] J. Zhang, C. Herrmann, J. Hur, V. Jampani, T. Darrell, F. Cole, D. Sun, and M.-H. Yang.
+     Monst3r: A simple approach for estimating geometry in the presence of motion. In ICLR, 2025.
+[70] R. Zhang, P. Isola, A. A. Efros, E. Shechtman, and O. Wang. The unreasonable effectiveness of
+     deep features as a perceptual metric. In CVPR, 2018.
+[71] Y. Zhang, J. Lin, A. Zeng, G. Wu, S. Lu, Y. Fu, Y. Cai, R. Zhang, H. Wang, and L. Zhang.
+     Motion-x++: A large-scale multimodal 3d whole-body human motion dataset. arXiv preprint
+     arXiv:2501.05098, 2025.
+[72] Z. Zhang, M. Kaufmann, L. Xue, J. Song, and M. R. Oswald. Odhsr: Online dense 3d
+     reconstruction of humans and scenes from monocular videos. In CVPR, 2025.
+[73] Y. Zheng, A. W. Harley, B. Shen, G. Wetzstein, and L. J. Guibas. Pointodyssey: A large-scale
+     synthetic dataset for long-term point tracking. In ICCV, 2023.
+[74] H. Zhou, J. Shao, L. Xu, D. Bai, W. Qiu, B. Liu, Y. Wang, A. Geiger, and Y. Liao. Hugs:
+     Holistic urban 3d scene understanding via gaussian splatting. In CVPR, 2024.
+[75] D. Zhuo, W. Zheng, J. Guo, Y. Wu, J. Zhou, and J. Lu. Streaming 4d visual geometry transformer.
+     In ICLR, 2026.
+
+
+
+
+                                                13
+A     Implementation Details
+
+A.1   Training details
+
+We freeze the pretrained Human3R [10] backbone and train only the Gaussian prediction modules.
+For the Scene Gaussian Decoder, we train the DPT-style feature decoder, CNN feature decoder and
+Gaussian MLP head. For the Human Gaussian Decoder, we train the cross-attention transformer
+and Gaussian MLP head. All input images are resized such that the longer side is 512 pixels while
+preserving the aspect ratio. We train both decoders using AdamW [39] with a learning rate of
+1 × 10−4 , weight decay of 1 × 10−4 , and a batch size of 2 for Scene Gaussian Decoder and 1 for
+Human Gaussian Decoder. The Scene Gaussian Decoder is trained for 100k iterations on one NVIDIA
+A100 80GB GPU, taking approximately 1 day, while the Human Gaussian Decoder is trained for
+150k iterations on one NVIDIA A100 40GB GPU, taking approximately two days. As for the loss
+function, we set λmse = 1.0, λlpips = 0.2, λreg = 0.05, λdep = 0.1 for Lscene , and λmse = 1.0,
+λpart = 0.5, λreg = 100.0, λsil = 1.0 for Lhuman .
+
+
+A.2   Decomposition-based baselines
+
+Since no existing feed-forward method reconstructs photorealistic, renderable 3D Gaussian human-
+scene representations with multiple dynamic humans, we construct decomposition-based baselines
+by combining existing feed-forward reconstruction methods. These baselines separately reconstruct
+the static scenes and each dynamic human, and then compose them in a common coordinate frame
+using Umeyama’s alignment [56].
+AnySplat. As a scene-only baseline, we directly apply AnySplat [23] to the input frames. This
+baseline reconstructs the scene as static 3D Gaussians and does not explicitly model dynamic humans.
+AnySplat+LHM+Human3R. We first use Human3R [10] to estimate human masks, background
+masks, and SMPL-X [45] parameters. The background is reconstructed by applying AnySplat only
+to the masked background regions. For each detected human, we crop the human region from the
+input image and reconstruct a canonical human representation using LHM [47]. We then animate and
+place the reconstructed human using the SMPL-X parameters estimated by Human3R, and compose
+it with the reconstructed background.
+AnySplat+LHM+GT. We additionally report an oracle variant that replaces the Human3R-estimated
+masks and SMPL-X parameters with ground-truth annotations. This baseline evaluates the upper-
+bound performance of the decomposition pipeline when human segmentation and pose alignment are
+given.
+
+
+B     Analysis
+
+B.1   Video Depth Estimation
+
+We evaluate geometric accuracy by comparing pre-
+dicted depth with ground truth and prior methods         Method              AbsRel ↓ δ < 1.25 ↑
+using AbsRel and threshold accuracy (δ < 1.25),
+as shown in Table 5. Following a video depth es-         DepthAnything3 [33]   0.47       0.70
+                                                         Human3R [10]          0.54       0.71
+timation setting, we estimate a single global scale      Ours w/o depth loss   0.44       0.74
+per sequence and apply it to all frames, instead of      Ours                  0.43       0.75
+performing per-frame scale alignment. This proto-
+col better reflects dynamic scene reconstruction, as Table 5: Evaluation on video depth estima-
+it requires temporally consistent geometry across the tion task using Neuman [24].
+video. Our method achieves the best performance
+on both metrics, outperforming DepthAnything3 [33] and the underlying Human3R [10]. While
+Human3R provides strong geometric priors, its point-based depth can be sparse and less regularized.
+DepthAnything3 relies on monocular depth estimation and therefore lacks explicit cross-frame con-
+sistency. In contrast, our unified Gaussian representation produces more coherent and temporally
+stable geometry.
+
+
+                                                14
+Method                FF Str.   NeuMan [24] (4-view)   NeuMan [24] (16-view)   EMDB [25] (4-view)   EMDB [25] (16-view)
+                                PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓
+HSR [65]              ✗   ✗      22.1   0.62   0.54    19.7    0.62    0.55    21.5   0.71   0.45   17.3   0.73    0.45
+AnySplat [23]         ✓   ✗      24.0   0.82   0.12    20.6    0.65    0.24    19.8   0.67   0.24   17.8   0.62    0.34
+YoNoSplat [67]        ✓   ✗      14.7   0.44   0.49    16.5    0.47    0.50    14.4   0.48   0.52   16.2   0.58    0.47
+DepthAnything3 [33]   ✓   ✗      20.7   0.57   0.27    18.5    0.53    0.38    19.4   0.61   0.28   19.1   0.65    0.32
+Ours                  ✓   ✓      19.7   0.60   0.26    17.4    0.47    0.39    19.8   0.63   0.30   18.8   0.63    0.35
+Table 6: Single-human scene novel view synthesis on NeuMan [24] and EMDB [25]. We report
+results on background regions only. FF and Str. denote feed-forward and streaming inference,
+respectively.
+
+
+
+B.2   Static scene reconstruction
+
+We additionally evaluate novel view synthesis on static background regions to isolate the scene
+reconstruction capability of each method. As shown in Table 6, HSR [65] achieves higher PSNR and
+SSIM in several settings, benefiting from per-scene optimization over the target sequence. However,
+our method obtains better LPIPS, suggesting that it preserves perceptual scene quality despite
+operating in a feed-forward manner. Compared with feed-forward scene reconstruction methods
+such as AnySplat [23] and DepthAnything3 [33], our method is less favorable on background-only
+metrics. This is partly because these methods process all input frames in a batch, making it easier
+to enforce multi-view consistency for static scene reconstruction, whereas our method performs
+streaming reconstruction while jointly modeling dynamic humans. These results highlight a batch–
+streaming trade-off: batch-based feed-forward methods better exploit multi-view consistency for
+static background reconstruction, whereas our streaming method reconstructs dynamic human-scene
+representations frame by frame.
+
+C     Limitations
+Although our method enables feed-forward photorealistic reconstruction of dynamic human-scene
+representations, several limitations remain. First, it relies on geometric and human priors from the
+underlying foundation model [10], so errors in camera estimation, scene point maps, human detection,
+or SMPL-X fitting can propagate to the final reconstruction. Second, severe human-human occlusions
+and complex interactions remain challenging, as monocular videos provide limited cues for reliable
+identity association and complete human geometry. Finally, fine-scale appearance details, such as
+faces, hands, and clothing textures, may remain imperfect under motion blur, large pose changes, or
+limited observations.
+
+
+
+
+                                                              15
+

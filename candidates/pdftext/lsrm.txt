@@ -1,0 +1,1296 @@
+                                               LSRM: High-Fidelity Object-Centric
+                                            Reconstruction via Scaled Context Windows
+
+                                                    Zhengqin Li, Cheng Zhang, Jakob Engel, and Zhao Dong
+
+                                                                     Meta Reality Labs Research
+
+
+
+                                               Abstract. We introduce the Large Sparse Reconstruction Model to
+                                               study how scaling transformer context windows affects feed-forward 3D
+                                               reconstruction. Although recent object-centric feed-forward methods pro-
+                                               duce robust, high-quality reconstructions, they still lag behind dense-
+                                               view optimization in recovering fine-grained texture and appearance. We
+                                               show that expanding the context window—by substantially increasing
+arXiv:2604.05182v2 [cs.CV] 9 Jul 2026
+
+
+
+
+                                               the number of active object and image tokens—narrows this gap and
+                                               enables high-fidelity 3D object reconstruction and inverse rendering. To
+                                               scale effectively, we adapt native sparse attention [76] for 3D reconstruc-
+                                               tion with three key contributions: (1) an efficient coarse-to-fine pipeline
+                                               that focuses computation on informative regions by predicting sparse
+                                               high-resolution residuals; (2) a 3D-aware spatial routing mechanism that
+                                               establishes accurate 2D-3D correspondences using explicit geometric dis-
+                                               tances rather than standard attention scores; and (3) a custom block-
+                                               aware sequence-parallel strategy with an All-gather-KV protocol to bal-
+                                               ance dynamic, sparse workloads across GPUs. As a result, LSRM handles
+                                               20× more object tokens and >2× more image tokens than prior state-of-
+                                               the-art (SOTA) methods. Extensive evaluations on standard novel-view
+                                               synthesis benchmarks show substantial gains over the current SOTA,
+                                               yielding >2.4 dB higher PSNR and >40% lower LPIPS. Furthermore,
+                                               when extending LSRM to inverse rendering, qualitative and quantitative
+                                               evaluations on widely used benchmarks demonstrate consistent improve-
+                                               ments in texture and geometry details, achieving an LPIPS that matches
+                                               or exceeds that of SOTA dense-view optimization methods. Code and
+                                               model weights are available on our project page.
+
+                                               Keywords: Object-centric feed-forward reconstruction · Sparse atten-
+                                               tion · 3D foundation model
+
+
+                                        1    Introduction
+
+                                        Recent years have witnessed rapid progress in the application of 3D foundation
+                                        models—typically built on large-scale transformer architectures [62]—to tackle
+                                        3D tasks previously considered intractable. These tasks include joint estimation
+                                        of geometry and camera parameters [34, 48, 63, 65], dynamic scene reconstruc-
+                                        tion [45, 47, 51, 72, 81], and sparse-view reconstruction [23, 27, 66, 82, 89] and in-
+                                        verse rendering [42, 78]. In object-centric reconstruction and inverse rendering
+2       Z. Li et al.
+
+
+
+
+Fig. 1: High-fidelity 3D reconstruction. Given 6–18 images (left), LSRM adapts
+Native Sparse Attention (NSA) to generate explicit meshes and textures in a single
+feed-forward pass with minimal compute overhead. As an extension, LSRM can also
+predict BRDF maps for inverse rendering (right). Zoom in for details.
+
+
+
+in particular, feed-forward models cut reconstruction time by orders of magni-
+tude compared with optimization-based pipelines [53, 58, 84, 85], while achieving
+competitive view synthesis and relighting quality, and often exhibiting stronger
+geometric robustness on challenging specular objects [42]. Yet a key limitation
+persists: reconstructed textures frequently miss fine-grained detail, leading to
+blurry text, smeared logos, and distorted facial features. Recent attempts to
+address this—by swapping the underlying 3D representation [27, 82] or adding
+post-hoc texture refinement [56]—improve results but still do not match the
+fidelity of dense-view optimization. Narrowing this gap is essential for deploy-
+ing feed-forward 3D reconstruction at the quality and reliability required for
+practical, industrial-scale 3D digital twin creation.
+     We hypothesize that this gap can be narrowed by expanding the context
+window—specifically, by increasing the number of active object and image to-
+kens. However, naïvely upscaling the resolution of 3D object or 2D image repre-
+sentations rapidly becomes impractical, incurring quadratic (and in volumetric
+settings, cubic) growth in GPU memory and compute. To overcome this bottle-
+neck, we adapt native sparse attention (NSA) [76], a hardware-friendly algorithm
+that restricts each token’s attention to a sparse set of token blocks, enabling ef-
+ficient training and inference at substantially larger context sizes. Building on
+NSA, we develop an efficient coarse-to-fine training pipeline. In the first stage, a
+dense reconstruction transformer identifies the most informative volume tokens;
+in parallel, we prune 2D image tokens by retaining only those covering fore-
+ground pixels. This coarse model provides a strong initialization for both the
+network weights and the geometric structure. In the second stage, the sparse re-
+    High-Fidelity Object-Centric Reconstruction via Scaled Context Windows         3
+
+construction transformer refines the reconstruction by predicting high-resolution
+sparse volume residuals, an approach we find considerably more effective than
+directly regressing a high-resolution volume from scratch.
+    While enlarging the context window with NSA already improves baseline
+quality, we introduce two critical architectural adaptations to further maximize
+reconstruction fidelity and hardware efficiency. First, we observe that the default
+NSA block selection [76]—which relies purely on attention scores from com-
+pressed tokens—often fails to capture reliable correspondences between voxel
+and image tokens, especially in early transformer layers. To remedy this, we
+propose a 3D-aware spatial routing strategy that explicitly uses the geometric
+distances established in Stage 1, alongside known camera parameters, to retrieve
+relevant blocks. This 3D-aware routing markedly enhances texture sharpness,
+rendering previously blurred fine text legible. Second, the dynamic sparse lay-
+out naturally induces severe token imbalance across GPUs. To address this, we
+design a custom block-aware sequence parallelism scheme. We shard tokens by
+their spatial 2D and 3D blocks, ensuring tokens within the same block remain
+localized on the same GPU to eliminate cross-device communication during local
+attention. Furthermore, we leverage the high KV compression of Grouped-Query
+Attention (GQA) [1] to implement an All-gather-KV protocol. This efficiently
+broadcasts a lightweight KV cache across the node, providing full global context
+with minimal communication overhead. Together, these designs enable LSRM
+to process 20× more object tokens and >2× more image tokens than the prior
+SOTA [42], without a proportional increase in computational resources. Compre-
+hensive experiments on standard object-centric 3D reconstruction benchmarks
+demonstrate substantial gains, yielding >2.4 dB higher PSNR and a >40% re-
+duction in LPIPS on the GSO dataset [16]. We further extend LSRM to the task
+of inverse rendering by fine-tuning the model to predict material reflectance from
+images captured under natural illumination. Both qualitative and quantitative
+experiments show significant improvements in textural and geometric detail.
+Specifically on the widely used StanfordORB dataset [30], LSRM sets a new
+standard for feed-forward inverse rendering methods, achieving an LPIPS that
+matches the SOTA dense-view optimization method [58].
+
+
+2    Related Work
+
+Object-Centric Feed-Forward Reconstruction 3D foundation models trained on
+large-scale datasets [13] have driven major progress in object-centric reconstruc-
+tion. Pioneering models like LRM [23] achieved impressive single-image geom-
+etry recovery, but they often struggle to reproduce high-fidelity textures. Sub-
+sequent works have sought to improve appearance quality through architectural
+refinements [66], alternative 3D representations [7, 27, 71, 82, 94], progressive up-
+dates [42], and post hoc texture refinement [56]. Despite these advances, a sizable
+performance gap compared to dense-view, optimization-based pipelines persists.
+A recent approach [88] narrows this gap via test-time training to effectively en-
+large the context window; however, it lacks an explicit 3D representation and may
+4       Z. Li et al.
+
+suffer from view synthesis degradation at unfamiliar camera angles. In contrast,
+LSRM leverages scaled context windows to explicitly reconstruct high-fidelity
+3D geometry and textures in a single forward pass. Furthermore, by extending
+LSRM to predict BRDF material maps, we enable seamless downstream editing
+and realistic relighting within standard graphics pipelines.
+
+Inverse Rendering Inverse rendering aims to decompose images into their in-
+trinsic factors—geometry, materials, and illumination—so that scenes or ob-
+jects can be edited and re-rendered realistically. Classical measurement-based
+approaches [2, 12, 19] rely on specialized capture rigs and controlled environ-
+ments to densely sample view and lighting directions. Recent optimization-based
+methods [3–5, 17, 21, 26, 28, 46, 53, 55, 58, 74, 84, 85, 90–92] can often work under
+natural illumination, but they usually require dense multi-view inputs and re-
+main fragile in ill-posed conditions such as saturated specularities, cast shadows,
+and complex interreflections. Many learning-based techniques focus on predict-
+ing per-pixel BRDF maps [6, 14, 37, 39–41, 43, 52, 79] without producing a com-
+plete 3D representation. Recently, propelled by advances in object-centric 3D
+reconstruction models, pioneering works [42, 78] have shown that feed-forward
+models can output fully relightable 3D objects with explicit geometry and ma-
+terials. LSRM builds on this direction and further improves reconstruction and
+appearance fidelity by enabling substantially longer context windows.
+
+Sparsity in 3D Generation and Reconstruction Many prior approaches handle
+the inherent sparsity of 3D surfaces indirectly, e.g., by compressing geometry into
+compact representations [20, 24, 32, 35, 36, 38, 67, 80, 86, 93] or adopting localized
+point-based formats such as 3D Gaussians [9, 33, 61, 73]. More recently, a line
+of 3D generative work has modeled sparsity explicitly through structured latent
+representations—such as sparse voxel grids—to scale volumetric resolution sub-
+stantially [44,68–70]. In these frameworks, sparse volumes are either encoded by
+sparse 3D VAEs into dense latent codes [8, 44, 69, 70] or, as in Direct3D-S2 [68],
+downsampled to a lower-resolution sparse volume that can be generated with
+an NSA-style transformer operating over 3D token blocks. While these meth-
+ods demonstrate efficiency in processing high-resolution volumes, their focus
+remains restricted to synthesizing intricate geometric details, often neglecting
+texture. Even when texture generation is supported [8, 69], the resulting tex-
+ture fidelity remains limited even under clean synthetic inputs. Such single-view
+generative models target plausible 3D appearance synthesis rather than high-
+fidelity deterministic reconstruction from posed multi-view inputs, making them
+complementary to our setting. This highlights that high-fidelity textured object
+reconstruction is a distinct and challenging problem, motivating the specialized
+architecture design by LSRM.
+
+3    Method
+This section details the architecture of LSRM. We first formulate the Stage
+1 dense reconstruction transformer, specifying the model’s inputs, outputs, and
+       High-Fidelity Object-Centric Reconstruction via Scaled Context Windows                                                                                                                    5
+
+                                        Dense Reconstruction Transformer                                       Sparse Reconstruction Transformer
+
+                                                                                                                            Sparse Image
+                    Down-                        Dense Image                                                               Tokens (     )
+                                                Tokens (    )   Cross-         Cross-       Patchify             Token
+                    sample                                                                                                                   NSA          NSA
+                                                                 Attn           Attn        & Linear           selection                                                     Linear &
+                             Patchify                                                                                                       CrsAttn      CrsAttn
+                             & Linear                                                                              Up-                                                       Reshape
+                                                                      Gate                                                                        Gate
+                                                                                                                 sample
+                                                                   Add & Norm                                                                 Add & Norm
+                    Down-
+                                                                                            DINOv3
+                    sample                                               FFN                                                                      FFN
+                             DINOv3
+                                                                  Add & Norm                                                                  Add & Norm
+
+
+                                                                                         Linear &
+                                                                                         Reshape
+                                                                Cross-         Cross-
+                                                                 Attn           Attn
+                                                                                                                                             NSA          NSA
+                                                                     Gate                  Mask                                             CrsAttn      CrsAttn
+                                                                                        computation
+                                                                  Add & Norm                                                                      Gate
+                                                                      FFN                                                                     Add & Norm
+                                                                                           Token
+                                                                  Add & Norm             selection                                                                 Sparse Feature Volume (   )
+                                                                                                                                                  FFN
+                              1D Volume Token   Dense Volume                                           1D Volume Token     Sparse Volume
+                                                                                             Up-
+                                Embedding       Tokens (   )                                             Embedding         Tokens (    )      Add & Norm
+                                                                DenseBlock x 24            sample
+   Input Images ( )
+ and Plucker Rays ( )
+                                                                                                                                            NSABlock x 24
+
+
+
+
+Fig. 2: Network architecture of LSRM. Our method employs a two-stage coarse-
+to-fine pipeline. In Stage 1, a Dense Reconstruction Transformer generates a coarse,
+low-resolution volume. Stage 2 utilizes this coarse volume to initialize the active sparse
+volume tokens and predicts high-resolution sparse residuals, constructing the final 3D
+representation.
+
+
+
+notation. We then describe our Stage 2 sparse reconstruction transformer, which
+is initialized from the dense model and adapts NSA to significantly expand
+the context window. Finally, we detail two key improvements that maximize
+reconstruction fidelity and hardware efficiency. Additional background on NSA
+is provided in Appendix A.
+
+
+3.1            Stage 1: Coarse Dense Reconstruction for Initialization
+
+We first train a dense reconstruction transformer for lower resolution reconstruc-
+tion; its weights and intermediate predictions are then used to initialize the Stage
+2 sparse reconstruction transformer.
+
+Image and Volume Tokenization The inputs consist of a sparse set of M posed
+images (M ∈ [12, 18] similar to [42]), with camera parameters explicitly encoded
+as Plücker rays. Let {Im }M
+                          m=1 denote the non-overlapping 8×8 patches extracted
+from the 256×256 input views, yielding a spatial token map of resolution Sdimg =
+32 per view. Let {Rm }Mm=1 denote their corresponding Plücker rays. We compute
+the combined multi-view image tokens, y, by fusing a linear projection of the
+patches and rays with features extracted from a frozen DINOv3 [57] encoder:
+
+                          \mb {y} = \left \{ \text {Linear}(\mb {I}_m, \mb {R}_m) + \text {Linear}(\text {DINOv3}(\text {Upsample}(\mb {I}_m))) \right \}_{m=1}^{M}                          (1)
+
+Because DINOv3 natively operates on 16 × 16 patches, the input images are
+upsampled by 2 prior to encoding. Incorporating DINOv3 features significantly
+accelerates training convergence and improves the model’s generalizability.
+   The volume tokens x are initialized from learned 3D positional embeddings.
+To avoid wasting GPU memory when later scaling to high-resolution grids in the
+Stage 2 sparse transformer, we factorize the embeddings along the three spatial
+6          Z. Li et al.
+
+axes. Instead of learning a dense parameter volume, we learn three independent
+                          vol                                          vol                                         vol
+1D embeddings: Px ∈ RSd ×d , Py ∈ RSd ×d , and Pz ∈ RSd ×d , where d = 1024,
+Sd = 16 are the embedding dimension and the dense token volume’s resolution.
+  vol
+
+For a token at spatial coordinate (i, j, k), its embedding pi,j,k is simply the
+element-wise sum:
+                                \mb {p}_{i,j,k} = \mb {P}^\text {x}_i + \mb {P}^\text {y}_j + \mb {P}^\text {z}_k      (2)
+The resulting initialized volume tokens, x = {pi,j,k }, are then concatenated with
+image tokens y and processed by the dense transformer blocks.
+
+Dense Reconstruction Transformer Following prior works [42, 66], our dense
+transformer consists of 24 blocks with hidden dimension 1024. Unlike prior
+dense models, we use grouped-query attention with 32 query heads and only
+2 key/value heads, providing the high KV-head compression required by the
+subsequent sparse transformer and exploited by our sequence-parallel training
+(Sec. 3.4). Additionally, rather than standard monolithic self-attention, we use
+a gated mixture of cross-attention updates to evolve token representations. This
+decoupled design provides flexible, fine-grained control over attention branches
+in Stage 2—for example, allowing independent tuning of the number of selected
+KV-blocks (L) for image and volume tokens. Let x denote volume tokens and y
+denote image tokens. The attention module within one DenseBlock is:
+                                                                   \mb {o}^{\mb {x}} &= \mb {w}^{\text {x-self}} \text {CrossAttn}(\mb {x}, \mb {x}) + \mb {w}^{\text {x-cross}} \text {CrossAttn}(\mb {x}, \mb {y}) \label {eq:crossattn_1} \\ \mb {o}^{\mb {y}} &= \mb {w}^{\text {y-self}} \text {CrossAttn}(\mb {y}, \mb {y}) + \mb {w}^{\text {y-cross}} \text {CrossAttn}(\mb {y}, \mb {x}) \label {eq:crossattn_2} \\ \mb {w}^{\text {x-self}}, \mb {w}^{\text {x-cross}} &= \text {Sigmoid}(\text {Linear}_{\text {gate}}^{\mb {x}}(\mb {x})) \\ \mb {w}^{\text {y-self}}, \mb {w}^{\text {y-cross}} &= \text {Sigmoid}(\text {Linear}_{\text {gate}}^{\mb {y}}(\mb {y}))
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     (6)
+We denote by xd and yd the volume and image token outputs from the final
+DenseBlock. We decode the volume tokens xd into a dense feature volume via
+a linear projection. This layer upsamples spatial resolution by 4×, producing a
+grid of size Sdf
+              vol
+                  = 64 while reducing feature dimension to df = 32:
+
+                                                                                                                                      \mb {X}_\text {d} = \text {Linear}(\mb {x}_\text {d}), \quad \mb {X}_\text {d} \in \mathbb {R}^{{S^\text {vol}_\text {df}}^3 \times d_\text {f}} \label {eq:upsample}                                                                                                                                                                                                                                                                                                                                                                          (7)
+    This dense feature volume, Xd , can be utilized for either novel view synthesis
+or explicit textured mesh extraction via lightweight MLP decoders. With a slight
+abuse of notation, let p ∈ R3 be a continuous 3D point sampled within the
+volume. We compute its corresponding properties as follows:
+                          \mb {f} &= \text {Trilinear}(\mb {X}_\text {d}; \mb {p}) \\ \mb {z} &= \text {Sigmoid}(\text {MLP}_{\mb {z}}(\mb {f})), \quad \mb {z} \in \{\mb {a}, \mb {r}, \mb {m}\} \text { or } \mb {z} = \mb {c} \label {eq:mlpdecode_1} \\ s &= \text {MLP}_{s}(\mb {f}) + s_\text {bias}(\mb {p}) \label {eq:mlpdecode_2}
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    (10)
+where f is the trilinearly interpolated feature vector, s is the predicted SDF,
+and sbias is an effective offset adapted from [42]. c denotes the emitted color for
+novel view synthesis. Alternatively a, r, and m represent the albedo, roughness,
+and metallic material properties for inverse rendering. For rendering, we adopt
+the VolSDF [75] formulation due to its simplicity and effectiveness.
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows                                                                                                                                                                                                                                                                                                                                         7
+
+3.2   Stage 2: Sparse Reconstruction with Long Context Windows
+For high-fidelity reconstruction in Stage 2, we substantially increase the resolu-
+tions of both the input images (e.g., S img = 3Sdimg = 96) and the volume grid
+(e.g., S vol = 6Sdvol = 96). To efficiently handle the resulting expanded token
+sequence, we first describe how we extract active, spatially-sparse token subsets,
+and then present the spatial block partitioning required by our NSA mechanism,
+followed by the architecture of the sparse reconstruction transformer.
+
+Informative Token Selection We build a spatially-sparse token representation by
+retaining only the most informative image and volume tokens. For image tokens,
+we discard the background, preserving only patches that contain foreground
+pixels based on the foreground mask Mimg . For the volume tokens, we leverage
+the geometric prior from the Stage 1 dense transformer to compute a binary
+mask Mvol . This mask identifies and retains only the voxels near the object
+surface, as these primarily determine the final appearance. Concretely, within a
+voxel at spatial coordinate (i, j, k), we uniformly sample a grid of T = 43 = 64
+points Pi,j,k = {pt }Tt=1 . We evaluate the SDF value st at each point using the
+frozen Stage 1 dense feature volume Xd and set the voxel mask Mvol  i,j,k based on
+a distance threshold τ :
+
+             s_t &= \text {MLP}_s(\text {Trilinear}(\mb {X}_\text {d}; \mb {p}_t)) \nonumber \\ \mb {M}_{i,j,k}^\text {vol} &= \mathbb {I} \Big ( \min _{\mb {p}_t \in \mathcal {P}_{i,j,k}} |s_t| \le \tau \quad \text {or}\quad \big ( \min _{\mb {p}_t \in \mathcal {P}_{i,j,k}} s_t \big ) \cdot \big ( \max _{\mb {p}_t \in \mathcal {P}_{i,j,k}} s_t \big ) \le 0 \Big ) \label {eq:surface_voxel_mask}
+                                                                                                                                                                                                                                                                                                                                                                                                                (11)
+
+where I(·) denotes the indicator function. This rule ensures that only voxels close
+to the underlying surface, or directly intersected by it, are instantiated as tokens
+for high-resolution processing.
+
+Block Partitioning and Compression A naïve 1D sequence partitioning of tokens
+destroys spatial locality, which is detrimental to fine-grained 3D reconstruction.
+Therefore, we adopt a spatial block partitioning strategy similar to Direct3D-
+S2 [68]. We group active image and volume tokens based on their original 2D
+and 3D coordinates. Specifically, space is divided into discrete blocks of size 8×8
+for images and 8 × 8 × 8 for the volume, reducing the block-level resolutions to
+Sbimg = S img /8 and Sbvol = S vol /8. Because uninformative tokens are removed,
+each spatial block contains a variable number of active tokens. To compute the
+block-level compressed keys (kcmp ) and values (vcmp ) required by NSA, we first
+pass the individual token keys kt and values vt within a block through a residual
+module (ResBlock), and then average the resulting features in-block (AvgPool):
+
+         \mb {k}^\text {cmp} = \text {AvgPool}(\text {ResBlock}(\mb {k}_t)), \quad \mb {v}^\text {cmp} = \text {AvgPool}(\text {ResBlock}(\mb {v}_t)) \nonumber 
+
+Sparse Reconstruction Transformer The sparse reconstruction transformer uses
+the same number of transformer blocks (24) and hidden dimensions (1024) as the
+Stage 1 model. The key difference is that we replace the standard CrossAttn in
+Eq. (3) and (4) with NSACrossAttn, which uses GPU-friendly Triton kernels to
+8                                                                      Z. Li et al.
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Fig. 3:     Attention-
+    Sparse Volume Tokens                                                                                           Query Token
+                                                                                                                                                                                                                                                                                                                                                                                                                                                 Attention Score-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    score vs. 3D-aware
+                                                                                                                                                                                                                                                                                                                                                                                                                                                 based Selection
+                                                                                                                                                                                                                                                                                                                                                                                                                                                   NSABlock 0       selection. Standard at-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    tention captures 2D-3D
+                                                                                                                                                                                                                                                                                                                                                                                                                                                 Attention Score-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                 based Selection
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    correspondence only in
+                                                                                                                                                                                                                                                                                                                                                                                                                                                  NSABlock 23
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    deep layers, whereas
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    our 3D-aware routing
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    3D-aware
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    Selection
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ensures stable selection
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    to enhance texture.
+
+
+
+
+combine coarse global context with sparse fine-grained context through separate
+attention branches. The compressed KV-head layout is crucial for making these
+Triton kernels memory efficient; Appendix A provides additional implementation
+details. This structural alignment lets us initialize sparse-model weights directly
+from Stage 1, which significantly accelerates convergence. Furthermore, instead
+of predicting the high-resolution sparse volume from scratch, we train the sparse
+transformer to predict the residual over the dense prediction, an approach we
+found to be empirically much more effective. Let xup          up
+                                                      d and yd denote the sparse
+tokens obtained by selecting and upsampling the informative regions of the dense
+predictions xd and yd . The forward pass through the sparse transformer blocks
+is defined as:
+
+      \mb {x}^{(m)}, \mb {y}^{(m)} &= \text {NSABlock}^{(m)}\Big ( \mb {x}^{(m-1)} + \text {Linear}^{(m)}(\mb {x}_\text {d}^\text {up}), \nonumber \\ &\qquad \qquad \qquad \quad \; \mb {y}^{(m-1)} + \text {Linear}^{(m)}(\mb {y}_\text {d}^\text {up}) \Big ), \quad \text {for } m = 1 \dots 24 \\ \mb {x}_\text {s}, \mb {y}_\text {s} &= \mb {x}^{(24)} + \mb {x}_\text {d}^\text {up}, \, \mb {y}^{(24)} + \mb {y}_\text {d}^\text {up}
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       (13)
+
+We project output tokens into a sparse feature volume Xs using the same linear
+layer as Eq. (7), resulting in resolution Sfvol = 4S vol = 384. Note that Xs only
+contains features computed from selected active volume tokens. We therefore
+combine it with the full dense feature volume Xd during volume rendering.
+During ray marching, if a sampled point falls into a voxel (i, j, k) where the mask
+   i,j,k is true, we query high-frequency features from Xs . Conversely, if the point
+Mvol
+lies in empty space, we query the low-frequency features from Xd . For points on
+the boundary between the two, we compute a linear combination of Xs and Xd
+to ensure smooth transitions. Finally, the lightweight MLP decoder processes
+these queried features exactly as in the dense reconstruction transformer.
+
+3.3                                                 3D-Aware Block Routing
+Although our experiments show that LSRM benefits from an expanded context
+window and already improves fidelity over SOTA, standard NSA KV-block se-
+lection remains a bottleneck. In vanilla NSA, token blocks are chosen solely from
+attention scores against kcmp . As Fig. 3 illustrates, this data-driven routing of-
+ten works in deeper layers, yet early transformer blocks frequently miss the most
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows         9
+
+                                                           Fig. 4: Token count
+                                                           vs. training time. Dis-
+                                                           tribution of active to-
+                                                           kens and their corre-
+                                                           sponding training times
+                                                           for resolutions S img =
+                                                           96 and S vol = 64. Each
+                                                           point represents a single
+                                                           data instance.
+
+
+
+
+spatially relevant blocks, which cascades through the network and reduces final
+reconstruction quality.
+    To address this, we propose a 3D-aware routing strategy that selects KV-
+blocks using the coarse geometry established in Stage 1. We first assign an ex-
+plicit 3D coordinate to each token. A volume token’s coordinate pvol is simply
+its voxel-center position. For an image token corresponding to an 8 × 8 patch,
+its 3D location pimg is defined as the foreground surface point with the high-
+est opacity, rendered via the dense feature volume Xd . We then define the 3D
+point sets P img and P vol for image and volume blocks as the collections of token
+coordinates in the block. Our geometry-based block-selection rules are:
+
+Image/Volume to Image Blocks For a given query token with 3D coordinate
+p ∈ {pimg , pvol }, we first project p onto each input image plane using the known
+camera parameters. To limit computation, we retrieve the B i image blocks per
+view whose 2D centers are closest to this projection. Next, for each candidate
+block we compute the minimal 3D Euclidean distance between p and the point
+set P img . Finally, we select the B i2i (image queries) or B v2i (volume queries)
+candidates with the smallest such distances.
+
+Image/Volume to Volume Blocks Given the query coordinate p ∈ {pimg , pvol },
+we compute its 3D Euclidean distance to the spatial centers of all volume token
+blocks. We then select the B i2v (for image queries) or B v2v (for volume queries)
+volume blocks with the smallest center distances.
+   Fig. 3 compares our volume-to-image block selection against the original
+NSA mechanism on a converged model. The visualization confirms that our
+geometric approach establishes far more accurate 2D-3D correspondences. In
+Sec. 4, we show this enhanced spatially-aware routing translates to substantial
+improvements in reconstructed texture details (Fig. 7 and Tab. 1).
+
+3.4   Custom Sequence Parallelism for Workload Balancing
+LSRM’s sparse tokenization yields highly variable active-token counts across in-
+stances, producing straggler GPUs that stall training (Fig. 4) and tightly limit
+attainable resolution during multi-GPU training, since each step waits for the
+slowest worker. Early attempts to cap per-GPU tokens with reservoir sampling
+10           Z. Li et al.
+
+  GPU 0                                     GPU 0      GPU 0                     GPU 0
+ 4 blocks                                  2 blocks   2 blocks                  8 blocks
+14 tokens                      (a)         7 tokens     7 KVs                    24 KVs
+                            All-to-All
+ GPU 1                                      GPU 1      GPU 1          (c)        GPU 1
+3 blocks                                   2 blocks   2 blocks                  8 blocks
+                                           7 tokens     7 KVs      All-gather    24 KVs
+8 tokens
+                             All-to-All
+
+ GPU 2                         (b)          GPU 2      GPU 2                     GPU 2
+1 blocks                                   4 blocks   4 blocks                  8 blocks
+2 tokens                                  10 tokens    10 KVs                    24 KVs
+
+
+
+
+Fig. 5: Custom sequence parallelism. Toy example assuming ≤4 tokens per spatial
+block across 3 GPUs. (a) Tokens are distributed evenly without breaking spatial blocks.
+(b) Tokens return to their source GPUs for decoding and volume rendering. (c) All-
+gather-KV ensures global context before every NSACrossAttn layer.
+
+
+routinely dropped as many as one third of active tokens, which destabilized
+optimization. To balance this dynamic workload systematically, we adapt con-
+text parallelism [29] into a custom block-aware sequence parallelism. Unlike
+naive splits that break the block structure required by NSA, our scheme spreads
+tokens evenly across GPUs while strictly keeping each spatial block on a single
+device. This preserves block locality, so window attention and KV-block com-
+pression are computed entirely on-device, with zero cross-GPU communication.
+    To execute compressed (CmpAttn) and selected (SelAttn) attention over
+global context, tokens must still be routed efficiently. We use an All-gather-KV
+strategy [18,49] that exploits our high KV compression. Concretely, we all-gather
+to replicate (kcmp , vcmp ) and (k, v) on every GPU, while keeping queries (q) lo-
+cally sharded. Since the KV cache is small, the communication cost of this gather
+is modest. The result is a favorable trade-off that lets us balance compute across
+8 GPUs. As shown in Fig. 5, we perform an all-to-all collective before the first
+NSABlock to distribute token blocks globally, and then invoke all-gather on keys
+and values before SelAttn and CmpAttn.
+
+3.5         Implementation, Training, and Inference Details
+We train LSRM for novel-view synthesis (NVS) on 600K curated 3D models
+and then fine-tune it for inverse rendering. At each iteration, we randomly se-
+lect 12–16 input views and 4 target views from 32 camera poses sampled on a
+sphere, following LIRM [42] and MeshLRM [66] to ensure robustness to diverse
+camera trajectories. NVS training follows three stages: (1) We train the dense
+reconstruction transformer (Sdvol = 16, Sdimg = 32), yielding a decoded volume
+resolution of Sdf
+                vol
+                    = 64 for 256 × 256 inputs. (2) We freeze the dense model and
+use its predictions to train the sparse reconstruction transformer on the fly. We
+start at lower resolutions (S img = 64, S vol = 64) to support larger batch sizes
+and quicker convergence. (3) We scale sparse resolutions to S img = 96, S vol = 96.
+This final stage relies on our custom block-aware sequence parallelism for stable
+training, with active image and volume token counts peaking at roughly 100K
+and 300K, respectively. Compared to recent SOTA like LIRM [42]—which pro-
+cesses a maximum of 8 images (64 × 64 × 8 ≈ 32K image tokens) and uses a
+hexaplane representation (48 × 48 × 6 ≈ 14K object tokens)—LSRM scales to
+> 2× more image tokens and > 20× more object tokens. These three stages
+    High-Fidelity Object-Centric Reconstruction via Scaled Context Windows              11
+
+                  LIRM   Ours (LSRM)   GT                     LIRM   Ours (LSRM)   GT
+
+
+
+
+Fig. 6: Qualitative NVS Results on the GSO Dataset. LSRM significantly im-
+proves texture fidelity over prior SOTA [42]. Zoomed-in comparisons show that our
+method successfully recovers legible text (bottom left), complex geometry (top left)
+and sharp facial structures (right), whereas the baseline produces blurred artifacts.
+
+
+
+require 5, 7, and 3 days, respectively, on 128 H100 GPUs. Across all stages,
+we optimize rendering, foreground mask, and depth losses, adding a numerical
+normal loss [42] during the final 500–1000 iterations to boost geometric fidelity.
+    Because our goal is to evaluate context-window scaling, we reduce compute
+by initializing inverse rendering from the converged NVS weights. We apply
+two task-specific architectural changes: (1) we encode background images with
+a linear layer [42] to better disentangle lighting from materials, and (2) we ini-
+tialize the BRDF prediction head with pre-trained weights from MLPc . We
+reuse the same 600K 3D models, rendering them under real HDR environment
+maps with extensive augmentations. Fine-tuning mirrors the three-stage NVS
+schedule. For efficiency, we initialize the first two stages directly from their NVS
+counterparts and halve the training iterations, while the final stage initializes
+from the converged second stage. Additional training and loss details are pro-
+vided in Appendix B.
+    All inference experiments are conducted on a single NVIDIA H100 GPU.
+With 16 input images at the highest resolution, LSRM requires 40 GB peak
+GPU memory, and the sparse reconstruction transformer reconstructs an object
+in about 5 seconds on average. This remains orders of magnitude faster than
+optimization-based alternatives [53, 58] and is comparable to LIRM’s iterative
+refinement when using the same number of views.
+
+
+4    Experiments
+
+Object-centric Novel View Synthesis We evaluate the NVS quality of LSRM on
+the GSO dataset [16]. Inputs are 16 uniformly sampled 768 × 768 views ren-
+dered with the camera configuration of [42], and we render 12 768 × 768 novel
+12       Z. Li et al.
+
+Table 1: Quantitative NVS Results on the GSO Dataset. We compare LSRM
+against SOTA feed-forward baselines [42, 66, 82]. Our ablations evaluate the dense rep-
+resentation, context-window scaling through the image and volume token resolutions
+S img and S vol , and 3D-aware block routing. Best, second best, and third best results
+are highlighted in red, orange, and yellow, respectively.
+
+                 Baselines                              Ours (LSRM Ablations)
+
+              Mesh   GS                S img = 64 S img = 48   S img = S vol = 64   S img = S vol = 96
+     Metric               LIRM Dense
+              -LRM -LRM        model S vol = 48 S vol = 64 w/o routing w/ routing w/o routing w/ routing
+
+PSNR (↑) 28.13 30.52 30.65 28.45         31.68      31.82      31.34       31.93    32.72       33.08
+ SSIM (↑) 0.923 0.952 0.949 0.934        0.958      0.959      0.956       0.962    0.968       0.971
+LPIPS (↓) 0.093 0.050 0.054 0.079        0.044      0.043      0.045       0.040    0.032       0.028
+
+
+
+
+views for evaluation. Following standard practice, ground-truth novel views are
+rendered at 512×512, and we downsample our predictions to this resolution be-
+fore computing metrics. We compute PSNR, SSIM and LPIPS on the rendered
+RGB images, averaging over all objects and target views, and we use identi-
+cal evaluation scripts across methods. Quantitative and qualitative results are
+summarized in Tab. 1 and Fig. 6, respectively. In Tab. 1, we compare LSRM
+against state-of-the-art feed-forward baselines. LIRM [42] uses the same number
+of input images via iterative refinement, but operates at a lower 512 × 512 reso-
+lution. By contrast, LSRM increases the active image and volume token counts
+during reconstruction, yielding a substantial boost in overall fidelity. Our full
+model improves PSNR by > 2.4 dB and reduces LPIPS by > 40% relative to
+the strongest baseline. These gains are also evident qualitatively: LSRM pro-
+duces sharper textures and recovers recognizable facial structure (e.g., the Little
+Mermaid and the bee). Even for objects with complex geometry (transformers,
+top left and bottom right), zoomed-in crops are nearly indistinguishable from
+ground truth. We additionally perform ablations to validate key components, in-
+cluding context-window scaling via S img and S vol , as well as our 3D-aware block
+routing. Results in Tab. 1 and Fig. 7 show that enlarging the context window
+provides the largest gains, while 3D-aware routing further sharpens fine-grained
+structures and restores previously distorted faces. Separately scaling the image-
+token and volume-token context lengths with 3D-aware routing shows that both
+contribute to reconstruction quality, with volume-token scaling having the larger
+impact: reducing S vol from 64 to 48 drops PSNR to 31.68, compared to 31.82
+when reducing S img from 64 to 48.
+
+Object-centric Inverse Rendering We evaluate LSRM’s inverse-rendering exten-
+sion on three widely used benchmarks: StanfordORB [30], DigitalTwinCatalogue
+(DTC) [15], and ObjectsWithLighting (OWL) [60]. These datasets span diverse
+materials, illumination, and capture setups, offering a stringent test of relighta-
+bility, texture fidelity, and geometric consistency. We focus our comparisons on
+optimization-based and feed-forward baselines with strong reported quantitative
+results or available qualitative comparisons. As summarized in Tab. 2, LSRM
+consistently outperforms prior feed-forward baselines. However, gains in pixel-
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows                       13
+
+                 w/o 3D-aware   LSRM                                           LSRM
+                    routing      Full      GT                                   Full       GT
+
+
+
+
+Fig. 7: Qualitative Ablation Study on the GSO Dataset. Visual comparisons
+demonstrate that both our 3D-aware block routing and increased spatial resolutions
+independently enhance texture fidelity and overall rendering quality.
+
+Table 2: Quantitative Inverse Rendering Results. We evaluate our approach
+against optimization-based and feed-forward baselines across three benchmarks. No-
+tably, LSRM consistently achieves the lowest LPIPS across all datasets, a metric highly
+sensitive to fine texture quality and perceptual fidelity.
+
+                        StanfordORB [30]                   DTC [15]              OWL [60]
+ Method
+               PSNR-H PSNR-L SSIM LPIPS CD PSNR-H PSNR-L SSIM LPIPS PSNR SSIM LPIPS
+                  ↑     ↑      ↑    ↓    ↓    ↑     ↑      ↑    ↓     ↑    ↑    ↓
+
+ NVDiffrecMc    24.43     31.60 0.972 0.036 0.51   27.78   34.55 0.952 0.042 19.82 0.73   0.389
+ InvRender      23.76     30.83 0.970 0.046 0.44   29.52   35.98 0.961 0.037 23.77 0.78   0.369
+ NeuralPBIR     26.01     33.26 0.979 0.023 0.43    N/A     N/A   N/A N/A N/A N/A          N/A
+ LIRM           25.09     32.45 0.972 0.025 0.38   27.65   34.84 0.960 0.031 23.27 0.77   0.322
+ Ours (LSRM)    25.47     32.85 0.977 0.022 0.29   29.67   35.66 0.964 0.025 24.88 0.79   0.269
+
+
+
+
+wise metrics such as PSNR are comparatively modest. This reflects the inherently
+ill-posed nature of inverse rendering: although LSRM recovers high-fidelity geom-
+etry and texture details, global ambiguities—e.g., slight global shifts in albedo,
+roughness and metallicity maps—can disproportionately penalize PSNR. In con-
+trast, on perceptual metrics like LPIPS, which emphasize high-frequency struc-
+ture, LSRM shows substantial improvements, reaching performance comparable
+to SOTA optimization-based methods.
+     Qualitative results in Fig. 8 corroborate these gains in texture fidelity. For
+example, LSRM recovers legible text (the “Nutrition Facts” and “Calories 0”
+label on the can, top right) and fine textures (the golden leaves and flowers on
+the teapot, top right and bottom left). Beyond appearance, LSRM also improves
+geometry, accurately recovering the small fence in front of the birdhouse. This
+geometric accuracy is reflected in StanfordORB Chamfer Distance (CD), which
+drops markedly relative to LIRM and optimization-based approaches.
+
+Generalization to Smaller Number of Views Since the primary focus of LSRM is
+to significantly scale the context window for both image and volume tokens, we
+maintain the number of input images between 12 and 16 during training and do
+not fine-tune our models on fewer images. Surprisingly, both our feed-forward 3D
+reconstruction and inverse rendering models generalize well to a smaller number
+of input views, outperforming the prior state-of-the-art, LIRM [42], which was
+explicitly trained on 4 to 8 images. We evaluate this generalization capability for
+14                Z. Li et al.
+
+     NeuralPBIR               LIRM                Ours (LSRM)               GT   InvRender               LIRM               Ours (LSRM)               GT
+
+
+
+
+Fig. 8: Qualitative Inverse Rendering Results. Visual comparisons against
+optimization-based and feed-forward baselines demonstrate that LSRM consistently
+recovers higher-fidelity textures and finer geometric details.
+
+        LIRM                   LSRM                    LSRM                       LIRM                   LSRM                    LSRM
+       16 views               8 views                 16 views              GT   18 views               6 views                 18 views              GT
+
+
+
+
+                   3D Reconstruction with Different Number of Input Views                    Inverse Rendering with Different Number of Input Views
+
+
+
+Fig. 9: Qualitative Results with Fewer Input Views. LSRM preserves high-
+fidelity geometry and texture when evaluated with reduced-view inputs for both novel-
+view synthesis and inverse rendering, even though it is trained with 12–16 views.
+
+
+
+novel-view synthesis on the GSO dataset [16]. As summarized in Tab. 3 and Fig.
+9, providing fewer views causes only a slight drop in texture sharpness compared
+to the full 16-view input. However, our results remain substantially superior to
+LIRM whether using 8 or 16 input views, as reflected in the quantitative metrics.
+Specifically, our 8-view results achieve close to a 2 dB increase in PSNR com-
+pared to the 16-view LIRM, which corresponds to an approximate 37% drop in
+MSE loss, while the LPIPS loss drops by more than 40%. We observe a similar
+phenomenon in inverse rendering, where LSRM consistently outperforms LIRM
+using only 6 input views. Furthermore, evaluating on fewer views enables a fair
+comparison with RelitLRM [89], another feed-forward relighting model. Unlike
+our approach, RelitLRM does not explicitly predict material reflectance; rather,
+it relies on a generative network to synthesize novel lighting appearances, result-
+ing in slower inference. Nevertheless, LSRM outperforms both RelitLRM and
+LIRM across two popular relighting benchmarks (see Tab. 4), with qualitative
+results in Fig. 9 corroborating these improvements.
+     High-Fidelity Object-Centric Reconstruction via Scaled Context Windows                             15
+
+                                                  Table 3: Quantitative NVS Results with
+     Metric
+                LIRM [42]      Ours (LSRM)
+                                                  Fewer Input Views. On GSO [16], LSRM
+              8 views 16 views 8 views 16 views   maintains strong performance with 8 input
+PSNR (↑) 30.48         30.56    32.46    33.08    views and substantially outperforms LIRM us-
+ SSIM (↑) 0.947        0.948    0.968    0.971
+LPIPS (↓) 0.056        0.054    0.031    0.028    ing either 8 or 16 views.
+
+
+Table 4: Quantitative Inverse Rendering Results with Fewer Input Views.
+With only 6 input views, LSRM outperforms feed-forward relighting and inverse-
+rendering baselines across the evaluated benchmarks.
+
+                             StanfordORB [30]                      DTC [15]               OWL [60]
+Views Method
+                    PSNR-H PSNR-L SSIM LPIPS CD PSNR-H PSNR-L SSIM LPIPS PSNR SSIM LPIPS
+                       ↑     ↑      ↑    ↓    ↓    ↑     ↑      ↑    ↓     ↑    ↑    ↓
+
+         RelitLRM    24.67     31.52 0.969 0.032 N/A        N/A     N/A   N/A N/A 23.08 0.79 0.284
+    6    LIRM        24.76     32.11 0.971 0.027 0.48      28.03   34.28 0.959 0.034 22.70 0.76 0.326
+         Ours        25.57     32.74 0.975 0.023 0.32      29.09   35.16 0.961 0.028 24.43 0.80 0.255
+
+    18   Ours        25.47     32.85    0.978 0.022 0.29   29.67   35.66   0.965 0.025 24.88 0.79   0.269
+
+
+
+
+5        Conclusions
+In this work, we show that scaling transformer context windows markedly im-
+proves feed-forward 3D reconstruction and inverse rendering. By scaling object
+and image tokens by 20× and 2× with NSA, we close much of the texture- and
+geometry-fidelity gap to optimization. To make this scale practical, we introduce
+3D-aware block routing and block-aware sequence parallelism, boosting render-
+ing quality while improving GPU utilization. Extensive experiments demonstrate
+that LSRM sets a new SOTA, recovering crisp text and faithful facial structures.
+
+Limitations and Future Work LSRM introduces a general coarse-to-fine pipeline
+that leverages NSA to effectively scale context windows for 3D-related tasks.
+While this paper validates its effectiveness on object-centric 3D reconstruction
+and inverse rendering, we hope to extend this framework to large-scale scene re-
+construction and general video/image generation in future work. Despite achiev-
+ing SOTA reconstruction quality, several limitations remain. First, we observe
+that LSRM does not inherently resolve other ill-posed challenges in inverse ren-
+dering, such as accurately estimating roughness and metallic material proper-
+ties. Furthermore, we still encounter cases where extremely fine details—such
+as small ingredient lists on cans—remain illegible. To address this, future iter-
+ations could expand the context window even further by integrating sequence
+parallelism techniques like Ulysses attention [25] and ring attention [49].
+
+Acknowledgements We would like to thank David Clabaugh for creating the
+teaser figures, Dilin Wang and Yuchen Fan for their support with the training
+infrastructure, and Hao Tan, Sai Bi, and Kai Zhang for technical discussions
+regarding sparse attention.
+16      Z. Li et al.
+
+Supplementary Material
+
+This appendix provides additional implementation details and extended evalua-
+tions:
+
+ – Native Sparse Attention: We describe the attention branches used by
+   NSA and discuss the compressed KV layout required for efficient Triton
+   kernels.
+ – Training details and losses: We report stage-wise hyperparameters and
+   the loss functions used for novel view synthesis and inverse rendering.
+ – Additional evaluation results: We provide depth and normal compar-
+   isons, robustness analysis for Stage 1 geometric errors, and comparisons with
+   3D Gaussian optimization.
+
+
+A    Background: Native Sparse Attention
+
+NSA is a hardware-friendly mechanism designed for highly efficient end-to-end
+training and inference on modern NVIDIA GPUs. We adopt NSA to scale the
+context window because, unlike earlier sparse-attention schemes that impose
+fixed block-to-block patterns [10,77], NSA lets each query adaptively choose the
+sparse KV-blocks it attends to, which we find essential for high-fidelity recon-
+struction. Let q ∈ RNx ×hq ×dh and k, v ∈ RNy ×hkv ×dh denote the query, key,
+and value tensors computed from the input token sequences x ∈ RNx ×d and
+y ∈ RNy ×d , respectively. Note that in self-attention, x and y are the same ten-
+sor. Here, Nx and Ny represent the sequence lengths, hq and hkv denote the
+number of heads for queries and keys/values, and dh is the head dimension, so
+                                                                 (·)             (·)
+d = hq × dh . NSA dynamically selects and recomputes keys ki and values vi
+for each query qi ∈ R  hq ×dh
+                              using specific strategies based on original q, k, and
+v. The slightly simplified variant employed in LSRM is formulated as follows:
+
+Compressed (kcmp , vcmp ): We divide k and v into B non-overlapping blocks,
+where B ≪ Ny . The keys and values within each block are then compressed
+into a single key-value pair kcmp , vcmp . Note that because kcmp and vcmp are
+identical for all queries, we omit the subscript i for them.
+
+Selected (ksel
+            i , vi ): For each query qi , we compute its attention scores against
+                 sel
+
+the compressed keys kcmp and select the top B sel KV-blocks (with B sel ≪ B).
+We then define ksel
+                  i , vi as the set of all original keys and values contained within
+                       sel
+
+these B selected blocks.
+        sel
+
+
+
+Window (kwini , vi ): For each query qi , we define ki , vi
+                  win                                  win   win
+                                                                 as all keys and
+values located in the same block as the original ki and vi .
+    High-Fidelity Object-Centric Reconstruction via Scaled Context Windows                                                                                                                                                                                                                                                                                                                                                                                                                                                             17
+
+    Our NSACrossAttn layer outputs a gated combination of these three atten-
+tion branches. Let oi denote the output for query qi :
+
+                  \mb {o}_i &= \mb {w}_i^{\text {cmp}} \text {CmpAttn}(\mb {q}_i, \mb {k}^\text {cmp}, \mb {v}^\text {cmp}) + \mb {w}_i^{\text {sel}} \text {SelAttn}(\mb {q}_i, \mb {k}^\text {sel}_i, \mb {v}^\text {sel}_i) \nonumber \\ &\quad + \mb {w}_i^{\text {win}} \text {WinAttn}(\mb {q}_i, \mb {k}^\text {win}_i, \mb {v}^\text {win}_i) \label {eq:nsa_1} \\ \mb {w}_i^{\text {cmp}}, \mb {w}_i^{\text {sel}}, \mb {w}_i^{\text {win}} &= \text {Sigmoid}(\text {Linear}_{\text {gate}}(\mb {x}_i)) \label {eq:nsa_2}
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      (15)
+
+Following Qiu et al. [54], we predict gating weights wicmp , wisel , wiwin with the
+same dimension as xi to ensure more stable training. These three attention
+branches are highly complementary: CmpAttn efficiently captures global context
+due to its reduced sequence length (B ≪ Ny ), SelAttn retrieves fine-grained
+details from the most relevant regions with low computational cost (B sel ≪ B),
+and WinAttn models strictly local context with minimal overhead.
+     Among the three branches, CmpAttn and WinAttn can be directly imple-
+mented with FlashAttn [11]. SelAttn, however, requires a custom Triton ker-
+nel [59] because each query qi attends to a dynamically chosen sparse set of
+KV-blocks. Instead of loading a full block of queries and KV pairs into SRAM,
+NSA leverages the high compression ratio of GQA [1] to load multiple query
+heads together with a single shared head of ksel
+                                              i and vi . To fully utilize NVIDIA
+                                                       sel
+
+Tensor Cores, the ratio hq /hkv should be a multiple of 16 [31]. In LSRM, we
+build on the PyTorch reference implementation [64] and adapt the Triton imple-
+mentation [31], setting hq = 32 and hkv = 2. This high ratio also enables more
+efficient sequence parallelism, as discussed in Sec. 3.4.
+
+
+B     Additional Training Details and Loss Functions
+We optimize our model with AdamW [50], using β1 = 0.9 and β2 = 0.95. To
+improve training stability, we apply weight normalization and QK normaliza-
+tion [22]. During training, we use Fully Sharded Data Parallel (FSDP) in fully
+sharded mode, wrapping the dense reconstruction transformer, the sparse re-
+construction transformer, and the frozen DINOv3 [57] encoder to reduce GPU
+memory consumption. For NSA, we keep the block sizes fixed at 83 for vol-
+ume tokens and 82 for image tokens across all resolutions, while adjusting the
+number of selected blocks according to the image and volume resolutions. Key
+hyperparameters—including learning rates, batch sizes, selected block counts,
+and crop sizes across training stages—are detailed in Tab. 5.
+    Inverse-rendering fine-tuning follows the same stage-wise hyperparameter
+schedule, with the first two stages initialized from their NVS counterparts and
+trained for half of the listed iterations.
+    For novel view synthesis, we supervise rendered target views using appear-
+ance, foreground-mask, depth, and numerical normal losses from ground-truth
+synthetic 3D data. The appearance loss combines pixel-space MSE with LPIPS
+[87], which we find important for preserving texture quality. All loss terms are
+evaluated by rendering the decoded volume representation into target views. To
+reduce the memory cost of LPIPS, we use deferred rendering [83], which caches
+18     Z. Li et al.
+
+Table 5: Training details. Hyperparameters across the three training stages. M
+denotes the number of input images.
+
+                                                                                                         Learning                                                                                               Batch Crop                                                                                                       Top-k Block Selection
+         Stage     Iterations
+                                                                                                                       Rate                                                                                            Size                                     Size Vol B i2v , B v2v Img B v2i , B i2i
+
+         Stage 1      16K                                          4×10−4 → 1×10−4                                                                                                                                               8                                192                                                                   N/A                                                       N/A
+         Stage 2      12K                                          1×10−4 → 4×10−5                                                                                                                                               4                                384                                                                     8                                                       2M
+         Stage 3       3K                                          4×10−5 → 1×10−5                                                                                                                                               1                                512                                                                    16                                                       4M
+
+
+                                                                                                                                                                                                                                                                                                       Table 6: Quantitative Geom-
+      Method             Normal (↓) Depth (↓)                                                                                                                                                                                                                                                          etry Evaluation. Normal and
+      NVDiffrecMc                                   0.06                                                                            0.02                                                                                                                                                               depth reconstruction results on
+      InvRender
+      LIRM
+                                                    0.03
+                                                    0.05
+                                                                                                                                    0.22
+                                                                                                                                   0.017
+                                                                                                                                                                                                                                                                                                       the DigitalTwinCatalogue [15]
+      Ours (LSRM)                                   0.03                                                                           0.008                                                                                                                                                               dataset.
+
+
+
+
+full-image gradients and back-propagates through the MLP decoder and volume
+representation patch by patch. The novel-view synthesis objective is:
+
+                                                                  \begin {aligned} \mathcal {L}_\text {NVS} = {}&\mathcal {L}^\text {app}_\text {MSE} + 2\mathcal {L}^\text {app}_\text {LPIPS} + \mathcal {L}^\text {mask}_\text {MSE} \\ &+ 10\mathcal {L}^\text {depth}_\text {MSE} + 2\mathcal {L}^\text {normal}_\text {MSE}. \end {aligned} 
+                                                                                                                                                                                                                                                                                                                                                                                                        (16)
+
+We apply the numerical normal loss only during the final 500–1000 iterations
+to boost geometric fidelity, as it requires 3× more samples during volume ray
+tracing. For inverse rendering, we replace the appearance loss with an albedo
+loss and further add MSE losses on the roughness and metallicity maps:
+
+                        \begin {aligned} \mathcal {L}_\text {IR} = {}&\mathcal {L}^\text {albedo}_\text {MSE} + 2\mathcal {L}^\text {albedo}_\text {LPIPS} + \mathcal {L}^\text {rough}_\text {MSE} + \mathcal {L}^\text {metal}_\text {MSE} \\ &+ \mathcal {L}^\text {mask}_\text {MSE} + 10\mathcal {L}^\text {depth}_\text {MSE} + 2\mathcal {L}^\text {normal}_\text {MSE}. \end {aligned} 
+                                                                                                                                                                                                                                                                                                                                                                                                        (17)
+
+We compute all material losses in sRGB space, which empirically improves re-
+construction quality compared to linear RGB space.
+
+
+C    Additional Evaluation Results
+Depth and normal comparisons We further evaluate our normal and depth pre-
+dictions on the DTC [15] dataset. Quantitative metrics are summarized in Tab. 6.
+Similar to recent feed-forward reconstruction methods [42], LSRM demonstrates
+significantly greater robustness when handling highly specular surfaces compared
+to traditional optimization-based methods. Furthermore, our expanded context
+window yields noticeable improvements in fine geometric details over LIRM.
+
+Robustness to Stage 1 geometric error: The coarse geometric reconstruction not
+only provides the geometric cue for 3D-aware block routing, it also determines
+which tokens are activated in the Stage 2 sparse reconstruction transformer.
+We empirically find that our sparse volume initialization method is robust to
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows                                        19
+
+                Novel Synthesis                          Relighting
+                                                                                   Fig. 10: Qualitative Geometry
+                                                                                   Evaluation. LSRM is robust to
+                                                                                   geometric errors from Stage 1 re-
+                                                                                   construction.
+     Stage 1                      Stage 2           Stage 1           Stage 2
+
+
+
+                                                                                Table 7: Quantitative NVS
+                                                                                comparisons with optimization-
+               3D Gaussian (3DGS)                   LSRM (Ours)
+                                                                                based     baselines.   Comparisons
+Metric      16 views 32 views 64 views 8 views 16 views                         between 3DGS and LSRM on GSO
+PSNR (↑)       25.10       31.63            33.44   33.68       34.17           show that LSRM narrows the qual-
+SSIM (↑)       0.944       0.980            0.985   0.970       0.973
+LPIPS (↓)      0.160       0.049            0.022   0.027       0.025           ity gap between feed-forward and
+                                                                                optimization-based methods.
+
+
+
+
+geometric inaccuracies, as we intentionally select voxels that reside both on and
+near the estimated surface, as shown in Eq. (11). While this increases the token
+count, it is critical for high-fidelity reconstruction and allows the model to recover
+from coarse Stage 1 errors. Fig. 10 shows two examples where Stage 2 successfully
+refines complex structures where Stage 1 is imprecise, such as the thin fences of
+the birdhouse and the dinosaur’s tail.
+
+Comparison with the 3D Gaussian baseline We compared LSRM against 3DGS
+on 10 randomly selected GSO models. As shown in Tab. 7, LSRM using 8 to 16
+views remains competitive with 3DGS using 64 views, while requiring orders of
+magnitude less time. Furthermore, LSRM significantly outperforms 3DGS when
+constrained to 16 or 32 views. This demonstrates that LSRM effectively narrows
+the quality gap between feed-forward and optimization-based methods.
+
+
+References
+ 1. Ainslie, J., Lee-Thorp, J., De Jong, M., Zemlyanskiy, Y., Lebrón, F., Sanghai, S.:
+    Gqa: Training generalized multi-query transformer models from multi-head check-
+    points. In: Proceedings of the 2023 Conference on Empirical Methods in Natural
+    Language Processing. pp. 4895–4901 (2023)
+ 2. Bi, S., Xu, Z., Sunkavalli, K., Kriegman, D., Ramamoorthi, R.: Deep 3d capture:
+    Geometry and reflectance from sparse multi-view images. In: Proceedings of the
+    IEEE/CVF conference on computer vision and pattern recognition. pp. 5960–5969
+    (2020)
+ 3. Boss, M., Braun, R., Jampani, V., Barron, J.T., Liu, C., Lensch, H.: Nerd:
+    Neural reflectance decomposition from image collections. In: Proceedings of the
+    IEEE/CVF International Conference on Computer Vision. pp. 12684–12694 (2021)
+ 4. Boss, M., Engelhardt, A., Kar, A., Li, Y., Sun, D., Barron, J., Lensch, H., Jampani,
+    V.: Samurai: Shape and material from unconstrained real-world arbitrary image
+    collections. Advances in Neural Information Processing Systems 35, 26389–26403
+    (2022)
+20      Z. Li et al.
+
+ 5. Boss, M., Jampani, V., Braun, R., Liu, C., Barron, J., Lensch, H.: Neural-pil:
+    Neural pre-integrated lighting for reflectance decomposition. Advances in Neural
+    Information Processing Systems 34, 10691–10704 (2021)
+ 6. Careaga, C., Aksoy, Y.: Intrinsic image decomposition via ordinal shading. ACM
+    Transactions on Graphics 43(1), 1–24 (2023)
+ 7. Chen, A., Xu, H., Esposito, S., Tang, S., Geiger, A.: Lara: Efficient large-baseline
+    radiance fields. In: European conference on computer vision. pp. 338–355. Springer
+    (2024)
+ 8. Chen, X., Chu, F.J., Gleize, P., Liang, K.J., Sax, A., Tang, H., Wang, W., Guo,
+    M., Hardin, T., Li, X., et al.: Sam 3d: 3dfy anything in images. arXiv preprint
+    arXiv:2511.16624 (2025)
+ 9. Chen, Z., Tang, J., Dong, Y., Cao, Z., Hong, F., Lan, Y., Wang, T., Xie, H., Wu,
+    T., Saito, S., et al.: 3dtopia-xl: Scaling high-quality 3d asset generation via prim-
+    itive diffusion. In: Proceedings of the Computer Vision and Pattern Recognition
+    Conference. pp. 26576–26586 (2025)
+10. Child, R., Gray, S., Radford, A., Sutskever, I.: Generating long sequences with
+    sparse transformers. arXiv preprint arXiv:1904.10509 (2019)
+11. Dao, T.: Flashattention-2: Faster attention with better parallelism and work par-
+    titioning. arXiv preprint arXiv:2307.08691 (2023)
+12. Debevec, P., Hawkins, T., Tchou, C., Duiker, H.P., Sarokin, W., Sagar, M.: Ac-
+    quiring the reflectance field of a human face. In: Proceedings of the 27th annual
+    conference on Computer graphics and interactive techniques. pp. 145–156 (2000)
+13. Deitke, M., Schwenk, D., Salvador, J., Weihs, L., Michel, O., VanderBilt, E.,
+    Schmidt, L., Ehsani, K., Kembhavi, A., Farhadi, A.: Objaverse: A universe of
+    annotated 3d objects. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 13142–13153 (2023)
+14. Deschaintre, V., Aittala, M., Durand, F., Drettakis, G., Bousseau, A.: Single-image
+    svbrdf capture with a rendering-aware deep network. ACM Transactions on Graph-
+    ics (ToG) 37(4), 1–15 (2018)
+15. Dong, Z., Chen, K., Lv, Z., Yu, H.X., Zhang, Y., Zhang, C., Zhu, Y., Tian, S., Li,
+    Z., Moffatt, G., et al.: Digital twin catalog: A large-scale photorealistic 3d object
+    digital twin dataset. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 753–763 (2025)
+16. Downs, L., Francis, A., Koenig, N., Kinman, B., Hickman, R., Reymann, K.,
+    McHugh, T.B., Vanhoucke, V.: Google scanned objects: A high-quality dataset
+    of 3d scanned household items. In: 2022 International Conference on Robotics and
+    Automation (ICRA). pp. 2553–2560. IEEE (2022)
+17. Engelhardt, A., Raj, A., Boss, M., Zhang, Y., Kar, A., Li, Y., Sun, D., Brualla,
+    R.M., Barron, J.T., Lensch, H., et al.: Shinobi: Shape and illumination using neu-
+    ral object decomposition via brdf optimization in-the-wild. In: Proceedings of the
+    IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 19636–
+    19646 (2024)
+18. Fang, J., Zhao, S.: Usp: A unified sequence parallelism approach for long context
+    generative ai. arXiv preprint arXiv:2405.07719 (2024)
+19. Goldman, D.B., Curless, B., Hertzmann, A., Seitz, S.M.: Shape and spatially-
+    varying brdfs from photometric stereo. IEEE Transactions on Pattern Analysis
+    and Machine Intelligence 32(6), 1060–1071 (2009)
+20. Gupta, A., Xiong, W., Nie, Y., Jones, I., Oğuz, B.: 3dgen: Triplane latent diffusion
+    for textured mesh generation. arXiv preprint arXiv:2303.05371 (2023)
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows             21
+
+21. Hasselgren, J., Hofmann, N., Munkberg, J.: Shape, light, and material decomposi-
+    tion from images using monte carlo rendering and denoising. Advances in Neural
+    Information Processing Systems 35, 22856–22869 (2022)
+22. Henry, A., Dachapally, P.R., Pawar, S.S., Chen, Y.: Query-key normalization
+    for transformers. In: Findings of the Association for Computational Linguistics:
+    EMNLP 2020. pp. 4246–4253 (2020)
+23. Hong, Y., Zhang, K., Gu, J., Bi, S., Zhou, Y., Liu, D., Liu, F., Sunkavalli, K.,
+    Bui, T., Tan, H.: Lrm: Large reconstruction model for single image to 3d. arXiv
+    preprint arXiv:2311.04400 (2023)
+24. Hunyuan3D, T., Yang, S., Yang, M., Feng, Y., Huang, X., Zhang, S., He, Z., Luo,
+    D., Liu, H., Zhao, Y., et al.: Hunyuan3d 2.1: From images to high-fidelity 3d assets
+    with production-ready pbr material. arXiv preprint arXiv:2506.15442 (2025)
+25. Jacobs, S.A., Tanaka, M., Zhang, C., Zhang, M., Song, S.L., Rajbhandari, S., He,
+    Y.: Deepspeed ulysses: System optimizations for enabling training of extreme long
+    sequence transformer models. arXiv preprint arXiv:2309.14509 (2023)
+26. Jiang, Y., Tu, J., Liu, Y., Gao, X., Long, X., Wang, W., Ma, Y.: Gaussianshader:
+    3d gaussian splatting with shading functions for reflective surfaces. In: Proceedings
+    of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp.
+    5322–5332 (2024)
+27. Jin, H., Jiang, H., Tan, H., Zhang, K., Bi, S., Zhang, T., Luan, F., Snavely, N.,
+    Xu, Z.: Lvsm: A large view synthesis model with minimal 3d inductive bias. arXiv
+    preprint arXiv:2410.17242 (2024)
+28. Jin, H., Liu, I., Xu, P., Zhang, X., Han, S., Bi, S., Zhou, X., Xu, Z., Su, H.:
+    Tensoir: Tensorial inverse rendering. In: Proceedings of the IEEE/CVF Conference
+    on Computer Vision and Pattern Recognition. pp. 165–174 (2023)
+29. Korthikanti, V.A., Casper, J., Lym, S., McAfee, L., Andersch, M., Shoeybi, M.,
+    Catanzaro, B.: Reducing activation recomputation in large transformer models.
+    Proceedings of Machine Learning and Systems 5, 341–353 (2023)
+30. Kuang, Z., Zhang, Y., Yu, H.X., Agarwala, S., Wu, E., Wu, J., et al.: Stanford-orb: a
+    real-world 3d object inverse rendering benchmark. Advances in Neural Information
+    Processing Systems 36 (2024)
+31. Lai, X., Lu, J.: native-sparse-attention-triton: Efficient triton implementation
+    of Native Sparse Attention. https://github.com/XunhaoLai/native- sparse-
+    attention-triton (2025)
+32. Lan, Y., Hong, F., Zhou, S., Yang, S., Meng, X., Chen, Y., Lyu, Z., Dai, B.,
+    Pan, X., Loy, C.C.: Ln3diff++: Scalable latent neural fields diffusion for speedy
+    3d generation. IEEE Transactions on Pattern Analysis and Machine Intelligence
+    (2025)
+33. Lan, Y., Zhou, S., Lyu, Z., Hong, F., Yang, S., Dai, B., Pan, X., Loy, C.C.: Gaus-
+    siananything: Interactive point cloud latent diffusion for 3d generation (2025)
+34. Leroy, V., Cabon, Y., Revaud, J.: Grounding image matching in 3d with mast3r.
+    In: European conference on computer vision. pp. 71–91. Springer (2024)
+35. Li, W., Liu, J., Yan, H., Chen, R., Liang, Y., Chen, X., Tan, P., Long, X.: Crafts-
+    man3d: High-fidelity mesh generation with 3d native generation and interactive
+    geometry refiner. arXiv preprint arXiv:2405.14979 (2024)
+36. Li, W., Zhang, X., Sun, Z., Qi, D., Li, H., Cheng, W., Cai, W., Wu, S., Liu, J.,
+    Wang, Z., et al.: Step1x-3d: Towards high-fidelity and controllable generation of
+    textured 3d assets. arXiv preprint arXiv:2505.07747 (2025)
+37. Li, X., Dong, Y., Peers, P., Tong, X.: Modeling surface appearance from a single
+    photograph using self-augmented convolutional neural networks. ACM Transac-
+    tions on Graphics (ToG) 36(4), 1–11 (2017)
+22      Z. Li et al.
+
+38. Li, Y., Zou, Z.X., Liu, Z., Wang, D., Liang, Y., Yu, Z., Liu, X., Guo, Y.C., Liang,
+    D., Ouyang, W., et al.: Triposg: High-fidelity 3d shape synthesis using large-scale
+    rectified flow models. IEEE Transactions on Pattern Analysis and Machine Intel-
+    ligence (2025)
+39. Li, Z., Snavely, N.: Cgintrinsics: Better intrinsic image decomposition through
+    physically-based rendering. In: Proceedings of the European conference on com-
+    puter vision (ECCV). pp. 371–387 (2018)
+40. Li, Z., Shi, J., Bi, S., Zhu, R., Sunkavalli, K., Hašan, M., Xu, Z., Ramamoorthi,
+    R., Chandraker, M.: Physically-based editing of indoor scene lighting from a single
+    image. In: European Conference on Computer Vision. pp. 555–572. Springer (2022)
+41. Li, Z., Sunkavalli, K., Chandraker, M.: Materials for masses: Svbrdf acquisition
+    with a single mobile phone image. In: Proceedings of the European conference on
+    computer vision (ECCV). pp. 72–87 (2018)
+42. Li, Z., Wang, D., Chen, K., Lv, Z., Nguyen-Phuoc, T., Lee, M., Huang, J.B.,
+    Xiao, L., Zhu, Y., Marshall, C.S., et al.: Lirm: Large inverse rendering model for
+    progressive reconstruction of shape, materials and view-dependent radiance fields.
+    In: Proceedings of the Computer Vision and Pattern Recognition Conference. pp.
+    505–517 (2025)
+43. Li, Z., Xu, Z., Ramamoorthi, R., Sunkavalli, K., Chandraker, M.: Learning to re-
+    construct shape and spatially-varying reflectance from a single image. ACM Trans-
+    actions on Graphics (TOG) 37(6), 1–11 (2018)
+44. Li, Z., Wang, Y., Zheng, H., Luo, Y., Wen, B.: Sparc3d: Sparse representa-
+    tion and construction for high-resolution 3d shapes modeling. arXiv preprint
+    arXiv:2505.14521 (2025)
+45. Liang, H., Ren, J., Mirzaei, A., Torralba, A., Liu, Z., Gilitschenski, I., Fidler, S.,
+    Oztireli, C., Ling, H., Gojcic, Z., et al.: Feed-forward bullet-time reconstruction of
+    dynamic scenes from monocular videos. arXiv preprint arXiv:2412.03526 (2024)
+46. Liang, Z., Zhang, Q., Feng, Y., Shan, Y., Jia, K.: Gs-ir: 3d gaussian splatting
+    for inverse rendering. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 21644–21653 (2024)
+47. Lin, C.H., Lv, Z., Wu, S., Xu, Z., Nguyen-Phuoc, T., Tseng, H.Y., Straub, J.,
+    Khan, N., Xiao, L., Yang, M.H., et al.: Dgs-lrm: Real-time deformable 3d gaussian
+    reconstruction from monocular videos. arXiv preprint arXiv:2506.09997 (2025)
+48. Lin, H., Chen, S., Liew, J., Chen, D.Y., Li, Z., Shi, G., Feng, J., Kang, B.:
+    Depth anything 3: Recovering the visual space from any views. arXiv preprint
+    arXiv:2511.10647 (2025)
+49. Liu, H., Zaharia, M., Abbeel, P.: Ring attention with blockwise transformers for
+    near-infinite context. arXiv preprint arXiv:2310.01889 (2023)
+50. Loshchilov, I., Hutter, F.: Decoupled weight decay regularization. In: International
+    Conference on Learning Representations (2019), https://openreview.net/forum?
+    id=Bkg6RiCqY7
+51. Ma, Z., Chen, X., Yu, S., Bi, S., Zhang, K., Ziwen, C., Xu, S., Yang, J., Xu, Z.,
+    Sunkavalli, K., et al.: 4d-lrm: Large space-time reconstruction model from and to
+    any view at any time. arXiv preprint arXiv:2506.18890 (2025)
+52. Meka, A., Maximov, M., Zollhoefer, M., Chatterjee, A., Seidel, H.P., Richardt, C.,
+    Theobalt, C.: Lime: Live intrinsic material estimation. In: Proceedings of the IEEE
+    conference on computer vision and pattern recognition. pp. 6315–6324 (2018)
+53. Munkberg, J., Hasselgren, J., Shen, T., Gao, J., Chen, W., Evans, A., Müller, T.,
+    Fidler, S.: Extracting triangular 3d models, materials, and lighting from images.
+    In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+    Recognition. pp. 8280–8290 (2022)
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows              23
+
+54. Qiu, Z., Wang, Z., Zheng, B., Huang, Z., Wen, K., Yang, S., Men, R., Yu, L.,
+    Huang, F., Huang, S., et al.: Gated attention for large language models: Non-
+    linearity, sparsity, and attention-sink-free. arXiv preprint arXiv:2505.06708 (2025)
+55. Shi, Y., Wu, Y., Wu, C., Liu, X., Zhao, C., Feng, H., Liu, J., Zhang, L., Zhang, J.,
+    Zhou, B., et al.: Gir: 3d gaussian inverse rendering for relightable scene factoriza-
+    tion. arXiv preprint arXiv:2312.05133 (2023)
+56. Siddiqui, Y., Monnier, T., Kokkinos, F., Kariya, M., Kleiman, Y., Garreau, E.,
+    Gafni, O., Neverova, N., Vedaldi, A., Shapovalov, R., et al.: Meta 3d assetgen:
+    Text-to-mesh generation with high-quality geometry, texture, and pbr materials.
+    arXiv preprint arXiv:2407.02445 (2024)
+57. Siméoni, O., Vo, H.V., Seitzer, M., Baldassarre, F., Oquab, M., Jose, C., Khali-
+    dov, V., Szafraniec, M., Yi, S., Ramamonjisoa, M., et al.: Dinov3. arXiv preprint
+    arXiv:2508.10104 (2025)
+58. Sun, C., Cai, G., Li, Z., Yan, K., Zhang, C., Marshall, C., Huang, J.B., Zhao,
+    S., Dong, Z.: Neural-pbir reconstruction of shape, material, and illumination. In:
+    Proceedings of the IEEE/CVF International Conference on Computer Vision. pp.
+    18046–18056 (2023)
+59. Tillet, P.: Introducing Triton: Open-source GPU programming for neural networks.
+    https://openai.com/index/triton/ (July 2021), openAI Blog
+60. Ummenhofer, B., Agrawal, S., Sepulveda, R., Lao, Y., Zhang, K., Cheng, T.,
+    Richter, S., Wang, S., Ros, G.: Objects with lighting: A real-world dataset for
+    evaluating reconstruction and rendering for object relighting. In: 2024 Interna-
+    tional Conference on 3D Vision (3DV). pp. 137–147. IEEE (2024)
+61. Vahdat, A., Williams, F., Gojcic, Z., Litany, O., Fidler, S., Kreis, K., et al.: Lion:
+    Latent point diffusion models for 3d shape generation. Advances in neural infor-
+    mation processing systems 35, 10021–10039 (2022)
+62. Vaswani, A.: Attention is all you need. Advances in Neural Information Processing
+    Systems (2017)
+63. Wang, J., Chen, M., Karaev, N., Vedaldi, A., Rupprecht, C., Novotny, D.: Vggt:
+    Visual geometry grounded transformer. In: Proceedings of the Computer Vision
+    and Pattern Recognition Conference. pp. 5294–5306 (2025)
+64. Wang, P.: native-sparse-attention-pytorch: Native Sparse Attention in PyTorch.
+    https://github.com/lucidrains/native-sparse-attention-pytorch (2025)
+65. Wang, S., Leroy, V., Cabon, Y., Chidlovskii, B., Revaud, J.: Dust3r: Geometric
+    3d vision made easy. In: Proceedings of the IEEE/CVF conference on computer
+    vision and pattern recognition. pp. 20697–20709 (2024)
+66. Wei, X., Zhang, K., Bi, S., Tan, H., Luan, F., Deschaintre, V., Sunkavalli, K.,
+    Su, H., Xu, Z.: Meshlrm: Large reconstruction model for high-quality mesh. arXiv
+    preprint arXiv:2404.12385 (2024)
+67. Wu, S., Lin, Y., Zhang, F., Zeng, Y., Xu, J., Torr, P., Cao, X., Yao, Y.: Direct3d:
+    Scalable image-to-3d generation via 3d latent diffusion transformer. Advances in
+    Neural Information Processing Systems 37, 121859–121881 (2024)
+68. Wu, S., Lin, Y., Zhang, F., Zeng, Y., Yang, Y., Bao, Y., Qian, J., Zhu, S., Cao,
+    X., Torr, P., et al.: Direct3d-s2: Gigascale 3d generation made easy with spatial
+    sparse attention. arXiv preprint arXiv:2505.17412 (2025)
+69. Xiang, J., Chen, X., Xu, S., Wang, R., Lv, Z., Deng, Y., Zhu, H., Dong, Y., Zhao,
+    H., Yuan, N.J., et al.: Native and compact structured latents for 3d generation.
+    arXiv preprint arXiv:2512.14692 (2025)
+70. Xiang, J., Lv, Z., Xu, S., Deng, Y., Wang, R., Zhang, B., Chen, D., Tong, X., Yang,
+    J.: Structured 3d latents for scalable and versatile 3d generation. In: Proceedings
+24      Z. Li et al.
+
+    of the IEEE/CVF conference on computer vision and pattern recognition. pp.
+    21469–21480 (2025)
+71. Xu, Y., Shi, Z., Yifan, W., Chen, H., Yang, C., Peng, S., Shen, Y., Wetzstein, G.:
+    Grm: Large gaussian reconstruction model for efficient 3d reconstruction and gen-
+    eration. In: European Conference on Computer Vision. pp. 1–20. Springer (2024)
+72. Xu, Z., Li, Z., Dong, Z., Zhou, X., Newcombe, R., Lv, Z.: 4dgt: Learning
+    a 4d gaussian transformer using real-world monocular videos. arXiv preprint
+    arXiv:2506.08015 (2025)
+73. Yang, H., Dong, Y., Jiang, H., Xu, D., Pavlakos, G., Huang, Q.: Atlas gaussians
+    diffusion for 3d generation. arXiv preprint arXiv:2408.13055 (2024)
+74. Yang, Z., Chen, Y., Gao, X., Yuan, Y., Wu, Y., Zhou, X., Jin, X.: Sire-ir: Inverse
+    rendering for brdf reconstruction with shadow and illumination removal in high-
+    illuminance scenes. arXiv preprint arXiv:2310.13030 (2023)
+75. Yariv, L., Gu, J., Kasten, Y., Lipman, Y.: Volume rendering of neural implicit
+    surfaces. Advances in Neural Information Processing Systems 34, 4805–4815 (2021)
+76. Yuan, J., Gao, H., Dai, D., Luo, J., Zhao, L., Zhang, Z., Xie, Z., Wei, Y., Wang, L.,
+    Xiao, Z., et al.: Native sparse attention: Hardware-aligned and natively trainable
+    sparse attention. In: Proceedings of the 63rd Annual Meeting of the Association
+    for Computational Linguistics (Volume 1: Long Papers). pp. 23078–23097 (2025)
+77. Zaheer, M., Guruganesh, G., Dubey, K.A., Ainslie, J., Alberti, C., Ontanon, S.,
+    Pham, P., Ravula, A., Wang, Q., Yang, L., et al.: Big bird: Transformers for longer
+    sequences. Advances in neural information processing systems 33, 17283–17297
+    (2020)
+78. Zarzar, J., Monnier, T., Shapovalov, R., Vedaldi, A., Novotny, D.: Twinner: Shining
+    light on digital twins in a few snaps. In: Proceedings of the Computer Vision and
+    Pattern Recognition Conference. pp. 5859–5869 (2025)
+79. Zeng, Z., Deschaintre, V., Georgiev, I., Hold-Geoffroy, Y., Hu, Y., Luan, F., Yan,
+    L.Q., Hašan, M.: Rgbx: Image decomposition and synthesis using material- and
+    lighting-aware diffusion models. In: ACM SIGGRAPH 2024 Conference Papers.
+    SIGGRAPH ’24, Association for Computing Machinery, New York, NY, USA
+    (2024). https://doi.org/10.1145/3641519.3657445, https://doi.org/10.
+    1145/3641519.3657445
+80. Zhang, B., Tang, J., Niessner, M., Wonka, P.: 3dshape2vecset: A 3d shape repre-
+    sentation for neural fields and generative diffusion models. ACM Transactions On
+    Graphics (TOG) 42(4), 1–16 (2023)
+81. Zhang, C., Moing, G.L., Koppula, S., Rocco, I., Momeni, L., Xie, J., Sun, S.,
+    Sukthankar, R., Barral, J.K., Hadsell, R., et al.: Efficiently reconstructing dynamic
+    scenes one d4rt at a time. arXiv preprint arXiv:2512.08924 (2025)
+82. Zhang, K., Bi, S., Tan, H., Xiangli, Y., Zhao, N., Sunkavalli, K., Xu, Z.: Gs-lrm:
+    Large reconstruction model for 3d gaussian splatting. In: European Conference on
+    Computer Vision. pp. 1–19. Springer (2025)
+83. Zhang, K., Kolkin, N., Bi, S., Luan, F., Xu, Z., Shechtman, E., Snavely, N.: Arf:
+    Artistic radiance fields. In: European Conference on Computer Vision. pp. 717–733.
+    Springer (2022)
+84. Zhang, K., Luan, F., Li, Z., Snavely, N.: Iron: Inverse rendering by optimizing neu-
+    ral sdfs and materials from photometric images. In: Proceedings of the IEEE/CVF
+    Conference on Computer Vision and Pattern Recognition. pp. 5565–5574 (2022)
+85. Zhang, K., Luan, F., Wang, Q., Bala, K., Snavely, N.: Physg: Inverse rendering with
+    spherical gaussians for physics-based material editing and relighting. In: Proceed-
+    ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition.
+    pp. 5453–5462 (2021)
+   High-Fidelity Object-Centric Reconstruction via Scaled Context Windows             25
+
+86. Zhang, L., Wang, Z., Zhang, Q., Qiu, Q., Pang, A., Jiang, H., Yang, W., Xu, L.,
+    Yu, J.: Clay: A controllable large-scale generative model for creating high-quality
+    3d assets. ACM Transactions on Graphics (TOG) 43(4), 1–20 (2024)
+87. Zhang, R., Isola, P., Efros, A.A., Shechtman, E., Wang, O.: The unreasonable
+    effectiveness of deep features as a perceptual metric. In: Proceedings of the IEEE
+    conference on computer vision and pattern recognition. pp. 586–595 (2018)
+88. Zhang, T., Bi, S., Hong, Y., Zhang, K., Luan, F., Yang, S., Sunkavalli, K., Freeman,
+    W.T., Tan, H.: Test-time training done right. arXiv preprint arXiv:2505.23884
+    (2025)
+89. Zhang, T., Kuang, Z., Jin, H., Xu, Z., Bi, S., Tan, H., Zhang, H., Hu, Y., Hasan,
+    M., Freeman, W.T., et al.: Relitlrm: Generative relightable radiance for large re-
+    construction models. arXiv preprint arXiv:2410.06231 (2024)
+90. Zhang, X., Srinivasan, P.P., Deng, B., Debevec, P., Freeman, W.T., Barron, J.T.:
+    Nerfactor: Neural factorization of shape and reflectance under an unknown illumi-
+    nation. ACM Transactions on Graphics (ToG) 40(6), 1–18 (2021)
+91. Zhang, Y., Xu, T., Yu, J., Ye, Y., Jing, Y., Wang, J., Yu, J., Yang, W.: Nemf:
+    Inverse volume rendering with neural microflake field. In: Proceedings of the
+    IEEE/CVF International Conference on Computer Vision. pp. 22919–22929 (2023)
+92. Zhang, Y., Sun, J., He, X., Fu, H., Jia, R., Zhou, X.: Modeling indirect illumination
+    for inverse rendering. In: Proceedings of the IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition. pp. 18643–18652 (2022)
+93. Zhao, Z., Liu, W., Chen, X., Zeng, X., Wang, R., Cheng, P., Fu, B., Chen, T., Yu,
+    G., Gao, S.: Michelangelo: Conditional 3d shape generation based on shape-image-
+    text aligned latent representation. Advances in neural information processing sys-
+    tems 36, 73969–73982 (2023)
+94. Ziwen, C., Tan, H., Zhang, K., Bi, S., Luan, F., Hong, Y., Fuxin, L., Xu, Z.: Long-
+    lrm: Long-sequence large reconstruction model for wide-coverage gaussian splats.
+    In: Proceedings of the IEEE/CVF International Conference on Computer Vision.
+    pp. 4349–4359 (2025)
+

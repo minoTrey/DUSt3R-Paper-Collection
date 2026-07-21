@@ -1,0 +1,973 @@
+                                                  Wild3R: Feed-Forward 3D Gaussian Splatting
+                                                  from Unconstrained Sparse Photo Collections
+
+                                                     Yuto Furutani∗ ,            Takashi Otonari∗ , Kaede Shiohara∗, Toshihiko Yamasaki
+                                                                                          The University of Tokyo
+                                                              {furutani, otonari, shiohara, yamasaki}@cvm.t.u-tokyo.ac.jp
+                                                               Project page: https://furuschool.github.io/wild3r-page
+arXiv:2606.11894v2 [cs.CV] 11 Jun 2026
+
+
+
+
+                                                  N Context Views (e.g., N=16)                Reference Views              Illumination-Conditioned Transient-Free Gaussians
+                                              (Appearance-varying, Unposed Images)
+
+
+
+
+                                                                                           Wild3R
+                                                                                     1 Forward Pass for Each Reference
+                                                                                      (in 1 Second on 1 NVIDIA A100 GPU)
+
+
+                                         Figure 1: Given unconstrained photo collections and reference views, Wild3R reconstructs 3D scenes
+                                         in the reference appearances without transient objects.
+
+                                                                                                     Abstract
+                                                      Feed-forward 3D Gaussian Splatting (3DGS) removes the need for time-consuming
+                                                      per-scene optimization required by traditional 3DGS. However, existing feed-
+                                                      forward approaches struggle with real-world photo collections that include diverse
+                                                      lighting conditions and transient objects. In this paper, we present Wild3R, a
+                                                      feed-forward approach for unconstrained sparse photo collections. The main bot-
+                                                      tleneck is the lack of training data that provides multiple viewpoints, a variety of
+                                                      illuminations, and transient variations necessary for learning robust scene repre-
+                                                      sentations. To address this, we introduce the WildCity dataset, which comprises
+                                                      200 scenes, 170 lighting conditions, and transient objects, resulting in 337,500
+                                                      images in total. By leveraging the dataset, our model learns appearance consis-
+                                                      tency across viewpoints conditioned on reference views, while removing transient
+                                                      content. Extensive experiments demonstrate that our method outperforms existing
+                                                      feed-forward approaches and achieves results competitive with prior per-scene
+                                                      optimization-based methods.
+
+
+                                         1     Introduction
+                                         Real-world image collections exhibit uncontrolled illumination, exposure differences, seasonal
+                                         variation, and transient objects such as moving objects or occluders, requiring methods to separate
+                                         persistent scene structure from observation-dependent appearance. Early neural scene representations
+                                         such as Neural Radiance Fields (NeRF) [22] achieved high-fidelity novel view synthesis but relied on
+                                         controlled captures. NeRF in the Wild (NeRF-W) [21] addressed this limitation by modeling per-
+                                         image appearance and transient objects for consistent reconstruction from Internet photo collections.
+                                             ∗ Co-first authors.
+
+
+
+
+                                         Preprint.
+      ◯ w/ GT Camera ☆ w/o GT Camera
+                                         Figure 2: PSNR vs. Reconstruction Time. The horizontal
+       Better                            axis represents the reconstruction time in log scale to gen-
+                                         erate 3D Gaussians from input images. The vertical axis
+                                         indicates the corresponding PSNR of each model on the
+                                         Photo Tourism dataset [31] using 16 context views. Star
+                                         markers denote methods that operate without ground truth
+                                         camera parameters, while circle markers represent those that
+                                         require them.
+
+
+
+
+3D Gaussian Splatting (3DGS) [14] introduced explicit radiance primitives that enable real-time
+rendering while preserving photorealistic quality. Subsequent works further extended it to un-
+constrained photo collections [5, 47, 43, 15, 16, 41]. Despite their fast rendering, these meth-
+ods still rely on iterative optimization for each scene. Recently, feed-forward Gaussian splat-
+ting [30, 49, 12, 46, 52] has addressed this bottleneck by predicting a complete Gaussian representa-
+tion directly from input images in a single forward pass, leveraging large-scale training on multi-view
+image datasets [26, 45, 19, 17, 9, 42, 6, 27, 1, 34, 32, 10, 51, 2, 24, 7].
+However, existing feed-forward approaches struggle to generalize to unconstrained sparse photo
+collections captured in the wild, where viewpoints are sparse, lighting varies significantly, and
+transient or view-dependent content frequently appears. In such settings, they often produce duplicated
+geometry, inconsistent density, and unstable appearance across viewpoints. We attribute this limitation
+to two fundamental challenges: 1) the lack of large-scale multi-view training datasets covering diverse
+observation conditions, and 2) the absence of mechanisms to enforce appearance consistency and
+transient-free geometry across views.
+To address these challenges, we propose Wild3R, a feed-forward 3DGS method for unconstrained
+sparse photo collections. As shown in Fig. 1, Wild3R takes sparse (e.g., 16) unstructured views
+and a reference view to infer appearance-consistent Gaussians conditioned on the reference within
+one second on a single NVIDIA A100 GPU. Crucially, Wild3R achieves this without requiring a
+complex, specialized architecture. It is realized by fine-tuning the existing feed-forward model [12],
+demonstrating that the primary bottleneck lies in the training data.
+Wild3R is trained on our newly introduced large-scale synthetic dataset, named WildCity, which
+comprises multi-view, multi-lighting images covering 200 scenes, 170 HDRI maps, and diverse
+transient objects. Leveraging the WildCity dataset, Wild3R learns to infer illumination-consistent
+Gaussians conditioned on the reference view while removing transient objects. Our experiments
+demonstrate that our model outperforms feed-forward baselines across standard benchmarks while
+being competitive with per-scene optimization-based methods that require camera calibration and
+point cloud initialization, as shown in Fig. 2. Extensive experiments on in-the-wild benchmarks
+demonstrate that our approach significantly outperforms prior feed-forward methods and achieves
+performance competitive with optimization-based approaches, while being orders of magnitude faster
+at inference time.
+
+
+
+2     Related Work
+
+2.1     3D Reconstruction from Unconstrained Photo Collections
+
+In real-world image collections, illumination variations and transient objects are inevitable. To address
+these challenges, several NeRF- and 3DGS-based approaches [3, 33, 8, 13, 44, 5, 47, 43, 16, 41] have
+proposed to disentangle static scene content from transient objects and varying illumination using
+per-image appearance embeddings, as pioneered by NeRF-W [21]. However, these methods often
+rely on per-scene, computationally expensive optimization (e.g., NeRF-W takes dozens of hours per
+scene) and typically require known camera parameters, leaving practical challenges for real-world
+environments.
+
+
+                                                   2
+ Dataset                 Level   #Images    #Scenes #Illuminations #Illum. per View #Views per Scene Transient Objects
+ DTU [11]                Object 47,467       124            7              7            49 or 64             ✗
+ ReNe [36]               Object 40,000       20            40             40               50                ✗
+ OpenIllumination [20]   Object 108,096       64          155            155               72                ✗
+ OpenSubstance [25]      Object 2,409,750    187         1,637            53              270                ✗
+ Photo Tourism [31]      Scene   29,796      26             -              1            75–3,765             ✓
+ NeRF-OSR [28]           Scene    3,240        8            -              1            331–493              ✓
+ LightCity [38]          Scene    5,023        5          211           1 or 2          165–896              ✗
+ WildCity (Ours)         Scene 337,500       200          170             30               50                ✓
+
+      Table 1: Comparative Dataset Properties: WildCity Dataset and Existing Datasets.
+
+2.2   Feed-Forward 3D Gaussian Splatting
+
+To address the inefficiency of per-scene optimization methods such as NeRF [22] and 3DGS [14],
+recent studies [30, 49, 12, 18, 46, 23, 50] focus on feed-forward reconstruction learned from large-
+scale datasets. These approaches are typically based on geometry foundation models such as
+DUSt3R [39] and VGGT [37], and extend them to feed-forward 3DGS by employing an additional
+head to infer per-pixel Gaussians. Despite the impressive reconstruction ability, these models
+often fail to handle unconstrained photo collections since they assume a static scene captured at a
+single point in time. In contrast to the existing feed-forward 3DGS methods, our model generates
+appearance-consistent 3D Gaussians from images captured under varying conditions over time.
+
+
+2.3   In-the-Wild Datasets
+
+The Photo Tourism dataset [31] and NeRF-OSR dataset [28] serve as standard benchmarks to evaluate
+NeRF- and 3DGS-based models in in-the-wild scenarios. LightCity [38] provides multi-illumination
+renderings of outdoor urban scenes generated using SceneCity [4] and Blender’s Cycles engine, but
+offers only a few images per viewpoint and a few scenes, and does not include transient objects.
+Although DTU [11], ReNe [36], OpenIllumination [20], and OpenSubstance [25] offer multiple
+images per camera view primarily for relighting, they lack transient objects and are limited to
+object-centric, simplistic scenes. In contrast to these existing datasets, our dataset provides sufficient
+multi-view images, scenes, illuminations, and transient objects to train feed-forward models as
+summarized in Table 1.
+
+
+3     WildCity Dataset
+
+Our WildCity dataset is designed to train feed-forward 3DGS models for 3D reconstruction from
+unconstrained photo collections. An overview of the dataset creation pipeline is shown in Fig. 3.
+The dataset creation process consists of four main stages: (i) Data Collection (Sec. 3.1), utilizing the
+SceneCity Blender add-on and 3D assets from Sketchfab; (ii) Scene Generation (Sec. 3.2), which
+involves determining the center of the scenes; (iii) Image Rendering (Sec. 3.3); and (iv) Adding
+Transient Objects with Gemini [35] (Sec. 3.4).
+
+
+3.1   Data Collection
+
+3D Assets. To construct the WildCity dataset, we used the SceneCity Blender add-on, which automat-
+ically generates 3D cities. However, the add-on provides only 11 building types, which significantly
+restricts the geometric and textural diversity necessary for training robust 3D reconstruction models.
+Therefore, we augmented the default SceneCity building set with over 130 publicly available 3D
+models from Sketchfab (provided primarily in GLB format with permissive licenses). These collected
+assets include not only typical residential and commercial buildings but also unique structures such
+as temples, shrines, towers, and giant Buddha statues.
+Multi-illumination. We utilized 170 HDRI maps available from LightCity [38] to achieve diverse
+lighting conditions, excluding extremely dark nighttime maps to ensure sufficient scene visibility.
+During dataset generation, we randomly sampled 30 HDRI maps per scene from this collection and
+rendered multi-view images under each selected illumination condition.
+
+
+                                                           3
+ 3D Assets   City Generation                                   Multi-view Multi-illumination Renderings          Transient Objects
+ SceneCity       City 1                                                   50 Viewpoints                   HDRI
+
+                                                                                          …
+
+
+
+
+                                            30 Illuminations
+                                                                                                                              Original
+
+
+
+
+                                                                            …
+
+
+
+
+                                                                                                           …
+                                                                                          …
+
+
+
+
+                               200 Scenes
+                                                                                                                             Edited by
+      …
+
+
+
+
+                 City 2                                                                                                       Gemini
+
+
+
+
+                                                                                    …
+ Sketchfab
+
+                                                                                          …
+
+
+
+
+                                            30 Illuminations
+
+
+
+
+                                                                            …
+
+
+
+
+                                                                                                           …
+                                                                                                                             Difference
+                                                                                          …
+                   …
+      …
+
+
+
+
+Figure 3: WildCity Dataset Creation Pipeline. (i) First, we collect 3D assets from the SceneCity, a
+Blender add-on, and Sketchfab (Sec. 3.1). (ii) Then, we generate scenes using these assets (Sec. 3.2).
+(iii) Next, we render the scenes from multiple viewpoints and multiple lighting conditions using the
+HDRI maps (Sec. 3.3). (iv) Finally, we add transient objects to the rendered images using Gemini
+(Sec. 3.4).
+
+
+3.2   Scene Generation
+
+City Generation. We divided the downloaded Sketchfab models into nine distinct subsets. By
+integrating each subset with the default SceneCity buildings, we constructed a total of nine unique
+virtual cities. Because SceneCity requires assets to be aligned to a 10-meter grid, we uniformly
+scaled and spatially normalized the downloaded GLB assets during integration to prevent severe
+scale distortions. The cities were then procedurally generated using SceneCity’s built-in placement
+algorithms, where we assigned a higher placement probability to the Sketchfab assets than to the
+default buildings.
+Scene Designation. Next, we defined the spatial layout and focal points for each scene. We manually
+selected target buildings facing roads with an unobstructed view on the opposite side. This careful
+selection prevents camera-geometry collisions and occlusions during the subsequent multi-view
+rendering phase. We sampled 20 to 25 such target locations per city, resulting in a total of 200 distinct
+scenes across the nine cities.
+
+3.3   Rendering
+
+Camera Setup. To create the dataset, we sampled 50 views per scene. Cameras were randomly
+distributed within a fan-shaped region extending from the scene center, at heights between 1 and 2
+meters to simulate a standard human eye level. The camera poses were randomized such that their
+optical axes intersected points within a rectangular region around the scene center. This strategy
+ensures sufficient overlapping regions even with sparse views, while simultaneously replicating
+typical human photo collections. Furthermore, the field of view (FoV) of each camera was uniformly
+sampled between 40◦ and 100◦ to capture the diverse focal lengths found in unconstrained photo
+collections. To prevent distant cameras from capturing empty background regions beyond the modeled
+ground plane, we dynamically reduced the FoV to crop out these invalid areas.
+Rendering Engine. We render images from the sampled camera viewpoints using Blender Cycles,
+a physically based renderer (PBR) capable of generating photorealistic images. All images are at
+a resolution of 512 × 512 pixels with 512 samples per pixel. PBR models light transport using
+bidirectional scattering distribution function shaders, including diffuse reflection, glossy reflection,
+and transmission. The rendered image intensity I(x) at pixel location x is modeled as
+
+                          I(x) = ID (x) + IG (x) + IT (x) + IB (x) + IE (x),
+
+
+                                                                                4
+                       Illuminations     Mask   Depth            Illuminations           Mask    Depth
+
+
+
+
+ Viewpoints
+
+
+
+
+Figure 4: Scene Examples from WildCity Dataset. WildCity dataset contains images of various
+3D assets captured under different viewpoints and illuminations. The added transient objects are
+highlighted with red dashed boxes. We also provide corresponding depth maps and masks indicating
+the sky regions.
+
+where ID , IG , IT , IB , and IE denote the diffuse, glossy, transmission, background, and emission
+components, respectively. Both the diffuse and glossy components are further decoupled into direct
+and indirect lighting terms:
+                                                                               
+                      I(D,G) (x) = α(D,G) (x) I(D,G),dir (x) + I(D,G),indir (x) ,
+where α(D,G) (x) denotes the (diffuse, glossy) color and I(D,G),dir (x), I(D,G),indir (x) denote the
+direct and indirect lighting paths.
+
+3.4           Adding Transient Objects
+
+Unconstrained photo collections inevitably contain transient objects, such as moving vehicles, pedes-
+trians, and other entities that temporarily occlude the scene. However, reproducing the diversity
+by explicitly placing objects in 3D scenes is difficult. We instead use a text-driven image editing
+model [35] to introduce realistic and diverse objects rather than inserting them as 3D assets; note that
+these transient objects are not necessarily consistent across views. For example, we input the prompt
+“Please add a person, a car, a construction warning sign, fabric banners on some buildings, while
+maintaining the geometry and lightness/darkness.” into the model. We apply this 2D augmentation to
+12.5% of the rendered views, yielding a total of 37,500 transient-augmented images. More details
+can be found in the Appendix.
+
+4             Wild3R
+We aim to reconstruct 3D scenes from appearance-varying input views without per-scene optimization.
+To this end, we propose Wild3R, a feed-forward 3DGS model trained to enforce appearance consis-
+tency and transient-free geometry across views. Our network builds upon a camera-free feed-forward
+3DGS model [12] (Sec. 4.1) and is fine-tuned on our WildCity dataset with our newly introduced
+learning objectives (Sec. 4.2). This minimal extension requires no structural modifications to the base
+model, thereby preserving its fast inference speed and architectural simplicity.
+
+4.1           Preliminary
+
+3D Gaussian Splatting (3DGS). 3DGS [14] represents a 3D scene as a collection of anisotropic
+Gaussian primitives. Each Gaussian models a localized volumetric element parameterized by
+(µg , αg , qg , sg , cg ), where µg ∈ R3 denotes the 3D center position, αg ∈ R represents opac-
+ity, qg ∈ R4 is the rotation encoded as a quaternion, sg ∈ R3 defines the anisotropic scaling, and cg
+represents view-dependent color parameterized using spherical harmonics coefficients.
+AnySplat. We base our network architecture on AnySplat [12], which is built upon VGGT [37] and
+extends it to feed-forward 3DGS by adding an extra head to predict per-pixel Gaussian primitives.
+                                                           H×W ×3
+Given a set of N input views {In }N  n=1 where In ∈ R              , the model predicts the parameters
+                                             G
+of G 3D Gaussians {(µg , αg , qg , sg , cg )}g=1 , along with the corresponding camera parameters and
+depth maps. By convention, the camera of the first frame defines the world coordinate system for the
+reconstructed scene.
+
+
+                                                        5
+                                       Partial Fine-tuning (Initialized with AnySplat)
+                 Input                               : Frozen          : Trainable                        Rendering     GT
+                                                                                 Gaussian Head
+    Reference                           Per-view          Multi-view                                              ℒ!"
+                                                                                     Depth Head
+      View                              Encoder           Transformer
+                                                                                  Camera Head
+
+
+                                                                                         Cameras                  ℒ!"
+
+
+                                         Gaussians        Depths          Cameras              Renderer
+                                                                           ℒ#$% , ℒ&" , ℒ"!'                      ℒ!"
+    Context
+    Views
+
+
+                                                                                                                  ℒ!"
+
+
+
+                Transient Objects
+                                    Illumination-Consistent Transient-Free 3D Gaussians
+
+Figure 5: Learning Appearance Consistency and Transient-free Geometry. During training,
+Wild3R takes multi-view images with random view-dependent illuminations and transient objects,
+and is constrained to predict transient-free 3D Gaussian primitives, depth maps, and camera poses.
+The illumination of the reconstructed scene is conditioned on the reference view.
+4.2     Learning Appearance Consistency and Transient-free Geometry
+
+Appearance Consistency. We start by taking the first frame as an appearance reference to condition
+the scene reconstruction. As shown in Fig. 5, for each training iteration, we sample a set of views
+   (L )
+{In n }Nn=1 from the training dataset, where Ln denotes the lighting condition associated with the
+                                                                        (L )       (L )
+n-th observation. We then apply transient augmentation to obtain I˜n n = τ (In n ), where τ (·)
+represents a stochastic augmentation pipeline. This pipeline applies transient object insertion with a
+                                                    (L )
+probability of p = 0.5. The first augmented view I˜1 1 serves as the reference appearance.
+                                                                                
+                                                                         (L )
+The feed-forward network predicts a Gaussian scene G = hg f {I˜n n }N         n=1    , where f is the
+transformer-based backbone and hg is the Gaussian head. The predicted Gaussian scene G is then
+rendered from viewpoint n to produce Iˆn . We supervise each rendered view using a target image
+  (L )
+In 1 conditioned on the reference illumination L1 , which encourages our model to reconstruct entire
+scenes with the reference illumination without transient objects. The appearance consistency loss is
+                                      N 
+                                      X                                                         
+                             Lac =           ∥Iˆn − In(L1 ) ∥22 + λlpips Llpips (Iˆn , In(L1 ) ) ,                           (1)
+                                      n=1
+
+where Llpips denotes the LPIPS loss [48] and λlpips denotes a loss weight.
+Transient-free Geometry. Unlike previous feed-forward models such as AnySplat [12], we supervise
+the predicted depth maps with the transient-free ground truth depth maps rather than the depth maps
+of input images. We denote our depth loss as Ldep .
+Overall Objective. We train our model with the following objective:
+                                    L = Lac + λdep Ldep + λgc Lgc + λcam Lcam ,                                              (2)
+where the geometric consistency loss Lgc and the camera loss Lcam follow AnySplat [12]. λgc , λdep ,
+and λcam are scalar coefficients to balance losses.
+
+5     Experiments
+5.1     Implementation Details
+
+We initialize our model using the pretrained weights of AnySplat [12]. We freeze the depth and
+camera heads while other parts of our model are updated as shown in Fig. 5. In total, our architecture
+
+
+                                                                   6
+                                                                   4 Context Views          16 Context Views         64 Context Views
+ Method               Unknown    Unknown      Reconstruction
+                       Camera   Point Cloud      Time*         PSNR↑   SSIM↑    LPIPS↓   PSNR↑   SSIM↑   LPIPS↓   PSNR↑   SSIM↑   LPIPS↓
+ Optimization-based
+ NeRF-W [21]            ✗           ✗              30h         12.08   0.382     0.738   17.29   0.530    0.570   21.10   0.671    0.449
+ 3DGS [14]              ✗           ✗             7.7m         12.42   0.378     0.612   13.56   0.437    0.560   15.20   0.564    0.462
+ GS-W [47]              ✗           ✗             24m          12.72   0.397     0.582   15.17   0.501    0.504   17.91   0.634    0.404
+ WildGaussians [15]     ✗           ✗             1.2h         14.00   0.428     0.592   16.73   0.551    0.524   20.20   0.695    0.395
+ AsymGS [16]            ✗           ✗             30m          15.93   0.506     0.574   18.37   0.607    0.463   21.24   0.718    0.340
+ Camera-known Feed-forward
+ Long-LRM [52]          ✗           ✓             0.18s        11.25   0.415     0.650   15.26   0.486    0.569   15.90   0.525    0.535
+ Camera-free Feed-forward
+ AnySplat [12]           ✓          ✓             0.95s        11.25   0.320     0.593   13.72   0.377    0.546   14.88   0.417    0.512
+ YoNoSplat [46]          ✓          ✓             0.38s        12.47   0.397     0.666   13.04   0.403    0.640   13.25   0.412    0.640
+ DA3 [18]                ✓          ✓              1.6s        13.35   0.394     0.622   14.03   0.420    0.586   14.25   0.434    0.582
+ Wild3R (Ours)           ✓          ✓             0.95s        13.04   0.370     0.556   15.87   0.435    0.506   16.29   0.458    0.477
+
+Table 2: Comparison with Previous Methods on the Photo Tourism Dataset. The best results for
+both optimization-based and camera-free feed-forward models are highlighted in bold.
+*Reconstruction time is recorded with 16 context views on a single NVIDIA A100 GPU.
+
+
+comprises approximately 940M learnable parameters. Following AnySplat, we train the model using
+the AdamW optimizer for 30K iterations with a cosine learning rate schedule, a peak learning rate
+of 2 × 10−4 , and a 1K-iteration warmup phase. Training takes approximately one day on a single
+NVIDIA A100 (80GB) GPU. At each iteration, we randomly select a scene from the WildCity dataset
+and sample N ∈ [2, 24] camera views to construct a training batch. A reference view and a reference
+lighting condition are then determined. Whenever a transient-augmented version of a selected view is
+available, we utilize it with a probability of p = 0.5. For each context view, we independently sample
+from images containing transient objects with a probability of p = 0.5, and subsequently sample a
+lighting condition at random. For training, we set λlpips , λgc , λdep , and λcam to 0.05, 0.02, 0.2, and
+2.0, respectively. Please refer to the Appendix for more details.
+
+5.2     Experimental Setup
+
+Baselines. We compare our Wild3R with prior approaches designed for unconstrained photo col-
+lections, including NeRF-W [21], GS-W [47], WildGaussians [15], and AsymGS [16]. We further
+compare against 3D Gaussian Splatting (3DGS) [14], camera-known feed-forward method Long-
+LRM [52], and camera-free feed-forward 3DGS methods such as AnySplat [12], YoNoSplat [46],
+and Depth Anything 3 (DA3, DA3NESTED-GIANT-LARGE) [18].
+Dataset and Evaluation Protocol. We evaluate the models on the Photo Tourism dataset [31] using
+three commonly used scenes: Brandenburg Gate, Sacre Coeur, and Trevi Fountain. Additionally,
+evaluations on the NeRF-OSR dataset [28] are provided in the Appendix. For each scene, we
+construct context sets with N ∈ {4, 16, 64} images sampled once from the official training split.
+For evaluation, we use all images from the official test split. Following the NeRF-W evaluation
+protocol [21], each selected test image is vertically split into two halves. One half serves as the
+reference view for appearance adaptation, while the other half is used as the evaluation target. More
+details can be found in the Appendix.
+Known Cameras and Point Clouds. Several previous methods [21, 14, 47, 16, 15, 52] need camera
+parameters and/or point cloud initialization for reconstruction. Therefore, we used the official camera
+parameters and initialized the point clouds corresponding to the training images. Note that our method
+reconstructs scenes only from images without known camera parameters and point clouds.
+Metrics. We report PSNR, SSIM [40], and LPIPS [48] following the convention.
+
+5.3     Evaluation on the Photo Tourism Dataset
+
+Quantitative Comparison. The results on the Photo Tourism dataset [31] are reported in Table 2.
+As the number of context views increases, optimization-based methods show a consistent tendency to
+improve in performance. On the other hand, these methods require optimization during reconstruction,
+and they additionally assume access to extra information such as camera parameters and point clouds,
+which imposes constraints on their applicability. In contrast, feed-forward methods eliminate the
+need for test-time optimization, though they generally benefit less from an increased number of views.
+Compared to camera-free feed-forward approaches, our method achieves superior performance across
+most metrics. Notably, even under the 4-context-view setting, Wild3R attains favorable LPIPS,
+
+
+                                                                       7
+                                          NeRF-W           AsymGS Long-LRM AnySplat                               Ours
+                    Reference        GT   (w/ GT Camera)   (w/ GT Camera)   (w/ GT Camera)   (w/o GT Camera)   (w/o GT Camera)
+
+
+
+ brandenburg gate
+ sacre coeur
+
+
+
+
+            Figure 6: Qualitative Comparison with 16 Context Views on the Photo Tourism Dataset.
+
+demonstrating its robust capability to synthesize perceptually high-quality reconstructions from
+highly limited observations.
+Qualitative Comparison. Qualitative comparisons on the Photo Tourism dataset [31] are shown
+in Fig. 6. Our approach avoids the artifacts that existing optimization-based approaches such as
+NeRF-W [21] and AsymGS [16] tend to suffer from, while also representing a lighting environment
+closer to the target compared to Long-LRM [52] and AnySplat [12].
+
+
+
+5.4                 Ablation Study
+
+Table 3 presents modeling and data ablations of our proposed method on the Photo Tourism
+dataset [31]. In the modeling comparison, we consider two variants: the pretrained AnySplat
+(a) and a fine-tuned AnySplat on WildCity dataset using the same learning strategy as the original
+AnySplat (b). As shown in the table, the vanilla fine-tuned model (b) generally improves the metrics
+and tends to outperform the base AnySplat [12] (a). However, even with these improvements, many
+settings still fall short of our full model, suggesting that vanilla fine-tuning alone leaves a non-trivial
+gap.
+In the data comparison, we also consider two variants: a model trained without transient objects
+added by Gemini [35] (c) and a model trained without Sketchfab assets (d). As shown in the table,
+removing specific data components tends to degrade performance, demonstrating that data design
+plays a critical role. For example, excluding transient objects (c) leads to a noticeable performance
+drop compared to our full model. This indicates that explicitly exposing the network to transient
+objects during training enhances its robustness, as highlighted by the red boxes in Fig. 7a. Similarly,
+excluding assets sourced from Sketchfab (d) results in inferior performance. This can be interpreted
+as evidence that incorporating diverse variations in shape, material, and appearance into training
+improves generalization and stability, as shown in Fig. 7b.
+Overall, our model consistently achieves robust and strong performance regardless of the number of
+context views. These results demonstrate that our improvements are attributed to both the fine-tuning
+strategy and our comprehensive data design, which provides essential shape diversity via Sketchfab
+and realistic transient distributions generated by Gemini.
+
+
+                                                             8
+                                      4 Context Views              16 Context Views                64 Context Views
+ Method
+                                  PSNR↑   SSIM↑     LPIPS↓      PSNR↑    SSIM↑        LPIPS↓   PSNR↑      SSIM↑     LPIPS↓
+ Variants on Modeling
+ (a) AnySplat                     11.25   0.320     0.593       13.72        0.377     0.546    14.88     0.417      0.512
+ (b) AnySplat w/ Fine-tuning      11.47   0.339     0.588       14.18        0.403     0.543    14.98     0.442      0.516
+ Variants on Data
+ (c) Ours w/o Transient Objects   12.66   0.366     0.556       15.57        0.432     0.514    16.08     0.451      0.487
+ (d) Ours w/o Sketchfab Assets    12.70   0.372     0.570       15.01        0.425     0.531    15.36     0.449      0.508
+ (e) Ours                         13.04   0.370     0.556       15.87        0.435     0.506    16.29     0.458      0.477
+
+Table 3: Ablation Study on the Photo Tourism Dataset. The best values are highlighted in bold.
+Our method achieves the best performance in most metrics.
+
+        GT         Ours w/o Transient        Ours                       GT           Ours w/o Sketchfab           Ours
+
+
+
+
+       (a) Effect of Adding Transient Objects.                               (b) Effect of Sketchfab Assets.
+Figure 7: Qualitative Ablation Study with 16 Context Views. (a) Our full model enables transient
+object removal while the variant fails. (b) Our full model is more consistent on fine-grained geometries
+than the model trained without Sketchfab assets.
+
+6    Limitations
+
+While Wild3R demonstrates impressive results in unconstrained 3D reconstruction, it has several
+limitations inherent to its design. First, our method does not explicitly model physical material
+parameters, making it difficult to capture highly complex specular effects and reflections. Second,
+because the scene appearance is anchored to the reference image, recovering accurate illumination
+becomes challenging when large portions of this reference view are occluded by transient objects.
+Third, due to the feed-forward architecture, our model inherently struggles to synthesize fine-grained,
+high-frequency details as accurately as optimization-based methods. Finally, the overall reconstruc-
+tion quality is bounded by the representational capacity of the underlying feed-forward backbone.
+However, as feed-forward 3DGS architectures continue to evolve, our learning strategy and dataset
+can be seamlessly integrated to yield even higher-quality reconstructions in the future.
+
+
+7    Conclusion
+
+We presented Wild3R, a feed-forward 3D Gaussian Splatting approach that scales to unconstrained
+photo collections, avoiding the expensive per-scene optimization of traditional 3DGS. Our work is
+motivated by the fact that existing training data with joint multi-view coverage, diverse illumination,
+and transient variations remains scarce, making it difficult to learn robust scene representations. To
+bridge this gap, we introduced the WildCity dataset, which contains 200 scenes captured under 170
+lighting conditions with transient objects, totaling 337,500 images. Leveraging the WildCity dataset,
+our new training strategy encourages appearance consistency across viewpoints and illuminations
+while suppressing transient content. Our experiments show that Wild3R outperforms existing pose-
+free feed-forward approaches and achieves results comparable to optimization-based methods that
+rely on camera calibration or point cloud initialization.
+
+
+                                                            9
+8   Acknowledgements
+This work was partially financially supported by JST ASPIRE Program, Japan, Grant Number
+JPMJAP2303; JST ACT-X (JPMJAX25C5); JST SPRING, Grant Number JPMJSP2108; and JSPS
+KAKENHI Grant Number 26K21245.
+
+References
+ [1] M. L. Antequera, P. Gargallo, M. Hofinger, S. R. Bulo, Y. Kuang, and P. Kontschieder. Mapillary
+     planet-scale depth dataset. In ECCV, 2020.
+ [2] Y. Cabon, N. Murray, and M. Humenberger. Virtual kitti 2. arXiv preprint arXiv:2001.10773,
+     2020.
+ [3] X. Chen, Q. Zhang, X. Li, Y. Chen, Y. Feng, X. Wang, and J. Wang. Hallucinated neural
+     radiance fields in the wild. In CVPR, 2022.
+ [4] A. Couturier. SceneCity. https://www.cgchan.com/.
+ [5] H. Dahmani, M. Bennehar, N. Piasco, L. Roldao, and D. Tsishkou. Swag: Splatting in the wild
+     images with appearance-conditioned gaussians. In ECCV, 2024.
+ [6] A. Dai, A. X. Chang, M. Savva, M. Halber, T. Funkhouser, and M. Nießner. Scannet: Richly-
+     annotated 3d reconstructions of indoor scenes. In CVPR, 2017.
+ [7] M. Deitke, D. Schwenk, J. Salvador, L. Weihs, O. Michel, E. VanderBilt, L. Schmidt, K. Ehsani,
+     A. Kembhavi, and A. Farhadi. Objaverse: A universe of annotated 3d objects. In CVPR, 2023.
+ [8] S. Fridovich-Keil, G. Meanti, F. R. Warburg, B. Recht, and A. Kanazawa. K-planes: Explicit
+     radiance fields in space, time, and appearance. In CVPR, 2023.
+ [9] K. Greff, F. Belletti, L. Beyer, C. Doersch, Y. Du, D. Duckworth, D. J. Fleet, D. Gnanapragasam,
+     F. Golemo, C. Herrmann, T. Kipf, A. Kundu, D. Lagun, I. Laradji, H.-T. (Derek)Liu, H. Meyer,
+     Y. Miao, D. Nowrouzezahrai, C. Oztireli, E. Pot, N. Radwan, D. Rebain, S. Sabour, M. S. M.
+     Sajjadi, M. Sela, V. Sitzmann, A. Stone, D. Sun, S. Vora, Z. Wang, T. Wu, K. M. Yi, F. Zhong,
+     and A. Tagliasacchi. Kubric: A scalable dataset generator. In CVPR, 2022.
+[10] P.-H. Huang, K. Matzen, J. Kopf, N. Ahuja, and J.-B. Huang. Deepmvs: Learning multi-view
+     stereopsis. In CVPR, 2018.
+[11] R. Jensen, A. Dahl, G. Vogiatzis, E. Tola, and H. Aanæs. Large scale multi-view stereopsis
+     evaluation. In CVPR, 2014.
+[12] L. Jiang, Y. Mao, L. Xu, T. Lu, K. Ren, Y. Jin, X. Xu, M. Yu, J. Pang, F. Zhao, et al. Anysplat:
+     Feed-forward 3d gaussian splatting from unconstrained views. TOG, 2025.
+[13] K. Kassab, A. Schnepf, J.-Y. Franceschi, L. Caraffa, J. Mary, and V. Gouet-Brunet. Refinedfields:
+     Radiance fields refinement for planar scene representations. TMLR, 2025.
+[14] B. Kerbl, G. Kopanas, T. Leimkühler, and G. Drettakis. 3d gaussian splatting for real-time
+     radiance field rendering. In TOG, 2023.
+[15] J. Kulhanek, S. Peng, Z. Kukelova, M. Pollefeys, and T. Sattler. WildGaussians: 3D gaussian
+     splatting in the wild. In NeurIPS, 2024.
+[16] C. Li, Z. Shi, Y. Lu, W. He, and X. Xu. Robust neural rendering in the wild with asymmetric
+     dual 3d gaussian splatting. In NeurIPS, 2025.
+[17] Z. Li and N. Snavely. Megadepth: Learning single-view depth prediction from internet photos.
+     In CVPR, 2018.
+[18] H. Lin, S. Chen, J. H. Liew, D. Y. Chen, Z. Li, Y. Zhao, S. Peng, H. Guo, X. Zhou, G. Shi,
+     J. Feng, and B. Kang. Depth anything 3: Recovering the visual space from any views. In ICLR,
+     2026.
+
+
+                                                 10
+[19] L. Ling, Y. Sheng, Z. Tu, W. Zhao, C. Xin, K. Wan, L. Yu, Q. Guo, Z. Yu, Y. Lu, X. Li,
+     X. Sun, R. Ashok, A. Mukherjee, H. Kang, X. Kong, G. Hua, T. Zhang, B. Benes, and A. Bera.
+     Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In CVPR, 2024.
+[20] I. Liu, L. Chen, Z. Fu, L. Wu, H. Jin, Z. Li, C. M. R. Wong, Y. Xu, R. Ramamoorthi, Z. Xu, and
+     H. Su. Openillumination: A multi-illumination dataset for inverse rendering evaluation on real
+     objects. In NeurIPS, 2023.
+[21] R. Martin-Brualla, N. Radwan, M. S. M. Sajjadi, J. T. Barron, A. Dosovitskiy, and D. Duckworth.
+     Nerf in the wild: Neural radiance fields for unconstrained photo collections. In CVPR, 2021.
+[22] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. Nerf:
+     Representing scenes as neural radiance fields for view synthesis. In ECCV, 2020.
+[23] A. Moreau, R. Shaw, M. Nazarczuk, J. Shin, T. Tanay, Z. Zhang, S. Xu, and E. Pérez-Pellitero.
+     Off the grid: Detection of primitives for feed-forward 3d gaussian splatting. In CVPR, 2026.
+[24] X. Pan, N. Charron, Y. Yang, S. Peters, T. Whelan, C. Kong, O. Parkhi, R. Newcombe, and C. Y.
+     Ren. Aria digital twin: A new benchmark dataset for egocentric 3d machine perception. In
+     ICCV, 2023.
+[25] F. Pei, J. Bai, X. Feng, Z. Bi, K. Zhou, and H. Wu. Opensubstance: A high-quality measured
+     dataset of multi-view and -lighting images and shapes. In ICCV, 2025.
+[26] J. Reizenstein, R. Shapovalov, P. Henzler, L. Sbordone, P. Labatut, and D. Novotny. Common
+     objects in 3d: Large-scale learning and evaluation of real-life 3d category reconstruction. In
+     ICCV, 2021.
+[27] M. Roberts, J. Ramapuram, A. Ranjan, A. Kumar, M. A. Bautista, N. Paczan, R. Webb, and J. M.
+     Susskind. Hypersim: A photorealistic synthetic dataset for holistic indoor scene understanding.
+     In ICCV, 2021.
+[28] V. Rudnev, M. Elgharib, W. Smith, L. Liu, V. Golyanik, and C. Theobalt. Nerf for outdoor
+     scene relighting. In ECCV, 2022.
+[29] J. L. Schönberger and J.-M. Frahm. Structure-from-Motion Revisited. In CVPR, 2016.
+[30] B. Smart, C. Zheng, I. Laina, and V. A. Prisacariu. Splatt3r: Zero-shot gaussian splatting from
+     uncalibrated image pairs. arXiv preprint arXiv:2408.13912, 2024.
+[31] N. Snavely, S. M. Seitz, and R. Szeliski. Photo tourism: exploring photo collections in 3d. TOG,
+     2006.
+[32] J. Straub, T. Whelan, L. Ma, Y. Chen, E. Wijmans, S. Green, J. J. Engel, R. Mur-Artal, C. Ren,
+     S. Verma, A. Clarkson, M. Yan, B. Budge, Y. Yan, X. Pan, J. Yon, Y. Zou, K. Leon, N. Carter,
+     J. Briales, T. Gillingham, E. Mueggler, L. Pesqueira, M. Savva, D. Batra, H. M. Strasdat, R. D.
+     Nardi, M. Goesele, S. Lovegrove, and R. Newcombe. The replica dataset: A digital replica of
+     indoor spaces. arXiv preprint arXiv:1906.05797, 2019.
+[33] J. Sun, X. Chen, Q. Wang, Z. Li, H. Averbuch-Elor, X. Zhou, and N. Snavely. Neural 3d
+     reconstruction in the wild. In SIGGRAPH, 2022.
+[34] A. Szot, A. Clegg, E. Undersander, E. Wijmans, Y. Zhao, J. Turner, N. Maestre, M. Mukadam,
+     D. Chaplot, O. Maksymets, A. Gokaslan, V. Vondrus, S. Dharur, F. Meier, W. Galuba, A. Chang,
+     Z. Kira, V. Koltun, J. Malik, M. Savva, and D. Batra. Habitat 2.0: Training home assistants to
+     rearrange their habitat. In NeurIPS, 2021.
+[35] G. Team, R. Anil, S. Borgeaud, J.-B. Alayrac, J. Yu, R. Soricut, J. Schalkwyk, A. M. Dai,
+     A. Hauth, K. Millican, et al. Gemini: A family of highly capable multimodal models. arXiv
+     preprint arXiv:2312.11805, 2023.
+[36] M. Toschi, R. De Matteo, R. Spezialetti, D. De Gregorio, L. Di Stefano, and S. Salti. Relight my
+     nerf: A dataset for novel view synthesis and relighting of real world objects. In CVPR, 2023.
+
+
+                                                 11
+[37] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny. Vggt: Visual geometry
+     grounded transformer. In CVPR, 2025.
+[38] J. Wang, Q. Hu, C. Bao, Y. Zhu, H. Bao, Z. Cui, and G. Zhang. Lightcity: An urban dataset
+     for outdoor inverse rendering and reconstruction under multi-illumination conditions. In ICCV,
+     2025.
+[39] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud. Dust3r: Geometric 3d vision made
+     easy. In CVPR, 2024.
+[40] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli. Image quality assessment: from
+     error visibility to structural similarity. TIP, 2004.
+[41] L. Wu and T. Zhang. Wildsplatting: Unposed incremental 3d gaussian splatting reconstruction
+     in the wild. In VRCAI, 2025.
+[42] H. Xia, Y. Fu, S. Liu, and X. Wang. Rgbd objects in the wild: Scaling real-world 3d object
+     learning from rgb-d videos. In CVPR, 2024.
+[43] J. Xu, Y. Mei, and V. M. Patel. Wild-gs: Real-time novel view synthesis from unconstrained
+     photo collections. In NeurIPS, 2024.
+[44] Y. Yang, S. Zhang, Z. Huang, Y. Zhang, and M. Tan. Cross-ray neural radiance fields for
+     novel-view synthesis from unconstrained image collections. In ICCV, 2023.
+[45] Y. Yao, Z. Luo, S. Li, J. Zhang, Y. Ren, L. Zhou, T. Fang, and L. Quan. Blendedmvs: A
+     large-scale dataset for generalized multi-view stereo networks. In CVPR, 2020.
+[46] B. Ye, B. Chen, H. Xu, D. Barath, and M. Pollefeys. Yonosplat: You only need one model for
+     feedforward 3d gaussian splatting. In ICLR, 2026.
+[47] D. Zhang, C. Wang, W. Wang, P. Li, M. Qin, and H. Wang. Gaussian in the wild: 3d gaussian
+     splatting for unconstrained image collections. In ECCV, 2024.
+[48] R. Zhang, P. Isola, A. A. Efros, E. Shechtman, and O. Wang. The unreasonable effectiveness of
+     deep features as a perceptual metric. In CVPR, 2018.
+[49] S. Zhang, J. Wang, Y. Xu, N. Xue, C. Rupprecht, X. Zhou, Y. Shen, and G. Wetzstein. Flare:
+     Feed-forward geometry, appearance and camera estimation from uncalibrated sparse views. In
+     CVPR, 2025.
+[50] X. Zhang, X. Zheng, Y. Yin, T. Zhao, K. Tang, M. B. Mi, Z. Xu, and D. Z. Chen. Anchorsplat:
+     Feed-forward 3d gaussian splatting with 3d geometric priors. In CVPR, 2026.
+[51] Y. Zheng, A. W. Harley, B. Shen, G. Wetzstein, and L. J. Guibas. Pointodyssey: A large-scale
+     synthetic dataset for long-term point tracking. In ICCV, 2023.
+[52] C. Ziwen, H. Tan, K. Zhang, S. Bi, F. Luan, Y. Hong, L. Fuxin, and Z. Xu. Long-lrm:
+     Long-sequence large reconstruction model for wide-coverage gaussian splats. In ICCV, 2025.
+
+
+
+
+                                                12
+A    Implementation Details
+Scene and Camera Setup. During the manual selection of buildings for scene generation, we
+generally maintained a distance of at least 20 meters between the centers of adjacent scenes so that
+they are distinct scenes. For the camera setup, the positions were uniformly sampled at a distance of
+10 to 25 meters from the scene center, constrained within a 120-degree fan-shaped region. The look-at
+point of each camera was offset from the scene center to introduce natural variation. Specifically,
+the x and y coordinates of the look-at point were uniformly sampled from [−2, 2] meters. The
+z coordinate was uniformly sampled from a manually selected range of [1.5, 3], [1.5, 5], [1.5, 7],
+[1.5, 10], or [1.5, 12] meters, depending on the height of the target building.
+
+Prompting for Adding Transient Objects. We use two types of prompts for Gemini (gemini-3-
+pro-image-preview), depending on the image content:
+1) If there are roads where people and cars can be placed, we use:
+“Please add tp , tv , ts , tb , while maintaining the geometry and lightness/darkness.”
+2) If not, we use:
+“Please add t̃b , while maintaining the geometry and lightness/darkness.”
+where the words tp , tv , ts , tb , and t̃b are sampled from Tp , Tv , Ts , Tb , and Teb as in Table 4,
+respectively. We classify each image into the two types above, using another variant of Gemini
+(gemini-3-flash-preview) with a predefined prompt q, as shown in Table 4.
+
+Validity of Adding Transient Objects. To validate our 2D augmentation strategy, we qualitatively
+analyze the effect of adding transient objects. Fig. 8 illustrates randomly selected pairs of images
+before and after the augmentation, alongside their corresponding pixel-wise difference heatmaps.
+As observed in the difference maps, the modifications introduced by a text-driven image editing
+model [35] are highly localized. Crucially, while local illumination variations naturally occur around
+the new objects, the global lighting conditions and the underlying static geometry of the background
+are consistently preserved without destructive artifacts. This qualitative evidence confirms that our
+augmentation successfully introduces complex and realistic objects without corrupting multi-view
+consistency of the static background.
+
+Training. To robustify the model against unconstrained photo collections, we apply the following
+spatial and appearance augmentations. Following AnySplat [12], the maximum input resolution
+is scaled to 448 pixels on the longer edge, with the aspect ratio randomized within [0.5, 1.0]. For
+each image independently, we apply random anisotropic scaling (scale factors ∈ [0.9, 1.1], p = 0.1)
+and random resizing (scale factors ∈ [0.7, 1.2], p = 0.3). If the resulting image is smaller than the
+target resolution, it is upscaled. This is followed by either a random crop (p = 0.3) or a center crop
+(p = 0.7). Subsequently, the following appearance augmentations are applied independently to each
+image: JPEG compression (quality ∈ [50, 100], p = 0.3), Gaussian noise (σ ∈ [0, 0.03], p = 0.3),
+and color jitter (brightness, contrast, saturation, and hue factors up to 0.1, p = 0.3). Alternatively, with
+p = 0.1, the image is converted to grayscale instead of applying color jitter. Importantly, whenever
+color jitter or grayscale conversion is applied to the reference view, the exact same transformation is
+applied to all target images to ensure photometric consistency during supervision.
+
+Evaluation. To quantitatively evaluate the reconstruction quality, we employ three widely used
+metrics: Peak Signal-to-Noise Ratio (PSNR), Structural Similarity Index Measure (SSIM) [40], and
+Learned Perceptual Image Patch Similarity (LPIPS) [48].
+PSNR measures the pixel-wise reconstruction fidelity between the ground truth image I and the
+               ˆ It is defined as
+rendered image I.
+                                                            !
+                                                      2
+                                                    IMAX
+                                PSNR = 10 log10                ,                           (3)
+                                                          ˆ
+                                                  MSE(I, I)
+where IMAX denotes the maximum possible pixel value and MSE(I, I)           ˆ is the Mean Squared Error
+                                 ˆ     1
+                                          PN           ˆ  2
+(MSE), computed as MSE(I, I) = N i=1 (Ii − Ii ) . Here, N represents the total number of pixels,
+and Ii , Iˆi denote the color values of the i-th pixel in the images, respectively.
+
+
+                                                    13
+  Before     After     Difference   Before      After    Difference     Before     After   Difference
+
+
+
+
+Figure 8: Qualitative Validation of Adding Transient Objects. We show randomly selected
+examples from the WildCity dataset before and after adding transient objects via a text-driven image
+editing model [35], alongside their corresponding pixel-wise difference heatmaps.
+
+
+SSIM evaluates the perceptual similarity by comparing luminance, contrast, and structural information
+between two images. It is defined as
+
+                                  ˆ =        (2µI µIˆ + C1 )(2σI Iˆ + C2 )
+                          SSIM(I, I)                                           ,                   (4)
+                                          (µ2I + µ2Iˆ + C1 )(σI2 + σI2ˆ + C2 )
+
+where µ, σ 2 , and σI Iˆ denote the mean, variance, and covariance of the images, respectively, and C1
+and C2 are stabilization constants.
+LPIPS measures perceptual similarity in a deep feature space. It computes the distance between
+normalized deep features:
+
+                              ˆ =
+                                    X     1 X                        ˆ hw )|2 ,
+                     LPIPS(I, I)               |wl ⊙ (ϕl (I)hw − ϕl (I)     2                      (5)
+                                         Hl Wl
+                                     l          h,w
+
+
+where ϕl , wl , Hl , Wl denote the feature map from layer l of a pretrained network, learned channel-
+wise weights, the height of ϕl , and the width of ϕl , respectively.
+Evaluation Protocol. In evaluation, feed-forward methods take the N context images together with
+the reference half-image as input. For Wild3R, this reference provides appearance conditioning,
+whereas for other feed-forward baselines it simply acts as an additional input view. Optimization-
+based methods are trained using the same N context images, and methods that support appearance
+adaptation [21, 47, 15, 16] further optimize their appearance embeddings using the reference half-
+image. To match the input resolution expected by feed-forward models [12], all images are resized
+and cropped to 448 × 448 with bottom alignment to ensure transient objects are retained. Additionally,
+camera-free feed-forward approaches determine their camera poses following the same procedure as
+AnySplat [12].
+
+
+                                                  14
+        Tp     {a person, two pedestrians, several pedestrians, a small group of people,
+               a couple of cyclists, a delivery, a delivery worker and a few pedestrians}
+        Tv     {a car, a few cars, a taxi, a taxi and a car, a van, a van and a car, a parked
+               car, a couple of parked cars, a bus, a bus and a car}
+        Ts     {a traffic cone, traffic cones, a temporary barrier, temporary barriers, a
+               portable sign stand, a construction warning sign, construction warning
+               signs}
+        Tb     {a fabric banner on a building, fabric banners on some buildings, a re-
+               movable signboard on a storefront, removable signboards on storefronts,
+               an event poster on a wall, event posters on walls, some cracks in build-
+               ings}
+        Teb    {a fabric banner on a building, fabric banners on some buildings, an
+               event poster on a wall, event posters on walls, some cracks in buildings}
+        q      As data augmentation of the city image data, I want to add people and
+               cars using image editing. However, I first want to determine whether
+               there are locations (i.e., streets) where people and cars could realistically
+               be present for adding them. Do you think this image is suitable in this
+               situation? Just answer by ’1’ (Yes) or ’0’ (No)
+                                    Table 4: Prompt templates.
+
+
+
+B     Additional Experiments
+
+B.1   Additional Qualitative Comparison on the Photo Tourism Dataset.
+
+We report the evaluations of the models on the Photo Tourism dataset [31] in the main paper.
+However, under standard evaluation protocols, the test images predominantly consist of close-up
+views without transient objects, precluding quantitative evaluation on global views that capture the
+entire scene. Furthermore, for camera-free feed-forward methods, quantitative metrics are highly
+sensitive to inaccuracies in camera pose estimation. Therefore, we present qualitative comparisons of
+the buildings from distant, global views in Fig. 9. As observed, compared to AnySplat [12], Wild3R
+effectively adapts to varying illumination guided by the provided reference images. Furthermore,
+in contrast to optimization-based methods such as NeRF-W [21] and AsymGS [16], our approach
+suppresses artifacts caused by transient objects and variable illumination.
+
+B.2   Evaluation on the NeRF-OSR Dataset
+
+We also evaluate on the NeRF-OSR dataset [28] using four commonly used scenes: stjohann, lwp,
+st, and europa. We construct the test sets in the same manner as the Photo Tourism dataset [31] and
+report the per-scene metrics with 16 context views.
+Quantitative Comparison. A quantitative comparison on the NeRF-OSR dataset is reported in
+Table 5. Our proposed method, Wild3R, consistently outperforms the feed-forward baseline AnyS-
+plat. Even compared with optimization-based approaches, Wild3R achieves competitive results,
+particularly on perceptual metrics such as LPIPS, despite not requiring camera parameters.
+Qualitative Comparison. A qualitative comparison on the NeRF-OSR dataset is shown in Fig. 10.
+While existing optimization-based approaches exhibit artifacts in sparse-view settings, our method
+mitigates artifacts caused by the sky and transient objects. Furthermore, compared to AnySplat [12],
+our method is capable of accurately modeling substantial illumination changes, faithfully reproducing
+lighting conditions with dark-to-bright contrasts.
+
+B.3   Comparison with Other Datasets for Training.
+
+To further demonstrate the advantages of our WildCity dataset, we trained our model on alternative
+datasets, including DTU [11] and LightCity [38], following the same protocol as the main paper.
+LightCity was not originally designed for training, as it contains only 5 scenes. Furthermore,
+
+
+                                                 15
+                    Reference       NeRF-W            AsymGS            AnySplat            Ours
+                                    (w/ GT Camera)    (w/ GT Camera)   (w/o GT Camera)   (w/o GT Camera)
+
+
+
+ brandenburg gate
+ sacre coeur
+ trevi fountain
+
+
+
+
+                      Figure 9: Additional Qualitative Comparison on the Photo Tourism Dataset.
+since its depth maps are not provided, we generated pseudo ground truth depth maps from the
+ground truth camera parameters and images using COLMAP [29]. These datasets inherently limit
+model generalization: first, both lack transient objects; second, LightCity provides insufficient
+scene diversity; finally, DTU is object-centric, lacking scene complexity and lighting variations. As
+shown in Table 6, models trained on DTU or LightCity exhibit degraded performance, likely due
+to overfitting to their limited scene diversity. In contrast, the model trained on our WildCity dataset
+achieves the highest performance across all metrics. This clearly demonstrates the effectiveness of
+our proposed dataset for in-the-wild reconstruction.
+
+B.4                 Ablation Study on Freezing Pretrained Modules
+
+As mentioned in the main paper, we freeze the depth and camera heads during training. To validate
+this design choice, we evaluate a variant where the depth and camera heads are jointly updated
+during training. As shown in Table 7, unfreezing these pretrained heads does not yield meaningful
+performance improvements. This indicates that the pretrained depth and camera heads already possess
+sufficient generalization capabilities, and updating them provides no additional benefit.
+
+
+
+
+                                                           16
+                                                          europa                       lwp                        st                        stjohann
+ Method               Unknown     Unknown
+                       Camera    Point Cloud    PSNR↑     SSIM↑    LPIPS↓    PSNR↑    SSIM↑   LPIPS↓   PSNR↑    SSIM↑     LPIPS↓   PSNR↑    SSIM↑      LPIPS↓
+ Optimization-based
+ NeRF-W [21]            ✗            ✗          14.26      0.474   0.613      13.90   0.442   0.596     15.25    0.487     0.606   14.23     0.530     0.558
+ 3DGS [14]              ✗            ✗          11.05      0.284   0.631      9.86    0.263   0.632     10.34    0.282     0.625   10.16     0.326     0.631
+ GS-W [47]              ✗            ✗          11.65      0.356   0.596      11.38   0.319   0.622     12.56    0.365     0.627   10.93     0.408     0.548
+ WildGaussians [15]     ✗            ✗          11.38      0.354   0.640      11.78   0.323   0.645     12.70    0.357     0.632   11.28     0.370     0.601
+ AsymGS [16]            ✗            ✗          12.75      0.409   0.616      12.35   0.350   0.635     13.81    0.389     0.601   13.56     0.491     0.572
+ Camera-known Feed-forward
+ Long-LRM [52]          ✗            ✓          13.23      0.470   0.544      11.86   0.373   0.609     12.86    0.434     0.570   13.84     0.518     0.542
+ Camera-free Feed-forward
+ AnySplat [12]           ✓           ✓          11.18      0.330   0.555       9.47   0.234   0.608     10.13    0.272     0.616   10.70     0.356     0.583
+ YoNoSplat [46]          ✓           ✓          12.33      0.371   0.637      11.15   0.290   0.703     12.11    0.368     0.675   12.09     0.395     0.647
+ DA3 [18]                ✓           ✓          12.67      0.378   0.589      11.47   0.307   0.638     12.24    0.352     0.606   11.84     0.365     0.604
+ Wild3R (Ours)           ✓           ✓          13.27      0.388   0.535      10.68   0.278   0.598     12.67    0.356     0.584   12.22     0.401     0.547
+
+Table 5: Comparison with Previous Methods on the NeRF-OSR Dataset. The best results for both
+optimization-based and camera-free feed-forward models are highlighted in bold.
+
+
+                                                        NeRF-W               AsymGS Long-LRM AnySplat                                         Ours
+          Reference                  GT                 (w/ GT Camera)       (w/ GT Camera)     (w/ GT Camera)         (w/o GT Camera)     (w/o GT Camera)
+ europa
+ lwp
+
+
+
+
+                         Figure 10: Qualitative Comparison on the NeRF-OSR Dataset.
+
+                                     4 Context Views                              16 Context Views                          64 Context Views
+ Training Dataset
+                              PSNR↑        SSIM↑            LPIPS↓          PSNR↑       SSIM↑          LPIPS↓       PSNR↑          SSIM↑         LPIPS↓
+ None                           11.25          0.320         0.593           13.72       0.377         0.546           14.88       0.417             0.512
+ DTU [11]                       11.29          0.299         0.629           12.79       0.352         0.599           13.51       0.391             0.585
+ LightCity [38]                  9.69          0.288         0.667           11.17       0.309         0.676           12.33       0.340             0.690
+ WildCity (Ours)                13.04          0.370         0.556           15.87       0.435         0.506           16.29       0.458             0.477
+Table 6: Training Dataset Comparison on the Photo Tourism Dataset. The best values are
+highlighted in bold. “None” refers to AnySplat [12] without additional training.
+
+
+                                  4 Context Views                               16 Context Views                            64 Context Views
+ Method
+                         PSNR↑           SSIM↑            LPIPS↓         PSNR↑         SSIM↑          LPIPS↓       PSNR↑           SSIM↑        LPIPS↓
+ Unfrozen                    12.95        0.367            0.557            15.77       0.438          0.508           16.30       0.453             0.487
+ Ours (Frozen)               13.04        0.370            0.556            15.87       0.435          0.506           16.29       0.458             0.477
+Table 7: Ablation Study on the Photo Tourism Dataset. The best values are highlighted in bold.
+“Unfrozen” refers to training the depth and camera heads.
+
+
+
+                                                                               17
+

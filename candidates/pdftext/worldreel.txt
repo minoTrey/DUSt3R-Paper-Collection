@@ -1,0 +1,682 @@
+                                                                         WorldReel: 4D Video Generation with
+                                                                       Consistent Geometry and Motion Modeling
+
+                                                 Shaoheng Fang1           Hanwen Jiang2            Yunpeng Bai1          Niloy J. Mitra2,3         Qixing Huang1
+                                                   1                                                 2                          3
+                                                       The University of Texas at Austin                 Adobe Research             University College London
+arXiv:2512.07821v1 [cs.CV] 8 Dec 2025
+
+
+
+
+                                        Figure 1. End-to-end 4D generation. Given a text prompt and a single input image (left), WorldReel generates a video (center) together
+                                        with explicit 4D scene representations: per-frame geometry (depth + point cloud) with calibrated camera poses, and per-frame motion
+                                        (optical flow, scene flow) with object masks (bottom panels). The rendered 4D scenes (right) exhibit consistent structure over time, even
+                                        under non-rigid dynamics, illustrating spatiotemporal consistency and tight coupling of appearance, geometry, and motion. Project page:
+                                        https://bshfang.github.io/worldreel/
+
+                                                                  Abstract                                      versity and realism. This blend allows WorldReel to general-
+                                                                                                                ize to in-the-wild footage while preserving strong geometric
+                                                                                                                fidelity. Extensive experiments demonstrate that WorldReel
+                                        Recent video generators achieve striking photorealism,                  sets a new state-of-the-art for consistent video generation
+                                        yet remain fundamentally inconsistent in 3D. We present                 with dynamic scenes and moving cameras, improving metrics
+                                        WorldReel, a 4D video generator that is natively spatio-                of geometric consistency, motion coherence, and reducing
+                                        temporally consistent. WorldReel jointly produces RGB                   view-time artifacts over competing methods [3, 10, 26]. We
+                                        frames together with 4D scene representations, including                believe that WorldReel brings video generation closer to
+                                        pointmaps, camera trajectory, and dense flow mapping, en-               4D-consistent world modeling, where agents can render, in-
+                                        abling coherent geometry and appearance modeling over                   teract, and reason about scenes through a single and stable
+                                        time. Our explicit 4D representation enforces a single under-           spatiotemporal representation.
+                                        lying scene that persists across viewpoints and dynamic con-
+                                        tent, yielding videos that remain consistent even under large
+                                        non-rigid motion and significant camera movement. We train              1. Introduction
+                                        WorldReel by carefully combining synthetic and real data:
+                                        synthetic data providing precise 4D supervision (geometry,              Recent video generators [32, 56, 72] have rapidly gained pop-
+                                        motion, and camera), while real videos contribute visual di-            ularity, delivering impressive perceptual quality and realism
+
+
+                                                                                                            1
+across diverse prompts and scenes. Despite their impressive           (i) geometry and motion consistency of generated videos,
+success in image fidelity and temporal smoothness, these              and (ii) geometric quality of generated 4D scenes, where
+models do not maintain a single stable 3D scene that evolves          WorldReel delivers consistent and substantial improvements.
+over time. The resulting inconsistencies manifest as view-            For video generation, WorldReel produces stronger cam-
+time drift, geometric flicker, and entangled camera/scene             era and subject motion, achieving the best dynamic degree
+motion; these limitations become acute when extrapolating             on both general and complex motion, while maintaining
+viewpoints or editing content as in emerging world model              state-of-the-art photorealism. For generated 4D scenes, our
+settings.                                                             geometry is significantly more accurate, reducing depth error
+    A natural next aspiration is 4D generation, in which a            from 0.353 → 0.287 and achieving the lowest camera pose
+model maintains a coherent spatiotemporal scene represen-             errors compared to recent 4D/3D-aware baselines [3, 10].
+tation. Prior efforts either optimize explicit dynamic scene              In summary, our main contributions are: (i) WorldReel as
+representations [2, 38, 43] or post-hoc lift controllably gen-        a unified generative framework that outputs RGB, pointmaps,
+erated 2D videos into 3D structure [45, 52, 76]. These ap-            calibrated cameras, optical flow, and scene flow, enforc-
+proaches improve geometric alignment, but either are com-             ing a persistent dynamic 3D scene through time; (ii) an
+putationally heavy or fundamentally inherit the geometric             appearance-agnostic geo-motion latent that embeds explicit
+inconsistency of 2D video priors, with limited capability to          geometry and motion, improving generalization and enabling
+generalize to in-the-wild dynamics. None natively integrates          strong supervision from synthetic and real data; (iii) a shared,
+a true 4D structure into a generative prior.                          lightweight DPT backbone with multi-task heads and tar-
+    We propose WorldReel, a unified 4D generator that jointly         geted regularizers that decouple camera motion from dy-
+produces RGB, per-frame geometry, and motion in both 2D               namic components for tight geometric and motion consis-
+and 3D, explicitly outputting pointmaps, calibrated camera            tency. As a result, WorldReel sets a new SoTA in terms of
+trajectories, and scene flow. In contrast to 2D optical flow          4D consistent output, especially for dynamic assets, taking a
+or keypoint tracking used in prior methods [6, 25], scene             step towards 4D-consistent world modeling, where scenes
+flow directly encodes 3D dynamics, (i) cleanly disentan-              can be rendered, edited, and reasoned about from a single
+gling camera motion from object motion and (ii) operating             stable spatiotemporal representation.
+in a physically-grounded evolving 3D frame. To prevent
+appearance from leaking into geometry/motion channels,                2. Related Works
+we introduce an appearance-independent representation that
+stabilizes learning signals across viewpoints and lighting of         2.1. Diffusion Models for Video Generation
+both synthetic and real data.                                         The success of diffusion models in image synthesis [15, 47]
+    At the core of WorldReel is an augmented geometry-                has been extended to video generation, demonstrating
+motion latent for a video diffusion transformer. This latent          promising results [13, 19, 50, 67]. Specifically, latent diffu-
+explicitly carries geometry and motion information through            sion [5, 7, 16, 46, 55] is applied, where a variational autoen-
+the generative process, yielding two benefits: (i) stronger in-       coder [31] first encodes the image or video into a compact
+ductive bias for 4D consistency and (ii) appearance-agnostic          latent representation, and the diffusion process is performed
+conditioning that improves generalization. Crucially, we              in the latent space. This variational approach forms the basis
+demonstrate how to leverage this appearance-independent               for current state-of-the-art video generation models, includ-
+representation for effectively using synthetic datasets that          ing cascaded diffusion systems [18, 64, 75] and large diffu-
+provide accurate 4D labels (geometry, motion, camera) with-           sion models [20, 32, 56, 72] built on DiT backbones [39].
+out sacrificing realism when mixed with real videos.                  However, a commonly recognized limitation of these mod-
+    We design an architecture that predicts 4D from the geo-          els [5, 20] is their struggle with physical plausibility; they
+motion latent via multi-task learning with a customized tem-          often fail to produce consistent 3D geometric structures and
+poral DPT-style decoder. Specifically, a lightweight shared           coherent temporal motions.
+backbone captures correlations among geometric tasks, with            Geometry-Aware Video Generation. To address the lack
+multiple task-specific heads for pointmaps, camera, dynamic           of 3D consistency, many works have focused on integrat-
+mask, and scene flow. We train these outputs jointly with             ing geometric priors into the generation process. Some
+regularization terms that explicitly decouple static and dy-          methods jointly model video and geometry in the form of
+namic components of the scene. This enforces geometric                depth [3, 11, 23, 69] or point clouds [10, 11, 74], enabling
+consistency on static structure and motion consistency on             the simultaneous generation of video and its underlying geo-
+non-rigid regions, resulting in 4D coherence under both ob-           metric structure; OmniVDiff [69] models appearance, depth,
+ject and camera motion.                                               Canny edges, and semantic segmentation simultaneously,
+    We extensively compare WorldReel with state-of-the-art            enabling multi-modal conditional control; GeoVideo [3] ad-
+video and 4D generation models [3, 10, 52] in terms of both           ditionally introduces an explicit geometric regularization
+
+
+                                                                  2
+loss, further improving 3D consistency in generated videos.           ditional reconstruction stage to create the 4D representation.
+Furthermore, [66] uses a 3D foundation model [57] to implic-          TesserAct [77] proposes jointly predicting RGB-DN (RGB,
+itly incorporate geometric priors, aligning the video latent          Depth, and Normal) videos to build a 4D world model. How-
+space with the foundation model’s features. However, these            ever, it is specifically tailored for embodied robotics and
+methods largely neglect scene dynamics and motion, focus-             focuses largely on manipulation scenarios. 4DNeX [10]
+ing primarily on static scenes.                                       jointly models videos and point cloud geometry, training on
+Motion-Aware Video Generation. In a parallel effort to                dynamic datasets to enable dynamic point cloud generation.
+improve temporal coherence, motion priors are incorporated            Despite this, their approach does not explicitly model scene
+into the generation process and have shown effective re-              dynamics and produces nearly fixed camera motion.
+sults. Track4Gen [25] adds an auxiliary point tracking task               We follow these works to build our method on a video
+to provide explicit spatial supervision over diffusion latents.       generation model. Moreover, we generate all 2D and 3D
+Additionally, optical flow, as a simple, generic, and eas-            geometry and motion simultaneously from an augmented
+ily obtainable motion representation, is frequently utilized.         video latent space and design regularization terms to enforce
+Videojam [6] jointly models video and optical flow during             motion and geometry consistency across time.
+generation, and introduces an inference-time guidance mech-
+anism using the motion prediction as a dynamic guidance               3. WorldReel
+signal. In addition, optical flow is also useful as an input
+                                                                      Based on existing powerful video generation models, we
+condition to achieve coherent and smooth motion during
+                                                                      improve the spatio-temporal consistency of generated videos
+generation [28, 48]. Alternatively [37, 62], optical flow is
+                                                                      by introducing 4D inductive bias. In the following part,
+used to assess motion quality and intensity, guiding video
+                                                                      we first review the basics of video generation via latent
+generation models to generate smoother/dynamic motions.
+                                                                      diffusion (Sec. 3.1). We then introduce two key designs of
+2.2. Feed-Forward 4D Perception                                       WorldReel, including a latent space augmented by additional
+                                                                      2.5D inputs (Sec. 3.2), and the unified 4D outputs that are
+Latest 4D feed-forward models aim to recover camera                   directly supervised for improving consistent video and 4D
+parameters and consistent geometric properties, such as               geometry modeling (Sec. 3.3).
+depth and tracking, directly from image sequences. Fol-
+lowing the success of Dust3R [61] on static scenes, sev-              3.1. Preliminary: Video Latent Diffusion
+eral works have adapted the transformer-based framework               Our method is built on the latest latent diffusion video genera-
+to dynamic scenarios for image pairs [9, 14, 73] or longer            tion methods with transformer-based models [32, 56, 72, 79],
+sequences [27, 60, 81]. Alternative approaches leverage               where the diffusion process occurs in a lower-dimensional la-
+large-scale foundation models. For instance, Geo4D [26]               tent space of a pre-trained 3D VAE [72]. Given a clean video
+and GeometryCrafter [71] repurpose video generation mod-              clip X 1:N ∈ RN ×H×W ×3 , the latent can be denoted as
+els [5, 70] for multi-modal geometry generation, leveraging           z0 = E(X 1:N ), where E is the encoder of the 3D VAE. The
+the strong dynamic priors learned by pre-trained video dif-           diffusion involves a forward process that adds a Gaussian
+fusion models. Meanwhile, L4P [1] utilizes a pre-trained              noise ϵ ∼ N (0, I) to obtain the noisy latent zt = αt z0 +σt ϵ,
+video encoder [59] to extract video features for various down-        where t = 1, · · · , T is the diffusion time step and αt and
+stream 4D tasks. In our method, we generate various 4D                σt are noise scheduler parameters. The reverse process is to
+properties together with the videos.                                  remove noise through a denoiser fθ with condition c, trained
+                                                                      by minimizing:
+2.3. 4D Generation                                                                                      h                      i
+                                                                                                                             2
+Early methods [2, 38, 43, 51] optimize explicit 4D scene                     min Et∼U [1,T ], ϵ∼N (0,I) fθ (zt , t, c) − ϵ 2       (1)
+                                                                              θ
+representations [41, 65] with score distillation sampling
+(SDS) [40], leveraging priors from video diffusion models [5,         3.2. Geometry-Motion Augmented Latent
+50] and 3D-aware multi-view diffusion models [35, 49].                Our objective is to generate dynamic 4D scenes using a
+These optimization-based pipelines suffer from high com-              video diffusion model, which requires the ability to jointly
+putational cost and long generation times, and are typically          model video appearance, 3D geometry, and complex motion.
+constrained to single dynamic object generation. To improve           To achieve this, we propose to extend the latent space of
+scalability, recent methods have moved to feed-forward pre-           video generation models by introducing explicit priors for
+diction that outputs a 4D scene representation in a single            geometry and motion. We use frame-aligned depth maps
+pass. L4GM [44] extends the LGM [53] to predict per-frame             and optical flow to jointly model 2.5-D geometry and mo-
+3D Gaussian splats, but remains limited to single-object set-         tion. Concretely, depth captures the scene structure under
+tings. Others [45, 52, 68, 76] leverage controllable video            perspective, while optical flow summarizes the per-pixel
+generation to synthesize dynamic videos, but require an ad-           displacement induced by both camera and object motion.
+
+
+                                                                  3
+Figure 2. Overview of WorldReel. We augment a video diffusion transformer with a geo–motion latent (from RGB and 2.5D cues such as
+depth/optical flow) to inject a 4D inductive bias for spatio-temporal consistency. A temporal DPT decoder is trained with direct supervision
+and regularization to predict unified 4D outputs (depth/point cloud, calibrated camera, 3D scene flow, and masks).
+
+
+    Our choice of depth and optical flow as the preliminary              original transformer architecture with minimal modifications.
+geo-motion representation is based on several advantages: i)             Specifically, only the input and output projection layers are
+Both depth maps and optical flow fields possess a dense,                 modified for the doubled channel dimension of z0 , while all
+image-like structure that is intrinsically aligned to RGB                intermediate blocks remain unchanged. To further stabilize
+frames. This modality compatibility allows us to leverage                training, we employ a zero-initialization scheme for the input
+powerful, pre-trained 3D VAEs to directly encode and de-                 projection layer: weights corresponding to the original video
+code them (as shown in [21, 30]) and is easy to integrate into           latent zrgb are loaded from the pre-trained model, while new
+existing video generation pipelines. ii) High-quality depth              expanded parameters corresponding to the geo-motion latent
+maps and optical flow are readily obtainable from powerful               zgm are initialized to zero. This strategy ensures that, at the
+foundation models [21, 63], which enables our model train-               beginning of training, the model’s behavior is identical to
+ing to be conducted at scale. iii) The geo-motion latent is              that of the original video diffusion model, improving training
+3D-focused, which factors out the appearance and texture                 stability.
+of the generated scene, resulting in a smaller distribution
+gap between synthetic and real-world data. When training                 3.3. 4D Video Modeling
+subsequent 4D generation tasks, this disentanglement en-
+ables better leverage of accurate ground-truth annotations               Unified 4D Representations as Outputs. While leveraging
+from synthetic datasets, leading to stronger generalization              additional inputs of depth and optical flow provides strong
+performance.                                                             priors for improving video generation in latent space, they
+                                                                         are insufficient to recover the 3D scene structure, especially
+    To encode the additional inputs of depth Di ∈ RH×W ×1 ,
+                                                                         for disentangling camera and object motion which is ill-
+and forward optical flow Fi2d ∈ RH×W ×2 with existing 3D
+                                                                         posed under the 2.5-D setting. Thus, we opt to predict finer-
+VAE, we need to align them to the same value range with
+                                                                         grained 4D representations of the generated video clip and
+the RGB images. Thus, we get the normalized depth and
+                                                       Fi2d
+                                                                         apply explicit supervision. In detail, except for the video clip,
+                           Di −dmin            2d
+optical flow as D̃i = 2 · dmax −dmin − 1 and F̃i = |F 2d |max ,          the model also outputs the corresponding camera trajectory,
+where dmax and dmin are the maximum and minimum depth                    point clouds, and object foreground masks. The supervision
+and |F 2d |max is the maximum displacement scale across all              of 4D representations enables consistent spatial alignment
+frames. The geo-motion latent can be encoded by the pre-                 across frames, by back-propagating geometry-related gradi-
+trained 3D VAE, denoted as zgm               2d
+                                0 = E([D̃; F̃ ]), where [·; ·]           ents to the latent space. This design choice also effectively
+denotes concatenation along the channel dimension. With                  helps the disentanglement between camera motion and ob-
+the original video latent zrgb
+                             0 = E(X), we can obtain the                 ject motion, encouraging the model to capture 3D dynamics
+augmented latent for the diffusion model by channel-wise                 in a better latent space.
+concatenation z0 = [zrgb     gm
+                       0 ; z0 ]                                              Formally, for a downsampled set of latent frames i =
+Adapt Existing Video Generation Models. We then train                    1, · · · N ′ , we define the output unified 4D representation
+the video diffusion DiT to model the joint distribution over             as (Di , Pi , Ci , Fi3d , Mi ). Ci ∈ R9 are camera intrinsics
+appearance and geo-motion in the augmented latent space.                 and extrinsics following the parameterization in [57]. Pi ∈
+To effectively leverage pre-trained weights, we adapt the                RH×W ×3 is the point cloud, Fi3d ∈ RH×W ×3 is the forward
+
+
+                                                                     4
+scene flow, and Mi ∈ RH×W is the dynamic (foreground)                           Here Ti→j is the transformation matrix derived from
+mask. Camera parameters Ci , point clouds Pi , and scene                    Ci , Cj . The joint training objective is
+flow Fi3d are all represented in the first-frame canonical
+coordinate system for a consistent scene description.                                     L = Ldiff + λdpt Ldpt + λreg Lreg          (4)
+Model Design. To predict the unified 4D representations, we
+design a customized temporal DPT [42] architecture. The
+                                                                            3.4. 4D Data Preparation
+model first extracts multi-scale dense features from the in-                Training a model for comprehensive 4D video generation re-
+put latent, which are then processed and aggregated using a                 quires a diverse, high-quality video dataset with correspond-
+DPT-like fusion backbone incorporating temporal transform-                  ing 4D labels, encompassing a wide range of dynamics and
+ers (see supp.). Critically, our design is motivated by the                 sufficient scene complexity. Therefore, we employ a mixed-
+high correlation between target geometric representations.                  data strategy [4, 29, 58, 78, 80], leveraging both synthetic
+We utilize a single, shared DPT-style decoder to process and                datasets with ground-truth labels and real-world videos with
+generate unified dense features. Only at the final output layer             pseudo-annotations.
+do multiple lightweight, task-specific heads predict their re-                   Synthetic datasets include PointOdyssey [78],
+spective tasks. This not only ensures significant parameter                 BEDLAM [4],              Dynamic Replica [29],           and
+efficiency but also acts as a strong form of regularization,                Omniworld-Game [80]. Synthetic data alone is lim-
+forcing the model to learn a unified and geometrically con-                 ited in scale and complexity, which can impede the model’s
+sistent representation for all tasks.                                       generalization to real-world scenarios. We therefore
+Training. Our model is trained using a two-stage strategy                   supplement our training with real-world videos. While
+to ensure stability and optimize both generative quality and                some recent works construct 4D datasets [10, 58] by
+4D accuracy. The first stage trains the video diffusion trans-              filtering large-scale sources [8, 12] and using off-the-shelf
+former and the temporal DPT heads in isolation. The second                  annotation models [33, 73], the resulting labels are noisy
+stage then jointly trains the full model end-to-end with addi-              and of insufficient quality. We start with high-quality raw
+tional regularization terms.                                                videos filtered from Panda-70M [8] by SpatialVid [58] and
+    Specifically, we first finetune the video diffusion trans-              re-annotate them using state-of-the-art vision foundation
+former to accommodate the new geo-motion augmented                          models to obtain superior pseudo-labels. Specifically, for
+latent. We use a standard diffusion loss as defined in Eq. 1.               per-frame depth, we use GeometryCrafter [71] to obtain
+The total loss combines losses on the appearance component                  temporally smooth depth sequences. For feed-forward
+and the geo-motion components: Ldiff = Lrgb          gm
+                                             diff + Ldiff .                 4D task labels corresponding to latent frames, we employ
+    To pre-train the temporal DPT heads on 4D prediction,                   ViPE [22] to obtain camera parameters, depth maps, and
+we use the clean geo-motion latent zgm0 as input and optimize               foreground masks. We obtain the point cloud annotations
+using a comprehensive multi-task loss Ldpt .                                by back-projecting the depth map with camera poses, and
+                                                                            all camera poses and point clouds are in the first-frame
+   Ldpt = Ldepth + Lpc + Lcam + Lmask + λflow Lflow .             (2)
+                                                                            canonical coordinates.
+We use masked L1 loss for Ldepth and Lpc on pixels with                     2D/3D Motion Labels. Accurate motion supervision is crit-
+valid depth values; Huber loss for Lcam ; BCE loss for Lmask .              ical, yet ground-truth scene flow is rarely available. For
+In Lflow , we reweight the loss pixel-wise to focus on the pre-             all datasets, we estimate frame-to-frame optical flow us-
+diction of the foreground motion according to the dynamic                   ing SEA-RAFT [63]. Then, inspired by zero-MSF [34],
+mask M̂i (see supp. for details).                                           we compute large-scale, dense scene flow labels from op-
+   Then, we jointly train the video transformer model and                   tical flow and corresponding geometry labels. We derive
+the temporal DPT heads end-to-end. Regularization terms                     dense 3D scene-flow pseudo-labels F̂i3d ∈ RH×W ×3 in
+are added for geometry and temporal consistency. To ensure                  the first-camera canonical frame for each adjacent pair
+geometry consistency in the static background and motion                    (Xi , Xi+1 ). We first get the forward and backward op-
+smoothness for dynamic objects, we apply different reg-
+                                                                                           2d
+                                                                            tical flow Fi→i+1        2d
+                                                                                                 , Fi+1→i  ∈ RH×W ×2 , and their per-
+ularization terms. We use M̂ibg and M̂ifg to represent the
+                                                                                                    2d
+                                                                            pixel uncertainties σi→i+1      2d
+                                                                                                         , σi+1→i  ∈ RH×W using SEA-
+background and foreground masks derived from M̂i label.                     RAFT [63]. For pixel u = (x, y) in frame i, define the
+                                                                                                                   2d
+              XX                                                            forward-mapped pixel q(u) = u + Fi→i+1       (u). Scene flow
+    Ldepth
+      reg =             M̂ibg ⊙ (Dj − Proj(Di , Ti→j ))                     is then retrieved by
+                                                              2
+                i   j                                                                      (
+           X                                                                    3d          Pi+1 (q(u)) − Pi (u), if M̂i (u) = 1,
+  Lflow
+   reg =            M̂ifg ⊙ ∇x Fi3d       + M̂ifg ⊙ ∇y Fi3d                     F̂i (u) =                                             (5)
+                                      2                       2                               0,                     otherwise.
+            i
+                        Lreg = Ldepth  flow
+                                reg + Lreg                                     The scene flow labels generated by finding the cor-
+                                                                  (3)       respondence in adjacent point clouds may contain large
+
+
+                                                                        5
+Table 1. Quantitative comparison on image-to-video (I2V) generation under two splits: General motion and Complex motion. Metrics:
+dynamic degree (d.d.; ↑), motion smoothness (m.s.; ↑), I2V-subject/background (i2v-s./i2v-b.; ↑), subject consistency (s.c.; ↑), Fréchet Video
+Distance (FVD; ↓), and FID (↓). WorldReel achieves the best overall performance, with notably higher dynamic degree while maintaining
+strong s.c. and perceptual quality (lower FVD/FID). Bold indicates best; underline second-best. Gray rows denote methods that primarily
+focus on nearly-static scenes.
+
+                                              General motion                                           Complex motion
+              method      d.d.    m.s.    i2v-s. i2v-b. s.c.       FVD       FID     d.d    m.s.    i2v-s. i2v-b. s.c.       FVD      FID
+   Cogvideox-I2V [72]     0.37   0.976    0.967 0.970 0.928        617.4    47.69   0.52   0.972    0.954 0.960 0.916        824.8   52.97
+          4DNeX [10]      0.03   0.994    0.993 0.990 0.983        712.5    44.97   0.19   0.994    0.987 0.985 0.983        632.8   49.79
+     DimensionX [52]      0.47   0.987    0.974 0.979 0.943        470.7    42.28   0.93   0.980    0.963 0.970 0.910        605.3   46.97
+         GeoVideo [3]     0.54   0.987    0.979 0.980 0.932        371.3    46.78   0.79   0.985    0.971 0.974 0.914        409.9   49.92
+     WorldReel (ours)     0.73   0.990    0.986 0.986 0.953        336.1    36.58   1.00   0.987    0.980 0.980 0.927        394.2   44.95
+
+
+noise. Therefore, we utilize various existing information                  methods: DimensionX [52], 4DNeX [10], and GeoVideo [3].
+to eliminate potentially incorrect scene flow labels. A per-               We use the released checkpoints for DimensionX [52] and
+pixel validity mask Miflow only keeps pixels that pass fore-               4DNeX [10], and train GeoVideo [3] on our dataset. For
+ground/instance, uncertainty, and forward-backward consis-                 dynamic-scene video generation quality, we report five met-
+tency checks (see supp.) During training, the motion validity              rics from VBench [24]: (a) i2v-subject, (b) i2v-background,
+mask is applied when calculating Lflow and Lflow
+                                               reg . Also, to              (c) subject consistency, (d) motion smoothness, and (e) dy-
+align the frame number for 2D/3D flow, we retrieve one                     namic degree, which jointly measure the quality and consis-
+more frame after the video clip during all data processing.                tency of dynamics in a video. We also report FVD [54] and
+                                                                           FID [17] for video visual quality.
+4. Experiments                                                                For 4D geometry generation assessment, we evaluate
+                                                                           the geometry terms generated with the videos. We utilize
+4.1. Experimental Settings                                                 ViPE [22], the state-of-the-art dynamic-scene reconstruction
+                                                                           method, to obtain a pseudo ground truth aligned with the
+Implementation Details. We utilize CogVideoX-5B-
+                                                                           video. We normalize the scene’s scale using the median
+I2V [72] as our base video generation model, which gen-
+                                                                           depth. For generated depth, we report log-RMSE and δ-
+erates videos at a resolution of 480 × 720 over 49 frames.
+                                                                           accuracy. For generated camera trajectories, we report the
+Our predicted 4D dynamic scene representations are gener-
+                                                                           camera motion magnitude using the trajectory length (sum
+ated at the same resolution but for a downsampled set of 13
+                                                                           of inter-frame translations) and the cumulative viewpoint
+frames. All training is conducted on the same mixed dataset
+                                                                           change (sum of inter-frame rotation angles). In addition, we
+of synthetic and real videos described in Sec. 3.4, which
+                                                                           use standard error metrics to evaluate the camera poses gener-
+also details the generation process for pseudo annotations.
+                                                                           ated: Absolute Translation Error (ATE), Relative Translation
+Following the two-stage strategy described in Sec. 3.3, we
+                                                                           Error (RTE), and Relative Rotation Error (RRE).
+first finetune the geo-motion augmented DiT for 20K steps
+and separately train the temporal DPT heads from scratch
+for 100K steps. In the second stage, the entire model is
+                                                                           4.2. Experimental Results
+trained end-to-end for an additional 10K steps. All training               Video Generation Comparisons. Table 1 demonstrates the
+is performed on 8×H200 GPUs with a batch size of 8. We                     quantitative comparison with other baseline models. Across
+employ the AdamW optimizer [36] with a constant learning                   both the general and complex motion sets, our method shows
+rate of 2e-5. For optimization objectives, we set the loss                 superior performance. Our model substantially improves vi-
+weight λflow = 5.0 in Eq. 2 and the final joint loss weights               sual quality: relative to GeoVideo [3] that is trained on the
+λdpt = 0.1 and λreg = 0.5 in Eq. 4.                                        same data, FVD drops from 371.3 to 336.1 (-9.5%) on gen-
+Evaluation. To assess 4D generation for dynamic scenes, we                 eral and from 409.9 to 394.2 (-3.8%) on complex. Most no-
+construct two benchmarks from the SpatialVid [58] valida-                  tably, our model shows a significant improvement in the dy-
+tion split. The (i) general motion set contains 500 randomly               namic degree metric, far exceeding all baselines and achiev-
+sampled videos, while the (ii) complex motion set consists                 ing a perfect 1.0 on the complex motion set. Furthermore,
+of 500 videos with the highest 3D motion magnitude, rep-                   our method achieves leading scores on motion smoothness,
+resenting scenes with the most complex dynamics, ensur-                    i2v-subject, i2v-background, and subject consistency, indi-
+ing a rigorous test of dynamic scene modeling (see supp.                   cating our ability to generate smoother and more consistent
+for details). We compare WorldReel with the base model                     dynamics. These results demonstrate that our method signif-
+CogVideoX-I2V [72] and other recent 4D video generation                    icantly enhances the effective motion of both the camera and
+
+
+                                                                      6
+Figure 3. Qualitative image-to-video comparison on in-the-wild scenes. Given a single input image (left), we show sampled frames from
+videos generated by 4DNeX [10], DimensionX [52], GeoVideo [3], and WorldReel (ours). Prior methods often exhibit geometry drift and
+motion inconsistencies (e.g., warped facades, misaligned vehicles), while our results better preserve scene layout and maintain coherent
+camera and non-rigid dynamics. See the supplementary for prompts, full videos for all methods, and additional comparisons.
+
+Table 2. Scene geometry evaluation on depth, camera pose, and                 dency to collapse toward static scenes observed in our video
+camera trajectory. WorldReel achieves the best depth and camera               metrics. In contrast, WorldReel delivers the best depth and
+accuracy across all pose metrics, with competitive trajectory esti-           pose accuracy across all measures, with camera parameters
+mates. Ablations (w/o geomotion, w/o joint) degrade depth or pose
+                                                                              that faithfully match the generated videos.
+quality, confirming the importance of geo–motion latent and joint
+training. Bold = best, underline = second-best.                                  Ablations further underscore our design choices: remov-
+                                                                              ing the joint training stage (“w/o joint”) noticeably degrades
+                    Depth                Camera           Camera traj.        both geometric and camera accuracy. This confirms that our
+        method log-rmse δ1.25    ATE      RTE RRE       length rotation
+   4DNeX [10]    0.479    39.9   0.006    0.017 0.378   0.034    0.55         joint optimization with targeted regularization – decoupling
+  GeoVideo [3]   0.353    63.4   0.011    0.012 0.443   0.331    4.61         static structure from dynamic regions and supervising them
+ w/o geomotion   0.352    67.2   0.010    0.013 0.372   0.379    5.34         separately – is crucial for high 4D consistency. The result-
+      w/o joint  0.399    57.6   0.006    0.014 0.410   0.294    5.86
+     WorldReel   0.287    71.1   0.005    0.007 0.317   0.358    3.83         ing high-quality geometry and poses highlight WorldReel’s
+                                                                              potential for realistic dynamic 4D scene generation.
+the scene without sacrificing appearance quality or temporal                  Ablation. We present an ablation study on video generation
+consistency (see Figure 3).                                                   results in Table 3. We show the effectiveness of two main
+   While GeoVideo [3] introduces geometry modeling and                        designs in our method: (i) the geo-motion augmented latent
+regularization for consistency, our results suggest that the                  for the DiT model; (ii) joint optimization of generation and
+focus on static geometry penalizes the generation of dynamic                  4D modeling with geometry and motion regularization. Re-
+content. In contrast, WorldReel, by jointly and explicitly                    moving the geo-motion augmented latent causes a clear drop
+modeling both geometry and motion, avoids this trade-off                      in performance, especially on the complex set. Applying
+and prevents the model from preferring static content to                      joint training with regularization on the RGB-only model
+maintain geometric consistency. Also, although 4DNeX [10]                     (“w/o g.m.”) leads to even worse FVD results than simply
+reports high framewise consistency (e.g., s.c.), its extremely                finetuning the base model (“base finetuned”) on the com-
+low dynamic degree (0.03) and poor FVD (712.5) indicate a                     plex set. This demonstrates that our geo-motion latents are
+collapse toward near-static video generation.                                 critical for modeling complex dynamics. On the other hand,
+4D Scene Quality. Table 2 assesses the fidelity of the gen-                   removing the joint training stage (“w/o joint”) also hurts
+erated 4D scene geometry. Because 4DNeX [10] outputs                          performance, which confirms that our regularization terms,
+raw point clouds, we follow their pipeline to register frames                 applied via joint optimization, successfully align appearance
+and recover camera poses. Although 4DNeX attains a low                        and geometry, and improve motion quality. Additionally, we
+camera ATE, its trajectory length and rotation are near-zero,                 present the results following the GeoVideo [3] setup, where
+indicating little actual camera motion, consistent with its ten-              we freeze the temporal DPT heads (“freeze dpt”) during joint
+
+
+                                                                          7
+Table 3. Ablation study on image-to-video generation under General and Complex motion. Variants: base finetuned, w/o g.m. (without
+geo–motion latent), w/o joint (no joint multi-task decoding/regularizers), freeze dpt (freeze temporal DPT backbone in stage-2), and full
+(ours). Metrics: dynamic degree (d.d.; ↑), motion smoothness (m.s.; ↑), I2V-subject/background (i2v-s./i2v-b.; ↑), subject consistency (s.c.;
+↑), FVD (↓), and FID (↓). Our full model delivers the best overall quality (lowest FID and highest d.d. on complex motion), while freeze dpt
+attains the lowest FVD; removing geo–motion latent or joint training degrades consistency. Bold = best, underline = second-best.
+
+                                      General motion                                                 Complex motion
+            method     d.d   m.s. i2v-s. i2v-b. s.c.           FVD          FID     d.d    m.s.   i2v-s. i2v-b. s.c.   FVD       FID
+     base finetuned    0.90 0.986 0.974 0.979 0.921            383.4       42.68   0.98   0.985   0.971 0.976 0.913    437.0    52.01
+           w/o g.m.    0.85 0.989 0.982 0.983 0.943            359.2       42.07   0.93   0.987   0.975 0.977 0.918    452.8    48.02
+          w/o joint    0.73 0.989 0.983 0.984 0.946            354.5       40.42   0.96   0.988   0.978 0.979 0.926    411.8     47.2
+         freeze dpt    0.77 0.991 0.984 0.985 0.956            336.0       38.02   0.98   0.990   0.981 0.981 0.94     382.3    45.33
+                full   0.73 0.990 0.986 0.986 0.953            336.1       36.58   1.00   0.988   0.980 0.981 0.928    394.2    44.95
+
+
+
+
+Figure 4. Qualitative 4D generation and geometry. For two in-the-wild inputs (left, red boxes), we show selected frames from our generated
+videos (top rows) alongside the corresponding dynamic point clouds rendered from our pointmaps and camera trajectories (bottom rows).
+The persistent structure and consistent camera/object motion illustrate a single, stable 3D scene across time, evidencing strong geometric
+consistency in the underlying world state. See supplementary for additional examples.
+
+
+training and apply only regularization terms.                               Limitations and Future Work. WorldReel requires addi-
+                                                                            tional 4D supervision during training (e.g., camera, geome-
+                                                                            try, scene flow), which we currently obtain from synthetic
+5. Conclusion                                                               data; Although WorldReel introduces strategies to mitigate
+We have introduced WorldReel, a feed-forward 4D video                       domain gaps, domain gaps still remain that constrain gen-
+generator that natively couples appearance with object ge-                  eralization to unusual motion and dynamics. Also, since
+ometry and dynamics. By jointly emitting RGB, pointmaps,                    the temporal window is finite, failure modes appear under
+camera trajectories, and dense (scene and optical) flow, Worl-              significant topology changes, heavy occlusions, and fast
+dReel maintains a single persistent scene state, yielding con-              motions. We expect future work to reduce supervision by
+sistent motion and stable geometry even for dynamic scenes.                 leveraging weak/self-supervised 4D signals from monocular
+Trained in a mix of synthetic and real videos, WorldReel                    videos, extend temporal context with streaming/causal diffu-
+achieves state-of-the-art 4D consistency while requiring no                 sion and a persistent world state, and add controllable scene
+extra input at inference time, moving video generation one                  decomposition for more faithful long-horizon, interactive
+step closer to editable and agent-ready world models.                       4D generation.
+
+
+                                                                       8
+References                                                                   former for scaling up video diffusion models. arXiv preprint
+                                                                             arXiv:2501.08453, 2025. 5
+ [1] Abhishek Badki, Hang Su, Bowen Wen, and Orazio Gallo.
+                                                                        [13] Yuwei Guo, Ceyuan Yang, Anyi Rao, Zhengyang Liang, Yao-
+     L4P: Towards unified Low-level 4D vision perception. 2025.
+                                                                             hui Wang, Yu Qiao, Maneesh Agrawala, Dahua Lin, and Bo
+     3
+                                                                             Dai. Animatediff: Animate your personalized text-to-image
+ [2] Sherwin Bahmani, Ivan Skorokhodov, Victor Rong, Gordon
+                                                                             diffusion models without specific tuning. arXiv preprint
+     Wetzstein, Leonidas Guibas, Peter Wonka, Sergey Tulyakov,
+                                                                             arXiv:2307.04725, 2023. 2
+     Jeong Joon Park, Andrea Tagliasacchi, and David B. Lindell.
+                                                                        [14] Jisang Han, Honggyu An, Jaewoo Jung, Takuya Narihira,
+     4d-fy: Text-to-4d generation using hybrid score distillation
+                                                                             Junyoung Seo, Kazumi Fukuda, Chaehyun Kim, Sunghwan
+     sampling. IEEE Conference on Computer Vision and Pattern
+                                                                             Hong, Yuki Mitsufuji, and Seungryong Kim. Dˆ 2ust3r: En-
+     Recognition (CVPR), 2024. 2, 3
+                                                                             hancing 3d reconstruction with 4d pointmaps for dynamic
+ [3] Yunpeng Bai, Shaoheng Fang, Chaohui Yu, Fan Wang, and
+                                                                             scenes. arXiv preprint arXiv:2504.06264, 2025. 3
+     Qixing Huang. Geovideo: Introducing geometric regulariza-
+                                                                        [15] Ali Hatamizadeh, Jiaming Song, Guilin Liu, Jan Kautz, and
+     tion into video generation model. In The Thirty-ninth Annual
+                                                                             Arash Vahdat. Diffit: Diffusion vision transformers for image
+     Conference on Neural Information Processing Systems, 2025.
+                                                                             generation. In European Conference on Computer Vision,
+     1, 2, 6, 7
+                                                                             pages 37–55. Springer, 2024. 2
+ [4] Michael J Black, Priyanka Patel, Joachim Tesch, and Jin-
+     long Yang. Bedlam: A synthetic dataset of bodies exhibit-          [16] Yingqing He, Tianyu Yang, Yong Zhang, Ying Shan, and
+     ing detailed lifelike animated motion. In Proceedings of                Qifeng Chen. Latent video diffusion models for high-fidelity
+     the IEEE/CVF Conference on Computer Vision and Pattern                  long video generation. arXiv preprint arXiv:2211.13221,
+     Recognition, pages 8726–8737, 2023. 5                                   2022. 2
+ [5] Andreas Blattmann, Tim Dockhorn, Sumith Kulal, Daniel              [17] Martin Heusel, Hubert Ramsauer, Thomas Unterthiner, Bern-
+     Mendelevitch, Maciej Kilian, Dominik Lorenz, Yam Levi,                  hard Nessler, and Sepp Hochreiter. Gans trained by a two
+     Zion English, Vikram Voleti, Adam Letts, et al. Stable                  time-scale update rule converge to a local nash equilibrium.
+     video diffusion: Scaling latent video diffusion models to               Advances in neural information processing systems, 30, 2017.
+     large datasets. arXiv preprint arXiv:2311.15127, 2023. 2, 3             6
+ [6] Hila Chefer, Uriel Singer, Amit Zohar, Yuval Kirstain, Adam        [18] Jonathan Ho, William Chan, Chitwan Saharia, Jay Whang,
+     Polyak, Yaniv Taigman, Lior Wolf, and Shelly Sheynin.                   Ruiqi Gao, Alexey Gritsenko, Diederik P Kingma, Ben Poole,
+     Videojam: Joint appearance-motion representations for en-               Mohammad Norouzi, David J Fleet, et al. Imagen video:
+     hanced motion generation in video models. arXiv preprint                High definition video generation with diffusion models. arXiv
+     arXiv:2502.02492, 2025. 2, 3                                            preprint arXiv:2210.02303, 2022. 2
+ [7] Haoxin Chen, Menghan Xia, Yingqing He, Yong Zhang, Xi-             [19] Jonathan Ho, Tim Salimans, Alexey Gritsenko, William Chan,
+     aodong Cun, Shaoshu Yang, Jinbo Xing, Yaofang Liu, Qifeng               Mohammad Norouzi, and David J Fleet. Video diffusion
+     Chen, Xintao Wang, et al. Videocrafter1: Open diffusion                 models. Advances in neural information processing systems,
+     models for high-quality video generation. arXiv preprint                35:8633–8646, 2022. 2
+     arXiv:2310.19512, 2023. 2                                          [20] Wenyi Hong, Ming Ding, Wendi Zheng, Xinghan Liu, and Jie
+ [8] Tsai-Shien Chen, Aliaksandr Siarohin, Willi Menapace, Eka-              Tang. Cogvideo: Large-scale pretraining for text-to-video gen-
+     terina Deyneka, Hsiang-wei Chao, Byung Eun Jeon, Yuwei                  eration via transformers. arXiv preprint arXiv:2205.15868,
+     Fang, Hsin-Ying Lee, Jian Ren, Ming-Hsuan Yang, et al.                  2022. 2
+     Panda-70m: Captioning 70m videos with multiple cross-              [21] Wenbo Hu, Xiangjun Gao, Xiaoyu Li, Sijie Zhao, Xiaodong
+     modality teachers. In Proceedings of the IEEE/CVF Con-                  Cun, Yong Zhang, Long Quan, and Ying Shan. Depthcrafter:
+     ference on Computer Vision and Pattern Recognition, pages               Generating consistent long depth sequences for open-world
+     13320–13331, 2024. 5                                                    videos. In Proceedings of the Computer Vision and Pattern
+ [9] Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and                 Recognition Conference, pages 2005–2015, 2025. 4
+     Anpei Chen. Easi3r: Estimating disentangled motion from            [22] Jiahui Huang, Qunjie Zhou, Hesam Rabeti, Aleksandr Ko-
+     dust3r without training. arXiv preprint arXiv:2503.24391,               rovko, Huan Ling, Xuanchi Ren, Tianchang Shen, Jun Gao,
+     2025. 3                                                                 Dmitry Slepichev, Chen-Hsuan Lin, Jiawei Ren, Kevin Xie,
+[10] Zhaoxi Chen, Tianqi Liu, Long Zhuo, Jiawei Ren, Zeng Tao,               Joydeep Biswas, Laura Leal-Taixe, and Sanja Fidler. Vipe:
+     He Zhu, Fangzhou Hong, Liang Pan, and Ziwei Liu. 4dnex:                 Video pose engine for 3d geometric perception. In NVIDIA
+     Feed-forward 4d generative modeling made easy. arXiv                    Research Whitepapers, 2025. 5, 6
+     preprint arXiv:2508.13154, 2025. 1, 2, 3, 5, 6, 7                  [23] Tianyu Huang, Wangguandong Zheng, Tengfei Wang, Yuhao
+[11] Yixiang Dai, Fan Jiang, Chiyu Wang, Mu Xu, and Yong-                    Liu, Zhenwei Wang, Junta Wu, Jie Jiang, Hui Li, Rynson WH
+     gang Qi. Fantasyworld: Geometry-consistent world mod-                   Lau, Wangmeng Zuo, et al. Voyager: Long-range and world-
+     eling via unified video and 3d prediction. arXiv preprint               consistent video diffusion for explorable 3d scene generation.
+     arXiv:2509.21657, 2025. 2                                               arXiv preprint arXiv:2506.04225, 2025. 2
+[12] Weichen Fan, Chenyang Si, Junhao Song, Zhenyu Yang,                [24] Ziqi Huang, Yinan He, Jiashuo Yu, Fan Zhang, Chenyang
+     Yinan He, Long Zhuo, Ziqi Huang, Ziyue Dong, Jing-                      Si, Yuming Jiang, Yuanhan Zhang, Tianxing Wu, Qingyang
+     wen He, Dongwei Pan, et al. Vchitect-2.0: Parallel trans-               Jin, Nattapol Chanpaisit, et al. Vbench: Comprehensive
+
+
+                                                                    9
+     benchmark suite for video generative models. In Proceedings        [38] Zijie Pan, Zeyu Yang, Xiatian Zhu, and Li Zhang. Efficient4d:
+     of the IEEE/CVF Conference on Computer Vision and Pattern               Fast dynamic 3d object generation from a single-view video.
+     Recognition, pages 21807–21818, 2024. 6                                 arXiv preprint arXiv 2401.08742, 2024. 2, 3
+[25] Hyeonho Jeong, Chun-Hao P Huang, Jong Chul Ye, Niloy J             [39] William Peebles and Saining Xie. Scalable diffusion models
+     Mitra, and Duygu Ceylan. Track4gen: Teaching video dif-                 with transformers. In Proceedings of the IEEE/CVF inter-
+     fusion models to track points improves video generation. In             national conference on computer vision, pages 4195–4205,
+     Proceedings of the Computer Vision and Pattern Recognition              2023. 2
+     Conference, pages 7276–7287, 2025. 2, 3                            [40] Ben Poole, Ajay Jain, Jonathan T. Barron, and Ben Mildenhall.
+[26] Zeren Jiang, Chuanxia Zheng, Iro Laina, Diane Larlus, and               Dreamfusion: Text-to-3d using 2d diffusion. arXiv, 2022. 3
+     Andrea Vedaldi. Geo4d: Leveraging video generators for             [41] Albert Pumarola, Enric Corona, Gerard Pons-Moll, and
+     geometric 4d scene reconstruction, 2025. 1, 3                           Francesc Moreno-Noguer. D-nerf: Neural radiance fields
+[27] Linyi Jin, Richard Tucker, Zhengqi Li, David Fouhey, Noah               for dynamic scenes. arXiv preprint arXiv:2011.13961, 2020.
+     Snavely, and Aleksander Hołyński. Stereo4d: Learning                   3
+     how things move in 3d from internet stereo videos. In              [42] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vi-
+     2025 IEEE/CVF Conference on Computer Vision and Pat-                    sion transformers for dense prediction. In Proceedings of
+     tern Recognition (CVPR), pages 10497–10509, 2025. 3                     the IEEE/CVF international conference on computer vision,
+[28] Wonjoon Jin, Qi Dai, Chong Luo, Seung-Hwan Baek, and                    pages 12179–12188, 2021. 5
+     Sunghyun Cho. Flovd: Optical flow meets video diffusion
+                                                                        [43] Jiawei Ren, Liang Pan, Jiaxiang Tang, Chi Zhang, Ang Cao,
+     model for enhanced camera-controlled video synthesis. In
+                                                                             Gang Zeng, and Ziwei Liu. Dreamgaussian4d: Generative 4d
+     Proceedings of the Computer Vision and Pattern Recognition
+                                                                             gaussian splatting. arXiv preprint arXiv:2312.17142, 2023.
+     Conference, pages 2040–2049, 2025. 3
+                                                                             2, 3
+[29] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia
+                                                                        [44] Jiawei Ren, Kevin Xie, Ashkan Mirzaei, Hanxue Liang, Xiao-
+     Neverova, Andrea Vedaldi, and Christian Rupprecht. Dy-
+                                                                             hui Zeng, Karsten Kreis, Ziwei Liu, Antonio Torralba, Sanja
+     namicstereo: Consistent dynamic depth from stereo videos.
+                                                                             Fidler, Seung Wook Kim, and Huan Ling. L4gm: Large 4d
+     CVPR, 2023. 5
+                                                                             gaussian reconstruction model. In Proceedings of Neural
+[30] Bingxin Ke, Anton Obukhov, Shengyu Huang, Nando Met-
+                                                                             Information Processing Systems(NeurIPS), 2024. 3
+     zger, Rodrigo Caye Daudt, and Konrad Schindler. Repurpos-
+     ing diffusion-based image generators for monocular depth           [45] Xuanchi Ren, Tianchang Shen, Jiahui Huang, Huan Ling,
+     estimation. In Proceedings of the IEEE/CVF conference on                Yifan Lu, Merlin Nimier-David, Thomas Müller, Alexander
+     computer vision and pattern recognition, pages 9492–9502,               Keller, Sanja Fidler, and Jun Gao. Gen3c: 3d-informed world-
+     2024. 4                                                                 consistent video generation with precise camera control. In
+[31] Diederik P Kingma and Max Welling. Auto-encoding varia-                 Proceedings of the IEEE/CVF Conference on Computer Vi-
+     tional bayes. arXiv preprint arXiv:1312.6114, 2013. 2                   sion and Pattern Recognition, 2025. 2, 3
+[32] Weijie Kong, Qi Tian, Zijian Zhang, Rox Min, Zuozhuo Dai,          [46] Robin Rombach, Andreas Blattmann, Dominik Lorenz,
+     Jin Zhou, Jiangfeng Xiong, Xin Li, Bo Wu, Jianwei Zhang,                Patrick Esser, and Björn Ommer. High-resolution image
+     et al. Hunyuanvideo: A systematic framework for large video             synthesis with latent diffusion models. In Proceedings of
+     generative models. arXiv preprint arXiv:2412.03603, 2024.               the IEEE/CVF conference on computer vision and pattern
+     1, 2, 3                                                                 recognition, pages 10684–10695, 2022. 2
+[33] Zhengqi Li, Richard Tucker, Forrester Cole, Qianqian Wang,         [47] Chitwan Saharia, William Chan, Saurabh Saxena, Lala Li,
+     Linyi Jin, Vickie Ye, Angjoo Kanazawa, Aleksander Holyn-                Jay Whang, Emily L Denton, Kamyar Ghasemipour, Raphael
+     ski, and Noah Snavely. Megasam: Accurate, fast and robust               Gontijo Lopes, Burcu Karagol Ayan, Tim Salimans, et al. Pho-
+     structure and motion from casual dynamic videos. In Pro-                torealistic text-to-image diffusion models with deep language
+     ceedings of the Computer Vision and Pattern Recognition                 understanding. Advances in neural information processing
+     Conference, pages 10486–10496, 2025. 5                                  systems, 35:36479–36494, 2022. 2
+[34] Yiqing Liang, Abhishek Badki, Hang Su, James Tompkin, and          [48] Xiaoyu Shi, Zhaoyang Huang, Fu-Yun Wang, Weikang Bian,
+     Orazio Gallo. Zero-shot monocular scene flow estimation in              Dasong Li, Yi Zhang, Manyuan Zhang, Ka Chun Cheung,
+     the wild. In Proceedings of the Computer Vision and Pattern             Simon See, Hongwei Qin, et al. Motion-i2v: Consistent and
+     Recognition Conference, pages 21031–21044, 2025. 5                      controllable image-to-video generation with explicit motion
+[35] Ruoshi Liu, Rundi Wu, Basile Van Hoorick, Pavel Tokmakov,               modeling. In ACM SIGGRAPH 2024 Conference Papers,
+     Sergey Zakharov, and Carl Vondrick. Zero-1-to-3: Zero-shot              pages 1–11, 2024. 3
+     one image to 3d object, 2023. 3                                    [49] Yichun Shi, Peng Wang, Jianglong Ye, Long Mai, Kejie Li,
+[36] Ilya Loshchilov, Frank Hutter, et al. Fixing weight decay               and Xiao Yang. Mvdream: Multi-view diffusion for 3d gener-
+     regularization in adam. arXiv preprint arXiv:1711.05101, 5              ation. arXiv:2308.16512, 2023. 3
+     (5):5, 2017. 6                                                     [50] Uriel Singer, Adam Polyak, Thomas Hayes, Xi Yin, Jie An,
+[37] Hyelin Nam, Jaemin Kim, Dohun Lee, and Jong Chul Ye.                    Songyang Zhang, Qiyuan Hu, Harry Yang, Oron Ashual,
+     Optical-flow guided prompt optimization for coherent video              Oran Gafni, et al. Make-a-video: Text-to-video generation
+     generation. In Proceedings of the Computer Vision and Pat-              without text-video data. arXiv preprint arXiv:2209.14792,
+     tern Recognition Conference, pages 7837–7846, 2025. 3                   2022. 2, 3
+
+
+                                                                   10
+[51] Uriel Singer, Shelly Sheynin, Adam Polyak, Oron Ashual,               [64] Yaohui Wang, Xinyuan Chen, Xin Ma, Shangchen Zhou,
+     Iurii Makarov, Filippos Kokkinos, Naman Goyal, Andrea                      Ziqi Huang, Yi Wang, Ceyuan Yang, Yinan He, Jiashuo Yu,
+     Vedaldi, Devi Parikh, Justin Johnson, and Yaniv Taigman.                   Peiqing Yang, et al. Lavie: High-quality video generation
+     Text-to-4d dynamic scene generation. arXiv:2301.11280,                     with cascaded latent diffusion models. International Journal
+     2023. 3                                                                    of Computer Vision, 133(5):3059–3078, 2025. 2
+[52] Wenqiang Sun, Shuo Chen, Fangfu Liu, Zilong Chen, Yueqi               [65] Guanjun Wu, Taoran Yi, Jiemin Fang, Lingxi Xie, Xiaopeng
+     Duan, Jun Zhang, and Yikai Wang. Dimensionx: Create any                    Zhang, Wei Wei, Wenyu Liu, Qi Tian, and Xinggang Wang.
+     3d and 4d scenes from a single image with controllable video               4d gaussian splatting for real-time dynamic scene rendering.
+     diffusion. In International Conference on Computer Vision                  In Proceedings of the IEEE/CVF Conference on Computer
+     (ICCV), 2025. 2, 3, 6, 7                                                   Vision and Pattern Recognition (CVPR), pages 20310–20320,
+[53] Jiaxiang Tang, Zhaoxi Chen, Xiaokang Chen, Tengfei Wang,                   2024. 3
+     Gang Zeng, and Ziwei Liu. Lgm: Large multi-view gaussian              [66] Haoyu Wu, Diankun Wu, Tianyu He, Junliang Guo, Yang Ye,
+     model for high-resolution 3d content creation. arXiv preprint              Yueqi Duan, and Jiang Bian. Geometry forcing: Marrying
+     arXiv:2402.05054, 2024. 3                                                  video diffusion and 3d representation for consistent world
+[54] Thomas Unterthiner, Sjoerd Van Steenkiste, Karol Kurach,                   modeling. arXiv preprint arXiv:2507.07982, 2025. 3
+     Raphael Marinier, Marcin Michalski, and Sylvain Gelly. To-            [67] Jay Zhangjie Wu, Yixiao Ge, Xintao Wang, Stan Weixian
+     wards accurate generative models of video: A new metric &                  Lei, Yuchao Gu, Yufei Shi, Wynne Hsu, Ying Shan, Xiaohu
+     challenges. arXiv preprint arXiv:1812.01717, 2018. 6                       Qie, and Mike Zheng Shou. Tune-a-video: One-shot tuning
+[55] Arash Vahdat, Karsten Kreis, and Jan Kautz. Score-based                    of image diffusion models for text-to-video generation. In
+     generative modeling in latent space. Advances in neural                    Proceedings of the IEEE/CVF international conference on
+     information processing systems, 34:11287–11302, 2021. 2                    computer vision, pages 7623–7633, 2023. 2
+[56] Team Wan, Ang Wang, Baole Ai, Bin Wen, Chaojie Mao,                   [68] Rundi Wu, Ruiqi Gao, Ben Poole, Alex Trevithick, Changxi
+     Chen-Wei Xie, Di Chen, Feiwu Yu, Haiming Zhao, Jianxiao                    Zheng, Jonathan T Barron, and Aleksander Holynski. Cat4d:
+     Yang, et al. Wan: Open and advanced large-scale video                      Create anything in 4d with multi-view video diffusion models.
+     generative models. arXiv preprint arXiv:2503.20314, 2025.                  In Proceedings of the Computer Vision and Pattern Recogni-
+     1, 2, 3                                                                    tion Conference, pages 26057–26068, 2025. 3
+[57] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+                                                                           [69] Dianbing Xi, Jiepeng Wang, Yuanzhi Liang, Xi Qiu, Yuchi
+     Vedaldi, Christian Rupprecht, and David Novotny. Vggt:
+                                                                                Huo, Rui Wang, Chi Zhang, and Xuelong Li. Omnivdiff:
+     Visual geometry grounded transformer. In Proceedings of the
+                                                                                Omni controllable video diffusion for generation and under-
+     Computer Vision and Pattern Recognition Conference, pages
+                                                                                standing. arXiv preprint arXiv:2504.10825, 2025. 2
+     5294–5306, 2025. 3, 4
+                                                                           [70] Jinbo Xing, Menghan Xia, Yong Zhang, Haoxin Chen,
+[58] Jiahao Wang, Yufeng Yuan, Rujie Zheng, Youtian Lin, Jian
+                                                                                Wangbo Yu, Hanyuan Liu, Gongye Liu, Xintao Wang, Ying
+     Gao, Lin-Zhuo Chen, Yajie Bao, Yi Zhang, Chang Zeng,
+                                                                                Shan, and Tien-Tsin Wong. Dynamicrafter: Animating open-
+     Yanxi Zhou, Xiaoxiao Long, Hao Zhu, Zhaoxiang Zhang,
+                                                                                domain images with video diffusion priors. In European
+     Xun Cao, and Yao Yao. Spatialvid: A large-scale video
+                                                                                Conference on Computer Vision, pages 399–417. Springer,
+     dataset with spatial annotations, 2025. 5, 6
+                                                                                2024. 3
+[59] Limin Wang, Bingkun Huang, Zhiyu Zhao, Zhan Tong, Yi-
+     nan He, Yi Wang, Yali Wang, and Yu Qiao. Videomae v2:                 [71] Tian-Xing Xu, Xiangjun Gao, Wenbo Hu, Xiaoyu Li, Song-
+     Scaling video masked autoencoders with dual masking. In                    Hai Zhang, and Ying Shan. Geometrycrafter: Consistent
+     Proceedings of the IEEE/CVF conference on computer vision                  geometry estimation for open-world videos with diffusion
+     and pattern recognition, pages 14549–14560, 2023. 3                        priors. arXiv preprint arXiv:2504.01016, 2025. 3, 5
+[60] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A.            [72] Zhuoyi Yang, Jiayan Teng, Wendi Zheng, Ming Ding, Shiyu
+     Efros, and Angjoo Kanazawa. Continuous 3d perception                       Huang, Jiazheng Xu, Yuanming Yang, Wenyi Hong, Xiao-
+     model with persistent state, 2025. 3                                       han Zhang, Guanyu Feng, et al. Cogvideox: Text-to-video
+[61] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris                            diffusion models with an expert transformer. arXiv preprint
+     Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d                       arXiv:2408.06072, 2024. 1, 2, 3, 6
+     vision made easy. In Proceedings of the IEEE/CVF Con-                 [73] Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani,
+     ference on Computer Vision and Pattern Recognition, pages                  Trevor Darrell, Forrester Cole, Deqing Sun, and Ming-Hsuan
+     20697–20709, 2024. 3                                                       Yang. Monst3r: A simple approach for estimating geometry
+[62] Shijie Wang, Samaneh Azadi, Rohit Girdhar, Saketh Ramb-                    in the presence of motion. arXiv preprint arXiv:2410.03825,
+     hatla, Chen Sun, and Xi Yin. Motif: Making text count in                   2024. 3, 5
+     image animation with motion focal loss. In Proceedings of             [74] Qihang Zhang, Shuangfei Zhai, Miguel Angel Bautista Mar-
+     the Computer Vision and Pattern Recognition Conference,                    tin, Kevin Miao, Alexander Toshev, Joshua Susskind, and
+     pages 7773–7783, 2025. 3                                                   Jiatao Gu. World-consistent video diffusion with explicit 3d
+[63] Yihan Wang, Lahav Lipson, and Jia Deng. Sea-raft: Simple,                  modeling. In Proceedings of the Computer Vision and Pattern
+     efficient, accurate raft for optical flow. In European Confer-             Recognition Conference, pages 21685–21695, 2025. 2
+     ence on Computer Vision, pages 36–54. Springer, 2024. 4,              [75] Shiwei Zhang, Jiayu Wang, Yingya Zhang, Kang Zhao,
+     5                                                                          Hangjie Yuan, Zhiwu Qin, Xiang Wang, Deli Zhao, and
+
+
+                                                                      11
+     Jingren Zhou. I2vgen-xl: High-quality image-to-video
+     synthesis via cascaded diffusion models. arXiv preprint
+     arXiv:2311.04145, 2023. 2
+[76] Yuyang Zhao, Chung-Ching Lin, Kevin Lin, Zhiwen Yan,
+     Linjie Li, Zhengyuan Yang, Jianfeng Wang, Gim Hee Lee,
+     and Lijuan Wang. Genxd: Generating any 3d and 4d scenes.
+     In ICLR, 2025. 2, 3
+[77] Haoyu Zhen, Qiao Sun, Hongxin Zhang, Junyan Li, Siyuan
+     Zhou, Yilun Du, and Chuang Gan. Tesseract: Learning 4d
+     embodied world models. 2025. 3
+[78] Yang Zheng, Adam W Harley, Bokui Shen, Gordon Wetzstein,
+     and Leonidas J Guibas. Pointodyssey: A large-scale synthetic
+     dataset for long-term point tracking. In Proceedings of the
+     IEEE/CVF International Conference on Computer Vision,
+     pages 19855–19865, 2023. 5
+[79] Zangwei Zheng, Xiangyu Peng, Tianji Yang, Chenhui Shen,
+     Shenggui Li, Hongxin Liu, Yukun Zhou, Tianyi Li, and Yang
+     You. Open-sora: Democratizing efficient video production
+     for all. arXiv preprint arXiv:2412.20404, 2024. 3
+[80] Yang Zhou, Yifan Wang, Jianjun Zhou, Wenzheng Chang,
+     Haoyu Guo, Zizun Li, Kaijing Ma, Xinyue Li, Yating Wang,
+     Haoyi Zhu, Mingyu Liu, Dingning Liu, Jiange Yang, Zhoujie
+     Fu, Junyi Chen, Chunhua Shen, Jiangmiao Pang, Kaipeng
+     Zhang, and Tong He. Omniworld: A multi-domain and multi-
+     modal dataset for 4d world modeling, 2025. 5
+[81] Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou,
+     and Jiwen Lu. Streaming 4d visual geometry transformer.
+     arXiv preprint arXiv:2507.11539, 2025. 3
+
+
+
+
+                                                                    12
+

@@ -1,0 +1,588 @@
+                                               GIFSplat: Generative Prior-Guided Iterative Feed-Forward 3D Gaussian
+                                                                    Splatting from Sparse Views
+
+                                          Tianyu Chen1               Wei Xiang1 * Kang Han1          Yu Lu1       Di Wu1         Gaowen Liu2             Ramana Rao Kompella2
+                                                                                 1
+                                                                                     La Trobe University, Melbourne, VIC 3086, Australia
+                                                                                            2
+                                                                                              Cisco Research, San Jose, CA, USA
+                                                      {t.chen, w.xiang, k.han, y.lu, d.wu}@latrobe.edu.au, {gaoliu, rkompell}@cisco.com
+arXiv:2602.22571v1 [cs.CV] 26 Feb 2026
+
+
+
+
+                                                                      Abstract
+
+                                         Feed-forward 3D reconstruction offers substantial runtime
+                                         advantages over per-scene optimization, which remains
+                                         slow at inference and often fragile under sparse views.
+                                         However, existing feed-forward methods still have poten-
+                                         tial for further performance gains, especially for out-of-
+                                         domain data, and struggle to retain second-level inference
+                                         time once a generative prior is introduced. These limita-
+                                         tions stem from the one-shot prediction paradigm in ex-
+                                         isting feed-forward pipeline: models are strictly bounded
+                                         by capacity, lack inference-time refinement, and are ill-
+                                         suited for continuously injecting generative priors. We in-
+                                         troduce GIFSplat, a purely feed-forward iterative refine-
+                                         ment framework for 3D Gaussian Splatting from sparse un-
+                                         posed views. A small number of forward-only residual up-
+                                         dates progressively refine current 3D scene using render-
+                                         ing evidence, achieve favorable balance between efficiency
+                                                                                                             Figure 1. Conceptual comparison of reconstruction paradigms.
+                                         and quality. Furthermore, we distill a frozen diffusion prior       Gradient optimization performs thousands updates, incurring
+                                         into Gaussian-level cues from enhanced novel renderings             heavy test-time cost, often achieving high quality in dense-view
+                                         without gradient backpropagation or ever-increasing view-           scenarios but struggling in sparse-view scenarios; One-shot feed-
+                                         set expansion, thereby enabling per-scene adaptation with           forward [7] is efficient but leaves noticeable artifacts; Our iterative
+                                         generative prior while preserving feed-forward efficiency.          residual feed-forward scheme keeps feed-forward efficiency and
+                                         Across DL3DV, RealEstate10K, and DTU, GIFSplat consis-              achieves higher reconstruction quality without test-time gradient
+                                         tently outperforms state-of-the-art feed-forward baselines,         backpropagation.
+                                         improving PSNR by up to +2.1 dB, and it maintains second-
+                                         scale inference time without requiring camera poses or any
+                                         test-time gradient optimization.                                    tion methods [9, 13, 30] can achieve high-fidelity recon-
+                                                                                                             structions by iteratively minimizing photometric objectives
+                                                                                                             on a single scene, but their inference requires long test-time
+                                         1. Introduction                                                     gradient optimization, which limits scalability in real ap-
+                                                                                                             plications. In addition, while such pipelines benefit from
+                                         Reconstructing 3D scenes from multi-view images is a fun-           iterative gradient feedback, they often struggle under sparse
+                                         damental task in computer vision, perception, and computer          view inputs and do not effectively incorporate external data
+                                         graphics, underpinning applications in robotic perception,          priors beyond inductive bias and observed samples, leaving
+                                         AR/VR, and high-fidelity 3D content creation. 3D recon-             the rich knowledge contained in large-scale 3D data under-
+                                         struction has rapidly progressed along two paradigms: per-          utilized.
+                                         scene optimization and feed-forward. Per-scene optimiza-
+                                                                                                                 In contrast, recent feed-forward approaches [10, 20,
+                                           * Corresponding author.                                           21, 26] estimate 3D attributes from multi-view images
+
+
+                                                                                                         1
+in a single forward pass, incorporating multi-view in-                the scene, we apply a diffusion enhancer [22] to novel ren-
+teractions through an attention mechanism within Vision               dered images, extract enhancement deltas, and convert them
+Transformers and employing dedicated attribute prediction             into prior guidance cue. This approach brings reliable priors
+heads, achieving millisecond- to second-scale inference               without view explosion and followed heavy computation.
+time. However, such one-shot prediction introduces two key               The primary contributions of this work are as follows:
+limitations: (1) its performance is constrained by model ca-          • We present an iterative feed-forward update mechanism
+pacity, leading to lower fidelity in complex scenes; and (2) it         for 3D Gaussian Splatting that refines a fixed set of Gaus-
+lacks scene-specific refinement, leaving residual errors un-            sians via multi-step, forward-only residual updates, en-
+corrected even in large-scale models [20]. Consequently,                abling scene-specific refinement without any test-time
+the core challenge remains: how to achieve feed-forward                 gradient descent.
+efficiency while enabling adaptation and continuous refine-           • We introduce a generative prior fusion mechanism that
+ment to each scene.                                                     distills a frozen diffusion prior into lightweight Gaussian-
+    However, generating artifact-free novel views remains               level discrepancy cues from enhanced novel renderings,
+challenging in complex scenes, particularly when view cov-              injecting generative information into the iterative updates
+erage is sparse [9]. Recent studies [22, 23] tend to address            without backpropagation or continuously expanding the
+this limitation by integrating generative priors but require            set of reference views.
+long-time per-scene optimization. They alternatively opti-            • We demonstrate consistent performance gains across
+mize 3D Gaussians and refine rendered views with diffu-                 DL3DV, RealEstate10K, and DTU datasets, under vary-
+sion models, and these refined views are then fed back into             ing view-overlap settings, showing that our iterative
+the training set for further optimization, forming a feed-              feed-forward model (IFSplat) and generative-prior vari-
+back loop that gradually improves reconstruction quality.               ant (GIFSplat) both outperform recent feed-forward re-
+Yet this iterative loop is ill-suited for existing feed-forward         construction methods in sparse-view and cross-domain
+pipelines. As the continuously growing set of synthesized               scenarios.
+views increases both time and memory complexity, which
+are further exacerbated by the expensive self-attention op-           2. Related Work
+erations in ViT-based backbones [16] adopted by recent
+feed-forward methods [1, 2, 7, 25, 27]. Moreover, these               2.1. 3D Reconstruction from Multi-view Images
+methods reconstruct 3D scene directly from multi-view im-             Classical per-scene optimization pipelines, such as
+ages rather than updating an existing scene representation,           NeRF [13], 3D Gaussian Splatting (3DGS) [9] and its
+making iterative enhancement feedback infeasible, let alone           variants [9, 14, 30], achieve high visual fidelity but require
+step-wise fusion of generative priors. This raises an essen-          thousands of test-time gradient steps and meet substantial
+tial question: how to refine a 3D state in a purely feed-             performance drop in sparse-view setting, limiting practical-
+forward manner, leveraging both observations and gener-               ity in real applications. To bypass slow SfM/MVS pipelines
+ative priors while keeping second-scale inference runtime?            and strong pose dependence while improving quality in
+   To tackle this challenge, we propose GIFSplat, an it-              sparse view settings, recent feed-forward approaches infer
+erative feed-forward 3D Gaussian Splatting framework                  3D structure directly from images.
+that leverages the strengths of both feed-forward and                     DUSt3R [21] predicts dense pointmaps from uncali-
+optimization-based methods. The first stage performs a                brated pairs, removing explicit matching and bundle adjust-
+fast feed-forward pass to produce a reliable initialization,          ment, though it still requires pairwise fusion for larger im-
+and the second stage refines an initial prediction through            age sets [10]. VGGT [20] treats multi-view geometry as
+multi-step forward-only residual updates guided by scene              a single large-scale model task, jointly predicting cameras,
+evidence and diffusion-enhanced cues. GIFSplat maintains              depth, and pointmaps in one pass. For the 3DGS prediction,
+the speed of feed-forward pipeline while enabling scene-              NoPoSplat and FLARE [27, 32] explore pose-free sparse-
+adaptive refinement and reliable prior injection, bridg-              view lifting to produce 3D Gaussians, and AnySplat [7]
+ing the gap between one-shot feed-forward methods and                 jointly estimates cameras and Gaussians with redundancy
+optimization-based pipelines. At each step, GIFSplat uses             consolidation for unconstrained inputs. Concurrently, con-
+the current Gaussian state and discrepancy cues to pre-               current work iLRM [8] explicitly unrolls the iterative re-
+dict residual updates. This allows continuous improvement             finement into multiple transformer layers with non-shared
+without test-time gradient backpropagation, with memory               parameters, where each layer performs cross-attention with
+and runtime scaling linearly in the number of refinement              the reference-view images to inject features and apply one
+steps. A conceptual comparison of paradigms is shown in               update. As a result, increasing the number of refinement
+Fig. 1. Rather than continuously extending supervised im-             steps makes the parameter count grow linearly with the
+age sets with enhancing rendered images then re-optimizing            depth, and the number of refinement steps is fixed at in-
+
+                                                                  2
+Figure 2. Overview of GIFSplat. Our framework consists of a Gaussian initializer, an iterative Gaussian head, and a generative prior
+fusion module. The initializer takes sparse input views and predicts camera parameters and initial 3DGS g0 . The iterative head then refines
+the Gaussians over several forward-only steps by updating per-Gaussian parameters gi using residual corrections ∆g predicted from the
+concatenated state and cues {gi , oi , pi }. At each step, we render reference and novel views, compute observation evidence oi from feature
+differences between input and rendered views, and derive generative prior cues pi by enhancing the renderings with a frozen diffusion
+model DIFIX and taking feature-space residuals. These Gaussian-level signals are fed back into the iterative head to progressively improve
+the 3DGS, particularly in under-constrained regions.
+
+
+ference time for a given model. In contrast, we adopt a                  on lengthy per-scene optimization. Later work seeks tighter
+single weight-shared refinement module that keeps the pa-                integration: multi-view diffusion model [18], and rectified-
+rameter count constant while allowing the number of itera-               flow formulations [19] enable efficient 3DGS generation
+tions to be flexibly adjusted during inference. While con-               rather than 3D reconstruction, while limited to simple
+current work ReSplat [24] performs iterative feed-forward                scene.
+refinement based on observational errors, it still relies on
+known camera poses. In contrast, our pose-free framework                    Diffusion-enhanced 3D reconstruction pipelines [4, 12,
+uniquely addresses under-constrained sparse views by in-                 23, 29] render provisional views, enhance them via gen-
+jecting on-the-fly generative diffusion priors directly into             erative priors, and feed them back for improved coarse
+the update loop.                                                         3D model, both of them need multi-step generation. Di-
+    Overall, this line shifts reconstruction from slow opti-             fix3D+ [22] compresses diffusion into a single-step en-
+mization to fast forward inference. However, most remain                 hancer for faster enhancement of rendered view. While
+one-shot predictors and lack reliable scene-adaptive refine-             above techniques significantly boost perceptual quality,
+ment mechanisms, precisely the gap addressed by our iter-                they still depend on optimization-based regimes rather than
+ative feed-forward refinement framework.                                 updating in a feed-forward manner, meaning they require
+                                                                         time-consuming optimization runs.
+2.2. Generative Priors for 3D Reconstruction
+The aforementioned methods perform well when novel                          These developments highlight the importance of gener-
+viewpoints are close to the input views, but their per-                  ative priors for sparse-view and out-of-distribution scenes,
+formance drops markedly under sparse or low-coverage                     but also reveal the need for a framework that retains feed-
+inputs, often producing artifacts in under-constrained re-               forward efficiency while enabling stable, scene-adaptive re-
+gions. Generative models provide strong data-driven pri-                 finement with generative prior. Our work pursues this di-
+ors for under-constrained regions. Early approaches such                 rection through iterative forward-only residual refinement
+as DreamFusion [15] distill 2D diffusion into 3D but rely                with prior injection.
+
+
+                                                                     3
+3. Method
+3.1. Problem Definition and Framework Overview
+Problem definition Given a set of uncalibrated multi-
+view image observations V = {(Im )}M      m=1 , we represent
+a scene with 3D Gaussian Splatting (3DGS) G = {gi }N       i=1 ,
+where each Gaussian gi = (xi , si , ri , ci , αi ) contains po-
+sition, scale, orientation, color, and opacity. Our goal
+is to recover G that is photometrically consistent with V,
+while enabling fast inference and robustness under domain
+shift. A differentiable rasterizer R produces a rendering
+Rm = R(G; Πm ) for camera Πm .
+
+Framework overview To combine feed-forward effi-
+ciency with scene-specific refinement and efficient use of
+generative prior, our framework consists of three compo-
+nents (in Fig. 2): We remove voxelization module in [7]
+and fine-tune it as initializer Fϕ of our framework, which
+first predicts camera poses and an initial 3DGS G (0) from
+V. On top of this, an iterative residual Gaussian head Uθ ap-
+plies T forward-only updates to refine the 3D Gaussians (in
+Sec. 3.2). Meanwhile, a generative prior fusion mechanism
+                                                                       Figure 3. Visualizing iterative residual refinement. Starting
+converts diffusion-enhanced renderings into Gaussian-level             from the initial 3DGS prediction (left column), our iterative Gaus-
+cues that guide these updates (in Sec. 3.3). This decomposi-           sian head progressively refines geometry and appearance over
+tion allows us to retain the speed of feed-forward inference           three forward-only steps (S1–S3). The zoomed regions high-
+while still with scene-adaptive refinement.                            lighted by red dashed boxes show reduced blur, sharper edges, and
+                                                                       fewer artifacts as the iteration proceeds, illustrating how the pro-
+3.2. Iterative Gaussian Head                                           posed updates gradually improve the scene representation without
+Instead of one-shot prediction, we adopt an iterative feed-            test-time gradient backpropagation.
+forward refinement: starting from an initialization G (0) , we
+apply T forward update steps to obtain G (T ) , without test-                                            (t)                    (t)
+                                                                       compute feature differences Om = ψ(Im )−ψ(Rm ). Pixel
+time gradient backpropagation or long per-scene optimiza-
+                                                                       cues are pooled to Gaussians via soft assignment weights
+tion. In short, existing paradigms satisfy only partial prop-                             (t)
+erty at a time: feed-forward efficiency, refinement ability,           wi (u), producing oi .
+and prior utilization. We seek a formulation satisfying all                                 P         P           (t)
+three. Fig. 3 illustrates the process of iterative refinement.                      (t)       m∈S (t)  u wi (u) Om (u)
+                                                                                   oi ←      P         P               .               (1)
+    Given the formulation above, we now detail how the                                         m∈S (t)   u wi (u) + ε
+iterative gaussian head enables feed-forward scene refine-
+ment without test-time gradient backpropagation. Existing                 The iterative gaussian head predicts residuals ∆G (t) =
+optimization-based methods refine 3D Gaussians through                      (t)            (t)   (t)    (t)     (t)
+                                                                       ∆{gi }N  i=1 = (∆xi , ∆si , ∆ci , ∆αi ) and update the
+long-time gradient descent, whereas one-shot feed-forward              current 3DGS as
+models lack the ability to absorb new evidence. Our goal
+                                                                                    ∆G (t+1) ← Uθ [G (t) ∥ {oi }(t) ] ,
+                                                                                                                     
+is to combine their strengths: efficient inference while                                                                       (2)
+still allowing scene-adaptive refinement. Under no test-
+time gradients, the iterative head transforms the initial                      G (t+1) ← G (t) + ∆G (t) ,      t = 0, . . . , T − 1.   (3)
+3DGS G (0) into G (T ) by predicting per-Gaussian resid-
+ual {gi }(T ) across T forward passes, reducing render-                    This design preserves feed-forward efficiency while pro-
+ing–observation discrepancies and optionally incorporating             viding a lightweight refinement signal on top of the one-shot
+prior cues. Equivalently, it forward-approximates minimiz-             initialization.
+ing ∥ψ(Im ) − ψ(R(G; Πm ))∥, where ψ is a frozen image                     Previous feed-forward approaches [1, 2, 27] adopt pixel-
+feature extractor and R is a differentiable renderer, more             aligned Gaussians, coupling splats to image grids. Such
+details are stated in Appendix.                                        alignments are computationally heavy, misaligned with true
+    At step t, the rendered views are processed by ψ(·) to             3D neighborhoods, and prone to over-densifying smooth
+
+
+                                                                   4
+                                                                                                                                          (t)
+                                                                          ing to Gaussians mirrors the evidence pooling to get pi .
+                                                                          These cues regularize forward updates of Uθ under domain
+                                                                          shift and provide high-frequency hints in under-constrained
+                                                                          regions. The generative prior cues are similar to observed
+                                                                          cues.               P         P             (t)
+                                                                                       (t)      m∈S (t)    u wi (u) Pm (u)
+                                                                                     pi = P                P               .       (4)
+                                                                                                   m∈S (t)   u wi (u) + ε
+                                                                             We fuse observation-driven evidence and prior cues by
+                                                                          concatenation at the gaussian level.
+                                                                                      (t)           (t)
+                                                                                  ∆Gi = Uθ [gi ∥ {oi }(t) ∥ {pi }(t) ] ,
+                                                                                                                       
+                                                                                                                                (5)
+
+                                                                                 G (t+1) = G (t) + ∆G (t) .,      t = 0, . . . , T − 1,   (6)
+                                                                                 (t)
+                                                                          where gi denotes the Gaussian-state including current per-
+                                                                          gaussian parameters and corresponding features, {oi }(t) the
+Figure 4. Generative prior fusion. Given sparse input views
+                                                                          observation cues are distilled from rendered–image fea-
+(left), our feed-forward 3DGS first produces a rendered view (mid-
+                                                                          ture differences, and {pi }(t) the prior cues distilled from
+dle). A frozen diffusion-based enhancer then refines this render-
+ing into an enhanced image (right) with sharper textures and richer       diffusion-enhanced renderings. We do not implement gra-
+details, which is converted into Gaussian-level prior cues for sub-       dient backpropagation through single-step diffusion model
+sequent residual updates.                                                 Eϕ , the prior serves only as a forward cue.
+                                                                              Our framework enables feed-forward efficiency, scene-
+                                                                          adaptive refinement, and use of generative priors without
+areas while under-representing detailed or occluded re-                   ever-increasing view synthesis or test-time gradient up-
+gions. To ensure refinement respects 3D geometry, we con-                 dates, scales roughly linearly with T and the per-iteration
+vert pixel-aligned Gaussians to point-based Gaussians and                 view budget, and improves robustness under domain shift
+project correspondent pretrained features by camera. In ad-               via the refinement by observed cue and generative prior.
+dition, we use window attention [33] to model local rela-                 3.4. Loss Functions
+tionships of 3D gaussians efficiently.
+    For training, we adopt the architecture from [7] as ini-              We train in two stages, applying geometric distillation Ldist
+tializer but remove voxelization. It is fine-tuned partially              as [7] and photometric loss in novel view during Stage I to
+with ground-truth poses, and we compute losses on novel                   bootstrap a stable initialization.
+views. The iterative head is unrolled for T =3 steps with                    In stage 1 initialization (t=0), we supervise the first for-
+|S (t) | matching inference. We supervise with MSE and per-               ward prediction with a pixel reconstruction loss Lrec
+ceptual loss [31].                                                                        Lrec = λrgb ∥Im − Rm ∥2 .                       (7)
+                                                                                                  X
+3.3. Generative Prior Fusion
+                                                                                                                    
+                                                                                        Lstage1 =       Lrec + Ldist .                    (8)
+                                                                                                   m∈M
+When observation-only cues are weak (e.g., sparse views
+or domain shift), generative prior can provide complemen-                     In stage 2 refinement (t>0), we unroll T forward-only
+tary high-frequency appearance. Beyond observation-only                   refinement steps and supervise each rendering using the
+refinement, we inject a frozen diffusion-based generative                 multi-steps render loss Lstage2 . More details are stated in
+prior. To avoid test-time optimization cost, we adopt a                   Appendix.
+conservative design: the diffusion enhancer is frozen and                                        T
+                                                                                                 X          X
+without using of gradient when inference. Rather than re-                                                                (t)
+                                                                                     Lstage2 =         ωt         ∥Im − Rm   ∥2 .         (9)
+optimizing the scene by extending the supervised image set                                       t=1        m∈M
+from enhanced views, we enhance intermediate renderings
+and distill the enhancement into Gaussian-level cues for the
+                                                                          4. Experiments
+next residual update, improving detail fidelity while pre-                4.1. Experimental Settings
+serving feed-forward efficiency, as illustrated in 4.
+                                                                          Datasets We train our model on datasets DL3DV [11]
+    For each m ∈ S (t) , we enhance the current rendering
+                                                                          and RealEstate10K [34], which contains in-door and out-
+using a diffusion-based enhancer Eϕ and pretrained model
+               (t)       (t) 
+                                                                          door scene. We test in the remained set from training of
+Difix [22]: R̃m = Eϕ Rm . We compute a prior difference                   DL3DV and RealEstate10K, and test the out-of-domain per-
+                     (t)        (t)         (t) 
+in feature space: Pm = ψ R̃m − ψ Rm . Then pool-                          formance on DTU [6].
+
+
+                                                                      5
+Table 1. Novel view synthesis performance comparison on the RealEstate10K with 2 views as input. Our method largely outperforms
+pose-free and pose-required methods across all overlap settings, especially for small overlap setting. The best and second-best results are
+highlighted.
+
+                                           Small                     Medium                         Large                     Average
+                 Method
+                                  PSNR↑    SSIM↑   LPIPS↓   PSNR↑    SSIM↑        LPIPS↓   PSNR↑    SSIM↑   LPIPS↓   PSNR↑    SSIM↑     LPIPS↓
+ Pose-Required
+
+
+
+
+                 pixelNeRF [28]   18.417   0.601   0.526    19.930    0.632       0.480    20.869   0.639   0.458    19.824    0.626    0.485
+                 AttnRend [3]     19.151   0.663   0.368    22.532    0.763       0.269    25.897   0.845   0.186    22.664    0.762    0.269
+                 pixelSplat [1]   20.263   0.717   0.266    23.711    0.809       0.181    27.151   0.879   0.122    23.848    0.806    0.185
+                 MVSplat [2]      20.353   0.724   0.250    23.778    0.812       0.173    27.408   0.884   0.116    23.977    0.811    0.176
+
+                 DUST3R [21]      14.101   0.432   0.468    15.419    0.451       0.432    16.427   0.453   0.402    15.382    0.447    0.432
+                 MAST3R [10]      13.534   0.407   0.494    14.945    0.436       0.451    16.028   0.444   0.418    14.907    0.431    0.452
+                 Splatt3r [17]    14.352   0.475   0.472    15.529    0.502       0.425    15.817   0.483   0.421    15.318    0.490    0.436
+ Pose-Free
+
+
+
+
+                 CoPoNeRF [5]     17.393   0.585   0.462    18.813    0.616       0.392    20.464   0.652   0.318    18.938    0.619    0.388
+                 NopoSplat [27]   22.514   0.784   0.210    24.899    0.839       0.160    27.411   0.883   0.119    25.033    0.838    0.160
+                 FLARE [32]       22.468   0.763   0.198    24.872    0.836       0.162    27.012   0.881   0.123    24.891    0.831    0.161
+                 AnySplat [7]     22.703   0.781   0.221    25.107    0.844       0.156    27.414   0.883   0.118    25.176    0.839    0.161
+
+                 IFSplat(Ours)    24.207   0.813   0.183    26.421    0.853       0.145    27.895   0.891   0.114    26.291    0.854    0.145
+                 GIFSplat(Ours)   24.617   0.827   0.181    26.714    0.866       0.131    27.987   0.902   0.112    26.559    0.867    0.138
+
+
+
+
+Figure 5. Qualitative comparisons on representative indoor scenes from RealEstate10K. Columns: sparse input views, FLARE,
+AnySplat, our GIFSplat with generative prior, and ground truth (GT). Red dashed boxes highlight that GIFSplat recovers sharper boundaries
+(e.g., door frames, wall corners), more faithful textures, and fewer artifacts such as texture sticking.
+
+
+
+
+                                                                              6
+Baselines and metrics To compare with previous meth-                 Table 2. Quantitative comparison on DL3DV with 8 input
+ods, we mainly consider three evaluation setups. First,              views. The pose-needed column indicates whether a method
+novel view synthesis from 8 input views at 448×448 res-              requires camera parameters. Metrics are PSNR↑, SSIM↑, and
+                                                                     LPIPS↓. Among feed-forward approaches, Ours requires nei-
+olution on DL3DV, where we adopt PixelSplat, MVSplat,
+                                                                     ther intrinsics nor extrinsics and achieves the highest PSNR/SSIM
+FLARE, AnySplat as baselines. Second, we also evaluate               and the lowest LPIPS. The best and second-best results are high-
+on the commonly used 2-view at 256×256 resolution setup              lighted.
+on RealEstate10K [34] with different overlap settings, ex-
+cept for aforementioned baseline, we compare with bench-                                                Metrics @ 8 views
+mark in [27]. In addition, we test the generalization abil-               Method           Pose?
+                                                                                                   PSNR ↑     SSIM ↑    LPIPS ↓
+ity on DTU using model trained on RealEstate10K. We use
+PSNR, SSIM, LPIPS as our metric to evaluate the perfor-                   PixelSplat [1]     ✓       22.55     0.727     0.192
+mance of novel view synthesis. More information is pro-                   MVSplat [2]        ✓       22.08     0.717     0.189
+                                                                          FLARE [32]         ✗       23.33     0.746     0.237
+vided in the Appendix.
+                                                                          AnySplat [7]       ✗       23.76     0.762     0.187
+                                                                          IFSplat(Ours)      ✗       24.69     0.809     0.171
+                                                                          GIFSplat(Ours)     ✗       24.91     0.824     0.164
+Experimental settings We use gsplat [30] as differential
+rasterizer and AdamW as optimizer . We train and evaluate
+our model on 4 NVIDIA DGX H200 141GB GPU for all ex-
+periments. For experiments on DL3DV, we fine-tuned the
+initializer for 30K steps and trained the iterative gaussians
+head for 300K steps. For experiments on RealEstate10K,
+we fine-tuned the initializer for 50K steps and trained the
+iterative gaussians head for 100K steps. More information
+is provided in the Appendix. For DL3DV, we follow the
+FLARE test split and evaluate in 112 unseen scenes (8 views
+for input, 9 views for evaluation). For RealEstate10K (2
+views for input, 3 views for evaluation) and generalization
+on DTU (2 views for input, 4 views for evaluation) experi-
+ments, we all follow the NopoSplat evaluation setting.
+
+4.2. Comparison with Feed-forward baseline
+2-view evaluation on RealEstate10K Tab. 1 and Fig. 5
+show the quantitative and qualitative results, respectively.
+We follow the settings of NopoSplat [27], splitting the scene
+to three parts according to the overlap ratio. Across all set-
+ting, our iterative residual model IFSplat get the better re-
+sults than existing baselines. Moreover, GIFSplat gets the
+best results with the help of generative prior, preserving
+fine textures, with fewer blurs than all other models. No-           Figure 6. Qualitative comparisons on DL3DV. Columns:
+tably, some implausible deformation such as the door and             FLARE, AnySplat, GIFSplat (ours), and GT. Across representa-
+wardrobe are rectified by generative prior.                          tive scenes, GIFSplat preserves sharper edges and textures while
+                                                                     suppressing blur and texture sticking compared with feed-forward
+                                                                     baselines.
+8-view evaluation on DL3DV We evaluate on dataset
+DL3DV with 8 input views, results are summarized in
+Tab. 2. To reduce storage, when training the model for
+8 views, we downsample 2x the depth and project to 3D                Generalization to out-of-domain datasets Tab. 3 results
+space as location of 3D gaussians, and predict other param-          of cross-dataset evaluation of baselines, indicate that our
+eters of 3d gaussians. Across both baselines, GIFSplat con-          iterative residual feed-forward design generalizes well to
+sistently outperforms strong feed-forward baselines on all           unconstrained captures, complementing the out-of-domain
+metrics in Tab. 2, aligning with the sharper, artifact-free          evaluation on DTU dataset, with over 2 dB performance
+visuals in Fig. 6. Notably, our method attains these im-             gain. In addition, we further show the generalization ability
+provements without relying on camera pose, demonstrates              of our model in Appendix, demonstrating that the robust-
+the robustness to sparse views.                                      ness of our model even for in-the-wild images.
+
+
+                                                                 7
+Table 3. Out-of-distribution performance comparison. Our                  Table 5. Analysis of iterative steps. We report metrics as the
+method shows superior performance when cross-dataset evalua-              number of refinement steps T increases from the initial prediction,
+tion on DTU using the model solely trained on RealEstate10K.              for both IFSplat and our GIFSplat. Performance improves steadily
+The best and second-best results are highlighted.                         and saturates around 3 iterations.
+
+                                      DTU @ 2 views                         Steps
+                                                                                                                                         Metrics@IFSplat                                                  Metrics@GIFSplat
+     Methods           Pose?
+                               PSNR ↑      SSIM ↑   LPIPS ↓                                                             PSNR ↑                     SSIM ↑                 LPIPS ↓              PSNR ↑           SSIM ↑   LPIPS ↓
+
+     pixelSplat [1]     ✓       11.551      0.321     0.633                 initial                                     24.901                        0.831                    0.164             24.901         0.831     0.164
+     MVSplat [2]        ✓       13.929      0.474     0.385                   1                                         25.512                        0.843                    0.155             25.774         0.845     0.151
+                                                                              2                                         25.873                        0.847                    0.150             26.107         0.849     0.147
+     NopoSplat [27]     ✗       17.899      0.629     0.279                   3                                         26.291                        0.854                    0.145             26.559         0.867     0.138
+     FLARE [32]         ✗       17.528      0.596     0.283                   4                                         26.311                        0.855                    0.146             26.561         0.865     0.137
+     AnySplat [7]       ✗       18.122      0.632     0.276
+     IFSplat(ours)      ✗       19.921      0.701     0.274
+     GIFSplat(ours)     ✗       20.214      0.716     0.251
+                                                                          Additional experiments Due to space constraints, we de-
+                                                                          fer three sets of experiments to the Appendix: (1) a time-
+                                                                          complexity analysis of our model, showing that our method
+4.3. Ablation Study                                                       retains second-scale runtime even with scene-specific re-
+Tab. 5 validates the contribution of each component. Re-                  finement and fusion of generative priors, with Fig. 7 illus-
+moving the iterative refinement (w/o Stage 2) yields the                  trating one representative part of this analysis; (2) compar-
+largest degradation across all metrics, confirming the neces-             isons to 3D reconstruction baselines that incorporate gener-
+sity of iterative residual updates. Disabling the generative              ative priors, demonstrating that our method is consistently
+prior (w/o G. prior) also reduces performance, particularly               superior in both quality and efficiency in sparse-view set-
+in LPIPS, showing that the prior-aware cues effectively sup-              tings; and (3) experiments on in-the-wild images demon-
+press artifacts and improve perceptual fidelity. Disabling                strating robustness under domain shift. Additional experi-
+the window attention (w/o window) also make substantial                   mental settings, quantitative results, and qualitative visual-
+performance drop, which indicates the function of iteraction              izations are provided in the Appendix.
+in 3D point space. The full configuration achieves the best
+performance, demonstrating the complementarity between                                                                             , ) 6 S O D W   5 H D O   . 
+all components.                                                                                                                     , ) 6 S O D W   ' /  ' 9 
+                                                                                                                                    * , ) 6 S O D W   5 H D O   . 
+                                                                                                                                    * , ) 6 S O D W   ' /  ' 9 
+                                                                                                                    
+                                                                             , Q I H U H Q F H  7 L P H   V 
+
+
+
+
+Table 4. Ablation study. We ablate the iterative refinement mod-
+ule (w/o Refinement), the window attention (w/o window att.), and                                                   
+the generative prior (w/o Gen. prior) from our full model, respec-
+tively. The full configuration achieves the best performance across
+all metrics. The best and second-best results are highlighted.                                                      
+
+                                         Metrics                                                                    
+     Components
+                                                                                                                         , Q L W L D O                                                                                      
+                          PSNR ↑         SSIM ↑     LPIPS ↓                                                                                                                        , W H U D W L R Q V
+     w/o Refinement         24.781        0.826      0.169
+     w/o window att.        25.327        0.837      0.152
+     w/o Gen. Prior         26.291        0.854      0.145                Figure 7. Time complexity analysis. Inference time of our meth-
+     Full                   26.559        0.867      0.138                ods IFSplat and GIFSplat on two datasets as a function of the
+                                                                          number of refinement steps. Both methods scale approximately
+                                                                          linearly with T .
+
+4.4. Additional Experiments
+                                                                          5. Conclusion
+Hyperparameter analysis for iterative steps We vary
+the number of forward refinements N while keeping all                     We presented GIFSplat, an iterative feed-forward 3D Gaus-
+other settings fixed. All experiments are implemented on                  sian Splatting framework that refines an initial prediction
+RealEstate10K dataset in a two-view setting. Accuracy im-                 through multi-step forward-only residual updates guided by
+proves monotonically from N =0 and exhibits clear dimin-                  both observations and diffusion-enhanced cues. Our IFS-
+ishing returns after a few steps. In practice we use a small              plat baseline already brings scene-specific refinement with-
+N = 3 for all main experiments as a favorable trade-off                   out test-time backpropagation, and the full GIFSplat vari-
+between accuracy and latency .                                            ant further injects a frozen generative prior via lightweight
+
+
+                                                                      8
+Gaussian-level discrepancy cues. Experiments on DL3DV,                  [9] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler,
+RealEstate10K, and DTU show consistent gains over re-                       and George Drettakis. 3d gaussian splatting for real-time
+cent feed-forward 3D reconstruction methods, especially in                  radiance field rendering. ACM Transactions on Graphics, 42
+cross-domain settings.                                                      (4):1–14, 2023. 1, 2
+Limitations. Our refinement head still focus on static                 [10] Vincent Leroy, Yohann Cabon, and Jérôme Revaud. Ground-
+                                                                            ing image matching in 3d with mast3r. In European Confer-
+scenes and a small, fixed set of input modalities. Extending
+                                                                            ence on Computer Vision, pages 71–91. Springer, 2024. 1, 2,
+GIFSplat to dynamic content or to flexible geometric priors
+                                                                            6
+such as known depth maps or normal maps is an interesting
+                                                                       [11] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin,
+direction for future work.                                                  Kun Wan, Lantao Yu, Qianyu Guo, Zixun Yu, Yawen Lu,
+                                                                            et al. Dl3dv-10k: A large-scale scene dataset for deep
+Acknowledgments                                                             learning-based 3d vision. In Proceedings of the IEEE/CVF
+                                                                            Conference on Computer Vision and Pattern Recognition,
+This research was supported by the Australian Research                      pages 22160–22169, 2024. 5
+Council Discovery Project (Grant Number DP240103334).                  [12] Xi Liu, Chaoyi Zhou, and Siyu Huang. 3dgs-enhancer:
+                                                                            Enhancing unbounded 3d gaussian splatting with view-
+References                                                                  consistent 2d diffusion priors. Advances in Neural Informa-
+                                                                            tion Processing Systems, 37:133305–133327, 2024. 3
+ [1] David Charatan, Sizhe Lester Li, Andrea Tagliasacchi, and         [13] Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik,
+     Vincent Sitzmann. pixelsplat: 3d gaussian splats from image            Jonathan T Barron, Ravi Ramamoorthi, and Ren Ng. Nerf:
+     pairs for scalable generalizable 3d reconstruction. In Pro-            Representing scenes as neural radiance fields for view syn-
+     ceedings of the IEEE/CVF conference on computer vision                 thesis. Communications of the ACM, 65(1):99–106, 2021. 1,
+     and pattern recognition, pages 19457–19467, 2024. 2, 4, 6,             2
+     7, 8                                                              [14] Thomas Müller, Alex Evans, Christoph Schied, and Alexan-
+ [2] Yuedong Chen, Haofei Xu, Chuanxia Zheng, Bohan Zhuang,                 der Keller. Instant neural graphics primitives with a mul-
+     Marc Pollefeys, Andreas Geiger, Tat-Jen Cham, and Jianfei              tiresolution hash encoding. ACM transactions on graphics
+     Cai. Mvsplat: Efficient 3d gaussian splatting from sparse              (TOG), 41(4):1–15, 2022. 2
+     multi-view images. In European Conference on Computer             [15] Ben Poole, Ajay Jain, Jonathan T Barron, and Ben Milden-
+     Vision, pages 370–386. Springer, 2024. 2, 4, 6, 7, 8                   hall. Dreamfusion: Text-to-3d using 2d diffusion. arXiv
+ [3] Yilun Du, Cameron Smith, Ayush Tewari, and Vincent Sitz-               preprint arXiv:2209.14988, 2022. 3
+     mann. Learning to render novel views from wide-baseline           [16] Gilad Sharir, Asaf Noy, and Lihi Zelnik-Manor. An image is
+     stereo pairs. In Proceedings of the IEEE/CVF Conference                worth 16x16 words, what is a video worth? arXiv preprint
+     on Computer Vision and Pattern Recognition, pages 4970–                arXiv:2103.13915, 2021. 2
+     4980, 2023. 6                                                     [17] Brandon Smart, Chuanxia Zheng, Iro Laina, and Vic-
+ [4] Tobias Fischer, Samuel Rota Bulò, Yung-Hsu Yang, Nikhil               tor Adrian Prisacariu.        Splatt3r: Zero-shot gaussian
+     Keetha, Lorenzo Porzi, Norman Müller, Katja Schwarz,                  splatting from uncalibrated image pairs. arXiv preprint
+     Jonathon Luiten, Marc Pollefeys, and Peter Kontschieder.               arXiv:2408.13912, 2024. 6
+     Flowr: Flowing from sparse to dense 3d reconstructions. In        [18] Stanislaw Szymanowicz, Jason Y Zhang, Pratul Srinivasan,
+     Proceedings of the IEEE/CVF International Conference on                Ruiqi Gao, Arthur Brussee, Aleksander Holynski, Ricardo
+     Computer Vision, pages 27702–27712, 2025. 3                            Martin-Brualla, Jonathan T Barron, and Philipp Henzler.
+ [5] Sunghwan Hong, Jaewoo Jung, Heeseong Shin, Jiaolong                    Bolt3d: Generating 3d scenes in seconds. In Proceedings
+     Yang, Seungryong Kim, and Chong Luo. Unifying corre-                   of the IEEE/CVF International Conference on Computer Vi-
+     spondence, pose and nerf for pose-free novel view synthesis            sion, pages 24846–24857, 2025. 3
+     from stereo pairs, 2023. 6                                        [19] Bo Wang, Yifan Zhang, Jian Li, Yang Yu, Zhenping Sun, Li
+ [6] Rasmus Jensen, Anders Dahl, George Vogiatzis, Engin Tola,              Liu, and Dewen Hu. Splatflow: Learning multi-frame optical
+     and Henrik Aanæs. Large scale multi-view stereopsis eval-              flow via splatting. International Journal of Computer Vision,
+     uation. In Proceedings of the IEEE conference on computer              132(8):3023–3045, 2024. 3
+     vision and pattern recognition, pages 406–413, 2014. 5            [20] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea
+ [7] Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui Ren,               Vedaldi, Christian Rupprecht, and David Novotny. Vggt: Vi-
+     Yichen Jin, Xudong Xu, Mulin Yu, Jiangmiao Pang, Feng                  sual geometry grounded transformer. In Proceedings of the
+     Zhao, et al. Anysplat: Feed-forward 3d gaussian splatting              Computer Vision and Pattern Recognition Conference, pages
+     from unconstrained views. arXiv preprint arXiv:2505.23716,             5294–5306, 2025. 1, 2
+     2025. 1, 2, 4, 5, 6, 7, 8                                         [21] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris
+ [8] Gyeongjin Kang, Seungtae Nam, Xiangyu Sun, Sameh                       Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vi-
+     Khamis, Abdelrahman Mohamed, and Eunbyung Park. ilrm:                  sion made easy. In Proceedings of the IEEE/CVF Conference
+     An iterative large 3d reconstruction model. arXiv preprint             on Computer Vision and Pattern Recognition, pages 20697–
+     arXiv:2507.23277, 2025. 2                                              20709, 2024. 1, 2, 6
+
+
+                                                                   9
+[22] Jay Zhangjie Wu, Yuxuan Zhang, Haithem Turki, Xuanchi                [34] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe,
+     Ren, Jun Gao, Mike Zheng Shou, Sanja Fidler, Zan Goj-                     and Noah Snavely.       Stereo magnification: Learning
+     cic, and Huan Ling. Difix3d+: Improving 3d reconstruc-                    view synthesis using multiplane images. arXiv preprint
+     tions with single-step diffusion models. In Proceedings of                arXiv:1805.09817, 2018. 5, 7
+     the Computer Vision and Pattern Recognition Conference,
+     pages 26024–26035, 2025. 2, 3, 5
+[23] Sibo Wu, Congrong Xu, Binbin Huang, Andreas Geiger, and
+     Anpei Chen. Genfusion: Closing the loop between recon-
+     struction and generation via videos. In Proceedings of the
+     Computer Vision and Pattern Recognition Conference, pages
+     6078–6088, 2025. 2, 3
+[24] Haofei Xu, Daniel Barath, Andreas Geiger, and Marc Polle-
+     feys. Resplat: Learning recurrent gaussian splats. arXiv
+     preprint arXiv:2510.08575, 2025. 3
+[25] Haofei Xu, Songyou Peng, Fangjinhua Wang, Hermann
+     Blum, Daniel Barath, Andreas Geiger, and Marc Pollefeys.
+     Depthsplat: Connecting gaussian splatting and depth. In
+     Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 16453–16463, 2025. 2
+[26] Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff,
+     Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, and Matt
+     Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images
+     in one forward pass. In Proceedings of the Computer Vision
+     and Pattern Recognition Conference, pages 21924–21935,
+     2025. 1
+[27] Botao Ye, Sifei Liu, Haofei Xu, Xueting Li, Marc Pollefeys,
+     Ming-Hsuan Yang, and Songyou Peng. No pose, no problem:
+     Surprisingly simple 3d gaussian splats from sparse unposed
+     images. arXiv preprint arXiv:2410.24207, 2024. 2, 4, 6, 7, 8
+[28] Alex Yu, Vickie Ye, Matthew Tancik, and Angjoo Kanazawa.
+     pixelnerf: Neural radiance fields from one or few images. In
+     Proceedings of the IEEE/CVF conference on computer vi-
+     sion and pattern recognition, pages 4578–4587, 2021. 6
+[29] Wangbo Yu, Jinbo Xing, Li Yuan, Wenbo Hu, Xiaoyu Li,
+     Zhipeng Huang, Xiangjun Gao, Tien-Tsin Wong, Ying Shan,
+     and Yonghong Tian. Viewcrafter: Taming video diffusion
+     models for high-fidelity novel view synthesis. arXiv preprint
+     arXiv:2409.02048, 2024. 3
+[30] Zehao Yu, Anpei Chen, Binbin Huang, Torsten Sattler, and
+     Andreas Geiger. Mip-splatting: Alias-free 3d gaussian splat-
+     ting. In Proceedings of the IEEE/CVF conference on com-
+     puter vision and pattern recognition, pages 19447–19456,
+     2024. 1, 2, 7
+[31] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shecht-
+     man, and Oliver Wang. The unreasonable effectiveness of
+     deep features as a perceptual metric. In Proceedings of the
+     IEEE conference on computer vision and pattern recogni-
+     tion, pages 586–595, 2018. 5
+[32] Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue,
+     Christian Rupprecht, Xiaowei Zhou, Yujun Shen, and Gor-
+     don Wetzstein. Flare: Feed-forward geometry, appearance
+     and camera estimation from uncalibrated sparse views. In
+     Proceedings of the Computer Vision and Pattern Recognition
+     Conference, pages 21936–21947, 2025. 2, 6, 7, 8
+[33] Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip HS Torr, and
+     Vladlen Koltun. Point transformer. In Proceedings of
+     the IEEE/CVF international conference on computer vision,
+     pages 16259–16268, 2021. 5
+
+
+                                                                     10
+

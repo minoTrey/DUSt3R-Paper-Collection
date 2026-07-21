@@ -1,0 +1,548 @@
+                                               Event3R: Asynchronous-to-Global 3D Reconstruction from Event
+                                                     Camera via Spatial-Temporal Feature Aggregation
+                                                 Jian Huang1,2∗ , Haotian Shen2∗ , Xinhao Lou2∗ , Chengrui Dong1,2 , Wenpu Li2 , Peidong Liu2†
+
+
+
+
+                                                                                                         ~0.2s
+
+
+                                                          Event Streams     Voxels
+
+
+                                         Fig. 1: Illustration of our Event3R. Event3R takes two or more short segments of asynchronous event streams, converts
+                                         them into spatial–temporal voxel representations, and directly predicts a globally aligned 3D pointmap in about 0.2s. For
+arXiv:2607.15727v1 [cs.CV] 17 Jul 2026
+
+
+
+
+                                         visualization, the pointcloud is colored using the RGB image corresponding to the center voxel bin, although no RGB data is
+                                         used during training or inference.
+
+                                            Abstract— Robust 3D reconstruction is essential for robotics
+                                         and embodied perception. Recent feed-forward approaches such               structure-from-motion (SfM) and multi-view stereo (MVS)
+                                         as DUSt3R have demonstrated impressive progress in dense 3D                recover accurate geometry but require iterative optimiza-
+                                         reconstruction from RGB images, achieving global geometric
+                                         consistency and strong generalization. However, extending such             tion and are prone to failure in dynamic or textureless
+                                         dense 3D reconstruction to event cameras remains challenging               environments. NeRF [1] and 3D-GS [2] based methods
+                                         due to their asynchronous, sparse, and highly dynamic nature, as           achieve photorealistic quality, yet their per-scene optimization
+                                         well as the lack of large-scale, well-labeled datasets. In this work,      severely limits efficiency and generalization. Recently, feed-
+                                         we introduce Event3R, a feed-forward framework that directly               forward 3D reconstruction frameworks such as DUSt3R [3],
+                                         maps asynchronous event streams to globally consistent 3D point
+                                         clouds. Event3R represents incoming events as spatial–temporal             CUT3R [4] and VGGT [5] have demonstrated remarkable
+                                         voxels, enabling time-aware feature integration through a                  progress by predicting globally consistent 3D structures
+                                         temporal attention module that enhances module’s temporal                  directly from RGB frames, offering orders-of-magnitude faster
+                                         feature learning. To further strengthen temporal representation            inference without iterative refinement. However, their reliance
+                                         learning and reduce reliance on labeled data, we propose a                 on frame-based images makes them vulnerable under fast
+                                         Masked Bin Modeling (MBM) strategy for self-supervised pre-
+                                         training, enabling robust temporal representation learning with            motion or challenging lighting conditions, where conventional
+                                         minimal labeled data, and retain it as an auxiliary fine-tuning            cameras fail to capture sufficient information. This limitation
+                                         objective. In addition, contrastive alignment and consistency              is illustrated in Fig. 2, where DUSt3R struggles under
+                                         regularization losses are incorporated during fine-tuning to               challenging illumination due to degraded RGB observations,
+                                         reinforce structural correspondence and temporal coherence                 while Event3R remains robust.
+                                         across views. Extensive experiments on both synthetic and real-
+                                         world benchmarks demonstrate that Event3R achieves robust,                    Event cameras offer a promising alternative sensing modal-
+                                         temporally consistent, and globally aligned 3D reconstructions,
+                                         significantly outperforming existing event-based methods.                  ity. Unlike conventional cameras that record absolute intensity
+                                                                                                                    frames at fixed rates, event cameras asynchronously capture
+                                                               I. I NTRODUCTION                                     per-pixel brightness changes with microsecond temporal
+                                           Robust 3D reconstruction is a fundamental task for robotics,             precision, enabling high dynamic range, low latency, and
+                                         AR/VR, and autonomous systems, providing dense geometric                   motion blur–free perception. These properties make them
+                                         understanding for navigation, interaction, and scene inter-                ideal for challenging scenarios, as demonstrated by recent
+                                         pretation. Traditional optimization-based approaches such as               event-based 3D reconstruction methods such as EvGGS
+                                           ∗ Equal Contribution.
+                                                                                                                    [6], Event3DGS [7] and IncEventGS [8]. Yet, most of
+                                           † Corresponding author.                                                  these methods focus on local depth(GS) prediction or rely
+                                           1 Jian Huang and Chengrui Dong are with Zhejiang University, Hangzhou,   on optimization-based rendering, lacking a global, feed-
+                                         Zhejiang, China.                                                           forward event-based reconstruction approach. However, ex-
+                                           2 All    authors  are    with   Westlake     University,    Hangzhou,    tending DUSt3R-style reasoning to asynchronous, sparse
+                                         Zhejiang, China. E-mails: {huangjian39, shenhaotian,
+                                         louxinhao, dongchengrui, liwenpu,                                          event streams remains an open challenge due to their unique
+                                         liupeidong}westlake.edu.cn                                                 spatiotemporal structure and the scarcity of large well-labeled
+            Event Input   RGB Input    Event3R      DUSt3R
+                                                                   feature matching and bundle adjustment, but remain com-
+                                                                   putationally intensive and fragile in dynamic or textureless
+HDR
+
+
+                                                                   scenes. Neural scene representations broadened the design
+                                                                   space: neural radiance fields (NeRF) and follow-ups (e.g.,
+                                                                   mip-NeRF) deliver photorealistic novel-view synthesis via per-
+Low Light
+
+
+
+
+                                                                   scene optimization [1, 12], while explicit point/feature-based
+                                                                   schemes such as 3D Gaussian Splatting (3D-GS) accelerate
+                                                                   rendering and enable real-time performance for high-fidelity
+Fig. 2: Qualitative depth estimation comparison with               reconstructions [2]. While 3D-GS achieves efficient and high-
+DUSt3R under challenging conditions. Event3R is evaluated          fidelity reconstruction from multi-view images with known
+in a zero-shot setting without training on the PEOD [9]            camera poses, subsequent efforts have begun relaxing this
+dataset.                                                           requirement.
+event–depth–pose datasets.
+                                                                      COLMAP-Free 3D-GS [13] sequentially grows a 3D
+   To fill this research gap, we present Event3R, a feed-
+                                                                   Gaussian set directly from input frames without pose precom-
+forward framework designed to bring global 3D reconstruction
+                                                                   putation, simplifying the reconstruction pipeline and reducing
+to asynchronous event data. Our key insight is to reinterpret
+                                                                   preprocessing overhead.
+event streams as structured spatial–temporal voxels, allowing
+geometric reconstruction backbone i.e. DUSt3R to process              More recently, a new feed-forward paradigm has emerged
+temporally dense yet spatially sparse observations. Building       that internalizes the SfM+MVS pipeline into a single inference
+on this representation, a temporal attention mechanism models      pass: seminal works like DUSt3R [3] and subsequent models
+motion information across voxelized time bins, enabling            (e.g., MASt3R [14], CUT3R [4], VGGT [5]) employ dense
+globally consistent point cloud reconstruction. To further         correspondence learning, transformer-based global recon-
+enhance temporal representation learning with limited labeled      struction, and pose-from-alignment mechanisms to jointly
+data, we introduce Masked Bin Modeling (MBM) — a                   infer camera poses and dense geometry from unconstrained
+self-supervised pretraining objective that regularizes fine-       image sets [15]. This family achieves orders-of-magnitude
+tuning and improves motion generalization. Combined with           speedups and improved robustness in low-texture scenarios
+contrastive alignment and temporal consistency losses to           by leveraging learned priors and large training corpora, but
+enforce cross-view coherence, Event3R provides a new               it also shifts the bottleneck from iterative geometric solvers
+demonstration of globally consistent 3D reconstruction from        to GPU memory, model scaling, and dataset scale/diversity.
+purely event-based inputs, effectively bridging asynchronous       Crucially, these feed-forward methods are designed for
+sensing and feed-forward 3D reconstruction.                        synchronous, frame-based inputs; their reliance on intensity
+   In summary, our main contributions are as follows:              frames limits performance in extreme motion or challenging
+                                                                   lighting conditions and leaves open the problem of bringing
+   • We present Event3R, a new feed-forward framework
+                                                                   feed-forward global 3D reconstruction to asynchronous event
+      that enables instant global 3D reconstruction from
+                                                                   streams.
+      asynchronous event streams.
+   • We introduce a temporal attention module that enables         Event-based 3D Reconstruction. Early works on event-
+      time-aware feature integration across voxelized time         based 3D reconstruction primarily focused on probabilistic fil-
+      bins.                                                        tering and geometric mapping. Kim et al. [16] proposed a joint
+   • We propose Masked Bin Modeling (MBM), a self-                 optimization framework using three decoupled probabilistic
+      supervised pretraining strategy that improves temporal       filters to estimate 6-DoF camera motion, scene intensity
+      information aggregation and reduces the reliance on          gradients, and inverse depth relative to a keyframe. Following
+      large amounts of labeled data.                               this line, Rebecq et al. [17] introduced EMVS, a real-time
+   • We validate Event3R on multiple challenging 3D per-           event-based multi-view stereo pipeline that reconstructs semi-
+      ception tasks, including dense reconstruction, depth esti-   dense depth maps from asynchronous events. Subsequent
+      mation, and pose estimation, demonstrating significant       semi-dense reconstruction and mapping systems such as
+      improvements in downstream performance and practical         EVO [18] and Stereo Event Reconstruction [19] further
+      impact.                                                      improved geometric accuracy and robustness by tightly
+                                                                   coupling depth estimation with pose tracking. While these
+                          II. R ELATED W ORKS                      methods demonstrated the unique potential of event cameras
+   We review two main areas of prior work: RGB-based               for 3D perception, they remain fundamentally optimization-
+and event-based 3D reconstruction, which represent the most        based, requiring iterative updates and handcrafted motion
+relevant components for our study.                                 models that limit scalability and global consistency.
+RGB-based 3D Reconstruction. Dense 3D reconstruction                   To overcome these limitations, recent efforts have extended
+from RGB imagery has a long history, ranging from classical        neural implicit representations to event-driven input. Klenk et
+optimization pipelines (structure-from-motion and multi-view       al. [20], Hwang et al. [21], and Rudnev et al. [22] concurrently
+stereo) to modern learning-based systems. Conventional             proposed Event-NeRF variants that recover neural radiance
+toolchains [10, 11] recover accurate geometry by sparse            fields from event streams given known camera trajectories.
+                                                                   pk ∈ {+1, −1}, indicating the sign of brightness change. To
+Building on this, Event-GS [7, 23, 24] adapted 3D Gaussian         enable synchronous processing, we discretize the continuous
+Splatting to asynchronous event data, while IncEventGS [8]         event stream within a short temporal window ∆t into a voxel
+further relaxed the dependence on external pose estimation         grid of size H × W × T , where T denotes the number of
+through incremental optimization. Although these methods           temporal bins. Each event is then splatted into its neighboring
+successfully transfer modern neural representations to event       bins using trilinear interpolation according to its normalized
+data, they still rely on explicit or estimated camera poses        timestamp:
+and per-scene optimization, which hinders efficiency and                                   X
+generalization.                                                              E(x, y, n) =      pk max(0, 1 − |n − t∗k |),      (1)
+                                                                                           k
+   More recently, a trend has emerged toward pose-free
+                                                                                 T −1
+and feed-forward event-based reconstruction. Feed-forward          where t∗k =    ∆t (tk − t0 ) represents the normalized tem-
+approaches such as EvGGS [6] first predict depth and               poral coordinate. This voxelization yields a dense yet time-
+local Gaussian splats from event input, then use ground-           preserving spatial–temporal representation, effectively bridg-
+truth camera poses to transform these Gaussians into a             ing the gap between the asynchronous event stream and
+common coordinate frame — a design that constrains                 feed-forward 3D reconstruction.
+global reconstruction and limits generalization across diverse
+                                                                   B. Temporal Encoder(TE)
+scenes. Concurrently, EAG3R [25] augments RGB-based feed-
+forward pipelines with pretrained event encoders to enhance           To effectively exploit the temporal dynamics in event voxel
+robustness under extreme conditions. However, it neither fully     data, we introduce a Temporal Encoder that aggregates in-
+exploits the temporal dynamics intrinsic to event streams nor      formation across multiple time bins while maintaining spatial
+addresses the scarcity of large-scale labeled event datasets.      alignment. Given an event voxel input V ∈ RB×T ×H×W
+These limitations highlight the need for a unified, feed-          with T temporal bins, the encoder produces a temporally
+forward framework capable of producing globally consistent         enriched feature map compatible with the DUSt3R backbone.
+3D reconstructions directly from asynchronous event data.          We note that T is set to an odd number to ensure a well-
+                                                                   defined central bin, which serves as the temporal reference
+                        III. M ETHOD                               frame for predicting the final pointmap. This design provides
+   Our method performs feed-forward 3D reconstruction              symmetry around the reference bin and enables balanced
+directly from event streams. It takes two or multiple (N > 2)      aggregation of past and future event information.
+asynchronous event sequences as input and produces a                  Per-bin Feature Extraction. Each temporal bin Vt ∈
+globally aligned 3D pointmap within one second, without            RB×1×H×W is treated as an image-like frame that summa-
+relying on iterative optimization or external pose estimation.     rizes events within a short, fixed-duration time slice. Unlike
+To achieve this, we propose a unified and efficient framework      conventional RGB frames, these bins are strictly ordered in
+that bridges the gap between sparse, asynchronous event data       time, preserving the intrinsic temporal structure of the event
+and dense geometric reconstruction.                                stream. This ordering is crucial for temporal reasoning, as it
+   Specifically, we first convert the incoming events into         allows the encoder to model motion dynamics and brightness
+structured spatial–temporal voxel tensors, which preserve fine-    changes by attending across consecutive bins in a temporally
+grained temporal dynamics while enabling parallel processing.      consistent manner.
+A temporal attention encoder is then employed to model inter-         Instead of collapsing each bin into a global feature, we
+bin dependencies and aggregate motion cues across time,            decompose it into non-overlapping spatial patches, preserving
+capturing both local dynamics and long-range correlations.         fine-grained geometric details while reducing the computa-
+These temporally enriched features are further processed by a      tional cost of temporal attention by representing each bin as
+DUSt3R-based reconstruction backbone to infer dense depth          a compact set of patch tokens. Formally, each temporal bin
+and camera-aligned 3D pointmaps with strong geometric              Vt is embedded via a convolutional layer:
+consistency.                                                               Ft = ConvEmbed(Vt ) ∈ RB×Ce ×Hp ×Wp .               (2)
+   In addition, we introduce a Masked Bin Modeling (MBM)
+strategy that promotes temporal feature learning through self-     Here, Ce is the embedding dimension, and Hp = H/p and
+supervision, as well as contrastive and consistency objectives     Wp = W/p denote the spatial dimensions of the patch grid,
+that enforce spatial coherence and improve generalization          with p being the patch size. The resulting patch-level feature
+across diverse scenes. Together, these designs enable efficient,   map Ft maintains local spatial coherence while providing an
+scalable, and label-efficient 3D reconstruction from event         efficient representation for temporal modeling.
+streams in a fully feed-forward manner. An overview of                   a) Temporal Attention.: To capture inter-bin temporal
+the proposed pipeline is shown in Fig. 3, and the following        information, we first stack patch sequences from all T bins
+sections detail each component.                                    along the temporal dimension:
+
+A. Event-to-Voxel Representation                                               X ∈ RB×Np ×T ×Ce ,     Np = Hp · Wp .           (3)
+  Each event ek = (uk , tk , pk ) is triggered asynchronously at   We then reshape X to (B · Np , T, Ce ) so that each spatial
+pixel location uk = (xk , yk ) with timestamp tk and polarity      patch is processed independently by the temporal encoder.
+   For each patch position i, the encoder performs self-                                     content from the remaining visible bins. Different from prior
+attention over the T temporal bins. Denoting the temporal                                    masked event modeling [26], which targets event/token-level
+sequence for the i-th patch as                                                               self-supervised pretraining, our MBM performs bin-level
+                                                                                             masking and is designed for geometry-aware representation
+                Xi = [F1i , . . . , FTi ] ∈ RT ×Ce ,                                  (4)
+                                                                                             learning. It explicitly enforces inter-bin temporal modeling
+the aggregated feature of the center bin (index tcenter = (T +                               crucial for depth and pose estimation.
+1)/2) is computed as                                                                            Let Mt ∈ {0, 1}B×1×H×W denote the binary mask applied
+                                                                                             to bin t, and let F∗masked = F∗ ⊙ (1 − Mt ) be the masked
+      F∗i,center = Attention(Q = Fticenter , K, V = Xi ),                             (5)
+                                                                                             feature map. A lightweight reconstruction decoder D predicts
+where K, V = Xi are the keys and values from all temporal                                    the masked bin feature:
+bins. In this way, the center bin feature F∗i,center aggregates
+information from its neighboring bins, effectively capturing                                                               F̂t = D(F∗masked ),                                      (6)
+inter-bin temporal dynamics. The temporal encoder consists                                   with the reconstruction loss
+of L layers of multi-head self-attention and feed-forward
+networks.                                                                                                             LMBM = ∥F̂t − F∗t ∥1 .                                        (7)
+   These patch-level features, now enriched with temporal
+context, are directly passed to the spatial backbone for further                             This loss is applied both during self-supervised pretraining
+processing, enabling efficient and compatible spatio-temporal                                and as an auxiliary term during downstream fine-tuning.
+representation learning.                                                                        To further enforce structural consistency across patches and
+                                                                                             bins, MBM includes contrastive and consistency objectives.
+C. Masked Bin Modeling                                                                       Let fi,t denote the feature of patch i in bin t. A contrastive
+   To further enhance temporal feature learning, we adopt a                                  loss encourages features from the same spatial location in
+masked bin modeling (MBM) strategy. Given the temporally                                     neighboring or augmented bins to be closer than features
+aggregated feature map F∗ ∈ RB×Ce ×H×W from the                                              from different locations:
+temporal encoder, MBM randomly masks features from one                                                              X                                 +
+                                                                                                                                      exp(sim(fi,t , fi,t′ )/τ )
+or more bins and trains the network to reconstruct the masked                                  Lcontrastive = −            log P                                                ,   (8)
+                                                                                                                                     j,t′′ exp(sim(fi,t , fj,t          )/τ )
+                                                                                                                                                                   ′′
+                                                                                                                     i,t
+
+
+         Event streams
+
+        𝑬𝑬𝟏𝟏                                               Temporal             Spatial
+                                                                                                  Decoder
+                                                            Encoder            Encoder
+                           Voxel bins                shared weights                             cross attention
+                                                                            shared weights
+
+        𝑬𝑬𝟐𝟐                                               Temporal             Spatial
+                                                                                                  Decoder
+                                                            Encoder            Encoder
+                             𝑏𝑏1 𝑏𝑏2 𝑏𝑏3 𝑏𝑏4 𝑏𝑏5
+
+                                                                                                                                                   (a) Full Pipeline
+
+
+                                                                                                         Masked bin
+                𝑏𝑏1          𝑏𝑏2                   𝑏𝑏3           𝑏𝑏4          𝑏𝑏5
+                                                                                                   𝑏𝑏1        𝑏𝑏2              𝑏𝑏3           𝑏𝑏4             𝑏𝑏5
+
+
+
+                  𝐹𝐹1           𝐹𝐹2
+                                                                                                                  Shared Temporal Encoder
+                                                     𝐹𝐹3              𝐹𝐹4       𝐹𝐹5
+
+
+                                         Self-Attention                                             Reconstruction Decoder
+
+                                                                                                                              𝐿𝐿𝑀𝑀𝑀𝑀𝑀𝑀
+                Aggregated Feature 𝐹𝐹3∗                                                                       𝑏𝑏�2                           𝑏𝑏2
+
+                                                                 (b) Temporal Encoder                                            (c) Masked Bin Modeling(MBM)
+
+
+Fig. 3: Overview of the Event3R pipeline. (a) Full pipeline: asynchronous event streams are converted into spatial–temporal
+voxels (T bins) and processed by the temporal encoder to capture motion cues. The resulting features are then passed through
+a spatial encoder and decoder, built on a DUSt3R backbone, to predict dense, globally aligned 3D pointmaps. (b) Temporal
+Encoder: self-attention across voxelized time bins enables temporal feature learning while preserving spatial alignment. (c)
+To further enhance temporal representation, Masked Bin Modeling (MBM) is applied in two stages: first, self-supervised
+pretraining teaches the model to learn temporal cues and alleviates the scarcity of labeled event datasets; second, MBM
+serves as an auxiliary loss during joint training, reinforcing temporal feature learning.
+         +
+where fi,t ′ is a positive feature from the same spatial                                    IV. E XPERIMENTS
+location in a neighboring or augmented bin, sim(·, ·) denotes             To the best of our knowledge, Event3R is the first event-
+a similarity metric (e.g., cosine similarity), and τ is a              only, feed-forward framework capable of performing globally
+temperature.                                                           consistent 3D reconstruction, making direct comparison with
+   A consistency loss ensures stability of the predictions under       prior work not straightforward. Therefore, we conduct a
+augmentations:                                                         comprehensive evaluation of our approach across multiple
+               Lconsistency =
+                              X             aug 2
+                                 ∥f̂i,t − f̂i,t ∥2 ,         (9)       3D perception tasks, including depth estimation, camera pose
+                               i,t
+                                                                       estimation, and 3D reconstruction. For each task, we compare
+                                                                       with representative state-of-the-art baselines when possible,
+        aug
+where f̂i,t is the predicted feature for an augmented input.           or provide qualitative analyses in cases where no direct
+                                                                       counterpart exists.
+D. Training Loss
+                                                                       A. Experiment Setup
+   We adopt a two-stage training strategy to leverage both
+self-supervised temporal feature learning and task-specific                  a) Implementation Details.: We use ViT-Base models
+adaptation.                                                            for the temporal encoder as well as the spatial encoder and
+   In the first stage, MBM pretraining, the temporal encoder           decoder. The spatial encoder and decoder are initialized
+learns inter-bin dynamics from large amounts of unlabeled              with pretrained weights from DUSt3R. We fix the event
+data, enhancing the generalization ability of the learned              chunk length to 50 ms and divide it into T temporal
+temporal features. The overall pretraining objective combines          bins. While larger T provides finer temporal resolution, it
+the reconstruction, contrastive, and consistency losses:               increases memory and computational costs. After balancing
+                                                                       performance and efficiency, we select T=5. To efficiently
+   Lpretrain
+    MBM-total = LMBM + λ1 Lcontrastive + λ2 Lconsistency ,    (10)     capture inter-bin dependencies, the temporal encoder operates
+where λ1 and λ2 balance the contributions of the auxiliary             on non-overlapping spatial patches of size 8 × 8. Each patch
+losses.                                                                is embedded with a convolutional layer into a 32-dimensional
+   In the second stage, joint fine-tuning, MBM is retained as          feature space. Temporal attention is performed over 2 layers
+an auxiliary self-supervised term while the entire network,            with 4 attention heads and an MLP ratio of 4.0, while no
+including the DUSt3R backbone, is trained on 3D reconstruc-            stochastic depth is applied.
+tion.                                                                     To enhance temporal feature learning, MBM randomly
+   The joint training objective is                                     masks one or more temporal bins and trains a lightweight
+                                                                       reconstruction decoder to predict the missing features from the
+Ljoint = Lregr + Lconf + αLMBM + λ1 Lcontrastive + λ2 Lconsistency ,   visible bins. The MBM loss is defined as an L1 reconstruction
+                                                              (11)     loss, augmented with a contrastive loss over spatial patches
+where Lregr and Lconf denote the 3D regression and confidence-         and a consistency loss under input augmentations. The
+aware losses from the DUSt3R backbone. The remaining                   contrastive loss uses a temperature τ = 0.1, and the auxiliary
+terms are auxiliary objectives: LMBM is the masked bin                 loss weights are set to λ1 = 1.0 and λ2 = 1.0. During
+modeling loss for self-supervised temporal feature learn-              joint fine-tuning, MBM is retained as an auxiliary loss with
+ing, Lcontrastive enforces cross-view feature alignment, and           weight α to reinforce modeling of temporal dependencies
+Lconsistency encourages temporal coherence. Hyperparameters            while optimizing the primary DUSt3R reconstruction loss.
+α, λ1 , λ2 balance the contributions of the auxiliary objectives.         We adopt a two-stage training strategy. In the first stage,
+   This two-stage strategy allows the network to first build           MBM pretraining is performed for 300 epochs using the
+robust temporal representations from unlabeled data and                Adam optimizer with a learning rate of 1 × 10−4 , weight
+then adapt them effectively to task-specific objectives while          decay of 0.05, and batch size of 4 on 8 NVIDIA RTX A100
+maintaining structural and temporal coherence.                         GPUs. In the second stage, the entire network is jointly fine-
+                                                                       tuned on event–depth–pose paired datasets for 300 epochs
+E. Downstream Applications                                             using the Adam optimizer with an initial learning rate of
+   The output of Event3R is a globally aligned 3D pointmap,            5 × 10−5 and cosine decay scheduling. Gradient clipping
+which can be readily used for downstream tasks such as multi-          with a maximum norm of 1.0 is applied for stability. The
+frame 3D reconstruction, depth estimation, and camera pose             full training process takes approximately 7 days on 8 GPUs.
+estimation. For these applications, we adopt the same post-                  b) Datasets.: To train and evaluate the proposed method,
+processing and global alignment procedures as in DUSt3R,               we adopt a two-stage training and evaluation strategy that
+leveraging the rich 3D content and pixel-to-3D correspon-              leverages both synthetic and real-world event data.
+dences provided by the predicted pointmaps. Importantly, all              In the first stage, the network is pretrained using the
+predictions of depth, pose, and point coordinates correspond           proposed Masked Bin Modeling (MBM) strategy on a diverse
+to the center voxel bin of the input event voxel grid, ensuring        collection of synthetic and unlabeled real-world event datasets.
+temporal consistency across frames. This allows Event3R                Specifically, we leverage large-scale dataset, i.e., MatrixCity
+to support standard downstream tasks without additional                [27] and TUM-VIE [28]. Since MatrixCity does not contain
+modifications.                                                         event streams, we simulate them using the ESIM simulator
+TABLE I: Quantitative depth estimation results on event-            TABLE II: Quantitative pose estimation results on
+based datasets. Comparison of our method against state-of-          event-based datasets(ATE, cm). Comparison of our method
+the-art event-based depth estimation approaches on TartanAir        against state-of-the-art event-based pose estimation ap-
+and MVSEC outdoor datasets.                                         proaches on TartanAir dataset. S1: Hospital Easy P004,
+                                                                    S2: Hospital Easy P008, S3: Hospital Easy P011, S4: Of-
+    Method              TartanAir               MVSEC               fice Hard P006, S5: Office Easy P000. “-” indicates that the
+                 Abs Rel ↓ δ < 1.25 ↑ Abs Rel ↓ δ < 1.25 ↑          experiment failed on this scene.
+     Ours         0.0514     0.9700    0.1805     0.7838
+   EvGGS          0.4553     0.5420    0.1972     0.7138                  Method          S1       S2      S3       S4       S5
+   E2Depth        0.7923     0.2484    0.3763     0.5073                    Ours         0.402    0.152   0.116   0.545    0.293
+DepthAnyEvent     0.2751     0.6093    0.4100     0.3783                   DEVO          1.25     0.457   0.891   2.02     0.861
+  DERD-Net        0.5651     0.2488    0.4367     0.2288              E2Vid + Colmap       -      0.550   0.828    1.87     1.18
+ EReFormer        0.2931     0.5323    0.4986     0.3799                IncEventGS       1.16     0.307   0.261   1.56      1.03
+
+[29] based on the available RGB sequences. In contrast,             TABLE III: Quantitative Results for 3D Reconstruction.
+TUM-VIE provides real-world event data, although without
+aligned depth supervision. Together, these datasets cover both         Method               MVSEC                  TartanAir
+synthetic and real-world environments, as well as indoor and                         Acc ↓ Comp↓ NC ↑        Acc ↓ Comp↓ NC ↑
+outdoor scenarios, enabling the model to learn generalizable             Ours        0.4915 0.6132 0.7569    0.1097 0.1382 0.8886
+spatio-temporal representations across diverse event domains        DepthAnyEvent    0.5342 0.7539 0.6195    0.5110 0.5764 0.6576
+before being fine-tuned on downstream tasks.                           E2Depth       0.7987 0.6532 0.6332    0.6891 0.4952 0.4950
+   In the second stage, the network undergoes joint training         IncEventGS      0.6879 0.6231 0.5332    0.3350 0.3609 0.6236
+on the TartanAir and MVSEC [30] datasets. Similar to
+MatrixCity, event streams for TartanAir are simulated from
+the available RGB sequences using the ESIM simulator,               C. Camera Pose Estimation
+while retaining the provided ground-truth depth and camera
+poses under controlled conditions. In contrast, MVSEC offers           We evaluate camera pose estimation on the TartanAir
+real-world event data recordings captured by a DAVIS346             benchmark using Absolute Trajectory Error (ATE) computed
+camera mounted on a car and a hexacopter in outdoor                 with the Evo evaluation tool. Quantitative results are reported
+and indoor environments, respectively. This setup enables a         in Table II. Event3R is compared against IncEventGS [8],
+comprehensive evaluation of the proposed approach in terms          DEVO [34], and a two-stage e2vid [35]+COLMAP [10]
+of both generalization capability and real-world applicability.     pipeline for event-based pose estimation. As shown in Table II,
+                                                                    Event3R consistently achieves the lowest ATE across all
+B. Monocular Depth Estimation                                       tested sequences, demonstrating more accurate and stable
+                                                                    trajectory estimation. These gains highlight the effectiveness
+   We evaluate monocular depth estimation on the Tar-
+                                                                    of our globally aligned pointmap representation and Temporal
+tanAirEvent and MVSEC datasets using the same standard
+                                                                    Encoder in extracting reliable motion cues from asynchronous
+metrics as DUSt3R and CUT3R [4], namely Absolute Relative
+                                                                    event streams.
+Error (AbsRel ↓) and the threshold accuracy δ < 1.25 (↑).
+All evaluations are performed with the official CUT3R code          D. 3D Reconstruction
+to ensure consistent and comparable results.                           After training, we perform inference on several two-view
+   Quantitative results in Table I demonstrate that Event3R         pairs as well as multi-view sequences (N > 2) from different
+consistently outperforms prior event-based depth estimation         datasets, and globally align the estimated poses to evaluate the
+methods [6, 31]–[33]. Our approach achieves substantially           resulting 3D reconstructions. We present qualitative results
+lower AbsRel and markedly higher fine-grained accuracy,             for both the two-view and multi-view (e.g., five-view) settings.
+indicating stronger geometric reconstruction and more reliable      Due to space limitations, qualitative results are provided in
+depth predictions from purely event-driven cues. These              the supplementary video. We also present quantitative results
+improvements stem from the combination of our globally              on 3D reconstruction in Table III. Since Event3R is a new
+aligned pointmap representation and the Temporal Encoder,           feed-forward event-based 3D reconstruction method, there
+which together enable more stable and coherent spatio-              is no direct baseline for comparison. To further evaluate
+temporal aggregation than existing baselines.                       our approach, we compare it with IncEventGS and a self-
+   Qualitative comparisons in Figure 4 further reinforce            implemented two-stage pipeline (DepthAnything followed by
+these findings. Event3R produces sharper object boundaries,         ground-truth pose projection). The results further demonstrate
+cleaner planar regions, and more globally consistent scene          the advantages of our method.
+structures, while competing approaches often exhibit depth
+discontinuities, local artifacts, or scale inconsistencies. Over-   E. Ablation Study
+all, the results highlight the robustness and generalization          We evaluate the impact of the Temporal Encoder
+ability of Event3R across diverse environments, validating the      and Masked Bin Modeling (MBM)—including its self-
+effectiveness of our event-only 3D reconstruction framework.        supervised pretraining and auxiliary contrastive and consis-
+                       Ground Truth             Event3R                    EvGGS                    E2Depth
+
+
+          Synthetic
+          Synthetic
+          Synthetic
+          Synthetic
+          Real-world
+          Real-world
+
+
+
+
+Fig. 4: Qualitative comparison of depth estimation results on both synthetic and real-world datasets. For better
+visualization, the grayscale depth maps are colorized using the ’jet’ colormap.
+
+tency losses—on depth and pose estimation. Removing the
+Temporal Encoder (i.e., feeding the voxelized events directly      supervised training but also provides a robust initialization,
+into the Spatial Encoder without temporal aggregation) leads       greatly reducing the reliance on labeled data.
+to a substantial degradation in both depth (AbsRel: 0.0514 →         Overall, TE and MBM—including pretraining and auxiliary
+0.1187) and pose (ATE: 0.1524 → 0.4381 cm), confirming the         objectives—jointly enable robust, temporally coherent spatio-
+necessity of patch-level temporal aggregation for capturing        temporal representations, resulting in more accurate event-
+fine-grained motion cues.                                          based depth and pose estimation.
+
+  MBM pretraining shows particularly strong impact: dis-                                 V. C ONCLUSION
+abling pretraining increases depth and pose errors significantly      We present Event3R, a new feed-forward, event-only
+(AbsRel: 0.0514 → 0.0825, ATE: 0.1524 → 0.3095 cm),                framework for globally consistent 3D reconstruction from
+while ablating its contrastive or consistency objectives further   asynchronous event streams. By integrating a patch-level
+degrades performance. These results highlight that MBM             Temporal Encoder with a spatial backbone, our method
+not only enhances module’s temporal feature learning during        captures rich spatio-temporal features encoding fine-grained
+TABLE IV: Ablation study of Event3R components.                                 [15] W. Zhang, Y. Wu, S. Li et al., “Review of Feed-Forward 3D recon-
+Both TE and MBM—especially self-supervised pretrain-                                 struction: From DUSt3R to VGGT,” arXiv preprint arXiv:2507.08448,
+ing—are crucial; disabling MBM pretraining or its con-                               2025.
+                                                                                [16] H. Kim, S. Leutenegger, and A. J. Davison, “Real-time 3D recon-
+trastive/consistency objectives leads to performance drops.                          struction and 6-DoF tracking with an event camera,” in European
+                                                                                     Conference on Computer Vision (ECCV), 2016, pp. 349–364.
+   Model                         AbsRel ↓      δ < 1.25 ↑       ATE ↓           [17] H. Rebecq, G. Gallego, E. Mueggler et al., “EMVS: Event-based
+   Full Event3R                   0.0514         0.970          0.1524               multi-view stereo—3D reconstruction with an event camera in real-
+   w/o TE                         0.1187         0.892          0.4381               time,” International Journal of Computer Vision, vol. 126, no. 12, pp.
+   w/o MBM pretrain               0.0825         0.925          0.3095               1394–1414, 2018.
+                                                                                [18] H. Rebecq, T. Horstschaefer, G. Gallego et al., “EVO: A geometric
+   MBM w/o contrastive            0.0621         0.961          0.1792               approach to event-based 6-DOF parallel tracking and mapping in real
+   MBM w/o consistency            0.0598         0.965          0.1675               time,” IEEE Robotics and Automation Letters, vol. 2, no. 2, pp. 593–
+motion and geometric cues. Masked Bin Modeling further                               600, 2017.
+                                                                                [19] Y. Zhou, G. Gallego, H. Rebecq et al., “Semi-dense 3D reconstruction
+strengthens temporal learning, enabling self-supervised pre-                         with a stereo event camera,” in European Conference on Computer
+training, reducing dependence on labeled data, and enforcing                         Vision (ECCV), 2018, pp. 235–251.
+inter-bin structural consistency. Extensive experiments on                      [20] S. Klenk, L. Koestler, D. Scaramuzza et al., “E-NeRF: Neural radiance
+                                                                                     fields from a moving event camera,” IEEE Robotics and Automation
+synthetic and real-world datasets show that Event3R produces                         Letters, vol. 8, no. 3, pp. 1587–1594, 2023.
+sharper depth, more coherent 3D pointmaps, and more                             [21] I. Hwang, J. Kim, and Y. M. Kim, “EV-NeRF: Event based neural
+reliable camera trajectories, validating its robustness and                          radiance field,” in Proceedings of the IEEE/CVF Winter Conference
+                                                                                     on Applications of Computer Vision (WACV), 2023, pp. 837–847.
+generalization. Event3R enables efficient, scalable, and label-                 [22] V. Rudnev, M. Elgharib, C. Theobalt et al., “EventNeRF: Neural
+efficient 3D perception from event sensors, with broad                               radiance fields from a single colour event camera,” in Proceedings of
+applications in robotics, autonomous navigation, and real-                           the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+                                                                                     (CVPR), 2023, pp. 4992–5002.
+time scene understanding.                                                       [23] T. Yura, A. Mirzaei, and I. Gilitschenski, “EventSplat: 3D Gaussian
+                                                                                     Splatting from moving event cameras for real-time rendering,” in
+                             R EFERENCES                                             Proceedings of the IEEE/CVF Conference on Computer Vision and
+                                                                                     Pattern Recognition (CVPR), 2025, pp. 26 876–26 886.
+ [1] B. Mildenhall, P. P. Srinivasan, M. Tancik et al., “NeRF: Representing     [24] H. Han, J. Li, H. Wei et al., “Event-3DGS: Event-based 3D reconstruc-
+     scenes as neural radiance fields for view synthesis,” Communications            tion using 3D Gaussian Splatting,” Advances in Neural Information
+     of the ACM, vol. 65, no. 1, pp. 99–106, 2021.                                   Processing Systems (NeurIPS), vol. 37, pp. 128 139–128 159, 2024.
+ [2] B. Kerbl, G. Kopanas, T. Leimkühler et al., “3D Gaussian Splatting        [25] X. Wu, Y. Yu, X. Lyu et al., “EAG3R: Event-augmented 3D geometry
+     for real-time radiance field rendering,” ACM Transactions on Graphics,          estimation for dynamic and extreme-lighting scenes,” in Advances in
+     vol. 42, no. 4, pp. 1–14, 2023.                                                 Neural Information Processing Systems (NeurIPS), 2025.
+ [3] S. Wang, V. Leroy, Y. Cabon et al., “Dust3R: Geometric 3D vision           [26] S. Klenk, D. Bonello, L. Koestler et al., “Masked event modeling:
+     made easy,” in Proceedings of the IEEE/CVF Conference on Computer               Self-supervised pretraining for event cameras,” in Proceedings of the
+     Vision and Pattern Recognition (CVPR), 2024, pp. 20 697–20 709.                 IEEE/CVF Winter Conference on Applications of Computer Vision
+ [4] Q. Wang, Y. Zhang, A. Holynski et al., “Continuous 3D perception                (WACV), 2024, pp. 2378–2388.
+     model with persistent state,” in Proceedings of the IEEE/CVF Confer-       [27] Y. Li, L. Jiang, L. Xu et al., “MatrixCity: A large-scale city dataset
+     ence on Computer Vision and Pattern Recognition (CVPR), 2025, pp.               for city-scale neural rendering and beyond,” in Proceedings of the
+     10 510–10 522.                                                                  IEEE/CVF International Conference on Computer Vision (ICCV), 2023,
+ [5] J. Wang, M. Chen, N. Karaev et al., “VGGT: Visual geometry grounded             pp. 3205–3215.
+     transformer,” in Proceedings of the IEEE/CVF Conference on Computer        [28] S. Klenk, J. Chui, N. Demmel et al., “TUM-VIE: The TUM stereo
+     Vision and Pattern Recognition (CVPR), 2025, pp. 5294–5306.                     visual-inertial event dataset,” in IEEE/RSJ International Conference
+ [6] J. Wang, J. He, Z. Zhang et al., “EvGGS: A collaborative learning               on Intelligent Robots and Systems (IROS), 2021, pp. 8601–8608.
+     framework for event-based generalizable Gaussian Splatting,” arXiv         [29] D. Gehrig, M. Gehrig, J. Hidalgo-Carrió et al., “Video to events:
+     preprint arXiv:2405.14959, 2024.                                                Recycling video datasets for event cameras,” in Proceedings of the
+ [7] T. Xiong, J. Wu, B. He, C. Fermuller, Y. Aloimonos, H. Huang, and               IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     C. Metzler, “Event3dgs: Event-based 3d gaussian splatting for high-             (CVPR), 2020.
+     speed robot egomotion,” in 8th Annual Conference on Robot Learning.        [30] A. Z. Zhu, D. Thakur, T. Özaslan et al., “The MultiVehicle stereo event
+ [8] J. Huang, C. Dong, X. Chen et al., “IncEventGS: Pose-free Gaussian              camera dataset: An event camera dataset for 3D perception,” IEEE
+     Splatting from a single event camera,” in Proceedings of the IEEE/CVF           Robotics and Automation Letters, vol. 3, no. 3, pp. 2032–2039, 2018.
+     Conference on Computer Vision and Pattern Recognition (CVPR), 2025,        [31] J. Hidalgo-Carrió, D. Gehrig, and D. Scaramuzza, “Learning monocular
+     pp. 26 933–26 942.                                                              dense depth from events,” in International Conference on 3D Vision
+ [9] L. Cui, H. Liu, M. Liu et al., “PEOD: A pixel-aligned event-rgb                 (3DV), 2020, pp. 534–542.
+     benchmark for object detection under challenging conditions,” arXiv        [32] D. Hitzges, S. Ghosh, and G. Gallego, “DERD-Net: Learning depth
+     preprint arXiv:2511.08140, 2025.                                                from event-based ray densities,” in Advances in Neural Information
+[10] J. L. Schonberger and J.-M. Frahm, “Structure-From-Motion revisited,”           Processing Systems (NeurIPS), 2025.
+     in Proceedings of the IEEE/CVF Conference on Computer Vision and           [33] X. Liu, J. Li, X. Fan et al., “Event-based monocular dense depth esti-
+     Pattern Recognition (CVPR), 2016, pp. 4104–4113.                                mation with recurrent transformers,” arXiv preprint arXiv:2212.02791,
+[11] Z. Xun, J. Huang, Z. Li et al., “CREPES: Cooperative RElative pose              2022.
+     estimation system,” in IEEE/RSJ International Conference on Intelligent    [34] S. Klenk, M. Motzet, L. Koestler et al., “Deep event visual odometry,”
+     Robots and Systems (IROS), 2023, pp. 5274–5281.                                 in International Conference on 3D Vision (3DV), 2024, pp. 739–749.
+[12] J. T. Barron, B. Mildenhall, M. Tancik et al., “Mip-NeRF: A multiscale     [35] H. Rebecq, R. Ranftl, V. Koltun et al., “Events-to-Video: Bringing
+     representation for anti-aliasing neural radiance fields,” in Proceedings        modern computer vision to event cameras,” in Proceedings of the
+     of the IEEE/CVF International Conference on Computer Vision (ICCV),             IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     2021, pp. 5855–5864.                                                            (CVPR), 2019.
+[13] Y. Fu, S. Liu, A. Kulkarni et al., “COLMAP-free 3D Gaussian Splatting,”
+     in Proceedings of the IEEE/CVF Conference on Computer Vision and
+     Pattern Recognition (CVPR), 2024, pp. 20 796–20 805.
+[14] V. Leroy, Y. Cabon, and J. Revaud, “Grounding image matching in 3D
+     with MASt3R,” in European Conference on Computer Vision (ECCV),
+     2024, pp. 71–91.
+Event3R: Asynchronous-to-Global 3D Reconstruction from Event Camera via Spatial-Temporal
+                                  Feature Aggregation
+                                 Supplementary Material
+                               View 1                                                     View 2
+
+
+
+
+Fig. 5: Global multi-view 3D reconstruction results. We demonstrate the capability of Event3R to reconstruct globally
+consistent 3D scenes from multiple views (N = 5). The estimated camera trajectories are visualized as frustums alongside
+the point clouds, demonstrating accurate global alignment.
+
+
+                                                                  confidence maps, which are then fused through a global
+VI. A DDITIONAL Q UALITATIVE 3D R ECONSTRUCTIONS                  optimization that minimizes the weighted 3D reprojection
+   In the supplementary material, we include an expanded          error. This jointly recovers the absolute camera poses, intrinsic
+collection of qualitative results to illustrate the 3D recon-     parameters, and depthmaps for the entire sequence. The
+struction performance of our method under different view          reconstruction results, presented in Figure 5, illustrate accurate
+configurations. We provide additional visualizations for both     global alignment and consistent geometry across all views.
+the two-view setting and multi-view sequences.
+   For visualization, the reconstructed point clouds are col-
+orized using the RGB image corresponding to the center voxel
+bin. No RGB data is involved during training or inference.
+     a) Two-view Reconstruction: In the two-view setting,
+the pointmaps predicted by our Event3R model are already
+expressed in a consistent global coordinate frame, so no
+additional post-processing or global alignment is required.
+Reconstruction results on synthetic datasets are shown in
+Figure 6.
+     b) Multi-view Processing: To reconstruct a consistent
+3D scene from N views using only event voxel grids, we
+follow the global alignment framework of DUSt3R. We
+construct a connectivity graph where each node corresponds
+to a view and each edge denotes a pair with sufficient overlap.
+For every edge, the network predicts pairwise pointmaps with
+                              View 1                                                  View 2
+
+
+
+
+Fig. 6: Qualitative results of two-view 3D reconstruction on synthetic datasets. We visualize the reconstructed point
+clouds from two different viewpoints (View 1 and View 2). For visualization purposes, the point clouds are colored using the
+ground truth RGB images.
+

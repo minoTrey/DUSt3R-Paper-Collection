@@ -1,0 +1,981 @@
+                                              InvSplat: Inverse Feed-Forward Scene Splatting
+
+
+                                              Polina Karpikova1                      Wenjing Bian1                Haofei Xu1,2                     Hendrik Lensch1                           Andreas Geiger1
+                                                                       1                                                                                                 2
+                                                                           University of Tübingen, Tübingen AI Center                                                        ETH Zurich
+
+
+
+                                               Inputs                                      Learned scene representation                                                            Novel View Synthesis
+arXiv:2607.02301v1 [cs.CV] 2 Jul 2026
+
+
+
+
+                                                                                                                                                                                        Intrinsic Outputs
+                                           Images with poses                                    3D Gaussians with Materials
+                                                                                                                                                                         Albedo               Metallic              Roughness
+
+
+
+
+                                                                      InvSplat
+                                                                                                                                                                                              Geometry
+                                                                                                                                                                               Normal                            Depth
+
+                                                                      1.5s
+                                                                         Fast
+                                                                    reconstruction
+
+
+
+                                                                                                                                                                                           Relighting
+                                                                                     Each gaussian encodes:
+                                                                                                                                                                             Light 1                              Light 2
+                                                                                            Geometry                   Intrinsics properties
+                                                                                       Mean       Opacity                     Albedo
+                                                                                       Normal     Rotation                    Metallic
+                                                                                                  Scale                       Roughness
+
+
+
+
+                                                               Fast                             Expressive                               Versatile                                 Physically based
+                                                               1.5s reconstruction              3D Gaussians with Materials              Relighting and View Synthesis             PBR Material Representation
+
+
+
+
+                                        Figure 1: InvSplat Overview. Given a set of posed images, InvSplat reconstructs both the 3D
+                                        scene geometry and material parameters in real time, enabling novel view synthesis and relighting.
+                                                                                                                     Abstract
+
+                                                    Inverse rendering aims to recover both 3D geometry and physically meaningful
+                                                    material properties from images, enabling applications such as relighting and novel
+                                                    view synthesis. Optimization-based methods achieve high fidelity but require costly
+                                                    per-scene fitting, while image-space learning-based approaches often suffer from
+                                                    multi-view inconsistencies and lack an explicit 3D representation for stable novel
+                                                    view rendering. We present a feed-forward multi-view reconstruction framework
+                                                    for inverse rendering that directly predicts a structured 3D Gaussian representation
+                                                    with intrinsic material attributes. Each Gaussian primitive is parameterized by
+                                                    mean, normal, opacity, rotation, scale, albedo, metallic, and roughness, enabling a
+                                                    disentangled and physically grounded scene representation. Our model integrates
+                                                    priors from a material estimation network with a multi-view 3D reconstruction
+                                                    backbone, allowing joint prediction of geometry and reflectance parameters in a
+                                                    single forward pass. Experiments on synthetic and real-world datasets demonstrate
+                                                    improved multi-view consistency compared to 2D baselines, accurate material
+                                                    recovery, and stable novel view rendering. Our representation further supports
+                                                    physically-based relighting and more faithful modeling of view-dependent effects
+                                                    compared to existing RGB-based feed-forward reconstruction methods. Our project
+                                                    webpage is: https://poliik.github.io/invsplat/.
+
+
+
+                                        Preprint.
+1   Introduction
+
+Inverse rendering aims to recover 3D geometry and physically meaningful surface reflectance from
+images. It forms a foundation for physically based rendering pipelines, enabling downstream
+applications such as relighting, material editing, and realistic AR/VR content insertion.
+Despite substantial recent progress, existing inverse rendering methods continue to face challenges
+in simultaneously achieving high efficiency, physical interpretability, and multi-view consistency.
+Optimization-based approaches [1–5] can yield accurate decompositions of geometry and reflectance,
+but they typically rely on computationally expensive per-scene optimization, limiting their practical
+value for real-world applications. Learning-based methods [6–9] estimate material properties from
+single- or multi-view images using feed-forward networks or iterative diffusion-based denoising [10,
+11]. While these approaches significantly improve runtime efficiency compared to optimization-based
+pipelines, existing methods operate predominantly in image space (e.g., predicting per-view intrinsic
+maps) and lack an explicit 3D scene representation. Consequently, they struggle to support robust
+novel view synthesis and are prone to producing view-inconsistent geometry and material predictions
+(Figure 5), which hinders physically grounded editing and relighting.
+
+In parallel, recent feed-forward 3D reconstruction meth- Method                       Paradigm Consistent NVS
+ods [12–16] have demonstrated that multi-view images IRIS [2]                        optimization  ✓       ✓
+can be converted into explicit 3D scene representations Intrinsic Image Fusion [18] optimization   ✓       ✓
+                                                          DiffusionRenderer [10]       diffusion   ∼       ×
+in a single forward pass. However, these approaches pri- DNF-Intrinsic [11]         diffusion/flow ∼       ×
+marily predict geometry together with RGB appearance,     MVInverse  [9]            feed-forward   ∼       ×
+rather than intrinsic, physically meaningful material pa- InvSplat (Ours)           feed-forward   ✓       ✓
+rameters. While some approaches [17, 12] can model
+low- to mid-frequency view-dependent effects, they often Table 1: High-level methods comparison.
+struggle to reproduce sharp specular highlights. More- “Consistent” denotes multi-view consis-
+over, illumination is typically implicitly baked into the tency; ∼ indicates partial/limited support;
+predicted appearance, preventing explicit relighting or × indicates not supported by design.
+material changes.
+To address these limitations, we introduce a feed-forward inverse rendering model that directly
+predicts a physically based 3D Gaussian scene representation from posed multi-view images. Thanks
+to our 3D Gaussian representation, our model is by design multi-view consistent and can naturally
+support real-time rendering. In addition, we predict all Gaussian parameters together with intrinsic
+material attributes in a single forward pass, removing the need for the expensive per-scene optimiza-
+tion or iterative multi-step diffusion used in previous work. This makes our model highly efficient.
+In Table 1, we provide a conceptual comparison with representative prior methods, showing that
+our model is the first to simultaneously achieve efficient feed-forward inference, high multi-view
+consistency, and high-quality novel view synthesis.
+More specifically, our method outputs Gaussian primitives parameterized by geometry and opacity,
+along with intrinsic material attributes (albedo, metallic, and roughness). The reconstructed scene can
+be rendered from arbitrary camera poses using a differentiable Gaussian rasterizer, enabling consistent
+inverse rendering and real-time novel view synthesis within a unified framework. In contrast to
+image-based inverse rendering approaches that estimate intrinsic properties only for the observed
+views, our method recovers an explicit 3D representation that supports rendering from arbitrary
+viewpoints. Since a primary motivation for disentangling illumination from material properties is to
+enable relighting, we demonstrate this capability with a small point-light renderer for generating relit
+results.
+We summarize our contributions as follows:
+
+       • We introduce InvSplat, the first feed-forward framework for scenes that predicts physically
+         based 3D Gaussian primitives with intrinsic material parameters from multi-view images in
+         a single forward pass.
+       • InvSplat integrates priors from image-based material estimation and 3D reconstruction
+         models into a unified network, producing high-quality 3D material properties with strong
+         generalization to real-world data.
+       • We achieve novel view synthesis in a reconstructed 3D Gaussian splatting scene with
+         decomposed materials, thus enabling relighting applications.
+
+
+                                                     2
+2     Related Work
+Optimization/Learning-based approaches. Optimization-based inverse rendering fits a scene
+representation to each capture via iterative updates. It can be accurate and physically grounded,
+but inference is slow and must be repeated for every new scene. For example, IRIS [2] estimates
+geometry, physically based materials, spatially varying HDR lighting, and camera response from
+posed multi-view LDR images via an iterative optimization pipeline. Intrinsic Image Fusion [18] is
+another optimization-based multi-view approach that fuses per-view intrinsic priors into a consistent,
+low-dimensional material space and then refines it with inverse path tracing. Recently, MVInverse [9]
+scaled up material prediction by training a large transformer model from multi-view inputs.
+Diffusion-based approaches. Diffusion models provide strong image priors for inverse problems and
+have been used to predict intrinsic properties or G-buffers. DiffusionRenderer [10] leverages video
+diffusion priors to estimate G-buffers from real videos and additionally trains a neural renderer from G-
+buffers to enable editing workflows; however, it inherits the computational cost and stability challenges
+of diffusion sampling. DNF-Intrinsic [11] proposes a deterministic alternative (flow-matching / noise-
+free diffusion) together with a generative rendering constraint to improve faithfulness, but it remains
+substantially heavier than a single forward pass. Moreover, without explicit 3D coupling, such
+image-space diffusion approaches can produce predictions that drift across viewpoints.
+
+Feed-forward Scene Reconstruction. Recent advancements in 3D scene representation have seen
+a paradigm shift towards feed-forward 3D Gaussian Splatting (3DGS) architectures, which bypass
+time-consuming per-scene optimization [19] to generate high-fidelity novel views. pixelSplat [20]
+pioneered this direction by learning to reconstruct radiance fields from sparse image pairs using dense
+probability distributions. Subsequent works rapidly improved both efficiency and geometric accuracy;
+MVSplat [21] introduced plane-sweeping cost volumes for fast multi-view feature matching, while
+DepthSplat [17] integrated pre-trained depth features to inject stronger geometric priors. To address
+the limitations of single-pass inference, ReSplat [16] proposed a recurrent framework that iteratively
+refines 3D Gaussian primitives using rendering error feedback. More recently, researchers have
+expanded input constraints and multi-task capabilities, with NoPoSplat [22] directly predicting scene
+Gaussians from unposed images, and WorldMirror [12] introducing a universal framework capable of
+simultaneously outputting multiple 3D representations in a single forward pass.
+While these feed-forward methods have achieved remarkable success in RGB novel view synthesis,
+they are fundamentally designed for forward rendering tasks. They focus solely on synthesizing novel
+appearances and do not disentangle the scene into its underlying intrinsic properties, such as materials,
+lighting, and precise geometric normals. In contrast, our work addresses the largely underexplored
+domain of inverse feed-forward modeling. We propose InvSplat, the first feed-forward Gaussian
+splatting framework specifically formulated for inverse scene reconstruction. By extending the
+efficiency of feed-forward architectures into the realm of inverse rendering, our method uniquely
+enables instantaneous scene decomposition without the need for expensive per-scene optimization.
+
+3     Method
+Given N input images {Ii }N   i=1 capturing a shared scene and their corresponding camera parameters
+{Pi }Ni=1 (including intrinsics and extrinsics), our goal is to jointly recover the scene geometry G and
+intrinsic material properties M. We employ a feed-forward network that predicts all scene parameters
+in a single forward pass:
+                                   (G, M) = fθ {Ii }N              N
+                                                                       
+                                                       i=1 , {Pi }i=1 ,                               (1)
+where fθ is parameterized by θ. We first introduce the scene representation in Section 3.1, followed
+by the feed-forward inverse rendering framework in Section 3.2, and finally the training objectives in
+Section 3.3.
+
+3.1   Scene Representation with Intrinsic Properties
+
+We adopt 3D Gaussian Splatting (3DGS) [19] to represent the scene using M Gaussian primitives.
+Each Gaussian j is parameterized by its mean µj ∈ R3 , rotation quaternion qj ∈ R4 , scale
+sj ∈ R3 , and opacity σj ∈ [0, 1]. While the original formulation models appearance using spherical
+harmonics coefficients, we instead focus on intrinsic material properties. Specifically, each Gaussian
+
+
+                                                   3
+       Input Images                            Dual-branch Encoding & Fusion                         Geometry & Material Decoding
+                                   Geometry
+
+                                                   Multi-view       Multi-view
+
+
+
+
+                                                                                 {
+                                     ResNet        Geometry          Feature
+                                                   Encoder          Matching                                   Depth           Rotation, Scale,
+                                                                                              Decoding                         Opacity
+                                                                                               Heads
+                                   Intrinsic
+
+                                                          Multi-view
+                                      DINO                 Intrinsic
+
+
+
+
+                                                                                 {
+                                                          Translator                                                             Albedo,
+                                                                                                               Normal            Metallic,
+                                                                                                                                 Roughness
+
+                                                                                                        Unprojection
+       Camera Parameters     P
+       Cost Volume           C                                  Losses
+                                         GT Materials                    Rendered Materials
+       Multi-view Feature   Fm
+                                                                                                Rendering
+       Monocular Feature    Fs                                                                input & target
+                                                                                                  views
+                                         GT Geometry                     Rendered Geometry                       3DGS with Materials
+
+
+
+Figure 2: Method Overview. Our feed-forward multi-view model predicts a physically based 3D
+Gaussian scene representation (geometry + material parameters) and enforces cross-view consistency
+through differentiable rendering.
+
+
+is associated with diffuse albedo aj ∈ [0, 1]3 , metallicity mj ∈ [0, 1], and roughness rj ∈ [0, 1]. We
+further augment each Gaussian with a surface normal nj ∈ R3 , which enables high-quality physically
+based shading and relighting. The scene is thus represented as
+                            G = {(µj , qj , sj , σj , nj )}M
+                                                           j=1 ,                  M = {(aj , mj , rj )}M
+                                                                                                       j=1 .
+
+
+3.2   Feed-forward Inverse Rendering Architecture
+
+We propose a feed-forward inverse rendering framework that jointly predicts scene geometry as a
+3D Gaussian representation with intrinsic material attributes from multi-view posed images. As
+illustrated in Figure 2, the architecture follows a dual-branch design: a Geometry branch that builds
+an explicit multi-view geometric representation from the input views, and an Intrinsic branch that
+extracts cross-view intrinsic features. Features from both branches are then consumed by a set of
+decoding heads that together produce a unified 3D Gaussian representation with intrinsic material
+attributes.
+
+Geometry branch. To recover accurate 3D structure, we adopt a stereo-inspired multi-view pipeline
+similar to ReSplat [16]. For each input view Ii , we first apply a ResNet [23] image backbone to
+produce a multi-scale feature pyramid {Fsi }. The deepest pyramid level is fed into the Multi-view
+Geometry Encoder, a transformer that performs cross-view self-attention to aggregate information
+across views and produce view-aware geometry features. These features are then passed to the Multi-
+view Feature Matching module, which warps them across views using the input camera poses and
+constructs a depth-candidate cost volume Ci encoding cross-view correspondences. The shallower
+scales of the ResNet pyramid bypass the matching step and are forwarded directly to the decoding
+heads, where they provide higher-resolution image cues for dense per-pixel prediction.
+
+Intrinsic branch. In parallel, we extract high-level multi-view intrinsic features through attention,
+similar to previous works [9, 14]. We first use a DINOv2 [24] ViT-L/14 with register features to
+encode each input view independently into patch features. These features are then refined by the
+Multi-view Intrinsic Translator, a 36-block transformer that alternates intra-view and inter-view
+self-attention, exchanging information across views. Set of features {Fm  N
+                                                                       i }i=1 from uniformly spaced
+translator layers are used for the decoding heads. We refer to this transformer as a translator, with
+the role of mapping the appearance features into a latent space consumable by downstream heads.
+
+
+                                                                         4
+During training, the translated features are learned through both the depth decoder of the geometry
+branch and the material decoders, serving as a shared block across decoder branches.
+
+Decoding and Gaussian construction. We decode per-view geometric and material properties
+through 6 decoder heads. Depth di is estimated from all features {Ci , Fm        s
+                                                                            i , Fi } with a DPT [25] head,
+while to estimate the per-Gaussian rotation qj , scale sj , and opacity σj , we lift features into 3D using
+the predicted depth and refine them with a Point Transformer [26, 16] that captures local geometric
+context; the refined features are then mapped to Gaussian parameters by a lightweight regression
+head. Material properties (albedo ai , metallicity mi , roughness ri ) and the surface normals ni are
+predicted by four DPT heads from {Fm   i }. At the albedo head additional skip connections with {Fi }
+                                                                                                         s
+
+are applied, and we add a single 1×1 convolutional layer that matches the channel widths of {Fsi }
+to those of the pretrained head. We unproject the predicted depth maps into 3D to obtain Gaussian
+centers {µj }Mj=1 , where each Gaussian inherits its image-space material predictions (aj , mj , rj ) from
+its source pixel, and the per-Gaussian normal nj is obtained by rotating the predicted camera-space
+normal to world space using the input extrinsics.
+
+Rendering. The predicted Gaussians are projected into each view using camera parameters {Pi }.
+We employ a differentiable Gaussian splatting renderer to produce albedo, metallic, roughness,
+normal, and depth maps in a single rasterization pass.
+
+3.3   Training
+
+During training, for each forward path, given Nt camera poses, we render Nt maps for each geometric
+and material property, and supervise all the rendered properties with per-view ground truth. For
+each view i, let (ai , mi , ri , di , ni ) denote the ground-truth albedo, metallicity, roughness, depth,
+and normals, and (âi , m̂i , r̂i , dˆi , n̂i ) be the corresponding renderings from the predicted scene. The
+overall training objective is
+                                           L = La + Lm + Lr + Ld + Ln .                                    (2)
+
+Material supervision. We supervise intrinsic components using a combination of pixel-wise and
+perceptual losses. For each X ∈ {a, m, r}, we define
+                                 N 
+                                 X                                            
+                          LX =          ∥X̂i − Xi ∥1 + λlpips LPIPS(X̂i , Xi ) .                          (3)
+                                  i=1
+
+
+Affine-invariant depth loss. As our training dataset provides depth maps, but doesn’t contain
+camera parameters, we supervise depth using an affine-invariant loss, inspired by MoGe [27] for
+self-supervised depth estimation:
+                                           N
+                                          X    1 X              2
+                                   Ld =             δi (p) − δ̄i ,                                        (4)
+                                          i=1
+                                              |Ωi |
+                                                     p∈Ωi
+
+where δi (p) = log dˆi (p) − log di (p), δ̄i = |Ω1i | p∈Ωi δi (p), and Ωi denotes the set of valid pixels.
+                                                     P
+
+
+Normal loss.     Surface normals are supervised using a cosine similarity loss:
+                                               N
+                                               X
+                                        Ln =         (1 − ⟨n̂i , ni ⟩) .                                  (5)
+                                               i=1
+
+
+4     Experiments
+Implementation details. We train on InteriorVerse dataset [8] on resolution 512x384 with curated
+image triplets, using two views as input views and all three views’ ground truth for supervision,
+which includes depth, normals, and material maps. The geometric encoder is initialized from
+ReSplat [16]; we freeze the ResNet backbone during training and fine-tune the remaining components.
+The appearance encoder and material prediction heads are initialized from MVInverse [9], and all
+
+
+                                                       5
+        Input            Albedo GT             Ours           MVInverse         DiffusionRenderer    DNF-intrinsic
+
+
+
+
+Figure 3: Qualitative reconstruction results on InteriorVerse. InvSplat jointly predicts geometry
+and intrinsic material attributes (albedo, metallic, roughness) in a single feed-forward pass, producing
+multi-view consistent decompositions.
+Table 2: Quantitative comparison of inverse rendering performance on the synthetic InteriorVerse
+test set using two input views per scene. * denotes fine-tuned networks. Matching the performance
+of 2D pixel-aligned image networks with a unified 3D reconstruction model remains challenging.
+Nevertheless, our method achieves performance comparable to 2D baselines while providing an
+explicit 3D representation, resulting in improved cross-view consistency ( Figure 5) and enabling
+novel-view rendering ( Figure 4).
+      Method                   Type              Albedo                Metallic Roughness           Normal
+                                      PSNR↑ SSIM↑ LPIPS↓ RMSE↓ RMSE↓               RMSE↓     Cosine Similarity↑
+      DiffusionRenderer [10]   2D     17.32   0.800   0.253   0.1506   0.2971      0.2825           0.9468
+      DNF-Intrinsic [11]       2D     18.64   0.850   0.211   0.1320   0.1884      0.2124           0.9261
+      MVInverse [9]            2D     21.83   0.867   0.217   0.0887   0.1039      0.1252           0.9654
+      MVInverse*               2D     22.92   0.886   0.182   0.0798   0.0985      0.1221           0.9630
+      Ours                     3D     22.18   0.873   0.203   0.0883   0.0993      0.1254           0.9609
+
+
+
+associated parameters are jointly fine-tuned with the rest of the network. Training is performed for
+20k steps with a batch size of 2 on a single H100 GPU, taking approximately 12 hours.
+Baselines. We compare our model against three 2D baselines: DiffusionRenderer [10], a video
+diffusion model; DNF-Intrinsic [11], a single-view diffusion approach; and MVInverse [9], a feed-
+forward multi-view transformer. For MVInverse, we also report a variant fine-tuned on our training
+data. Per-scene optimization baselines are not included in the comparison, since the sparse input
+views are insufficient for robust geometry, material and lighting disentanglement of typical existing
+optimization-based approaches.
+Datasets. We follow the standard train/test split of InteriorVerse [8] and additionally evaluate on
+Structured3D [28]. Further details are provided in the supplementary material. We also conduct
+qualitative evaluations on procedurally generated scenes from Infinigen [29] and real-world images
+from RealEstate10K [30] and DL3DV [31].
+Metrics. Following prior work [9, 11], we assess material and normal quality on input views. To
+evaluate cross-view consistency, we compute a reprojection error metric: predictions are warped
+between to each other using ground-truth depths and ground-truth camera poses, and RMSE is
+computed on the resulting correspondences.
+
+4.1     Evaluation
+
+For reconstruction, we evaluate our model on the InteriorVerse dataset and report the quality of
+predicted materials and normals. Since albedo estimation is inherently ambiguous up to scale,
+we compute a per-channel scale factor that best aligns the predicted albedo with the ground-truth
+albedo before metric evaluation. This procedure is applied consistently across all compared methods.
+Quantitative results are reported in Table 2. We also report results obtained by fine-tuning MVInverse
+under the same training setup as our method.
+Matching the performance of 2D pixel-aligned image networks with a unified 3D reconstruction
+model is inherently challenging. While our method performs slightly worse than the fine-tuned
+
+
+                                                          6
+      Input          Albedo NVS                 Input           Albedo NVS          Input            Albedo NVS
+
+
+
+
+Figure 4: Generalization to real-world scenes from RealEstate10K. For each of the three scenes, we
+show the two input views and albedo renderings at two novel views produced by our model.
+Table 3: Multi-view consistency and albedo reconstruction on Structured3D using 2 input views
+per scene. * denotes fine-tuned model (on InteriorVerse). Our method achieves better multi-view
+consistency, especially for metallic and roughness, with the same reconstruction quality.
+        Method                   Type     Reprojection RMSE ↓                Albedo Reconstruction
+                                        Albedo Metallic Roughness PSNR↑ SSIM↑ LPIPS↓ RMSE↓
+        DiffusionRenderer [10]   2D     0.100       0.122       0.108   15.75   0.714       0.310    0.174
+        DNF-Intrinsic [11]       2D     0.122       0.183       0.147   14.37   0.703       0.303    0.209
+        MVInverse [9]            2D     0.044       0.056       0.038   19.83   0.771       0.268    0.108
+        MVInverse* [9]           2D     0.037       0.051       0.034   20.48   0.798       0.247    0.101
+        Ours                     3D     0.039       0.041       0.025   19.84   0.783       0.269    0.109
+
+MVInverse model, it achieves performance comparable to the original MVInverse while providing an
+explicit 3D representation. This enables improved cross-view consistency and novel-view rendering
+capabilities. As shown in Figure 3, our model achieves comparable reconstruction quality to 2D
+baselines, while avoiding baking reflections into the albedo and producing finer-grained details.
+For cross-view consistency evaluation, we use the Structured3D dataset, which provides ground-truth
+albedo maps, depth maps, and camera parameters for each scene. Since the dataset does not contain
+smooth camera trajectories, we apply a depth-reprojection-based view selection strategy with an
+overlap threshold of 0.5, and evaluate on the first 251 scenes. Quantitative comparisons are reported
+in Table 3. We do not use InteriorVerse for consistency evaluation, as the COLMAP-estimated camera
+poses introduce reprojection errors that can affect the reliability of the consistency metrics.
+Additionally, Figure 5 visualizes the prediction from view 1 warped into view 0, together with the
+corresponding error maps. Existing 2D-based methods exhibit noticeable inconsistencies across
+views, particularly around reflective surfaces and bright highlights. In contrast, our method produces
+more consistent predictions due to its unified 3D Gaussian representation. The improvement is
+especially pronounced for metallicity and roughness, which are more challenging to infer from RGB
+images and benefit from stronger multi-view aggregation.
+We further evaluate albedo reconstruction quality, demonstrating that our model does not simply
+overfit to the InteriorVerse dataset, but instead learns a more generalizable material representation.
+
+4.2   Novel view synthesis
+
+We demonstrate scene reconstruction and novel-view synthesis on the RealEstate10K [30] dataset
+in Figure 4 and the DL3DV [31] dataset in Figure 6, with additional examples provided in the
+supplementary material (Figure 12). Our method produces plausible and view-consistent albedo
+decompositions on unseen real-world indoor scenes.
+Although trained using only two input views, our model can generalize to a larger number of inputs at
+inference time, as shown in the four-view DL3DV example in Figure 6 and Figure 13. Nevertheless,
+artifacts may be more significant in more challenging multi-view settings with errors introduced by
+input poses or depth estimation.
+
+4.3   Ablations
+Dual-branch fusion. As the first feed-forward framework for scene reconstruction with intrinsic
+materials, we additionally construct naive 3D baselines by combining existing components. Specif-
+
+
+                                                            7
+                          Ours                                         MVInverse
+            View 0     Warp 1→0          Error           View 0        Warp 1→0          Error
+
+ Albedo
+ Metallic
+Roughness
+
+
+
+
+                     DiffusionRenderer                               DNF-Intrinsic
+            View 0      Warp 1→0         Error           View 0       Warp 1→0           Error
+ Albedo
+ Metallic
+Roughness
+
+
+
+
+Figure 5: Multi-view material consistency on a scene from Structured3D. For each method, the figure
+shows prediction at view 0, the prediction from view 1 warped into view 0 using ground-truth depth
+and pose, and the per-pixel error between them. See Supp. Figure 16 for additional examples.
+                     Input views                                  Novel View Albedo
+
+
+
+
+Figure 6: Generalization to a real-world DL3DV scene with four input views. The first two columns
+show input views, and the last two columns show albedo renderings at novel viewpoints interpolated
+between the inputs.
+
+
+ically, we use MVInverse [9] to predict per-view material maps and ReSplat [16] to predict depth
+and Gaussian geometry, and directly assign the predicted material maps to Gaussian primitives. We
+consider two variants. In the first, MVInverse is frozen while only ReSplat is fine-tuned to predict
+Gaussian parameters. In the second, both MVInverse and ReSplat are jointly fine-tuned. Results
+are reported in Table 4. Our unified architecture consistently outperforms both baselines across
+all material factors. Furthermore, our design removes redundant backbone networks, substantially
+reducing model complexity while demonstrating that a single architecture can jointly solve geometry
+reconstruction and material estimation.
+
+
+                                                 8
+Figure 7: Material/lighting editing on an Infinigen scene. First row Infinigen scene, in second row
+RealEstate10K example. Order of images: input image (1), reconstruction under gt light for Infinigen
+and our selected light for RealEstate10K (2), relighting with colored lamp (3), increased roughness
+(4) and metallic (5) of all objects to maximum value.
+Table 4: Ablation study of 3D model design on InteriorVerse dataset using 2 input views per scene. *
+denotes fine-tuned network.
+      Method                  Type              Albedo                Metallic Roughness        Normal
+                                     PSNR↑ SSIM↑ LPIPS↓ RMSE↓ RMSE↓            RMSE↓       Cosine Similarity↑
+      MVInverse + Resplat*    3D     20.83   0.860   0.234   0.1011   0.1041    0.1291          0.9582
+      MVInverse* + Resplat*   3D     21.86   0.873   0.212   0.0901   0.1011    0.1283          0.9607
+      Ours                    3D     22.18   0.873   0.203   0.0883   0.0993    0.1254          0.9609
+
+Normal prediction. We further study the design choice of explicitly predicting Gaussian normals.
+Among several alternatives, we find that using a dedicated normal prediction head yields the best
+performance. Additional details are provided in Supp. A.3.
+
+4.4     Applications.
+
+RGB reconstruction, relighting and material change. As an application scenario, we demonstrate
+that the predicted material properties can be used for relighting and material editing. To this end,
+we implement a simple point-light rendering simulation based on a standard BRDF shader [32].
+We evaluate this setup on synthetic scenes generated with the Infinigen [29] framework, as well
+as on real-world scenes from RealEstate10K. As shown in Figure 7, our method enables realistic
+modifications of scene appearance under novel lighting conditions. Such capabilities are valuable
+for downstream applications including movies, games, and interactive virtual environments, where
+relighting under spatially varying illumination is essential.
+Potential for feed-forward scene reconstruction methods. Our representation also highlights the
+potential of intrinsic-material-based scene representations for future feed-forward reconstruction
+methods. Existing feed-forward approaches typically model appearance using spherical harmonics
+coefficients attached to each Gaussian primitive. In practice, these representations often smooth out or
+underfit high-frequency view-dependent effects such as specular highlights, resulting in appearance
+closer to view-independent RGB colors. In contrast, our method explicitly predicts physically
+meaningful, view-independent material parameters that can be rendered under novel illumination in a
+physically grounded manner. This representation provides greater flexibility and stronger potential
+for high-quality RGB reconstruction and relighting. We support this observation with examples on
+both synthetic scenes (Figure 10) and real-world scenes (Figure 11).
+
+
+5     Conclusion
+
+We present InvSplat, a feed-forward model for scene reconstruction with material estimation from
+multi-view images. By estimating material parameters (albedo, roughness, metallicity) together
+with the geometry of each Gaussian primitive, our method achieves high-quality, view-consistent
+materials and enables novel-view synthesis of material maps. Experimental results on synthetic and
+real-world data demonstrate strong performance and support applications such as relighting and
+material editing.
+
+
+                                                         9
+References
+ [1] Zhihao Liang, Qi Zhang, Ying Feng, Ying Shan, and Kui Jia. Gs-ir: 3d gaussian splatting for inverse
+     rendering. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 21644–21653, 2024.
+
+ [2] Chih-Hao Lin, Jia-Bin Huang, Zhengqin Li, Zhao Dong, Christian Richardt, Tuotuo Li, Michael Zollhöfer,
+     Johannes Kopf, Shenlong Wang, and Changil Kim. Iris: Inverse rendering of indoor scenes from low
+     dynamic range images. In CVPR, 2025.
+
+ [3] Xiuming Zhang, Pratul P Srinivasan, Boyang Deng, Paul Debevec, William T Freeman, and Jonathan T
+     Barron. Nerfactor: Neural factorization of shape and reflectance under an unknown illumination. ACM
+     Transactions on Graphics (ToG), 40(6):1–18, 2021.
+
+ [4] Dejan Azinovic, Tzu-Mao Li, Anton Kaplanyan, and Matthias Nießner. Inverse path tracing for joint
+     material and lighting estimation. In Proceedings of the IEEE/CVF conference on computer vision and
+     pattern recognition, pages 2447–2456, 2019.
+
+ [5] Mark Boss, Raphael Braun, Varun Jampani, Jonathan T Barron, Ce Liu, and Hendrik Lensch. Nerd:
+     Neural reflectance decomposition from image collections. In Proceedings of the IEEE/CVF International
+     Conference on Computer Vision, pages 12684–12694, 2021.
+
+ [6] Zhengqi Li and Noah Snavely. Learning intrinsic image decomposition from watching the world. In
+     Proceedings of the IEEE conference on computer vision and pattern recognition, pages 9039–9048, 2018.
+
+ [7] Zhengqin Li, Mohammad Shafiei, Ravi Ramamoorthi, Kalyan Sunkavalli, and Manmohan Chandraker.
+     Inverse rendering for complex indoor scenes: Shape, spatially-varying lighting and svbrdf from a single
+     image. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages
+     2475–2484, 2020.
+
+ [8] Jingsen Zhu, Fujun Luan, Yuchi Huo, Zihao Lin, Zhihua Zhong, Dianbing Xi, Rui Wang, Hujun Bao, Jiaxi-
+     ang Zheng, and Rui Tang. Learning-based inverse rendering of complex indoor scenes with differentiable
+     monte carlo raytracing. In Siggraph asia 2022 conference papers, pages 1–8, 2022.
+
+ [9] Xiangzuo Wu, Chengwei Ren, Jun Zhou, Xiu Li, and Yuan Liu. Mvinverse: Feed-forward multi-view
+     inverse rendering in seconds. arXiv preprint arXiv:2512.21003, 2025.
+
+[10] Ruofan Liang, Zan Gojcic, Huan Ling, Jacob Munkberg, Jon Hasselgren, Zhi-Hao Lin, Jun Gao, Alexander
+     Keller, Nandita Vijaykumar, Sanja Fidler, and Zian Wang. Diffusionrenderer: Neural inverse and forward
+     rendering with video diffusion models. In Proceedings of the IEEE/CVF Conference on Computer Vision
+     and Pattern Recognition (CVPR), June 2025.
+
+[11] Rongjia Zheng, Qing Zhang, Chengjiang Long, and Wei-Shi Zheng. Dnf-intrinsic: Deterministic noise-free
+     diffusion for indoor inverse rendering. arXiv preprint arXiv:2507.03924, 2025. Accepted to ICCV 2025.
+
+[12] Yifan Liu, Zhiyuan Min, Zhenwei Wang, Junta Wu, Tengfei Wang, Yixuan Yuan, Yawei Luo, and
+     Chunchao Guo. Worldmirror: Universal 3d world reconstruction with any-prior prompting. arXiv preprint
+     arXiv:2510.10726, 2025.
+
+[13] Haotong Lin, Sili Chen, Jun Hao Liew, Donny Y. Chen, Zhenyu Li, Guang Shi, Jiashi Feng, and Bingyi
+     Kang. Depth anything 3: recovering the visual space from any views. arXiv preprint arXiv:2511.10647,
+     2025.
+
+[14] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny.
+     Vggt: Visual geometry grounded transformer. In Proceedings of the IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition, 2025.
+
+[15] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric
+     3d vision made easy. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition (CVPR), pages 20697–20709, June 2024.
+
+[16] Haofei Xu, Daniel Barath, Andreas Geiger, and Marc Pollefeys. Resplat: Learning recurrent gaussian
+     splats. arXiv preprint arXiv:2510.08575, 2025.
+
+[17] Haofei Xu, Songyou Peng, Fangjinhua Wang, Hermann Blum, Daniel Barath, Andreas Geiger, and Marc
+     Pollefeys. Depthsplat: Connecting gaussian splatting and depth. In Proceedings of the Computer Vision
+     and Pattern Recognition Conference, pages 16453–16463, 2025.
+
+
+                                                    10
+[18] Peter Kocsis, Lukas Höllein, and Matthias Nießner. Intrinsic image fusion for multi-view 3d material
+     reconstruction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+     (CVPR), 2026.
+
+[19] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, George Drettakis, et al. 3d gaussian splatting for
+     real-time radiance field rendering. ACM Trans. Graph., 42(4):139–1, 2023.
+
+[20] David Charatan, Sizhe Lester Li, Andrea Tagliasacchi, and Vincent Sitzmann. pixelsplat: 3d gaussian
+     splats from image pairs for scalable generalizable 3d reconstruction. In Proceedings of the IEEE/CVF
+     conference on computer vision and pattern recognition, pages 19457–19467, 2024.
+
+[21] Yuedong Chen, Haofei Xu, Chuanxia Zheng, Bohan Zhuang, Marc Pollefeys, Andreas Geiger, Tat-Jen
+     Cham, and Jianfei Cai. Mvsplat: Efficient 3d gaussian splatting from sparse multi-view images. In
+     European conference on computer vision, pages 370–386. Springer, 2024.
+
+[22] Botao Ye, Sifei Liu, Haofei Xu, Xueting Li, Marc Pollefeys, Ming-Hsuan Yang, and Songyou Peng. No
+     pose, no problem: Surprisingly simple 3d gaussian splats from sparse unposed images. arXiv preprint
+     arXiv:2410.24207, 2024.
+
+[23] Kaiming He, Xiangyu Zhang, Shaoquing Ren, and Jian Sun. Deep residual learning for image recognition.
+     2016 ieee conf. In Comput. Vis. Pattern Recognit, pages 770–778, 2015.
+
+[24] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov, Pierre
+     Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. Dinov2: Learning robust visual
+     features without supervision. arXiv preprint arXiv:2304.07193, 2023.
+
+[25] René Ranftl, Katrin Lasinger, David Hafner, Konrad Schindler, and Vladlen Koltun. Towards robust
+     monocular depth estimation: Mixing datasets for zero-shot cross-dataset transfer. IEEE Transactions on
+     Pattern Analysis and Machine Intelligence (TPAMI), 2020.
+
+[26] Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip HS Torr, and Vladlen Koltun. Point transformer. In
+     Proceedings of the IEEE/CVF international conference on computer vision, pages 16259–16268, 2021.
+
+[27] Ruicheng Wang, Sicheng Xu, Cassie Dai, Jianfeng Xiang, Yu Deng, Xin Tong, and Jiaolong Yang.
+     Moge: Unlocking accurate monocular geometry estimation for open-domain images with optimal training
+     supervision. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 5261–5271,
+     2025.
+
+[28] Jia Zheng, Junfei Zhang, Jing Li, Rui Tang, Shenghua Gao, and Zihan Zhou. Structured3d: A large
+     photo-realistic dataset for structured 3d modeling. In European Conference on Computer Vision, pages
+     519–535. Springer, 2020.
+
+[29] Alexander Raistrick, Lingjie Mei, Karhan Kayan, David Yan, Yiming Zuo, Beining Han, Hongyu Wen,
+     Meenal Parakh, Stamatis Alexandropoulos, Lahav Lipson, Zeyu Ma, and Jia Deng. Infinigen indoors:
+     Photorealistic indoor scenes using procedural generation. In Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition (CVPR), pages 21783–21794, June 2024.
+[30] Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe, and Noah Snavely. Stereo magnification:
+     Learning view synthesis using multiplane images. arXiv preprint arXiv:1805.09817, 2018.
+
+[31] Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin, Kun Wan, Lantao Yu, Qianyu Guo, Zixun Yu,
+     Yawen Lu, et al. Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 22160–22169, 2024.
+
+[32] Brent Burley and Walt Disney Animation Studios. Physically-based shading at disney. In Acm siggraph,
+     volume 2012, pages 1–7. vol. 2012, 2012.
+
+[33] Johannes L Schonberger and Jan-Michael Frahm. Structure-from-motion revisited. In Proceedings of the
+     IEEE conference on computer vision and pattern recognition, pages 4104–4113, 2016.
+
+[34] Steven G Parker, James Bigler, Andreas Dietrich, Heiko Friedrich, Jared Hoberock, David Luebke, David
+     McAllister, Morgan McGuire, Keith Morley, Austin Robison, et al. Optix: a general purpose ray tracing
+     engine. Acm transactions on graphics (tog), 29(4):1–13, 2010.
+
+
+
+
+                                                     11
+A     Supplementary
+
+A.1   Architecture details
+
+Although the geometry and intrinsic branches of InvSplat each originate from a different pretrained
+network — ReSplat [16] and MVInverse [9], respectively — the two branches are not run indepen-
+dently. Because the decoder heads see features different from those its pretrained version was trained
+on, the performance of each of them is initially degraded; joint end-to-end fine-tuning then recovers
+it.
+
+Translator features feed the depth pipeline. The four features from different layers
+{Fmℓ }ℓ∈{3,8,13,17} produced by the Multi-view Intrinsic Translator are projected by linear layers and
+concatenated with the geometry-branch features as the “mono” input of the depth pipeline, replacing
+the multi-scale features that ReSplat’s original depth pipeline takes from intermediate layers of its
+own DINOv2 backbone.
+
+Geometry ResNet feeds the Albedo head. MVInverse originally fuses a separate frozen ResNeXt-
+101 image pyramid as multi-scale residual features into its albedo DPT head. We remove this
+ResNeXt entirely and feed the geometry branch’s ResNet pyramid into the albedo head instead,
+through a learned 1×1 convolutional channel adaptor that matches the ResNet channel widths to those
+expected by the DPT. The metallicity, roughness, and normal heads operate on translator features
+only and add no further coupling.
+
+Depth head. Following ReSplat, the depth head is a UNet whose input concatenates the cost volume
+Ci , the multi-scale ResNet pyramid, the Multi-view Geometry Encoder features, and the translator
+features. The UNet regresses a softmax distribution over a fixed set of inverse-depth candidates, from
+which we read out a per-pixel depth di ; a DPT residual module then upsamples this depth map to
+input resolution.
+
+Material and Normal heads. Following MVInverse, the three material heads are DPT decoders
+that consume the four translator features {Fm
+                                            ℓ }. The albedo head additionally fuses the multi-scale
+ResNet pyramid as residual evidence via the channel adaptor described above, while the metallicity
+and roughness heads use translator features alone.
+
+Gaussian shape head. The Gaussian shape head, following ReSplat, predicts the per-primitive
+rotation qj , scale sj , and opacity σj . Its input is a per-pixel feature concatenation comprising the
+unshuffled image patches, the predicted depth, the cost-volume match probability, and the fused
+multi-scale features; this representation is lifted to 3D using the predicted depth and refined with a
+Point Transformer [26] that aggregates information from k-nearest spatial neighbours. A small MLP
+then maps the resulting 3D-aware features to the per-primitive parameters.
+
+A.2   Implementation Details
+
+Dataset. InteriorVerse provides ground-truth material maps (albedo/metallic/roughness) and geom-
+etry maps (depth/normal). Since it does not provide camera poses and views are sampled randomly
+within scenes (rather than along a smooth video trajectory), we first estimated camera poses using
+COLMAP [33], and then selected views with large overlap (>0.4) via depth reprojection. As the
+dataset is very sparse (between 2 and 80 views per scene) and indoor scenes also contain large
+textureless regions, we found COLMAP estimation can be noisy and incomplete. To mitigate this,
+we ran ReSplat to select triplets with good RGB reconstruction quality (PSNR > 23) for training. For
+testing, we used one pair per scene with the largest overlap, without any ReSplat filtering, to avoid
+introducing selection bias when comparing to 2D methods. We followed the InteriorVerse train/test
+split. After all filtering, we obtained 13k triplets for training and 137 pairs for testing.
+Following several of our baselines, as InteriorVerse images contain noise from dataset rendering, we
+run the OptiX [34] denoiser on the input RGB images and use tone-mapping. We found that each
+baseline performs better with either the original input or the denoised input, and we report the best
+results for each method.
+
+
+                                                  12
+Training details. All models are trained with AdamW (weight decay 0.01) using linear warmup
+followed by cosine annealing. For the MVInverse fine-tuning experiment, we fine-tune the DINOv2
+backbone, decoder, and the normal and material heads with LR = 1e−5 and 500 warmup steps. For
+our 3D experiments, we train the DINOv2 backbone and the Multi-view Intrinsic Translator with
+LR = 1e−5 and 1000 warmup steps, and the remaining components with LR = 1e−6 and 1000
+warmup steps. For the loss weights, we use w = 1.0 for the L1 albedo loss, w = 0.5 for the L1
+metallic and L1 roughness losses, w = 1.0 for the L1 MoGe-style [27] depth loss, w = 1.0 for
+the L1 normal consistency loss, and w = 1.0 for the per-material LPIPS losses on albedo, metallic,
+and roughness. As metallic and roughness maps are one-channel, we replicate them three times to
+compute LPIPS.
+
+A.3   Normal ablation.
+
+We also ablate the normal prediction branch and test two
+other variants: one in which we directly compute normals
+from depth using finite differences, and another in which
+we predict normals from the Gaussian head together with
+scales and opacities and then render them. In all experi-
+ments, we used a normal consistency loss with the ground
+truth. In both variants, the model struggles to separate
+geometry from appearance and leaks texture details into               Input          Normals from depth
+the normals, which harms relighting quality. Results are
+shown in Figure 8. We additionally tried adding a nor-
+mal smoothness loss, but this did not help much. This
+shows that pre-training also helps when learning Gaussian
+normals jointly with material factors.
+
+A.4 View-dependent effects modelling                            Normal Head (Ours)     Gaussian Head
+of feed-forward scene reconstruction methods
+                                                           Figure 8: Alternative derivation for gaus-
+Given sparse multi-view RGB images, our method recon- sian normals. First row: input image,
+structs geometry together with intrinsic material factors normals derived from depth. Second
+(albedo, metallic, roughness). We then render the recon- row: rendered normals, left is separate
+structed Gaussians under the ground-truth light configura- head for prediction, right is prediction in
+tion from Infinigen to produce relit RGB images, without gaussian head.
+per-scene optimization. In addition, we show that our method allows us to change the light and
+materials of objects.
+When ground-truth lighting is available (as in our Infinigen scenes), this allows the renderer to
+reproduce view-dependent effects by construction, leading to more faithful relit RGB renderings and
+improved consistency across novel viewpoints. We provide an example on synthetic scene generated
+with Infinigen in Figure 10. In this example, we knew the light configuration and used it to render
+the reconstructed Gaussians, which allows us to faithfully reproduce view-dependent effects such as
+specular highlights. In contrast, AnySplat and WorldMirror, which predict RGB appearance directly,
+struggle to capture these effects and tend to bake them into color. ReSplat has similar effect, although
+it it less visible than on other methods. Additionally, we show a similar effect on real-world scenes in
+Figure 11, where we don’t have access to ground-truth lighting. In this case, we used a point light
+source and placed it in the middle of the scene. Although our model doesn’t reproduce the original
+RGB image, we can see realistic highlight movements, while other methods struggle to capture them.
+This shows that our model can learn to separate view-dependent effects from albedo, producing more
+realistic relighting results.
+
+A.5   Limitations
+
+Our model inherits the limitations of 2 domains. From
+the feed-forward scene reconstruction side, if poses are
+estimated incorrectly, our reconstruction will produce cor-
+rupted results, as illustrated in Figure 9. Also, performance
+on more views and different resolutions is limited. Addi-
+tionally, as our feed-forward model is non-generative, it
+                                                                     View 1               View 2
+                                                   13              Figure 9: Failure case example.
+              GT                Ours           ReSplat          WorldMirror          AnySplat
+
+
+
+ View 1
+ View 2
+
+
+
+
+Figure 10: RGB reconstruction comparison on a synthetic Infinigen scene across two views (rows)
+and methods (columns). Our method renders relit RGB by composing predicted material factors with
+the ground-truth Infinigen light configuration. For Gaussian without explicitly modeling material, the
+view-dependent effect is limited.
+
+              GT            Ours (relight)     ReSplat          WorldMirror          AnySplat
+ View 1
+ View 2
+ View 3
+ View 4
+
+
+
+
+Figure 11: RGB reconstruction comparison on DL3DV across four views (rows) and methods
+(columns). Although we don’t estimate scene lighting and can’t produce exactly the same RGB
+reconstruction, our method can disentangle light from appearance and our highlights move with view
+change, while RGB-based methods struggle with this.
+
+
+lacks the ability to reconstruct unseen regions of a scene
+with detailed geometry and texture.
+
+A.6       Broader Impacts
+
+Our feed-forward inverse rendering model significantly accelerates 3D content creation, democra-
+tizing asset generation for AR/VR while reducing the heavy energy consumption associated with
+traditional per-scene optimization. However, this increased accessibility also lowers the barrier
+for malicious applications, such as generating deceptive 3D media or unauthorized replication of
+intellectual property. Additionally, our model may inherit biases from its training data. Mitigating
+these risks requires ongoing community efforts in 3D provenance and diverse dataset curation.
+
+A.7       Real-world generalizability
+
+We provide results of inverse rendering of our model on DL3DV dataset with 2 input views in
+Figure 12 and with 4 input views in Figure 13.
+
+
+
+
+                                                 14
+                Input   Albedo          Metallic        Roughness        Normal           Depth
+View 2 View 1
+Novel
+View 2 View 1
+Novel
+View 2 View 1
+Novel
+
+
+
+
+Figure 12: Qualitative results on three DL3DV scenes with 2 input views each. For every scene the
+first two rows show the predicted intrinsics (albedo, metallic, roughness, normal, depth) at the two
+input views. The third row shows novel-view synthesis results at an interpolated viewpoint between
+them.
+
+
+
+
+                                                   15
+                              Input   Albedo   Metallic        Roughness   Normal           Depth
+View 4 View 3 View 2 View 1
+Novel
+View 4 View 3 View 2 View 1
+Novel
+View 4 View 3 View 2 View 1
+Novel
+
+
+
+
+Figure 13: Qualitative results on three DL3DV scenes with 4 input views each. For every scene the
+first four rows show the predicted intrinsics (albedo, metallic, roughness, normal, depth) at the four
+input views. The fifth row shows novel-view synthesis results at an interpolated viewpoint between
+the first two input views.
+
+
+
+
+                                                          16
+         Input      Albedo GT         Ours        MVInverse     DiffRenderer DNF-intrinsic
+View 1
+View 2
+View 1
+View 2
+View 1
+View 2
+
+
+
+
+Figure 14: Qualitative albedo comparison on InteriorVerse. Each row shows one view of a scene.
+Columns: input RGB, albedo ground truth, and predicted albedo from different methods.
+
+
+
+
+                                             17
+            Input       GT            Ours         MVInverse    DiffRenderer DNF-intrinsic
+
+ Metallic
+Roughness
+ Metallic
+Roughness
+ Metallic
+Roughness
+
+
+
+
+Figure 15: Qualitative metallic and roughness comparison on InteriorVerse for the same 3 scenes
+as Figure 14. For each scene we show 2 metallic rows followed by 2 roughness rows (one row per
+view). Columns: input RGB, ground truth, and predictions from each method.
+
+
+
+
+                                              18
+                               Ours                                  MVInverse
+                 View 0     Warp 1→0          Error        View 0    Warp 1→0       Error
+
+
+
+
+      Albedo
+      Metallic
+     Roughness
+
+
+
+
+                          DiffusionRenderer                         DNF-Intrinsic
+                 View 0      Warp 1→0         Error        View 0    Warp 1→0       Error
+      Albedo
+      Metallic
+     Roughness
+
+
+
+
+                               Ours                                  MVInverse
+                 View 0     Warp 1→0          Error        View 0    Warp 1→0       Error
+      Albedo
+      Metallic
+     Roughness
+
+
+
+
+                          DiffusionRenderer                         DNF-Intrinsic
+                 View 0      Warp 1→0         Error        View 0    Warp 1→0       Error
+      Albedo
+      Metallic
+     Roughness
+
+
+
+
+Figure 16: Multi-view consistency on additional examples from Structured3D for albedo, metallic
+and roughness. For each method, the figure shows the prediction at view 0, the prediction from view
+1 warped into view 0 using ground-truth depth and pose, and the per-pixel error between them.
+
+                                                      19
+

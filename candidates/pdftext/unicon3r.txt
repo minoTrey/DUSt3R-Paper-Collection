@@ -1,0 +1,1015 @@
+                                          UniCon3R: Unified Contact-aware 4D Human-Scene
+                                               Reconstruction from Monocular Video
+
+
+                                                               Tanuj Sur1 Shashank Tripathi2 Nikos Athanasiou2
+                                                           Ha Linh Nguyen1 Kai Xu1 Michael J. Black2 Angela Yao1
+                                                                           1
+                                                                             National University of Singapore
+                                                            2
+                                                              Max Planck Institute for Intelligent Systems, Tübingen, Germany
+arXiv:2604.19923v2 [cs.CV] 11 May 2026
+
+
+
+
+                                                                 {tanujsur,halinh,kxu,ayao}@comp.nus.edu.sg
+                                                               {stripathi,nathanasiou,black}@tuebingen.mpg.de
+
+
+
+                                                                                        Abstract
+
+                                                     We introduce UniCon3R, a unified feed-forward framework for online human-
+                                                     scene 4D reconstruction from monocular video. Current feed-forward human-scene
+                                                     reconstruction methods suffer from artifacts, where bodies float above the ground
+                                                     or penetrate parts of the scene. A key reason is the lack of effective interaction
+                                                     modelling between the human and the environment. Our goal is to exploit contact
+                                                     between the human and the scene during inference to actively improve the human
+                                                     mesh reconstruction. To that end, we explicitly model interaction by inferring
+                                                     4D contact from the human pose and scene geometry and use the contact as a
+                                                     corrective cue for generating the pose. This enables UniCon3R to jointly recover
+                                                     scene geometry and spatially aligned 4D humans within the scene. Experiments
+                                                     on standard human-centric video benchmarks show that UniCon3R outperforms
+                                                     state-of-the-art baselines on physical plausibility and global human motion estima-
+                                                     tion while preserving fast, feed-forward inference speeds. The results validate our
+                                                     central claim: contact serves as a powerful internal prior, thus establishing a new
+                                                     paradigm for physically grounded joint human-scene reconstruction. Source code
+                                                     and models will be released upon acceptance.
+
+
+
+                                         1    Introduction
+
+                                         Recent work on 3D and 4D human-scene reconstruction [7, 20, 22, 26, 45, 48, 51] from monocular
+                                         images and videos can recover human meshes and their surrounding environments. Unified feed-
+                                         forward methods [7, 20, 51] are especially promising because they predict global human motion,
+                                         dense scene geometry, and camera trajectories within a single forward pass, enabling online 4D
+                                         reconstruction. However, joint scene reconstruction and Human Mesh Recovery (HMR) [2, 5, 10, 12,
+                                         18, 19, 33, 36] in a world coordinate frame does not by itself guarantee physical plausibility [37, 39,
+                                         48]. Specifically, a body may be accurately localized in 3D yet still float above the floor, penetrate
+                                         objects, or slide over supporting surfaces. In everyday human-scene interaction, physical coupling
+                                         with the environment is mediated by contact: the body is supported by scene surfaces and interacts
+                                         with objects through local contact regions. We posit that the 3D contacts between the human and the
+                                         scene provide important constraints that could improve the joint reconstruction.
+                                         Unfortunately, contact estimation is inherently ill-posed because the contact areas are often occluded
+                                         in 2D images [8, 11, 35]. Existing unified feed-forward methods [7, 20, 22] handle the physical
+                                         interaction between the human and the scene implicitly, as the human reconstruction branch does not
+                                         leverage scene-grounded interaction cues during inference. Resulting reconstructions exhibit artifacts
+                                         such as floating feet, penetrations, or inconsistent dynamics, as shown in Fig. 1(a). This leaves a clear
+                                         gap between merely reconstructing a person in a scene and physically plausible reconstructions.
+                                         Preprint.
+Figure 1: Contact improves unified 4D human-scene reconstruction. (a) Human3R [7] meshes
+are misaligned, with the feet penetrating the ground (dashed yellow circles). UniCon3R predicts
+dense per-vertex contact (green inset) and uses it to improve body-scene alignment. (b) Amortized
+runtime versus global human motion error . UniCon3R achieves the state-of-the-art on the RICH
+dataset [14]; test-time optimization further reduces the error, but also reduces runtime efficiency.
+
+To address this gap, we introduce UniCon3R, a contact-aware framework for unified feed-forward 1
+4D human-scene reconstruction. Our key insight is to treat contact as an internal feedback signal that
+interacts with both the human and scene reconstruction branches, enabling more accurate human
+localization within the forward pass. Building upon the prompting mechanisms of CUT3R [42] and
+Human3R [7], we introduce a scene-aware contact prompt that gathers physical cues from the current
+frame, recurrent scene memory, and local scene geometry. The resulting contact prompt is decoded
+jointly with the human and scene tokens, allowing contact cues to influence the latent representation
+used for final human mesh reconstruction.
+In principle, a model that predicts contact should help improve the body’s world-frame placement [8,
+48]. However, we find that this alone is not sufficient. As our experiments show, such a model may
+correctly identify where contact is likely to occur, yet still fail to localize the body accurately. Thus,
+the key challenge is to ensure that predicted contact actively shapes the recovered human mesh within
+the unified feed-forward pipeline [47, 48].
+To this end, rather than using contact as an auxiliary prediction [11, 35], we feed the inferred contact
+cues back into the HMR branch via a contact-guided latent refinement. This allows the refined
+contact token to produce a residual update to the human latent representation during the forward pass.
+By internalizing contact, UniCon3R preserves the simplicity and streaming capabilities of unified
+feed-forward inference Fig. 1(b) while ensuring the recovered human mesh is physically plausible in
+scene-afforded constraints. Notably, incorporating contact into 4D human-scene reconstruction also
+boosts contact estimation accuracy, highlighting the strong synergy between the two tasks.
+We evaluate UniCon3R on the challenging human-centric video benchmarks RICH [14], EMDB [17],
+3DPW [41] and SLOPER4D [9], focusing on physical plausibility, global human motion estimation
+and local human mesh recovery. Our results show that internalizing contact as a refinement signal
+reduces penetration by 74%, and improves WA-MPJPE metric by 16% on the RICH [14] dataset,
+while preserving online feed-forward inference. In addition, on RICH [14], UniCon3R improves
+contact recall over DECO [35] while achieving higher F1 and lower geometric contact error.
+In summary, our contributions are as follows: (i) We introduce a new design paradigm for unified feed-
+forward 4D human-scene reconstruction by modeling human-scene contact as an internal corrective
+signal. (ii) We propose UniCon3R, a novel contact-aware framework that internalizes human-scene
+interaction within unified feed-forward reconstruction through a scene-aware contact prompt and
+contact-guided latent refinement. (iii) We show that actively internalizing contact improves physical
+plausibility, global human motion and local human mesh recovery over existing state-of-the-art
+feed-forward methods, while preserving competitive streaming efficiency.
+
+2     Related Work
+3D Human Reconstruction from monocular views has evolved from optimization-based fitting
+to feed-forward regression. Early methods such as SMPLify [4] fit parametric body models such as
+    1 Following CUT3R [42], we use feed-forward to mean direct online inference without per-scene optimization or global
+
+alignment, even though the model maintains a recurrent persistent state.
+
+
+                                                             2
+SMPL [23] or SMPL-X [28] to image evidence. More recent HMR methods directly regress body
+parameters from images or videos [5, 10, 12, 16, 21, 27, 36, 43, 46, 50], improving robustness and
+accuracy under challenging viewpoints, occlusions, and motion. Some recent methods also estimate
+global human motion in world coordinates from monocular video, but typically without explicitly
+modeling physical interaction with the surrounding 3D scene. In contrast, our goal is not only to
+recover a plausible human body, but to refine it within a jointly reconstructed metric scene, where
+scene-grounded contact acts as an internal corrective cue for the final human estimate.
+3D Human-Scene Contact provides direct evidence of how the body is supported by the environment.
+RICH [14] introduced dense full-body human-scene contact labels by combining multiview human
+capture with scanned 3D scenes, and proposed BSTRO for vertex-level body-scene contact estimation
+from images. DECO [35] predicts dense 3D contact on the SMPL body from in-the-wild images
+using body-part and scene-context attention. InteractVLM [11] estimates contact on both humans
+and objects by lifting 2D foundation-model predictions into 3D. PICO [8] further studies dense body-
+object contact correspondences and uses them for optimization-based human-object reconstruction.
+However, contact is typically treated either as a separate prediction target or as a signal used only
+in a later fitting stage. For example, JOSH [22] uses BSTRO [14] as an off-the-shelf contact model
+to refine body pose during motion estimation. In contrast, we incorporate contact directly into the
+feed-forward reconstruction pathway.
+Joint Human-Scene Reconstruction recovers people together with the surrounding 3D environment.
+Early methods often rely on optimization and are restricted to static or multi-view settings [26, 29, 30].
+Later monocular methods couple human priors with scene geometry. SyncHMR [52] uses SMPL-
+based constraints for metric-scale reconstruction, while JOSH [22] initializes from dense scene
+reconstruction and human mesh recovery, then optimizes scene geometry, camera poses, and human
+motion with contact constraints. These methods can improve body-scene consistency, but require
+expensive per-scene optimizations.
+Recent methods reduce this cost with feed-forward or optimization-free designs. JOSH3R [22] distills
+JOSH pseudo-labels into an optimization-free model. Human3R [7] adapts CUT3R [42] with visual
+prompt tuning to predict humans, scenes, and camera motion in a unified feed-forward model while
+keeping the scene backbone frozen. UniSH [20] combines scene-reconstruction and HMR priors to
+recover scene geometry, camera parameters, and metric-scale SMPL bodies in a single forward pass.
+These methods speed up joint reconstruction but human-scene interaction is still implicit, which often
+leads to physically implausible results. Our method models contact explicitly and feeds the contact
+representation back into the HMR pathway before the body regression.
+
+
+
+3   Preliminaries
+
+World-Grounded Motion & 4D Scene Reconstruction. Modeling human-scene interaction requires
+representing the human and camera in a common world coordinate frame. In this work, we adopt
+the SMPL-X [28] human model and express the world-frame body vertices as Vtbody ∈ RV ×3 , with
+Vtbody = SMPL-X(θt , β, αt , Pt ). Here, θt , β, and αt denote the pose, shape, and expression
+parameters of the SMPL-X model. Pcam  t   is the local root translation in the camera frame and Tt is
+the camera pose that maps this local translation into the world frame.
+Our scene reconstruction module builds on CUT3R’s [42] 4D scene reconstruction model. As shown
+in Fig. 2 (top), given an image stream, it maintains a latent scene state St updated at each frame.
+Here, t denotes the frame index. At time step t, the input image is encoded into feature tokens Ft ,
+which interact with the previous state St−1 together with a learnable pose token z ∈ Rc , where c is
+the decoder embedding dimension. This produces updated tokens F′t , z′t , and an updated state St .
+Two separate heads decode camera-frame and world-frame scene pointmaps, Xcam   t   and Xworld
+                                                                                          t    , and
+regresses the camera pose Tt from the updated tokens F′t , z′t .
+4D Human Reconstruction via visual prompting. For reconstructing the human mesh, we follow
+Human3R [7], which extends CUT3R [42] from pure scene reconstruction to joint human-scene
+reconstruction through parameter-efficient Visual Prompt Tuning (VPT) [15]. Rather than modifying
+the frozen CUT3R backbone, Human3R adds a human prompt Ht ∈ RNt ×c where Nt denotes the
+number of detected humans in frame t. As shown in Fig. 2 (middle), we detect human anchors
+
+
+                                                    3
+Figure 2: Overview of UniCon3R. Left: At time t, the Scene and Human branch encodes the
+current frame into image tokens Ft and a human prompt Ht , to interact with the previous state
+St−1 and update the current state St , to predict scene, camera, and human parameters. Our contact
+branch outputs dense vertex-level contact on the SMPL [23] mesh. Right: UniCon3R constructs a
+scene-aware contact prompt Ct (§4.1) from semantic scene context, explicit metric geometry, and a
+temporal momentum term. This gets decoded into a refined contact token C′t which predicts dense
+SMPL contact. It also drives contact-guided latent refinement (§4.2) by producing a residual update
+to the human latent before final SMPL-X regression.
+
+{unt }N                                                                                  u
+      n=1 from the CUT3R image tokens and gather the corresponding human-prior features FHMR,t
+       t
+
+from a frozen Multi-HMR encoder [2].
+The human prompt in the HMR pathway acts as a human-specific query: it self-attends to image
+tokens to aggregate body evidence and cross-attends to the persistent scene state to retrieve temporally
+consistent human information anchored in the world-centered scene context. The interaction can
+be summarized as: [F′t , z′t , H′t ], St = Decoders([Ft , z, Ht ], St−1 ), Yt = Headhuman (H′t ) where
+Yt denotes the predicted SMPL-X [28] parameters. Here, blue denotes frozen modules inherited
+from CUT3R and Human3R, while red denotes learnable modules introduced or fine-tuned in our
+framework. These preliminaries expose the key limitation of Human3R-style unified reconstruction:
+the interaction between F′t and Ht cannot ensure physically grounded reconstruction.
+
+4     UniCon3R
+UniCon3R is a contact-aware framework for online 4D human-scene reconstruction. Contact is
+encoded as an explicit prompt, processed by the same frozen decoder-and-memory pipeline used for
+scene and human reconstruction, and then used to refine the recovered body. The method has two
+components: (1) a scene-aware contact prompt that aggregates interaction evidence from the current
+frame, recurrent scene memory, and local scene geometry, and (2) a contact-guided latent refinement
+mechanism that feeds the refined contact representation back into the HMR pathway before final
+SMPL-X regression [28]. Fig. 2 shows an overview of the framework.
+
+4.1   Contact Prompt Fusion
+
+Semantic Scene Context. Robust contact reasoning requires immediate spatial evidence (e.g.,
+observing a shoe hitting the floor). To recover such cues, we extract two complementary scene
+features, Ucurr = CAcurr (Ht , Ft ) , Umem = CAmem (Ht , St−1 ) where CA(·, ·) denotes cross-
+attention. Here, Ucurr captures visual evidence from the current frame, while Umem retrieves
+persistent object context from the recurrent scene state. We combine these cues through a learned
+
+
+                                                   4
+gate: γt = σ(MLP(Ht ⊕ Ucurr ⊕ Umem )) , Uscene = γt ⊙ Ucurr + (1 − γt ) ⊙ Umem where ⊙ is
+the element-wise multiplication, σ(·) denotes the element-wise sigmoid function, so that γt ∈ [0, 1]c
+acts as a soft gate for balancing current-frame and previous scene context.
+Explicit Metric Geometry. Scene context features alone do not encode metric distances between
+interacting parts explicitly, so we inject local 3D support cues through a geometry token. For
+notational convenience, we write Xt−1 := Xworldt−1 for the previous-frame world-frame pointmap.
+Let unt ∈ R2 denote the current anchor of person n. For each detected human, we encode the local
+geometry around unt into the prompt space:
+                                                                  N
+                           Gt = {MLP(ϕgeo (Xt−1 , unt ))}n=1
+                                                          t
+                                                             ∈ RNt ×c ,                             (1)
+where ϕgeo (Xt−1 , unt ) ∈ R3 pools a local pointmap neighborhood centered at unt . Concretely, we
+construct a fixed-size square window centered at unt and apply RoIAlign [13] to Xt−1 .
+Temporal Momentum. Although realistic 3D contact is temporally coherent, reasoning contact
+from images often tends to be unstable due to strong challenges such as occlusions and depth-scale
+ambiguities. To stabilize interaction reasoning over time, we reuse the contact token from the previous
+frame C′t−1 and project it into the current contact prompt latent space as:
+
+                              Mt = MLP Align C′t−1 ; Nt ∈ RNt ×c ,
+                                                             
+                                                                                                     (2)
+where Align(·; Nt ) keeps the first min(Nt−1 , Nt ) rows of C′t−1 , truncates extra rows when Nt−1 >
+Nt , and appends zero rows when Nt−1 < Nt .
+Fusion. We fuse human, semantic, geometric, and temporal cues to obtain the final contact token
+Ct = MLP(Ht ⊕ Uscene ⊕ Gt ⊕ Mt ) as shown in Fig. 2 (right).
+
+4.2   Contact-Guided Latent Refinement
+
+A contact prompt is only useful if it can influence the final body estimate. Unlike Parallel Readout,
+which predicts contact as an auxiliary output, we use the refined contact prompt C′t to update the
+human latent before final SMPL-X regression as shown in Fig. 2 (bottom). First, the human and the
+contact prompts Ht and Ct are processed together by the frozen 4D decoders (§ Section 3):
+                     [F′t , z′t , H′t , C′t ], St = Decoders([Ft , zt , Ht , Ct ], St−1 ) .         (3)
+
+After interaction with the previous state St−1 , we augment H′t and C′t with the human prior features
+Fu
+ HMR,t obtained from the Multi-HMR encoder as
+
+                           H̃t = H′t ⊕ Fu
+                                        HMR,t ,            C̃t = C′t ⊕ Fu
+                                                                        HMR,t .                     (4)
+
+The refined contact token C̃t is decoded to obtain dense per-vertex contact logits svt and probabilities
+ĉvt on the SMPL mesh (Vs = 6,890 vertices):
+                                                              
+                     ĉvt = σ(svt ) , where svt = Headcontact C̃t ∈ RNt ×6890 .                      (5)
+
+The final body mesh Yt is regressed from a human latent updated by a residual ∆Ht based on C̃t :
+
+                                                                                
+      Yt = Headhuman H̄t ,          where H̄t = H̃t + ∆Ht and ∆Ht = Headresidual C̃t .              (6)
+
+Training Objectives.         The overall objective of UniCon3R Ltotal is the sum of
+L4D , LSMPLX , Lcontact . Here, L4D denotes the 4D reconstruction losses for metric pointmaps,
+camera pose, and appearance consistency inherited from CUT3R [42], while LSMPLX supervises the
+human output Yt using standard SMPL-X [28] parameter, mesh, joint, and reprojection losses [7, 42].
+The contact loss is Lcontact = L3D    c    + λp Lp , with dense vertex-level supervision L3D   c    =
+              v v              v       Nt ×6890
+FocalBCE st , cgt . Here, st ∈ R                 are predicted SMPL [23] contact logits, cvgt are bi-
+nary vertex-level contact labels, and Lp is a part-level contact loss following DECO [35]. Please refer
+to Sup. Mat. (Section B)for training details.
+
+
+                                                       5
+Table 1: Global human motion estimation on RICH [14] and EMDB-2 [17]. Scene denotes 3D
+scene reconstruction, and Contact denotes dense human-scene contact prediction or use. Human3R∗ :
+released checkpoint in our pipeline; Human3R† : same architecture with our training protocol. WA-
+MPJPE, W-MPJPE, and PA-MPJPE are reported in mm; RTE is reported in %. Bold = best within
+feed-forward 4D human-scene reconstruction methods; underlined = second-best.
+                                                          RICH [14]                                EMDB-2 [17]
+Method                    Scene Contact
+                                          WA-MPJPE ↓ W-MPJPE ↓ RTE (%) ↓ PA-MPJPE ↓ WA-MPJPE ↓ W-MPJPE ↓ RTE (%) ↓ PA-MPJPE ↓
+
+JOSH3R [22]                ✓      ✗          190.4      334.9         6.3    –         220.0      661.7      13.1      –
+UniSH [20]                 ✓      ✗          118.1      183.2         4.8   50.0       118.5      270.1      5.8      44.4
+Human3R∗ [7]               ✓      ✗          109.9      184.0         3.3   48.6       118.2      286.1       2.4     38.7
+Human3R† [7]               ✓      ✗           97.5      153.2         2.3   41.4         –          –          –       –
+Parallel Readout (Ours)    ✓       ✓         97.9       153.5         2.3   41.5       160.7      388.3      3.6      50.9
+UniCon3R (Ours)            ✓       ✓         81.5       129.8         1.7   37.6       113.7      285.6      2.3      38.2
+
+
+
+5     Experiments
+
+Datasets. For global human motion estimation, we evaluate on RICH [14] and EMDB-2 [17]
+following prior works [7, 20, 22, 51]. For local human mesh recovery, we evaluate on SLOPER4D [9]
+and 3DPW [41]. For physical plausibility and contact prediction, we evaluate on RICH [14], since it
+provides scene geometry, human motion, and dense body-scene contact annotations in world frame.
+Metrics. Following prior work [7, 32, 44], for global human motion estimation we report WA-MPJPE
+(mm), W-MPJPE (mm), and RTE (%). For local human mesh recovery, we report PVE (mm) and
+MPJPE (mm). For physical plausibility, we report Collision Ratio (%), Penetrate (cm), Float (cm),
+and Pen. Max (cm) using the grounding protocol adapted from HuMoS [37]. For contact prediction,
+we report Precision, Recall, F1, and geometric error, following prior works [11, 14, 35].
+Baselines. We primarily compare with feed-forward monocular 4D human-scene reconstruction
+methods, as they share UniCon3R’s setting: jointly predicting humans, scene geometry, and cam-
+era motion without per-scene optimisation. In particular, we compare against Human3R [7], Un-
+iSH [20], and JOSH3R [22]. We also introduce two controlled baselines for fair architectural
+comparisons. Human3R† keeps the original Human3R architecture but uses the same training proto-
+col as UniCon3R, in which we fine-tune on BEDLAM [3] and RICH [14] datasets. Parallel Readout
+adds an auxiliary branch as output to the same backbone without a dedicated contact token, and does
+not feed contact features back into human reconstruction. Throughout the experiments, Human3R∗
+denotes the released Human3R checkpoint evaluated under the same preprocessing, inference, and
+evaluation pipeline used for UniCon3R.
+
+
+5.1      Global Human Motion Estimation and Local Human Mesh Recovery
+
+On global human motion estimation (see Table 1), UniCon3R improves over all Human3R-derived
+baselines on both RICH [14] and EMDB-2 [17]. Human3R† controls for gains induced by the training
+protocol, while Parallel Readout shows the gains come from feeding contact into reconstruction,
+not predicting it in parallel. On EMDB-2, UniCon3R again improves over all Human3R-derived
+baselines, achieving the best WA-MPJPE, RTE, and PA-MPJPE, and the second-best W-MPJPE
+overall. These results confirm that UniCon3R’s gains generalize beyond RICH. On W-MPJPE,
+which captures long-horizon trajectory drift by aligning predictions only using the first two frames,
+UniSH obtains a lower error on EMDB-2, likely benefiting from its sequence-level π 3 reconstruction
+backbone. In contrast, UniCon3R achieves better local pose accuracy, as reflected by the lower
+WA-MPJPE, while operating at fast inference speeds (2.4 fps vs 2.0 fps for UniSH), see Fig. 1 (b),
+in a streaming setting. Please refer to Sup. Mat. (Section A.2) for comparisons against offline
+optimization methods [22, 44, 49] and world-grounded HMR [31, 32, 34, 51] methods. In Sup. Mat.
+(Section A.4), we also report global human motion metrics across different backbones to show that
+contact-aware UniCon3R’s gains are agnostic to the choice of the underlying backbone.
+On local human mesh recovery (see Table 2), UniCon3R gives the best PVE and MPJPE among
+baselines on SLOPER4D [9]. On the 3DPW [41] dataset, UniCon3R obtains the lowest MPJPE and
+PVE comparable to Human3R∗ . Overall, the results show that UniCon3R improves global human
+motion estimation and body-scene alignment without degrading local HMR.
+
+
+                                                                      6
+                                                  provide
+Figure 3: Comparison of global human trajectory estimation on EMDB-2 [17]. We compare
+Human3R∗ and UniCon3R against ground truth after world-coordinate alignment.
+
+        Table 2: Local human mesh reconstruction on SLOPER4D [9] and 3DPW [41].
+                                       SLOPER4D [9]                         3DPW [41]
+         Method
+                           PVE (mm) ↓ MPJPE (mm) ↓ Pen. Max (cm) ↓ PVE (mm) ↓ MPJPE (mm) ↓
+         UniSH [20]          177.0        195.1             725.4    94.2           80.1
+         Human3R∗ [7]        155.1        179.1             219.7    86.6           72.8
+         UniCon3R (Ours)     152.9        176.1             120.3    86.8           72.5
+
+The qualitative results in Figs. 3 and 4 show the same pattern. On EMDB-2, UniCon3R follows the
+ground-truth trajectory more closely than Human3R∗ . On SLOPER4D, it produces body pose and
+scene alignment that are closer to ground truth, especially in cases with clear scene support. We
+include additional qualitative results in Sup. Mat. video.
+
+5.2   Physical Plausibility: Penetration and Floating Meshes
+
+We next evaluate whether the reconstructed body is physically grounded in the recovered scene.
+UniCon3R reduces Pen. Max substantially on SLOPER4D [9] as shown in Table 2. UniCon3R
+outperforms baselines across all metrics also on RICH as shown in Table 3 (right). Compared with
+Human3R∗ , it reduces Penetrate by ∼ 75%, Float by ∼ 83% , and Pen. Max by ∼ 92% . Similar
+improvements exist over the Parallel Readout baseline. These results show that UniCon3R improves
+body grounding in world coordinates by reducing scene penetration and unsupported bodies. Note
+that we do not report Pen. Max on 3DPW [41] as the metric assumes a reliable horizontal ground
+plane, which is often violated in 3DPW, especially in sequences with non-planar or varying support
+surfaces.
+Visualisations in Sup. Mat. (Section C) show the same trend. Compared with Human3R∗ , UniCon3R
+places the body closer to the support surface and produces more plausible body-scene interaction.
+
+5.3   Contact Evaluation
+
+We evaluate contact prediction on RICH [14] as it provides dense body-scene contact annotations
+together with video sequences, scene geometry, and human motion. As shown in Table 3 (left),
+UniCon3R achieves the best F1 score and geodesic error among the compared methods. Compared
+with Parallel Readout, it improves F1 by ∼ 14.5%, while reducing geodesic error by ∼ 27.5%. Since
+both models use the same contact supervision, this shows that the gains come from our contact-aware
+architecture rather than supervision alone. Human3R∗ does not explicitly predict contact, so we
+derive contact geometrically at test time by thresholding the distance between each predicted human-
+mesh vertex and its nearest reconstructed scene point at 0.05 m. We also report DECO [35] and
+InteractVLM [11] as off-the-shelf dense-contact estimation baselines. Note that both DECO and
+InteractVLM are single-frame contact estimation methods, whereas UniCon3R estimates contact in
+the challenging video-streaming setting. While DECO achieves better Precision, UniCon3R obtains
+the best Recall, F1, and geodesic error. InteractVLM obtains a geodesic error close to UniCon3R but
+is slower at inference, as discussed in Sup. Mat.. Qualitatively, Fig. 5 compares contact prediction
+performance of UniCon3R against DECO on arbitrary internet images. DECO often focuses on
+feet-ground contact, whereas UniCon3R recovers broader body-scene contact patterns.
+
+
+                                                    7
+Figure 4: Qualitative comparison of local human mesh recovery. We compare Human3R∗ [7] and
+UniCon3R against ground truth. UniCon3R produces body pose and scene alignment that are closer
+to ground truth, particularly in cases with clear scene support.
+
+Table 3: Contact estimation and physical grounding on RICH [14]. Left: Binary SMPL-vertex
+contact prediction using precision, recall, F1, and geometric contact error (Geo., cm). Right: physical
+grounding on reconstructed RICH sequences. Following HuMoS [37], we estimate a robust ground
+height and use a 5 mm tolerance to report Collision Ratio (Coll., %), Penetrate (Pen., cm), Float (cm),
+and Pen. Max (P.Max, cm).
+
+                                  RICH [14]                                                RICH [14]
+Method                                                  Method
+                          Prec. ↑ Rec. ↑ F1 ↑ Geo. ↓                              Coll. ↓ Pen. ↓ Float ↓ P.Max ↓
+DECO [35]                  0.71   0.76   0.70   17.92   UniSH [20]                 7.39   6.01   37.94    67.87
+InteractVLM [11]           0.63   0.63   0.60   15.70   Human3R∗ [7]               7.40   6.40   33.56   216.97
+Human3R∗ [7]               0.07   0.13   0.08   76.10   Parallel Readout (Ours)    7.71   7.56   37.05   254.91
+Parallel Readout (Ours)    0.59   0.72   0.62   20.68   UniCon3R (Ours)            5.54   1.59    5.50   17.54
+UniCon3R (Ours)            0.64   0.80   0.71   14.98
+
+
+In summary, our contact evaluation supports two conclusions. First, contact supervision alone is not
+sufficient: feeding contact back into the reconstruction pathway improves dense contact prediction
+over Parallel Readout. Second, UniCon3R provides competitive dense contact estimates within a
+unified reconstruction pipeline, making it 2.0x faster than DECO [35] (See Sup. Mat. Section A.3).
+
+
+5.4   Ablation Studies
+
+We perform a progressive ablation on RICH [14] to evaluate the contribution of each component in
+UniCon3R. Starting from the Parallel Readout baseline, we incrementally add scene context, explicit
+metric geometry, temporal momentum, and contact-guided latent refinement. We report WA-MPJPE
+and W-MPJPE for global human motion estimation, and Foot Sliding and Jitter to assess grounding
+stability over time. Results are summarized in Table 4.
+The table also includes Human3R† [7] for reference. Compared with Human3R† , Parallel Readout
+improves Foot Sliding and Jitter, but slightly worsens WA-MPJPE and W-MPJPE. This shows
+that contact supervision alone can improve temporal grounding metrics, but is not sufficient to
+improve global motion estimation. Adding scene context yields the largest single-step improvement
+over Parallel Readout, reducing WA-MPJPE from 97.9 to 89.4 mm and W-MPJPE from 153.5 to
+140.6 mm, which highlights the importance of scene-grounded cues for contact reasoning. Adding
+explicit metric geometry contributes complementary gains, most notably on Foot Sliding (35.0 →
+33.1 mm), confirming that local 3D support cues further refine grounding. Adding the temporal
+momentum further improves Foot Sliding and Jitter, indicating better temporal stability. The full
+model, with contact-guided latent refinement, gives the best result on all four metrics. Relative to
+Parallel Readout, the contact prompt components alone reduce WA-MPJPE from 97.9 to 85.3 mm;
+adding latent refinement yields a further reduction to 81.5 mm, extending the cumulative gain by 30%
+and delivering the best result across all metrics. This shows that predicting contact is not enough: the
+main improvement comes from feeding contact back into the reconstruction pathway. In other words,
+contact is most useful when it is corrective rather than descriptive.
+
+                                                        8
+Figure 5: Qualitative comparison of contact prediction on web images. UniCon3R captures
+contact on challenging body regions — such as the lower torso, palms, and fingertips — that are
+partially occluded or lack direct visual evidence, whereas DECO [35] tends to concentrate predictions
+on narrower, visually salient support regions such as the feet.
+Table 4: Ablation study on RICH [14]. We report global motion and physical plausibility metrics
+while progressively adding each UniCon3R component. WA-MPJPE and W-MPJPE are in mm. Foot
+sliding is in mm and Jitter in m/s3 , respectively.
+                                            Architectural Components                      Global Motion       Physical Plausibility
+Model Variant
+                                 Context Uscene   Geo. Gt   Mom. Mt    Latent Ref.   WA-MPJPE ↓ W-MPJPE ↓    Foot Sliding ↓   Jitter ↓
+
+Human3R† [7]                           –            –         –            –            97.5         153.2       37.7          279.5
+Parallel Readout                       ✗            ✗         ✗            ✗            97.9         153.5       35.3          262.5
++ Scene Context                        ✓            ✗         ✗            ✗            89.4         140.6       35.0          260.1
++ Explicit Geometry                    ✓            ✓         ✗            ✗            85.9         134.5       33.1          244.6
++ Temporal Momentum                    ✓            ✓         ✓            ✗            85.3         135.1       32.0          231.8
++ Latent Refinement (UniCon3R)         ✓            ✓         ✓            ✓            81.5         129.8       31.5          221.4
+
+
+5.5    UniCon3R with Test-Time Optimization
+
+UniCon3R is designed for online feed-forward inference, and all main comparisons use this setting.
+Fig. 1(b) additionally reports an optional post-hoc variant, UniCon3R∗ , which applies a JOSH-
+style [22] camera refinement while keeping the UniCon3R body prediction fixed. This variant is
+not part of the default pipeline; it only illustrates the accuracy–runtime trade-off when per-sequence
+refinement is allowed. UniCon3R∗ applies a JOSH-style [22] camera refinement while keeping
+the UniCon3R body prediction fixed. UniCon3R achieves 81.5 mm WA-MPJPE100 at 2.40 FPS,
+compared with JOSH (102.6 mm, 0.16 FPS), UniSH (118.1 mm, 2.00 FPS), and Human3R† (97.5 mm,
+2.41 FPS); the optional test-time optimized variant UniCon3R ∗ further reduces the error to 72.2 mm.
+
+
+6     Conclusion
+We presented UniCon3R, a unified feed-forward framework for 4D human-scene reconstruction from
+monocular video that uses contact inside the reconstruction pathway. By introducing a scene-aware
+contact prompt and contact-guided latent refinement, UniCon3R improves body grounding while
+preserving the simplicity and efficiency of unified feed-forward inference. Across benchmarks, the
+results support the conclusion that in unified feed-forward human-scene reconstruction, predicting
+contact as an auxiliary output is not sufficient; contact must directly influence the final body estimate.
+Via the UniCon3R framework, we show that this paradigm results in complementary gains; better
+grounding, better world-coordinate motion estimation, and local mesh accuracy, all achievable with a
+single end-to-end model.
+Limitations and Future Directions. Several limitations remain. In our work, contact is represented
+as binary per-vertex labels rather than rich physical quantities such as proximity, contact forces
+or friction. The quality of recovered contact often depends on the quality of the reconstructed
+scene geometry, and we observe that scene errors can propagate to contact prediction and body-
+
+
+                                                                  9
+scene alignment. Future work may explore ways to improve scene reconstruction using contact.
+Our grounding and plausibility metrics assume rigid support geometry that is approximated by
+the reconstructed scene; more complex settings such as deformable objects, non-rigid scenes, or
+fine-grained object interactions are not explicitly modeled. Finally, we observe that augmenting
+UniCon3R with a post-hoc test-time optimization stage further reduces global trajectory error.
+
+References
+ [1] Samira Abnar and Willem Zuidema. Quantifying attention flow in transformers. In Proceedings
+     of the 58th Annual Meeting of the Association for Computational Linguistics, pages 4190–4197,
+     2020.
+
+ [2] Fabien Baradel, Matthieu Armando, Salma Galaaoui, Romain Brégier, Philippe Weinzaepfel,
+     Grégory Rogez, and Thomas Lucas. Multi-hmr: Multi-person whole-body human mesh recovery
+     in a single shot. In Proc. of the European Conf. on Computer Vision (ECCV), 2024.
+
+ [3] Michael J Black, Priyanka Patel, Joachim Tesch, and Jinlong Yang. Bedlam: A synthetic
+     dataset of bodies exhibiting detailed lifelike animated motion. In Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, pages 8726–8737, 2023.
+
+ [4] Federica Bogo, Angjoo Kanazawa, Christoph Lassner, Peter Gehler, Javier Romero, and
+     Michael J Black. Keep it smpl: Automatic estimation of 3d human pose and shape from a single
+     image. In European conference on computer vision, pages 561–578. Springer, 2016.
+
+ [5] Zhongang Cai, Wanqi Yin, Ailing Zeng, Chen Wei, Qingping Sun, Wang Yanjun, Hui En Pang,
+     Haiyi Mei, Mingyuan Zhang, Lei Zhang, et al. SMPLer-X: Scaling up expressive human pose
+     and shape estimation. volume 36, pages 11454–11468, 2023.
+
+ [6] Hila Chefer, Shir Gur, and Lior Wolf. Transformer interpretability beyond attention visualization.
+     In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+     pages 782–791, 2021.
+
+ [7] Yue Chen, Xingyu Chen, Yuxuan Xue, Anpei Chen, Yuliang Xiu, and Gerard Pons-Moll.
+     Human3r: Everyone everywhere all at once. In The Fourteenth International Conference on
+     Learning Representations, 2026.
+
+ [8] Alpár Cseke, Shashank Tripathi, Sai Kumar Dwivedi, Arjun S Lakshmipathy, Agniv Chatterjee,
+     Michael J Black, and Dimitrios Tzionas. Pico: Reconstructing 3d people in contact with objects.
+     In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 1783–1794,
+     2025.
+
+ [9] Yudi Dai, YiTai Lin, XiPing Lin, Chenglu Wen, Lan Xu, Hongwei Yi, Siqi Shen, Yuexin Ma,
+     and Cheng Wang. Sloper4d: A scene-aware dataset for global 4d human pose estimation in
+     urban environments. In Proceedings of the IEEE/CVF conference on computer vision and
+     pattern recognition, pages 682–692, 2023.
+
+[10] Sai Kumar Dwivedi, Yu Sun, Priyanka Patel, Yao Feng, and Michael J Black. Tokenhmr:
+     Advancing human mesh recovery with a tokenized pose representation. In Proceedings of the
+     IEEE/CVF conference on computer vision and pattern recognition, pages 1323–1333, 2024.
+
+[11] Sai Kumar Dwivedi, Dimitrije Antić, Shashank Tripathi, Omid Taheri, Cordelia Schmid,
+     Michael J Black, and Dimitrios Tzionas. Interactvlm: 3d interaction reasoning from 2d foun-
+     dational models. In Proceedings of the Computer Vision and Pattern Recognition Conference,
+     pages 22605–22615, 2025.
+
+[12] Shubham Goel, Georgios Pavlakos, Jathushan Rajasegaran, Angjoo Kanazawa, and Jitendra
+     Malik. Humans in 4d: Reconstructing and tracking humans with transformers. In Proceedings
+     of the IEEE/CVF International Conference on Computer Vision, pages 14783–14794, 2023.
+
+[13] Kaiming He, Georgia Gkioxari, Piotr Dollár, and Ross Girshick. Mask r-cnn. In Proceedings of
+     the IEEE international conference on computer vision, pages 2961–2969, 2017.
+
+
+                                                 10
+[14] Chun-Hao P Huang, Hongwei Yi, Markus Höschle, Matvey Safroshkin, Tsvetelina Alexiadis,
+     Senya Polikovsky, Daniel Scharstein, and Michael J Black. Capturing and inferring dense
+     full-body human-scene contact. In Proceedings of the IEEE/CVF Conference on Computer
+     Vision and Pattern Recognition, pages 13274–13285, 2022.
+[15] Menglin Jia, Luming Tang, Bor-Chun Chen, Claire Cardie, Serge Belongie, Bharath Hariharan,
+     and Ser-Nam Lim. Visual prompt tuning. In European conference on computer vision, pages
+     709–727. Springer, 2022.
+[16] Angjoo Kanazawa, Michael J Black, David W Jacobs, and Jitendra Malik. End-to-end recovery
+     of human shape and pose. In Proceedings of the IEEE conference on computer vision and
+     pattern recognition, pages 7122–7131, 2018.
+[17] Manuel Kaufmann, Jie Song, Chen Guo, Kaiyue Shen, Tianjian Jiang, Chengcheng Tang,
+     Juan José Zárate, and Otmar Hilliges. EMDB: The Electromagnetic Database of Global 3D
+     Human Pose and Shape in the Wild. In International Conference on Computer Vision (ICCV),
+     2023.
+[18] Muhammed Kocabas, Ye Yuan, Pavlo Molchanov, Yunrong Guo, Michael J Black, Otmar
+     Hilliges, Jan Kautz, and Umar Iqbal. Pace: Human and camera motion estimation from in-
+     the-wild videos. In 2024 International Conference on 3D Vision (3DV), pages 397–408. IEEE,
+     2024.
+[19] Jiefeng Li, Ye Yuan, Davis Rempe, Haotian Zhang, Pavlo Molchanov, Cewu Lu, Jan Kautz, and
+     Umar Iqbal. Coin: Control-inpainting diffusion prior for human and camera motion estimation.
+     In European Conference on Computer Vision, pages 426–446. Springer, 2024.
+[20] Mengfei Li, Peng Li, Zheng Zhang, Jiahao Lu, Chengfeng Zhao, Wei Xue, Qifeng Liu, Sida
+     Peng, Wenxiao Zhang, Wenhan Luo, et al. Unish: Unifying scene and human reconstruction in
+     a feed-forward pass. In Conference on Computer Vision and Pattern Recognition (CVPR), 2026.
+[21] Zhihao Li, Jianzhuang Liu, Zhensong Zhang, Songcen Xu, and Youliang Yan. Cliff: Carrying
+     location information in full frames into human pose and shape estimation. In European
+     Conference on Computer Vision, pages 590–606. Springer, 2022.
+[22] Zhizheng Liu, Joe Lin, Wayne Wu, and Bolei Zhou. Joint optimization for 4d human-scene
+     reconstruction in the wild. In The Fourteenth International Conference on Learning Represen-
+     tations, 2026.
+[23] Matthew Loper, Naureen Mahmood, Javier Romero, Gerard Pons-Moll, and Michael J Black.
+     Smpl: A skinned multi-person linear model. In Seminal Graphics Papers: Pushing the
+     Boundaries, Volume 2, pages 851–866. 2023.
+[24] Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov. Locating and editing factual
+     associations in GPT. In Advances in Neural Information Processing Systems, volume 35, 2022.
+[25] Paul Michel, Omer Levy, and Graham Neubig. Are sixteen heads really better than one? In
+     Advances in Neural Information Processing Systems, volume 32, 2019.
+[26] Lea Müller, Hongsuk Choi, Anthony Zhang, Brent Yi, Jitendra Malik, and Angjoo Kanazawa.
+     Reconstructing people, places, and cameras. In Proceedings of the Computer Vision and Pattern
+     Recognition Conference, pages 21948–21958, 2025.
+[27] Priyanka Patel and Michael J Black. Camerahmr: Aligning people with perspective. In Proc. of
+     the International Conf. on 3D Vision (3DV), 2025.
+[28] Georgios Pavlakos, Vasileios Choutas, Nima Ghorbani, Timo Bolkart, Ahmed AA Osman,
+     Dimitrios Tzionas, and Michael J Black. Expressive body capture: 3d hands, face, and body
+     from a single image. In Proceedings of the IEEE/CVF conference on computer vision and
+     pattern recognition, pages 10975–10985, 2019.
+[29] Georgios Pavlakos, Ethan Weber, Matthew Tancik, and Angjoo Kanazawa. The one where they
+     reconstructed 3d humans and environments in tv shows. In European Conference on Computer
+     Vision, pages 732–749. Springer, 2022.
+
+
+                                               11
+[30] Sara Rojas, Matthieu Armando, Bernard Ghamen, Philippe Weinzaepfel, Vincent Leroy, and
+     Gregory Rogez. Hamst3r: Human-aware multi-view stereo 3d reconstruction. arXiv preprint
+     arXiv:2508.16433, 2025.
+
+[31] Zehong Shen, Huaijin Pi, Yan Xia, Zhi Cen, Sida Peng, Zechen Hu, Hujun Bao, Ruizhen Hu,
+     and Xiaowei Zhou. World-grounded human motion recovery via gravity-view coordinates. In
+     SIGGRAPH Asia, 2024.
+
+[32] Soyong Shin, Juyong Kim, Eni Halilaj, and Michael J Black. Wham: Reconstructing world-
+     grounded humans with accurate 3d motion. In Proc. IEEE Conf. on Computer Vision and
+     Pattern Recognition (CVPR), 2024.
+
+[33] Yu Sun, Wu Liu, Qian Bao, Yili Fu, Tao Mei, and Michael J Black. Putting people in their place:
+     Monocular regression of 3d people in depth. In Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition, pages 13243–13252, 2022.
+
+[34] Yu Sun, Qian Bao, Wu Liu, Tao Mei, and Michael J Black. Trace: 5d temporal regression of
+     avatars with dynamic cameras in 3d environments. In Proc. IEEE Conf. on Computer Vision
+     and Pattern Recognition (CVPR), 2023.
+
+[35] Shashank Tripathi, Agniv Chatterjee, Jean-Claude Passy, Hongwei Yi, Dimitrios Tzionas, and
+     Michael J Black. Deco: Dense estimation of 3d human-scene contact in the wild. In Proceedings
+     of the IEEE/CVF international conference on computer vision, pages 8001–8013, 2023.
+
+[36] Shashank Tripathi, Lea Müller, Chun-Hao P. Huang, Taheri Omid, Michael J. Black, and
+     Dimitrios Tzionas. 3D human pose estimation via intuitive physics. In Conference on Computer
+     Vision and Pattern Recognition (CVPR), pages 4713–4725, 2023. URL https://ipman.is.
+     tue.mpg.de.
+
+[37] Shashank Tripathi, Omid Taheri, Christoph Lassner, Michael Black, Daniel Holden, and Carsten
+     Stoll. Humos: Human motion model conditioned on body shape. In European Conference on
+     Computer Vision, pages 133–152. Springer, 2024.
+
+[38] Jesse Vig, Sebastian Gehrmann, Yonatan Belinkov, Sharon Qian, Daniel Nevo, Yaron Singer,
+     and Stuart Shieber. Investigating gender bias in language models using causal mediation analysis.
+     In Advances in Neural Information Processing Systems, volume 33, pages 12388–12401, 2020.
+
+[39] Ruben Villegas, Duygu Ceylan, Aaron Hertzmann, Jimei Yang, and Jun Saito. Contact-aware
+     retargeting of skinned motion. In Proceedings of the IEEE/CVF International Conference on
+     Computer Vision, pages 9720–9729, 2021.
+
+[40] Elena Voita, David Talbot, Fedor Moiseev, Rico Sennrich, and Ivan Titov. Analyzing multi-head
+     self-attention: Specialized heads do the heavy lifting, the rest can be pruned. In Proceedings of
+     the 57th Annual Meeting of the Association for Computational Linguistics, pages 5797–5808,
+     2019.
+
+[41] Timo Von Marcard, Roberto Henschel, Michael J Black, Bodo Rosenhahn, and Gerard Pons-
+     Moll. Recovering accurate 3d human pose in the wild using imus and a moving camera. In
+     Proceedings of the European conference on computer vision (ECCV), pages 601–617, 2018.
+
+[42] Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A. Efros, and Angjoo Kanazawa.
+     Continuous 3d perception model with persistent state. In Proc. IEEE Conf. on Computer Vision
+     and Pattern Recognition (CVPR), 2025.
+
+[43] Yufu Wang and Kostas Daniilidis. Refit: Recurrent fitting network for 3d human recovery. In
+     Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 14644–
+     14654, 2023.
+
+[44] Yufu Wang, Ziyun Wang, Lingjie Liu, and Kostas Daniilidis. Tram: Global trajectory and
+     motion of 3d humans from in-the-wild videos. In Proc. of the European Conf. on Computer
+     Vision (ECCV), 2024.
+
+
+                                                 12
+[45] Zhenzhen Weng and Serena Yeung. Holistic 3d human and scene mesh estimation from single
+     view images. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, pages 334–343, 2021.
+[46] Xiangyu Xu, Lijuan Liu, and Shuicheng Yan. Smpler: Taming transformers for monocular
+     3d human shape and pose estimation. IEEE Transactions on Pattern Analysis and Machine
+     Intelligence, 46(5):3275–3289, 2023.
+[47] Lixin Xue, Chen Guo, Chengwei Zheng, Fangjinghua Wang, Tianjian Jiang, Hsuan-I Ho,
+     Manuel Kaufmann, Jie Song, and Otmar Hilliges. Hsr: holistic 3d human-scene reconstruction
+     from monocular videos. In European Conference on Computer Vision, pages 429–448. Springer,
+     2024.
+[48] Pradyumna Yalandur Muralidhar, Yuxuan Xue, Xianghui Xie, Margaret Kostyrko, and Gerard
+     Pons-Moll. Physic: Physically plausible 3d human-scene interaction and contact from a single
+     image. In Proceedings of the SIGGRAPH Asia 2025 Conference Papers, pages 1–12, 2025.
+[49] Vickie Ye, Georgios Pavlakos, Jitendra Malik, and Angjoo Kanazawa. Decoupling human
+     and camera motion from videos in the wild. In Proceedings of the IEEE/CVF Conference on
+     Computer Vision and Pattern Recognition (CVPR), pages 21222–21232, June 2023.
+[50] Wanqi Yin, Zhongang Cai, Ruisi Wang, Ailing Zeng, Chen Wei, Qingping Sun, Haiyi Mei,
+     Yanjun Wang, Hui En Pang, Mingyuan Zhang, et al. Smplest-x: Ultimate scaling for expressive
+     human pose and shape estimation. arXiv preprint arXiv:2501.09782, 2025.
+[51] Yiwen Zhao, Ce Zheng, Yufu Wang, Hsueh-Han Daniel Yang, Liting Wen, and Laszlo A. Jeni.
+     Onlinehmr: Video-based online world-grounded human mesh recovery. In CVPR, 2026.
+[52] Yizhou Zhao, Tuanfeng Yang Wang, Bhiksha Raj, Min Xu, Jimei Yang, and Chun-Hao Paul
+     Huang. Synergistic global-space camera and human reconstruction from videos. In Proceedings
+     of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 1216–1226,
+     2024.
+
+
+
+
+                                               13
+                                                                Appendix
+
+Table of Contents
+A    Analysis                                                                                                                                          14
+    A.1 Empirical Analysis of the Contact Pathway . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+    A.2 Comprehensive Comparison for Global Human Motion Estimation . . . . . . . . . . . . . . . . . . 15
+    A.3 Runtime Efficiency . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+    A.4 Backbone Scaling: Lightweight ViT-S/672 Variant . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+
+
+B     Implementation Details                                                                                                                         17
+
+
+C     Physical Plausibility: Qualitative Examples                                                                                                    18
+
+
+
+
+A      Analysis
+
+A.1     Empirical Analysis of the Contact Pathway
+
+To complement the downstream reconstruction results, we report a small diagnostic analysis of
+how contact is used inside UniCon3R. The goal is not to claim that attention alone explains model
+behavior, but to test whether the contact pathway measurably changes the internal computation
+that produces the final body estimate. Following common practice in transformer analysis, we pair
+attention-based observations with explicit controls and a counterfactual intervention on the latent
+residual branch [1, 6, 24, 25, 38, 40].
+
+Evaluation protocol. We evaluate on the moving-camera subset of RICH [14], which contains 40
+sequences. We compare three checkpoints under identical inputs and instrumentation: Human3R† ,
+Parallel Readout, and UniCon3R. Human3R† keeps the original Human3R architecture and uses
+the same training protocol as UniCon3R, while Parallel Readout adds contact supervision without
+feeding the contact representation back into the human reconstruction pathway. Relative to these
+baselines, UniCon3R differs in the two contributions of the main paper: it introduces a scene-aware
+contact prompt Ct , constructed from semantic scene context, explicit metric geometry, and a temporal
+prior, and it applies contact-guided latent refinement, which feeds the refined contact representation
+back into the HMR pathway before final SMPL-X [28] regression.
+
+Human–contact routing. We first analyze layerwise coupling between the human token and the
+contact token inside the joint decoder token sequence [z, Ft , Ht , Ct ] processed by the frozen 4D
+decoders inherited from Human3R [7]/CUT3R [42]. Fig. 6 (left) plots the mean coupling in both
+directions. The goal is not to treat attention weights as explanations by themselves, but to test whether
+the scene-aware contact prompt participates in the same decoder computation as the human prompt.
+To do so, we compare the human–contact coupling against a matched control derived from ordinary
+image tokens. Concretely, for each human–contact interaction, we replace the target token by a same-
+size slice drawn from the image-token set Ft and measure the corresponding attention mass under
+the same decoder layer and head. This gives a baseline for how much attention would be assigned
+to a generic token interaction under otherwise identical conditions. If the human–contact coupling
+is much larger than this baseline, then the effect is unlikely to be explained by generic attention
+concentration alone. As observed in Fig. 6 (left), across the moving-camera subset, the strongest
+Ht → Ct coupling appears in the earliest decoder layer, while the strongest Ct → Ht coupling
+appears near the final decoder layers. Relative to the matched control, both couplings are substantially
+larger, indicating a structured interaction pattern rather than generic attention non-uniformity.
+
+
+                                                                          14
+Figure 6: Empirical Analysis of the Contact Pathway. Left: layerwise human–contact coupling
+inside the joint decoder token sequence. Solid curves denote the mean coupling mass (left axis),
+showing strongest early Ht → Ct coupling and strongest late Ct → Ht coupling. Dashed curves
+denote the corresponding matched-slice ratios (right axis), where each coupling is normalized by a
+matched control from a same-size slice of image tokens in Ft . Right: support-region selectivity of
+the human stream. UniCon3R allocates more attention mass to support-relevant image regions than
+Human3R† and Parallel Readout. Together, these diagnostics support that contact is used inside the
+reconstruction pathway as an internal corrective signal.
+
+Support-region selectivity. We next test whether the scene-aware contact prompt biases the human
+stream toward image regions that are physically relevant for support. For each frame, we project
+the ground-truth RICH contact vertices into the image plane to form a binary support-region mask,
+and define support selectivity as the unitless ratio of average attention mass inside the support region
+to the average mass outside it. Fig. 6 (right) plots this ratio across decoder layers for Human3R† ,
+Parallel Readout, and UniCon3R. Averaged over the official dynamic-camera RICH test subset,
+the three models obtain 1.5, 1.5, and 1.7, respectively, and UniCon3R exceeds both baselines in
+all camera-sequence entries. The gain is moderate but highly consistent, and indicates that the
+scene-aware contact prompt reallocates the human-stream attention toward support-relevant image
+regions.
+
+Counterfactual residual ablation. Finally, we directly ablate the latent residual branch by setting
+the residual to zero at inference time and re-running only the final SMPL-X [28] regression head.
+This intervention changes the reconstructed body while leaving the contact prediction unchanged.
+Averaged over the moving-camera subset, the ablation induces a body-root translation change of
+∥∆Γ∥2 = 0.3 m (here Γ denotes the world-frame SMPL-X root translation, i.e., Pt in the main paper
+notation), a mean per-joint angular shift of 2.8◦ , and a maximum per-joint shift of 10.2◦ , while the
+contact-logit difference remains 0.0. This supports distinct roles for the two branches of the contact
+pathway: the contact head predicts dense contact, whereas the latent refinement branch uses the
+contact-conditioned representation to modify the final body configuration.
+Taken together, these diagnostics support the same conclusion as the main experiments. In UniCon3R,
+contact is not used as a detached auxiliary output. Instead, it is routed through a dedicated contact
+representation and then fed back into the human stream through contact-guided latent refinement,
+where it acts as an internal corrective signal for the final body estimate.
+
+
+A.2   Comprehensive Comparison for Global Human Motion Estimation
+
+Table 5 provides the comprehensive comparison for global human motion estimation on RICH [14]
+and EMDB-2 [17]. In the main paper, we focus on the Unified setting, where methods jointly recover
+humans, camera motion, and dense scene geometry from monocular video without per-sequence
+optimization. This is the setting most directly matched to UniCon3R. For completeness, we also
+include methods from two related settings.
+We group methods by inference setting. Offline methods use per-sequence optimization or test-time
+optimization, and can therefore adapt predictions to the full test sequence. World-HMR methods
+estimate global human motion in world coordinates, but do not jointly reconstruct dense scene
+geometry in the same unified feed-forward model. Unified methods jointly predict humans, camera
+motion, and scene geometry in a feed-forward reconstruction pipeline. Since these categories differ in
+
+
+                                                  15
+Table 5: Comprehensive Comparison for Global human motion estimation on RICH [14] and
+EMDB-2 [17]. Scene denotes 3D scene reconstruction, and Contact denotes dense human-scene
+contact prediction or use. Human3R∗ : released checkpoint in our pipeline; Human3R† : same
+architecture with our training protocol. Bold and underline indicate the best and second-best results
+within the Unified category, where UniCon3R operates. WA-MPJPE, W-MPJPE, and PA-MPJPE are
+reported in mm; RTE is reported in %.
+                                                                      RICH [14]                                EMDB-2 [17]
+Category    Method                    Scene Contact
+                                                      WA-MPJPE ↓ W-MPJPE ↓ RTE (%) ↓ PA-MPJPE ↓ WA-MPJPE ↓ W-MPJPE ↓ RTE (%) ↓ PA-MPJPE ↓
+
+            SLAHMR [49]                ✗      ✗          132.2      237.1         6.4     –        326.9      776.1      10.2     61.5
+Offline     TRAM [44]                  ✗      ✗          127.8      238.0         6.0     –         76.4      222.4      1.4      38.1
+            JOSH [22]                  ✓      ✓          102.6      184.3         3.4     –         68.9      174.7      1.3       –
+
+            TRACE [34]                 ✗      ✗          238.1      925.4        101.4    –        529.0     1702.3      17.7     58.0
+            WHAM [32]                  ✗      ✗          108.4      190.1         4.5     –        135.6      354.8      6.0      38.2
+World-HMR
+            GVHMR [31]                 ✗      ✗           78.8      126.3         2.4     –        111.0      276.5      2.0       –
+            OnlineHMR [51]             ✓      ✗            –          –            –      –         93.5      310.4       2.2     40.1
+
+            JOSH3R [22]                ✓      ✗          190.4      334.9         6.3     –        220.0      661.7      13.1      –
+            UniSH [20]                 ✓      ✗          118.1      183.2         4.8    50.0      118.5      270.1      5.8      44.4
+            Human3R∗ [7]               ✓      ✗          109.9      184.0         3.3    48.6      118.2      286.1       2.4     38.7
+Unified
+            Human3R† [7]               ✓      ✗           97.5      153.2         2.3    41.4        –          –          –       –
+            Parallel Readout (Ours)    ✓      ✓          97.9       153.5         2.3    41.5      160.7      388.3      3.6      50.9
+            UniCon3R (Ours)            ✓      ✓          81.5       129.8         1.7    37.6      113.7      285.6      2.3      38.2
+
+
+
+task scope and inference procedure, comparisons across categories should be interpreted as contextual
+rather than controlled.
+Within the Unified category, UniCon3R achieves the best results on RICH across WA-MPJPE,
+W-MPJPE, RTE, and PA-MPJPE. On EMDB-2, it improves over all Human3R-derived baselines
+and achieves the best WA-MPJPE, RTE, and PA-MPJPE within the same category. Compared
+with Human3R† , the gains are not explained by the training protocol alone; compared with Parallel
+Readout, they show that contact is most useful when it is fed back into the reconstruction pathway
+rather than predicted as an auxiliary output.
+The broader comparison also shows the remaining gap between unified feed-forward reconstruction
+and methods that use offline or post-hoc refinement. Some Offline and World-HMR methods obtain
+competitive global motion accuracy, but they do not address the same unified online human-scene
+reconstruction problem as UniCon3R. Our focus is therefore on improving global motion and
+physical grounding within a single feed-forward human-scene reconstruction pipeline.
+
+A.3        Runtime Efficiency
+
+In all our experiments, Human3R∗ denotes our evaluation of the released Human3R checkpoint (ViT-
+L/896 variant) under the same preprocessing, inference, and evaluation pipeline used for UniCon3R.
+For end-to-end reconstruction, Human3R∗ [7] runs at 2.41 FPS on a single NVIDIA A5000 GPU,
+while UniCon3R runs at 2.40 FPS under the same preprocessing and benchmarking protocol. This
+shows that the contact branch adds negligible overhead to the full reconstruction pipeline.
+For contact prediction, UniCon3R runs at 0.5 s/frame, compared with 1.1 s/frame for DECO [35]
+and 3.5 s/frame for InteractVLM [11]. Thus, UniCon3R is about 2.0× faster than DECO and about
+6.1× faster than InteractVLM on this task. Unlike these methods, contact in UniCon3R is integrated
+into the reconstruction pipeline rather than applied as a separate post-processing stage.
+
+A.4        Backbone Scaling: Lightweight ViT-S/672 Variant
+
+The main paper instantiates UniCon3R on top of the largest Human3R [7] checkpoint (ViT-L/896 with
+Multi-HMR [2] ViT-L), which delivers the strongest accuracy at the cost of inference speed. Because
+Human3R itself is released as a family of backbones (ViT-S/672, ViT-B/672, ViT-L/672, ViT-L/896)
+that trade accuracy for speed, a natural question is whether the contact-aware design of UniCon3R
+continues to help when the underlying backbone is much smaller. We address this by also instantiating
+UniCon3R on the lightweight ViT-S/672 checkpoint, in which both the input resolution (672 × 672)
+and the Multi-HMR encoder size (ViT-S) are reduced. The two contributions of UniCon3R—the
+scene-aware contact prompt and the contact-guided latent refinement—are unchanged. The training
+protocol (RICH [14] + BEDLAM [3] fine-tuning, see Section B) is also identical to the main paper.
+
+
+                                                                            16
+Table 6: Global human motion estimation across backbone scales on RICH [14] and EMDB-
+2 [17]. We compare the lightweight ViT-S/672 variant and the ViT-L/896 variant used in the
+main paper. Scene denotes 3D scene reconstruction; Contact denotes dense human-scene contact
+prediction or use. Human3R∗ : released checkpoint at the indicated backbone, evaluated in our
+pipeline; Human3R† : same architecture and backbone with our training protocol. WA-MPJPE,
+W-MPJPE, and PA-MPJPE are in mm; RTE in %. Bold/underline denote best/second-best within
+each backbone group.
+                                                          RICH [14]                               EMDB-2 [17]
+Method          Backbone Scene Contact
+                                         WA-MPJPE ↓ W-MPJPE ↓ RTE (%) ↓ PA-MPJPE ↓ WA-MPJPE ↓ W-MPJPE ↓ RTE (%) ↓ PA-MPJPE ↓
+Human3R∗ [7]    ViT-S/672   ✓     ✗         131.5      207.3          3.3   71.8      137.8      333.1      2.4      52.9
+Human3R† [7]    ViT-S/672   ✓     ✗         113.9      178.3          2.6   58.3        –          –         –        –
+UniCon3R (Ours) ViT-S/672   ✓     ✓          97.2      151.1          2.0   51.7      130.7      331.6      2.5      52.9
+Human3R∗ [7]    ViT-L/896   ✓     ✗         109.9      184.0          3.3   48.6      118.2      286.1      2.4      38.7
+Human3R† [7]    ViT-L/896   ✓     ✗         97.5       153.2          2.3   41.4        –          –         –        –
+UniCon3R (Ours) ViT-L/896   ✓     ✓         81.5       129.8          1.7   37.6      113.7      285.6      2.3      38.2
+
+
+
+Under the lightweight configuration, UniCon3R runs at 5.64 FPS on a single NVIDIA A5000 GPU
+(mean over the RICH moving-camera test subset), compared with 5.85 FPS for the corresponding
+Human3R [7] ViT-S/672 backbone evaluated under the same protocol. The ∼ 0.21 FPS overhead is
+attributable to the additional contact branch and reinforces the negligible-overhead behavior reported
+at the ViT-L/896 scale in Section A.3. Compared with the ViT-L/896 UniCon3R from the main paper
+(2.40 FPS), the lightweight variant is therefore approximately 2.4× faster, making it the appropriate
+choice when reduced compute budget is the primary requirement.
+
+Merged comparison across backbones. Table 6 compares the two backbone variants of UniCon3R
+side by side against backbone-matched Human3R baselines: Human3R∗ , the released checkpoint
+at each scale, evaluated in our pipeline; and Human3R† , the same architecture and backbone fine-
+tuned with our training protocol so that supervision is matched. Because the two backbones differ
+substantially in capacity, we apply the bold/underline convention within each backbone group rather
+than across groups.
+
+Global human motion estimation. On global motion (Table 6), the contact pathway delivers
+consistent improvements at both backbone scales. At ViT-S/672, UniCon3R reduces WA-MPJPE
+on RICH from 113.9 mm (Human3R† ) to 97.2 mm (−14.6%), and W-MPJPE from 178.3 mm to
+151.1 mm (−15.3%). At ViT-L/896, the corresponding reductions are 97.5 → 81.5 mm (−16.4%)
+on WA-MPJPE and 153.2 → 129.8 mm (−15.3%) on W-MPJPE. The relative improvement from
+contact-aware refinement is therefore stable across the ∼ 2.4× speed difference between the two
+variants.
+
+When to use which variant. Together, Table 6 supports a clean recommendation. The lightweight
+ViT-S/672 variant is the appropriate choice when compute budget is the primary constraint: it
+preserves the world-coordinate gains of contact-guided refinement at 5.64 FPS, roughly 2.4× the
+throughput of the ViT-L/896 variant. For applications where fine-grained body-mesh detail matters
+most—such as expressive avatar reconstruction or close-range human-scene interaction analysis—the
+ViT-L/896 variant from the main paper remains the better choice. Importantly, the contact-aware
+design of UniCon3R transfers cleanly across backbone scales without any architecture change,
+indicating that the proposed contact pathway is complementary to, rather than competing with, the
+backbone-scaling axis explored by Human3R [7].
+
+
+B        Implementation Details
+
+Backbone and initialization. We build UniCon3R on top of the released Human3R [7] checkpoint,
+which adapts CUT3R [42] through visual prompt tuning. As in Human3R, we keep the pretrained
+CUT3R backbone frozen during fine-tuning, and we also keep the Multi-HMR [2] encoder frozen.
+The frozen scene backbone uses a ViT-Large image encoder with token dimension 1024, followed by
+two interleaved 4D decoders inherited from CUT3R with embedding dimension c=768, depth 12,
+and 12 attention heads. The persistent state St also has dimension 768.
+
+
+                                                                17
+Trainable modules. We optimize only the human- and contact-related modules introduced by
+UniCon3R. These include the scene-context cross-attention layers, the prompt-construction MLPs
+used to form the scene-aware contact prompt, the contact head, the residual head Headresidual used for
+contact-guided latent refinement, the SMPL-X prediction head, and the segmentation head inherited
+from Human3R. Unless noted otherwise, all MLPs use two linear layers with GELU activations
+and hidden dimension 768. The SMPL-X parameter decoders inside Headhuman follow Human3R
+and use separate two-layer MLPs with hidden dimension 4 × 1792 to regress body pose, shape,
+expression, and root translation from H̄t .
+
+Local geometry token. The explicit metric geometry cue in Sec. 4.1 is constructed from the
+previous-frame world-frame pointmap Xt−1 using the same notation as in the main paper. For each
+detected human anchor unt , we apply RoIAlign [13] to a square window centered at unt with half-size
+24 pixels and output size 7 × 7. The pooled 3-channel coordinates are then averaged to obtain the
+local descriptor ϕgeo (Xt−1 , unt ) ∈ R3 , which is mapped into the decoder space to form the geometry
+token used in Gt .
+
+Training data. We fine-tune on a balanced mixture of RICH [14] and BEDLAM [3]. Following
+CUT3R and Human3R, we exclude BEDLAM sequences whose environment is represented as a
+panoramic HDRI image, yielding 2700 training sequences. RICH provides multi-camera video with
+scanned scene geometry, SMPL-X meshes, and dense body-scene contact annotations; we use the
+official split of RICH sequences leaving the moving camera subset for evaluation.
+
+Optimization. Training uses AdamW with β1 =0.9, β2 =0.95, and weight decay 0.05. We use a
+linear warmup over the first 5 epochs from 10−6 to 10−5 , followed by cosine decay back to 10−6 , and
+train for 100 epochs. The per-GPU batch size is 4 with gradient accumulation of 2, giving an effective
+batch size of 64 on 8 NVIDIA A5000 GPUs. We use mixed precision and gradient checkpointing.
+
+Evaluation Metrics For evaluating global human motion, we split sequences into segments of
+100 frames and align the predicted motion with the ground truth using either the first two frames
+or the entire segment and compute the mean-per-joint error in millimeters to obtain W-MPJPE or
+WA-MPJPE for evaluation. We also evaluate the relative Root Translation Error (RTE%) of the whole
+trajectory.
+
+Training objective.    The total training objective is
+                              Ltotal = L4D + LSMPLX + λc Lcontact .
+For the inherited reconstruction pathway, we use the CUT3R confidence-aware L2,1 pointmap loss
+with α=0.2 together with the per-frame RGB MSE loss, and supervise the human output with the
+Human3R L1 SMPL-X loss. For contact, we use focal BCE with γ=2.0 and α=0.25, a positive-class
+weight of 10, and a part-level loss weighted by λp =1.5, with overall contact weight λc =1.0. Since
+BEDLAM does not provide body-scene contact labels, contact supervision is applied only on RICH
+samples, while BEDLAM samples optimize only the inherited reconstruction and HMR objectives.
+
+Contact supervision space. Following BSTRO [14], we supervise contact in SMPL [23] space
+rather than SMPL-X space. The human regressor remains in SMPL-X space for compatibility with
+Human3R, while the contact head predicts dense contact on the 6890 SMPL vertices, where most
+body-scene support contact occurs.
+
+C    Physical Plausibility: Qualitative Examples
+We complement the quantitative grounding metrics of Section 5.2 (Penetrate, Float, Pen. Max,
+Collision Ratio in Table 3) with qualitative examples on the moving-camera subset of RICH [14].
+Fig. 7 compares Human3R [7] (red) and UniCon3R (cyan) against the ground-truth body (gray) on a
+streaming sequence. Yellow boxes highlight regions where Human3R produces visibly floating or
+penetrating reconstructions: the body either hovers above the support surface or intersects the scene
+mesh. UniCon3R places the body closer to the support surface in these same frames, producing more
+plausible body–scene interaction. The visual pattern matches the quantitative reductions reported in
+Section 5.2 (Penetrate 6.40 → 1.59 cm, Float 33.56 → 5.50 cm, Pen. Max 216.97 → 17.54 cm) and
+
+
+                                                  18
+shows that the contact-guided refinement of UniCon3R resolves the specific failure modes that drive
+Human3R’s grounding errors.
+
+
+
+
+Figure 7: Qualitative comparison of physical plausibility on RICH [14]. We compare Hu-
+man3R [7] and UniCon3R against ground truth on a streaming sequence. Yellow boxes highlight
+floating or implausible 4D reconstructions of Human3R compared to the more grounded predictions
+of UniCon3R.
+
+
+
+
+                                                19
+

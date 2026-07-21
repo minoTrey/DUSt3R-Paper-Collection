@@ -1,0 +1,473 @@
+                                        Evict3R: Training-Free Token Eviction for Memory-Bounded Streaming
+                                                            Visual Geometry Transformers
+                                                   Soroush Mahdi1 , Fardin Ayar1 , Ehsan Javanmardi2 , Manabu Tsukada2 Mahdi Javanmardi1* ,
+                                                                        1
+                                                                            Amirkabir University of Technology (AUT), Tehran, Iran
+                                                                                  2
+                                                                                    The University of Tokyo, Tokyo, Japan
+                                                                                  *
+                                                                                      Corresponding author: mjavan@aut.ac.ir
+
+
+                                           Abstract— Streaming visual transformers like StreamVGGT           information loss and drift, and the required architectural
+arXiv:2509.17650v2 [cs.CV] 2 Oct 2025
+
+
+
+
+                                        achieve strong 3D perception but suffer from unbounded               changes complicate adoption.
+                                        growth of key–value (KV) memory, which limits scalability. We           We ask: Can a streaming visual transformer preserve the
+                                        propose a training-free, inference-time token eviction policy that
+                                        bounds memory by discarding redundant tokens while keeping           benefits of long-range context while bounding its internal KV
+                                        the most informative ones. Our method uses significantly less        memory, without retraining or modifying model weights?
+                                        memory with little to no drop in accuracy: on 7-Scenes with             1) Approach: We introduce a training-free, inference-time
+                                        long sequences it reduces peak memory from 18.63 GB to               token budgeting and eviction mechanism for StreamVGGT
+                                        9.39 GB while accuracy and completeness drop by only 0.003.          that (i) enforces per-layer KV-cache budgets and (ii) selects
+                                        Under strict memory budgets, eviction enables denser frame
+                                        sampling, which improves reconstruction accuracy compared            tokens for retention using an attention-based importance
+                                        to the baseline. Experiments across video depth estimation           score. We further allocate the total budget across global-
+                                        (Sintel, KITTI), 3D reconstruction (7-Scenes, NRGBD), and            attention layers using an attention-sparsity prior, reflecting
+                                        camera pose estimation (Sintel, TUM-dynamics) show that our          the empirical observation that early/late layers attend more
+                                        approach closely matches StreamVGGT at a fraction of the             densely than middle layers, in line with long-context LLM
+                                        memory and makes long-horizon streaming inference more
+                                        practical.                                                           findings [10]–[13].
+                                                                                                                Our experiments show that on video depth, multi-view
+                                                              I. I NTRODUCTION                               reconstruction, and camera pose, our method matches
+                                                                                                             StreamVGGT accuracy at moderate budgets while substan-
+                                           Robotic platforms rely on dense, view-consistent 3D per-          tially reducing peak memory and per-frame latency; crit-
+                                        ception for navigation, manipulation, and long-horizon au-           ically, it enables much longer sequences (e.g., 2×–10×)
+                                        tonomy. Classical Structure-from-Motion (SfM) and Multi-             on a single GPU. Also, qualitative reconstructions remain
+                                        View Stereo (MVS) pipelines deliver accurate reconstruc-             complete and consistent under tight budgets (Fig. 1).
+                                        tions via global optimization [1], [2], but their iterative bun-
+                                        dle adjustment and repeated data association hinder real-time                            II. R ELATED W ORK
+                                        operation and incremental updates on resource-constrained               1) From Conventional to Learning-Based Reconstruction:
+                                        hardware. Recent learning-based approaches replace hand-             Classical 3D reconstruction pipelines, including Structure-
+                                        crafted geometry with end-to-end predictors that infer depth,        from-Motion (SfM) and Multi-View Stereo (MVS), achieve
+                                        pose, and point maps directly from images [3]–[5]. Among             high accuracy through sophisticated global optimization
+                                        these, large feed-forward transformers achieve strong accu-          procedures [1], [2]. These methods, however, suffer from
+                                        racy by reasoning jointly across many views, but they are            computational limitations that restrict their applicability to
+                                        typically offline: each new frame requires re-encoding the           scenarios requiring real-time processing or incremental up-
+                                        entire sequence, making them ill-suited to streaming robotics        dates. In dynamic environments or scenes with limited
+                                        workloads.                                                           texture, feature matching and photometric consistency de-
+                                           Causal, streaming variants have emerged to close this             teriorate, further compromising system robustness. These
+                                        gap. StreamVGGT adopts the autoregressive paradigm of                fundamental limitations have motivated the development of
+                                        language models: each incoming frame attends to a cached             end-to-end learning-based approaches that directly infer 3D
+                                        key–value (KV) memory of all prior frames, avoiding re-              geometry from visual inputs. Pairwise reconstruction meth-
+                                        dundant recomputation and enabling low-latency updates               ods, exemplified by DUSt3R [3] demonstrate the capability
+                                        [6]. However, the same KV cache that boosts throughput               to predict view-consistent point maps from image pairs.
+                                        also causes a fundamental scalability bottleneck: its size           While effective for two-view scenarios, pairwise approaches
+                                        increases with sequence length. Even with fewer than 10              inherently lack the global context necessary for handling
+                                        frames, the KV cache size can exceed the model size! Other           complex multi-view sequences with occlusions and varying
+                                        streaming designs impose fixed external memories or explicit         viewpoints. Large-scale feed-forward transformers, such as
+                                        spatial pointer stores [7]–[9], but capacity limits introduce        Fast3R [4] and VGGT [5], address this limitation by enabling
+                       (a) StreamVGGT                                                   (b) Ours (B=0.2)
+
+Fig. 1: Qualitative 3D pointmap comparison. Reconstructions from StreamVGGT and our method with B=0.2. Despite
+using less than half the memory, our method shows no visible drop in quality.
+
+
+comprehensive multi-view reasoning through single forward       former architectures. In computer vision, early methods such
+passes that consider all views simultaneously. However,         as token merging (e.g., ToMe [14]) and token pruning (e.g.,
+these transformer-based models operate exclusively in offline   DynamicViT [15]) were developed to reduce redundancy
+mode, requiring complete sequence re-encoding whenever          and focus computation on informative tokens. More recent
+new frames arrive, which fundamentally prevents real-time       approaches combine these strategies, as in PuMer [16], to
+streaming applications.                                         further improve efficiency.
+   2) Streaming 4D Reconstruction: Real-time 4D recon-             Key-value (KV) caching is a core technique in transformer
+struction has motivated streaming methods that process          models with causal attention, such as those used in large
+continuous video with a persistent state while remaining        language models (LLMs). In causal attention, each new token
+efficient. Memory-augmented approaches such as CUT3R            attends only to previous tokens, enabling efficient autoregres-
+[7] maintain explicit spatial state to predict pointmaps in     sive inference by storing and reusing the keys and values (the
+a common frame. More recent works—Spann3R [8] and               ”KV cache”) from earlier steps. This approach allows models
+Point3R [9]—introduce stronger memory management at the         to process long sequences incrementally without recomput-
+cost of architectural complexity. Spann3R employs a two-tier    ing attention over the entire history at each step. However, as
+memory (dense working + sparse long-term) and evites its        the sequence grows, the KV cache can become prohibitively
+long-term store by retaining top-k items according to accu-     large, leading to unbounded memory usage. To address
+mulated attention, keeping the long-term memory bounded.        this, the LLM community has developed a range of token
+Point3R maintains an explicit spatial pointer memory and        eviction and memory budgeting strategies for managing KV
+fuses nearby pointers under a distance schedule to suppress     cache growth during long-context inference. Early methods
+redundancy as the scene grows; this curbs growth but does       such as H2O [10] and Scissorhands [11] use attention-based
+not guarantee a fixed bound. StreamVGGT [6] takes another       importance scores to identify and retain the top-k most
+path: temporal causal attention with a cached KV memory         relevant tokens, evicting less important ones. More recent
+enables efficient autoregressive updates, but the cache grows   approaches, including D2O [12] and PyramidKV [13], in-
+linearly with sequence.                                         troduce layer-wise KV cache budget allocation, recognizing
+   We manage KV memory of StreamVGGT with a training-           that different transformer layers exhibit varying degrees of
+free, inference-time policy that enforces per-layer token       attention sparsity and thus require different memory budgets.
+budgets, ranks keys by attention with exposure/length nor-         Since our baseline method (StreamVGGT [6]) adopts the
+malization, and preserves a fixed set of important tokens.      LLM paradigm with causal attention and cached tokens,
+   Compared to v’s attention-based eviction, ours adds per-     leveraging these advanced eviction strategies is particularly
+layer control and the mentioned normalizations, remain-         relevant. To our knowledge, no prior work has successfully
+ing plug-and-play. In contrast to Point3R’s explicit pointer    integrated principled token eviction from the LLM literature
+memory, our method is architecture-agnostic and enforces a      into causal visual transformers for scalable and accurate
+strict, per-layer memory budget. By operating directly on       streaming reconstruction.
+the key and value (KV) cache within StreamVGGT, our
+approach avoids the need to reproject features into keys                   III. P RELIMINARIES & M OTIVATION
+and values at each step, resulting in lower computational          This section reviews VGGT’s offline multi-view recon-
+overhead and seamless integration with existing transformer-    struction capabilities and StreamVGGT’s causal streaming
+based architectures.                                            adaptation. We examine how StreamVGGT enables real-time
+   3) Token Management and Eviction: Token reduction is         processing through key-value caching while highlighting
+essential for managing the computational demands of trans-      its unbounded memory growth limitations. This analysis
+Fig. 2: Overview of our token eviction framework. (A) Tokens in each layer’s KV cache are ranked by attention importance
+and evicted under a per-layer budget. (B) Importance scores are derived from query–key attention statistics. (C) Scores are
+normalized to guide consistent token selection across layers.
+
+
+motivates our solution for addressing the scalability chal-        computes Ft = Enc(It ) and applies frame-wise attention
+                                                                     (ℓ)           (ℓ)
+lenges that restrict the practical deployment of streaming         Zet    = F(Zt ) just like in VGGT. The difference is
+reconstruction systems.                                            that global attention processes the current frame against all
+                                                                   previous frames using cached keys and values:
+A. VGGT & StreamVGGT: Offline vs Online Multi-View
+Reconstruction                                                                      (ℓ+1)           (ℓ)  (ℓ)     (ℓ)
+                                                                                  Zt        = G◁ (Zet ; K1:t , V1:t )
+  VGGT processes N input images {It }Tt=1 , It ∈ RH×W ×3                                                                (ℓ)
+through DINO encoder [17] to produce feature tokens Ft =           where G◁ denotes causal global attention, K1:t ∈ RtM ×d
+                                                                          (ℓ)
+Enc(It ) ∈ RM ×d where M is the number of tokens per               and V1:t ∈ RtM ×d are the keys and values respectively.It
+                                                                              (ℓ)        (ℓ)
+frame and d is the token dimension. These tokens are               caches K1:t−1 and V1:t−1 from previous steps so that each
+concatenated into Z (0) = Concat(F1 , . . . , FN ) ∈ RN M ×d       new frame can efficiently attend to all past context without
+and processed by a transformer with alternating attention          recomputing attention for earlier frames; at each step, only
+layers. Each layer applies frame-wise self-attention F fol-        one frame is processed through the model.
+lowed by global self-attention G: Z (ℓ+1) = G(F(Z (ℓ) )) for          The KV cache is updated by appending new keys and
+                                                                               (ℓ)                 (ℓ)     (ℓ)          (ℓ)
+ℓ = 0, . . . , L − 1 where L is the total number of layers. The    values: K1:t ← Append(K1:t−1 , Kt ), and V1:t ←
+                                                                                (ℓ)  (ℓ)
+final features are decoded by per-view DPT head [18] to pro-       Append(V1:t−1 , Vt ). This approach enables incremental
+duce geometry, depth, and pose estimates: (gt , Dt , Pt , Tt ) =   processing with low per-step latency, similar to autoregres-
+          (L)
+DPT(Zt ) where gt ∈ R9 represents camera parameters                sive language models, but introduces unbounded memory
+(intrinsics and extrinsics), Dt ∈ RH×W denotes the pre-            growth as the cache accumulates tokens from all previous
+dicted depth map for view t, Pt ∈ R3×H×W is the point              frames.
+map providing dense 3D coordinates for each pixel, and
+Tt ∈ RC×H×W represents a grid of C-dimensional features            B. Motivation: The Scalability Challenge
+for point tracking. While effective, VGGT’s global atten-             While KV caching enables efficient streaming by avoiding
+tion couples all views, resulting in quadratic computational       redundant recomputation, it introduces fundamental scal-
+complexity O(N 2 M 2 ) and requiring complete re-encoding          ability limitations. The cache stores keys and values for
+when new frames arrive, making it infeasible for robotic           every past frame across all global attention layers and for
+applications requiring real-time processing and incremental        each head, leading to unbounded memory growth. After
+updates.                                                           processing T frames, the total KV cache memory footprint
+   StreamVGGT extends VGGT for real-time processing by             scales as T · M · Lg · H · (d + d), where T is the sequence
+replacing global attention with causal attention and introduc-     length, M is the number of global-attention tokens per frame,
+ing key-value (KV) caching. For each incoming frame It , it        Lg is the number of global layers, H is the number of heads
+          (a) Layer 2                      (b) Layer 3                     (c) Layer 7                         (d) Layer 24
+
+Fig. 3: Head-averaged attention maps across temporal layers in StreamVGGT [6]. Each subplot corresponds to one
+layer, averaged across all attention heads. Color scales are independent per subplot (not comparable across layers). For better
+visibility, rows are multiplied by their frame index r, since later frames have more tokens and lower raw attention values.
+White dashed lines mark frame boundaries along both axes.
+
+
+in each global attention block, and d is the dimension of the     literature [12], [13] in LLMs, but contrast with them in the
+keys and values. This also results in quadratic computational     way that they usually observe uniform attention only in the
+complexity O(T ·M 2 ·Lg ·H) for global attention operations.      first layers. We also find that a subset of tokens remains
+   Existing approaches to streaming reconstruction face a         consistently important across steps. This is also align with
+fundamental trade-off between memory efficiency and con-          the persistence of importance hypothesis [11].
+text preservation. Memory-augmented models like CUT3R                Similar to D2O, we use attention map variance as the
+                                                                                                         ′
+[7] maintain fixed-size states but suffer from information        notion of sparsity. Let At (ℓ) ∈ RM ×M be the mean attention
+loss and drift over long sequences due to their bounded           map of heads of layer (ℓ) for the frame t. Simply put, it is
+capacity. StreamVGGT preserves complete context through           the attention weight of the last frame tokens with respect to
+unbounded caching but becomes computationally intractable         themselves and previous tokens (Excluding evicted tokens:
+as sequence length increases.                                     M ′ = M × t − nember of evicted tokens in the layer). First,
+                                                                  we sum At (ℓ) on the query dimension, which gives us a list
+                  IV. P ROPOSED M ETHOD
+                                                                  with the same length as our cached tokens for each layer
+   We introduce a training-free streaming token budgeting           (ℓ)
+                                                                  St . For each input frame, we define:
+and eviction mechanism for StreamVGGT that preserves
+                                                                                                         (ℓ)
+long-range context under a fixed key–value cache budget:                                  σℓ = −Var(St )
+Evict3r. Our design follows the layer-wise budget allocation
+driven by attention sparsity [12], [13].                          We then form layer importance πℓ via a temperature τ > 0:
+   Let Lg denote the number of global-attention layers.                                              
+                                                                                           exp σℓ /τ
+PLgset a total KV budget B and split it across layers as
+We                                                                                πℓ = PLg              
+   ℓ=1 Bℓ ≈ B. When a new frame with M tokens arrives,                                    r=1 exp σr /τ
+StreamVGGT first computes the desired outputs. To update            Then we allocate the budget Bℓ to the layer ℓ as
+KV cache memory, each layer must admit M new keys and
+values while respecting Bℓ . When a layer is full, we evict the
+                                                                                             j      k
+                                                                                       Bℓ = B · πℓ
+least important cached tokens in each layer until M slots are
+available in each layer. Note that the budget is only for the     B. Token Selection for Eviction
+KV cache. Following the LLM token eviction literature, we
+use the cumulative-attention score to rank cached tokens for         When a layer’s KV cache reaches its limit, we evict the
+eviction. The intuition is that the tokens which have recived     least important cached tokens in the layer until M slots are
+less attention from other tokens during the generation process    available. We rank each cached token j at layer ℓ using
+are less important and can be evicted.                            attention it receives from queries across time, heads, and
+   Now we describe or per-layer budget allocation strategy,       queries. We begin with the raw cumulative attention:
+followed by the details of the token selection strategy for                                 H X
+                                                                                              M
+                                                                                    (ℓ)          (ℓ)
+                                                                                           XX
+eviction.                                                                         cj =          at,h,q→j ,
+                                                                                          t∈Tj h=1 q=1
+A. Per-Layer Budget Allocation
+                                                                          (ℓ)
+   As shown in the Fig 3, we observe that the first and           where cj is the cumulative attention received by token j
+last global-attention layers exhibit dense and near-uniform       at layer ℓ, Tj is the set of time steps during which token j
+attention, whereas middle layers are sparser and more selec-      is present in the cache, H is the number of attention heads,
+                                                                                                                        (ℓ)
+tive. This is similar to the observation in the token eviction    M is the number of global tokens per frame, and at,h,q→j
+denotes the attention weight from the q-th query token in          TABLE I: Video Depth Evaluation (Sintel & KITTI).
+head h at time t to token j in layer ℓ.                            Metrics: Abs Rel ↓ (absolute relative error, lower is better)
+  In contrast to LLM token eviction literature, we argue that      and δ < 1.25 ↑ (percentage of predictions within a 1.25
+row-length normalization is required because early steps can       factor of ground truth depth, higher is better). First three
+have fewer keys, which would cause their contributions to          methods take pairwise inputs, VGGT is Dense-view, and
+                 (ℓ)
+dominate. Let Nt be the number of keys present when step           the others are streaming. “GA” marks methods with global
+t was computed, and form the row-length normalized score:          alignment.
+                                H X
+                                  M                                                         Sintel               KITTI
+               (ℓ)
+                     X     1    X    (ℓ)                             Method         Abs Rel↓ δ < 1.25 ↑   Abs Rel↓ δ < 1.25 ↑
+             ĉj =          (ℓ)
+                                    at,h,q→j .
+                                                                     DUSt3R-GA       0.656         45.2    0.144       81.3
+                     t∈Tj Nt    h=1 q=1
+                                                                     MASt3R-GA       0.641         43.9    0.183       74.5
+   Also, exposure normalization is required because tokens           MonST3R-GA      0.378         55.8    0.168       74.4
+that remain longer in the cache would accumulate higher              VGGT            0.298         68.1    0.061       97.0
+                              (ℓ)                                    Spann3R         0.622         42.6    0.198       73.7
+scores purely by tenure. Let ej be the exposure count, i.e.,
+                                                                     CUT3R           0.421         47.9    0.118       88.1
+the number of steps during which token j resided in the              Point3R         0.452         48.9    0.136       84.2
+cache, and define the final importance:                              StreamVGGT      0.323         65.7    0.173       72.1
+                                  (ℓ)                                StreamVGGT∗     0.325         65.4    0.174       72.1
+                          (ℓ)    ĉj                                 Ours (B=0.1)    0.333         63.7    0.202       65.9
+                         ij =     (ℓ)
+                                        .
+                                 ej                                  Ours (B=0.2)    0.335         63.5    0.209       62.0
+                                                                     Ours (B=0.3)    0.339         62.8    0.202       63.2
+   We aggregate attention over both heads and queries to             Ours (B=0.4)    0.337         62.4    0.193       65.9
+obtain stable importance estimates. To safeguard essential           Ours (B=0.6)    0.333         63.7    0.179       70.0
+references, we assign an importance of +∞ to all tokens              Ours (B=0.8)    0.330         65.0    0.174       71.9
+from the first frame—since it defines the global coordinate
+system—and similarly to camera and register tokens, as they
+play a critical role in ensuring accurate reconstruction. Our      A. Implementation Details
+method overview is depicted in Fig 2.                                 Our method is implemented by extending the
+                                                                   StreamVGGT [6] framework. We directly reuse the
+C. Discussion
+                                                                   pretrained weights of StreamVGGT and apply our eviction
+   In our approach, we introduce a per-layer token budget          mechanism during inference without retraining. The
+B that is applied directly to the KV cache. This budget can        underlying architecture remains identical to StreamVGGT;
+be flexibly set at inference time, requiring no architectural      the only modification is the insertion of token eviction
+modifications or retraining. As a result, each layer’s cache       in the global/temporal attention cache. In all experiments
+is limited to approximately Lg · B · (d + d) (for keys and         temperature for eviction is equal to 1.5 unless stated
+values), and this bound is independent of the total stream         otherwise. Eviction applies only to global self-attention
+length T . Consequently, the computational cost of attention       KV caches; local/frame-wise attention is untouched.
+per step is determined by B, rather than by the cumulative         We disable FlashAttention in our experiments since it
+history.                                                           does not expose per-head attention maps, which are
+   While Span3R [8] also allows for dynamic adjustment of          required for our analysis and visualizations, also in our
+its long-term memory size at inference, our contribution lies      experiments, StreamVGGT∗ donates StreamVGGT without
+in the introduction of per-layer budgeting within the trans-       FlashAttention. All experiments are performed on a single
+former’s internal KV cache, rather than simply enforcing a         NVIDIA RTX6000-Ada GPU.
+global memory constraint. This design enables more gran-
+ular, layerwise control: as observed in the previous section,      B. Video Depth Estimation
+certain layers exhibit dense attention patterns while others are      We follow the StreamVGGT evaluation protocol for video
+more selective. Furthermore, unlike Span3R’s external spatial      depth estimation. The task measures both the per-frame depth
+memory—which requires re-projecting memory tokens into             quality and the temporal consistency of predictions. Predicted
+keys and values at every step—our per-layer KV cache               depths are aligned with ground truth via per-sequence scale
+design only computes queries for the current frame. This           normalization. Results on Sintel and KITTI are summa-
+leads to faster per-step computation under the same token          rized in Table I, where we compare our method against
+budget.                                                            StreamVGGT and other recent baselines. Our approach pre-
+                                                                   serves accuracy at moderate budgets while offering tunable
+                      V. E XPERIMENTS
+                                                                   efficiency.
+   In this section, we compare our proposed method against
+state-of-the-art approaches across 3D reconstruction, video        C. 3D Reconstruction
+depth estimation, and camera pose estimation benchmarks.             Following CUT3R [7], we evaluate 3D reconstruction on
+We additionally conduct ablation studies to analyze the            7Scenes [21] and NRGBD [22], reporting accuracy (Acc),
+effectiveness of our eviction policy.                              completeness (Comp), and normal consistency (NC). The
+TABLE II: Quantitative 3D reconstruction results on 7-Scenes and NRGBD datasets. Number of frames matches the
+StreamVGGT experiment. Metrics: Accuracy (Acc, ↓), Completeness (Comp, ↓), Normal Consistency (NC, ↑). Reported as
+mean / median.
+                                                                  7 scenes                                 NRGBD
+         Method                 Type              Acc↓             Comp↓         NC↑           Acc↓         Comp↓          NC↑
+                                              Mean Med.        Mean Med.     Mean Med.     Mean Med.     Mean Med.     Mean Med.
+         DUSt3R-GA [3]          Pair-wise     0.146 0.077      0.181 0.067   0.736 0.839   0.144 0.019   0.154 0.018   0.870 0.982
+         MASt3R-GA [19]         Pair-wise     0.185 0.081      0.180 0.069   0.701 0.792   0.085 0.033   0.063 0.028   0.794 0.928
+         MonST3R-GA [20]        Pair-wise     0.248 0.185      0.266 0.167   0.672 0.759   0.272 0.114   0.287 0.110   0.758 0.843
+         VGGT [5]               Dense-view    0.088 0.039      0.091 0.039   0.787 0.890   0.073 0.018   0.077 0.021   0.910 0.990
+         Spann3R [8]            Streaming     0.298 0.226      0.205 0.112   0.650 0.730   0.416 0.323   0.417 0.285   0.684 0.789
+         CUT3R [7]              Streaming     0.126 0.047      0.154 0.031   0.727 0.834   0.099 0.031   0.076 0.026   0.837 0.971
+         StreamVGGT             Streaming     0.129 0.056      0.115 0.041   0.751 0.865   0.084 0.044   0.074 0.041   0.861 0.986
+         StreamVGGT∗            Streaming     0.133 0.059      0.117 0.043   0.750 0.863   0.084 0.044   0.074 0.041   0.861 0.986
+         Ours (B=0.10)          Streaming     0.297 0.177      0.249 0.133   0.657 0.745   0.228 0.088   0.206 0.067   0.788 0.947
+         Ours (B=0.20)          Streaming     0.167 0.067      0.151 0.049   0.737 0.851   0.190 0.075   0.176 0.072   0.815 0.958
+         Ours (B=0.30)          Streaming     0.162 0.061      0.144 0.045   0.745 0.860   0.127 0.047   0.120 0.043   0.858 0.985
+         Ours (B=0.40)          Streaming     0.142 0.066      0.124 0.048   0.749 0.861   0.095 0.046   0.094 0.039   0.860 0.983
+         Ours (B=0.60)          Streaming     0.135 0.062      0.119 0.045   0.752 0.865   0.086 0.045   0.083 0.037   0.865 0.987
+         Ours (B=0.80)          Streaming     0.132 0.059      0.117 0.043   0.750 0.863   0.084 0.044   0.078 0.038   0.862 0.986
+
+TABLE III: 3D Reconstruction with Longer Sequences. 7Scenes uses 2× frames, NRGBD uses 2.5× frames. Mem is the
+peak allocated GPU memory during inference.
+                                         7Scenes (2× frames)                                           NRGBD (2.5× frames)
+Method           Acc    Comp      NC       Accmed Compmed      NCmed   Mem (GB)     Acc    Comp     NC Accmed Compmed NCmed          Mem (GB)
+Ours (B=0.10)   0.106   0.081    0.717      0.059    0.036     0.826     7.68      0.175   0.134   0.787 0.103    0.086    0.949       7.57
+Ours (B=0.20)   0.063   0.055    0.746      0.039    0.029     0.860     7.93      0.098   0.082   0.854 0.058    0.032    0.988       7.75
+Ours (B=0.30)   0.058   0.052    0.748      0.032    0.024     0.861     8.19      0.100   0.082   0.855 0.054    0.036    0.987       7.97
+Ours (B=0.40)   0.057   0.052    0.749      0.031    0.025     0.862     8.45      0.105   0.087   0.851 0.062    0.036    0.986       8.21
+Ours (B=0.60)   0.057   0.052    0.749      0.031    0.025     0.861     8.98      0.104   0.085   0.850 0.060    0.037    0.986       8.69
+Ours (B=0.80)   0.056   0.052    0.750      0.031    0.025     0.861     9.51      0.102   0.085   0.854 0.057    0.037    0.987       9.16
+StreamVGGT∗     0.056   0.052    0.750      0.030    0.025     0.861     9.75      0.101   0.084   0.855 0.057    0.037    0.987       9.35
+
+   TABLE IV: 3D Reconstruction with Ultra-Long Sequences. 7Scenes uses 8× frames, NRGBD uses 10× frames.
+                                         7Scenes (8× frames)                                           NRGBD (10× frames)
+Method           Acc    Comp      NC       Accmed Compmed      NCmed   Mem (GB)     Acc    Comp     NC Accmed Compmed NCmed          Mem (GB)
+Ours (B=0.01)   0.327   0.248    0.561      0.246    0.134     0.592      8.45     0.443   0.340   0.591 0.360   0.235    0.641        8.24
+Ours (B=0.10)   0.047   0.034    0.688      0.026    0.013     0.791      9.39     0.085   0.050   0.819 0.059   0.022    0.973        8.77
+Ours (B=0.20)   0.047   0.035    0.687      0.026    0.013     0.789     10.44     0.092   0.057   0.818 0.064   0.024    0.971        9.50
+Ours (B=0.30)   0.046   0.034    0.687      0.026    0.014     0.789     11.51     0.099   0.060   0.813 0.067   0.023    0.968        10.40
+Ours (B=0.40)   0.045   0.034    0.687      0.025    0.013     0.789     12.57     0.099   0.061   0.811 0.065   0.023    0.968        11.30
+Ours (B=0.50)   0.045   0.033    0.688      0.025    0.013     0.790     13.63     0.098   0.060   0.813 0.065   0.023    0.969        12.20
+StreamVGGT∗     0.044   0.031    0.688      0.024    0.012     0.791     18.63     0.088   0.058   0.816 0.055   0.024    0.969        16.41
+
+
+
+standard setup uses sparse inputs (3–5 frames for 7-Scenes,                  struction with strong accuracy–efficiency balance. Impor-
+2–4 for NRGBD), with extended tests on longer sequences:                     tantly, in comparing these 3 tables for 3D reconstruction, we
+2×/2.5× frames and ultra-long 8×/10× frames. In addition                     can say that with an increasing number of frames sampled for
+to reconstruction quality, we also report peak GPU memory                    reconstruction and a low budget (e.g., B = 0.1), our method
+usage.                                                                       not only reduces memory usage but can also achieve superior
+   As shown in Table II, our method matches StreamVGGT                       performance compared to the baseline. While it is true that
+under strict budgets. With longer sequences (Table III),                     inference time increases with the number of frames, token
+StreamVGGT memory rises sharply (up to 9.35 GB on                            eviction helps recover some of this overhead by bounding the
+NRGBD and 9.75 GB on 7Scenes), while our method                              effective cache size. We also report the per-frame latency in
+maintains comparable accuracy at lower cost. For ultra-                      Table VI.
+long sequences (Table IV), StreamVGGT requires 16.41
+GB (NRGBD) and 18.63 GB (7Scenes), but our method                            D. Camera Pose Estimation
+achieves similar accuracy with nearly half the memory. The                      We evaluate camera pose estimation on Sintel [23]
+best trade-off appears at B = 0.1, which even outperforms                    and TUM-dynamics [22] datasets, following the setup of
+StreamVGGT on NRGBD while using far less memory.                             MonST3R [20] and CUT3R [7]. Metrics include Abso-
+Overall, token eviction enables scalable streaming recon-                    lute Translation Error (ATE), Relative Translation Error
+TABLE V: Camera Pose Estimation Evaluation on Sintel and TUM-dynamics. Lower is better. “Optim.” indicates
+test-time optimization; “Onl.” indicates online/streaming inference. OOM indicates out of memory.
+
+                               Settings                         Sintel                            TUM-dynamics
+             Method          Optim.   Onl.       ATE ↓      RPE trans ↓     RPE rot ↓    ATE ↓    RPE trans ↓        RPE rot ↓
+             MASt3R-GA         ✓                  0.185        0.060          1.496       0.038      0.012             0.448
+             MonST3R-GA        ✓                  0.111        0.044          0.869       0.098      0.019             0.935
+             Spann3R                      ✓       0.329        0.110          4.471       0.056      0.021             0.591
+             CUT3R                        ✓       0.213        0.066          0.621       0.046      0.015             0.473
+             Point3R                      ✓       0.351        0.128          1.822       0.075      0.029             0.642
+             StreamVGGT∗                  ✓       0.232        0.095          0.722       OOM        OOM               OOM
+             Ours (B=0.9)                 ✓       0.235        0.095          0.723       OOM        OOM               OOM
+             Ours (B=0.7)                 ✓       0.259        0.099          0.717       OOM        OOM               OOM
+             Ours (B=0.5)                 ✓       0.282        0.101          0.723       0.028      0.011             0.317
+             Ours (B=0.4)                 ✓       0.287        0.101          0.776       0.028      0.010             0.314
+             Ours (B=0.3)                 ✓       0.282        0.103          0.852       0.027      0.012             0.314
+             Ours (B=0.2)                 ✓       0.261        0.106          0.921       0.026      0.011             0.314
+             Ours (B=0.1)                 ✓       0.244        0.088          0.931       0.027      0.012             0.314
+             Ours (B=0.01)                ✓       0.626        0.197          2.858       0.063      0.031             0.854
+
+
+
+
+           (a) Frame 2                        (b) Frame 3                         (c) Frame 4                         (d) Frame 5
+
+Fig. 4: Token eviction masks for first layer across frames 2–5 of an 11-frame sequence. Each subplot shows which
+tokens are retained or evicted at that frame. Blue-bordered squares indicate evicted tokens.
+
+
+(RPEtrans ), and Relative Rotation Error (RPErot ), com-                 TABLE VI: Per-frame latency (s). on 7scenes across se-
+puted after Sim(3) Umeyama alignment [20]. Unlike several                quences.
+baselines that require test-time optimization, our method                                  Method / B         1×       8×
+runs fully feed-forward without post-processing. Results in                                StreamVGGT        0.107    0.142
+                                                                                           StreamVGGT∗       0.141    0.475
+Table V show that our streaming model achieves competitive                                 Ours (B=0.7)      0.158    0.491
+performance with online methods while retaining a perfor-                                  Ours (B=0.5)      0.150    0.416
+mance gap relative to optimization-heavy approaches.                                       Ours (B=0.3)      0.148    0.315
+                                                                                           Ours (B=0.1)      0.131    0.187
+E. Ablation Studies
+   We conduct additional experiments to analyze the compo-
+nents of our eviction strategy:
+   1) Latency under different sequence lengths: We evaluate
+per-frame latency on 7-Scenes under both the standard (1×)               effective and more robust under tight budgets, preserving
+and ultra-long (8×) regimes, and find that token eviction                reconstruction quality while maintaining bounded memory.
+helps stabilize inference time as sequence length increases
+(Table VI).                                                                 3) Qualitative eviction masks: We visualize tokens
+   2) Eviction policies: We compare our scoring-based evic-              evicted from the global transformer’s first-layer cache across
+tion with two alternatives: random eviction and uniform                  different input frames of a sample sequence (Fig. 4). The
+budget allocation across layers. On 7Scenes with 2× frames               results show that evicted tokens largely correspond to back-
+(Table VII), our method achieves the lowest errors across                ground or low-texture regions, while tokens covering salient
+budgets in the accuracy metric, particularly at B=0.1 where              geometry are preserved. This behavior is consistent with our
+random eviction degrades sharply in accuracy and com-                    design objective and supports the quantitative gains reported
+pleteness. These results confirm that our scoring method is              in earlier tables.
+TABLE VII: Ablation on 7Scenes with 2× frames. Uniform                             [12] Z. Wan, X. Wu, Y. Zhang, Y. Xin, C. Tao, Z. Zhu, X. Wang, S. Luo,
+Budget temperature is 100.                                                              J. Xiong, L. Wang et al., “D2o: Dynamic discriminative operations
+                                                                                        for efficient long-context inference of large language models,” in
+ Budget              Ours           Uniform Budget          Random Evict                The Thirteenth International Conference on Learning Representations,
+                                                                                        2025.
+              Acc↓      Comp↓        Acc↓      Comp↓       Acc↓      Comp↓         [13] Z. Cai, Y. Zhang, B. Gao, Y. Liu, Y. Li, T. Liu, K. Lu, W. Xiong,
+     0.50    0.0570      0.0520     0.0570      0.0520     0.058      0.053             Y. Dong, J. Hu et al., “Pyramidkv: Dynamic kv cache compres-
+     0.30    0.0580      0.0520     0.0580      0.0520     0.067      0.056             sion based on pyramidal information funneling,” arXiv preprint
+     0.10    0.1060      0.0810     0.1440      0.0770     0.239      0.230             arXiv:2406.02069, 2024.
+                                                                                   [14] D. Bolya, C.-Y. Fu, X. Dai, P. Zhang, C. Feichtenhofer, and J. Hoff-
+                                                                                        man, “Token merging: Your ViT but faster,” in International Confer-
+                                                                                        ence on Learning Representations, 2023.
+                                                                                   [15] Y. Rao, W. Zhao, B. Liu, J. Lu, J. Zhou, and C.-J. Hsieh, “Dynamicvit:
+                            VI. C ONCLUSION                                             Efficient vision transformers with dynamic token sparsification,” in
+                                                                                        Advances in Neural Information Processing Systems (NeurIPS), 2021.
+   We addressed the memory scalability challenge of                                [16] Q. Cao, B. Paranjape, and H. Hajishirzi, “Pumer: Pruning and merging
+                                                                                        tokens for efficient vision language models,” in The 61st Annual
+StreamVGGT by introducing a simple yet effective token                                  Meeting Of The Association For Computational Linguistics, 2023.
+eviction strategy. Our approach preserves critical tokens                          [17] M. Oquab, T. Darcet, T. Moutakanni, H. Vo, M. Szafraniec, V. Khali-
+while discarding redundant ones, allowing reconstruction and                            dov, P. Fernandez, D. Haziza, F. Massa, A. El-Nouby et al., “Dinov2:
+                                                                                        Learning robust visual features without supervision,” Transactions on
+depth estimation to scale efficiently to long sequences. Exten-                         Machine Learning Research Journal, 2024.
+sive experiments on 7Scenes, NRGBD, Sintel, KITTI, and                             [18] R. Ranftl, A. Bochkovskiy, and V. Koltun, “Vision transformers for
+TUM-dynamics show that our method maintains accuracy                                    dense prediction,” in Proceedings of the IEEE/CVF international
+                                                                                        conference on computer vision, 2021, pp. 12 179–12 188.
+under strict memory budgets and achieves superior trade-offs                       [19] V. Leroy, Y. Cabon, and J. Revaud, “Grounding image matching in 3d
+between efficiency and performance, particularly in ultra-                              with mast3r,” in European Conference on Computer Vision. Springer,
+long sequences. Ablation studies further validate the impor-                            2024, pp. 71–91.
+                                                                                   [20] J. Zhang, C. Herrmann, J. Hur, V. Jampani, T. Darrell, F. Cole,
+tance of our eviction design and its impact on stability and                            D. Sun, and M.-H. Yang, “Monst3r: A simple approach for estimating
+latency. We believe this work provides a practical step toward                          geometry in the presence of motion,” arXiv preprint arXiv:2410.03825,
+scalable and real-time streaming 3D perception models.                                  2024.
+                                                                                   [21] B. Glocker, S. Izadi, J. Shotton, and A. Criminisi, “Real-time rgb-
+                                                                                        d camera relocalization,” in 2013 IEEE International Symposium on
+                                                                                        Mixed and Augmented Reality (ISMAR), 2013, pp. 173–179.
+                              R EFERENCES                                          [22] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers,
+                                                                                        “A benchmark for the evaluation of rgb-d slam systems,” in 2012
+ [1] R. Hartley and A. Zisserman, Multiple View Geometry in Computer                    IEEE/RSJ international conference on intelligent robots and systems.
+     Vision. Cambridge University Press, 2000.                                          IEEE, 2012, pp. 573–580.
+ [2] Y. Furukawa and C. Hernández, “Multi-view stereo: A tutorial,”               [23] D. J. Butler, J. Wulff, G. B. Stanley, and M. J. Black, “A naturalistic
+     Foundations and Trends in Computer Graphics and Vision, vol. 9,                    open source movie for optical flow evaluation,” in European confer-
+     no. 1-2, pp. 1–148, 2015.                                                          ence on computer vision. Springer, 2012, pp. 611–625.
+ [3] S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii, and J. Revaud, “Dust3r:
+     Geometric 3d vision made easy,” in Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition, 2024, pp.
+     20 697–20 709.
+ [4] J. Yang, A. Sax, K. J. Liang, M. Henaff, H. Tang, A. Cao, J. Chai,
+     F. Meier, and M. Feiszli, “Fast3r: Towards 3d reconstruction of
+     1000+ images in one forward pass,” in Proceedings of the IEEE/CVF
+     Conference on Computer Vision and Pattern Recognition (CVPR), June
+     2025.
+ [5] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and
+     D. Novotny, “Vggt: Visual geometry grounded transformer,” in Pro-
+     ceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+     Recognition, 2025.
+ [6] D. Zhuo, W. Zheng, J. Guo, Y. Wu, J. Zhou, and J. Lu, “Streaming 4d
+     visual geometry transformer,” arXiv preprint arXiv:2507.11539, 2025.
+ [7] Q. Wang, Y. Zhang, A. Holynski, A. A. Efros, and A. Kanazawa,
+     “Continuous 3d perception model with persistent state,” in Proceedings
+     of the Computer Vision and Pattern Recognition Conference, 2025, pp.
+     10 510–10 522.
+ [8] H. Wang and L. Agapito, “3d reconstruction with spatial memory,”
+     arXiv preprint arXiv:2408.16061, 2024.
+ [9] Y. Wu, W. Zheng, J. Zhou, and J. Lu, “Point3r: Streaming 3d
+     reconstruction with explicit spatial pointer memory,” arXiv preprint
+     arXiv:2507.02863, 2025.
+[10] Z. Zhang, Y. Sheng, T. Zhou, T. Chen, L. Zheng, R. Cai, Z. Song,
+     Y. Tian, C. Ré, C. Barrett et al., “H2o: Heavy-hitter oracle for efficient
+     generative inference of large language models,” Advances in Neural
+     Information Processing Systems, vol. 36, pp. 34 661–34 710, 2023.
+[11] Z. Liu, A. Desai, F. Liao, W. Wang, V. Xie, Z. Xu, A. Kyrillidis, and
+     A. Shrivastava, “Scissorhands: Exploiting the persistence of impor-
+     tance hypothesis for llm kv cache compression at test time,” Advances
+     in Neural Information Processing Systems, vol. 36, pp. 52 342–52 364,
+     2023.
+

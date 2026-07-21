@@ -1,0 +1,985 @@
+                                         JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                   1
+
+
+
+
+                                           L2D2-GS: Learning to Densify for Feedforward Dynamic Gaussian
+                                                                                              Scene Reconstruction
+                                             Zetian Song, Chenming Wu, Junnan Liu, Chitian Sun, Liangliang He, Hangjun Ye, Jiaqi Zhang, Siwei Ma,
+                                                                           Fellow, IEEE, Wen Gao, Fellow, IEEE,
+
+
+
+                                            Abstract—High-fidelity reconstruction of dynamic urban en-                 memory consumption and effectively precluding the use of
+                                         vironments is a cornerstone of autonomous driving simulation                  high-resolution training data. Notably, training DepthSplat [9]
+                                         and large-scale world modeling. While 3D Gaussian Splatting                   with moderately high resolutions commonly used in practice
+                                         (3DGS) has established a new standard for real-time rendering,
+                                         its reliance on expensive per-scene optimization limits scalability.          (e.g., 1024 × 1024) already exceeds the memory capacity of
+arXiv:2606.29374v1 [cs.CV] 28 Jun 2026
+
+
+
+
+                                         Conversely, recent feedforward methods that infer Gaussian                    high-end GPUs such as the NVIDIA A100. As a result, most
+                                         parameters offer faster speed but face fundamental bottlenecks:               existing methods are constrained to low input resolutions,
+                                         they are memory-prohibitive at high resolutions and struggle                  typically 256 × 256. Second, consistently fusing Gaussians
+                                         to fuse dense multi-view observations consistently. This paper                predicted from multiple views remains highly challenging.
+                                         presents L2D2-GS, a unified framework that reformulates gen-
+                                         eralizable reconstruction not as a one-shot regression, but as                To mitigate cross-view inconsistencies and visual artifacts,
+                                         a robust iterative process of optimization and densification. To              current pipelines often limit the number of input views to
+                                         resolve the ambiguity of supervision in primitive generation,                 a sparse subset. This issue is clearly observed in AnySplat
+                                         we propose a self-supervised densification policy that derives                [5], which fails to effectively exploit denser observations and
+                                         explicit reward signals from global reconstruction gains to guide             exhibits degraded reconstruction quality when more than 32
+                                         local densification. Furthermore, we mitigate irreversible early-
+                                         stage artifacts through a geometric regularization mechanism,                 input views are provided on its evaluation benchmarks.
+                                         utilizing reparameterization to constrain the optimization man-                  To address these challenges, we draw inspiration from the
+                                         ifold and prevent convergence to poor local optima. Extensive                 core principles of 3DGS and recent advances in general-
+                                         experiments on the PandaSet and Waymo datasets demonstrate                    izable reconstruction [10]–[12]. We posit that generalizable
+                                         that our method achieves state-of-the-art reconstruction fidelity             reconstruction should not be treated as a one-shot regression
+                                         and strong zero-shot generalization, while using fewer primitives
+                                         than competing baselines.                                                     problem, but instead formulated as an iterative refinement
+                                                                                                                       process. This perspective parallels the workflow of a sculptor,
+                                            Index Terms—Article submission, IEEE, IEEEtran, journal,                   who does not obtain a final form by casting a single mold, but
+                                         LATEX, paper, template, typesetting.
+                                                                                                                       progressively shapes the artifact through repeated comparison
+                                                                                                                       between the evolving structure and its reference blueprint.
+                                                                  I. I NTRODUCTION                                     Building on this insight, we introduce a robust framework for
+                                                                                                                       generalizable optimization and densification of 3D Gaussians.
+                                         R     ECONSTRUCTING and synthesizing photorealistic
+                                               views of dynamic urban environments is a corner-
+                                         stone of autonomous driving simulation and large-scale world
+                                                                                                                          However, extending this paradigm to dynamic urban scene
+                                                                                                                       reconstruction introduces several unique challenges. (1) Ill-
+                                         modeling. Although 3D Gaussian Splatting (3DGS) [1] has                       defined supervision for densification. Determining where to
+                                         emerged as a powerful framework for high-fidelity reconstruc-                 densify Gaussians during training is inherently difficult. In
+                                         tion and real-time rendering [2]–[4], its conventional pipeline               iterative pipelines, the benefit of an individual densification
+                                         depends on expensive per-scene optimization, making it time-                  operation is often delayed and implicit, only becoming appar-
+                                         consuming and susceptible to shape–radiance ambiguities. To                   ent in the final reconstruction quality, which makes it chal-
+                                         overcome these limitations and enable more efficient, scalable,               lenging to design explicit and localized supervision signals.
+                                         and robust reconstruction, recent approaches [5]–[8] propose                  (2) Irreversible degradation in early stages. In complex
+                                         feedforward models that directly regress Gaussian parameters.                 street scenes, foreground Gaussians frequently elongate into
+                                            Despite their fast inference, these generalizable approaches               needle-like structures to overfit high-frequency details, while
+                                         suffer from fundamental limitations. First, the number of                     low-frequency regions are erroneously compensated by the
+                                         Gaussians is tightly coupled to the resolution of the input                   sky. Once such artifacts emerge, they are largely irreversible,
+                                         images. Capturing fine-grained details therefore requires a                   severely limiting the effectiveness of subsequent refinement.
+                                         global increase in primitive count, leading to prohibitive                       In this paper, we introduce L2D2-GS, a unified framework
+                                                                                                                       for generalizable reconstruction of dynamic Gaussian scenes
+                                           Zetian Song, Jiaqi Zhang, Siwei Ma and Wen Gao are with the State Key       that directly addresses these challenges. To resolve the ambi-
+                                         Laboratory of Multimedia Information Processing, School of Computer Sci-      guity in densification supervision, we propose a policy-based
+                                         ence, Peking University, Beijing, 100871, China (e-mail: songzt@pku.edu.cn,
+                                         jqzhang@pku.edu.cn, swma@pku.edu.cn, wgao@pku.edu.cn).                        learning strategy that derives explicit reward signals from the
+                                           Zetian    Song,    Chenming       Wu,    Junnan    Liu,    Chitian  Sun,    reconstruction process. Concretely, leveraging a differentiable
+                                         Liangliang He, Hangjun Ye is with Xiaomi EV, Beijing, 100085,                 renderer, we back-project global reconstruction improvements
+                                         China (email: songzt@pku.edu.cn, wcm15@mails.tsinghua.edu.cn, liu-
+                                         junnan5@xiaomi.com, sunchitian@xiaomi.com, heliangliang@xiaomi.com,           to individual densified Gaussians, enabling the densification
+                                         yehangjun@xiaomi.com).                                                        policy to be trained in a fully self-supervised manner. To mit-
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                     2
+
+
+
+
+                                                    Densification
+                                                       Policy
+
+               Input LiDAR
+                                            Optimize              Supervise                 Coarse Gaussians              Densified Gaussians
+
+
+
+                                                   Generalizable
+                                                  Reconsturction
+
+                Input Video
+                                                                                                         Novel View Rendering
+
+Fig. 1. Our proposed learning-to-densitfy framework enables generalizable reconstruction of dynamic urban scenes through a combination of feedforward
+prediction and iterative optimization with adaptive denstification. To resolve supervision ambiguity in densification, we introduce a policy-based strategy that
+derives explicit rewards from reconstruction gains, enabling fully self-supervised learning.
+
+igate irreversible degradation in early optimization stages, we                  [7] explicitly models dynamic agents in large-scale scenes.
+further propose a geometric regularization scheme tailored to                    However, these approaches either inadequately model dynamic
+generalizable optimization. By adopting a re-parameterization                    objects or struggle to support high-resolution, long-duration
+strategy that constrains the optimization manifold of Gaussian                   reconstruction.
+attributes, our method prevents primitives from collapsing into                     To bridge the gap between feedforward efficiency and the
+unfavorable local optima, thereby preserving structural fidelity                 fidelity of per-scene optimization, recent works have explored
+during the highly unstable initial phases. The contributions of                  generalizable optimization. For instance, Splatformer [24]
+our work are summarized as follows.                                              aggregates local geometric features via point transformers
+   • Framework. We introduce a learning-to-densify frame-                        to improve out-of-distribution rendering quality. G3R [10]
+      work that enables generalizable reconstruction of dy-                      proposes a gradient-guided paradigm that iteratively refines
+      namic urban scenes through a combination of feedfor-                       Gaussian parameters using rendering-loss gradients, enabling
+      ward optimization and adaptive densification.                              stronger generalization to unseen scenes. Extending this idea
+   • Method. We propose a self-supervised densification                          to the temporal domain, Flux4D [11] introduces a flow-based
+      policy that resolves supervision ambiguity by exploiting                   unsupervised framework that jointly optimizes geometry and
+      reconstruction gains to guide densification decisions. In                  motion, showing promising results for dynamic scene recon-
+      addition, we introduce a geometric regularization mech-                    struction. Despite their strong generalization, these methods
+      anism based on reparameterization, which constrains                        primarily focus on attribute refinement and therefore rely heav-
+      the optimization manifold and effectively prevents early-                  ily on the quality of the initial point cloud [10]. To overcome
+      stage geometric degradation.                                               this limitation, we propose a reconstruction framework that
+   • Evaluation. Extensive experiments on common datasets                        jointly optimizes both attributes and geometry, enabling robust
+      demonstrate that our method significantly outperforms                      recovery from sparse or imperfect initialization.
+      existing state-of-the-art approaches in both subjective
+      visual quality and objective reconstruction metrics.                       B. Adaptive Gaussian Densification
+                                                                                    Most existing Gaussian densification strategies are devel-
+                      II. R ELATED W ORK
+                                                                                 oped under per-scene optimization paradigms, where density
+A. Feedforward 3D Gaussian Splatting                                             is refined through gradient-based or photometric cues [25]–
+   Recent approaches bypass costly per-scene optimization                        [30]. To cope with sparse observations and dynamic content,
+by predicting Gaussian parameters in a feedforward manner.                       subsequent works introduce alternating optimization schemes
+Early works [9], [13]–[15] leverage multi-view stereo cues                       [31], explicit point cloud enhancement [32], or urban-scene-
+or transformer-based feature aggregation, while Large Re-                        specific adaptations [33]. However, their reliance on iterative
+construction Models (LRMs) [16]–[18] scale this paradigm                         split-and-clone operations makes them inherently incompatible
+using large pre-trained networks to capture broader context.                     with real-time or feedforward reconstruction pipelines.
+Extensions have further explored single-view reconstruction                         More recently, learning-based approaches have explored
+[19], panoramic settings [20], pose-free formulations [21],                      single-pass densification. QuickSplat [34] adopts lightweight
+[22], and iterative refinement [12].                                             networks for direct prediction, while Generative Densification
+   Most closely related to our work are methods targeting                        [35] leverages large-scale priors to upsample Gaussian repre-
+unconstrained or large-scale outdoor environments. In street                     sentations. GaussianLens [36] further proposes an on-demand
+scene reconstruction, EvolSplat [6] and Omni-Scene [23]                          strategy that augments coarse 3DGS with high-resolution local
+introduce volumetric or hybrid priors to maintain geomet-                        cues. Despite these advances, substantial limitations remain for
+ric consistency under sparse observations. Pushing further,                      large-scale reconstruction. Existing methods are largely de-
+AnySplat [5] employs visually grounded geometric trans-                          signed for object-centric scenarios and exhibit severe memory
+formers for robust feedforward reconstruction, while STORM                       bottlenecks when extended to long temporal sequences. As a
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                               3
+
+
+
+                                 TABLE I                                 voxel-wise neural Gaussians and recurrently optimized using
+   F EATURE COMPARISON WITH S OTA METHODS . W E EVALUATE                 3D U-Nets equipped with sparse convolutions. Interleaved
+ CAPABILITIES ACROSS U NBOUNDED (U NB .) SCENES , DYNAMIC (DYN .)
+ SCENES , H IGH -R ESOLUTION (H IGH R ES .) INPUTS , D ENSITY C ONTROL   with this continuous refinement is the policy-based densifica-
+           (D ENS . C TRL .), AND G ENERALIZABILITY (G EN .).            tion module (Sec. III-B), which leverages an attention mech-
+                                                                         anism to identify geometrically under-represented regions and
+                                                  High Dens.             assigns spawning probabilities to candidate locations. To train
+    Method                          Unb.   Dyn.   Res. Ctrl.   Gen.
+                                                                         this discrete point-selection process without ground-truth su-
+    feedforward Densification                                            pervision, we introduce a self-supervised scoring mechanism
+    Generative Densification [35]                        ✓      ✓
+    GaussianLens [36]                              ✓     ✓      ✓        (Sec. III-C) that attributes the reduction in rendering loss to
+    QuickSplat [34]                                      ✓      ✓        individually added Gaussians, providing a fine-grained reward
+    Generalizable Prediction                                             signal. Finally, the complete training and inference pipeline
+    AnySplat [5]                     ✓                          ✓        orchestrating these components is detailed in Sec. III-D.
+    STORM [7]                        ✓      ✓                   ✓
+    Generalizable Optimization
+    G3R [10]                         ✓      ✓      ✓            ✓
+                                                                         A. Dynamic Scene Reconstruction
+    Flux4D [11]                      ✓      ✓      ✓            ✓        Hybrid Neural Representation. We represent a dynamic
+    Per-scene Optimization                                               scene as a composite scene graph composed of neural Gaus-
+    Omnire [3]                       ✓      ✓      ✓     ✓               sian primitives. Following G3R [10], each Gaussian is pa-
+    StreetGS [2]                     ✓      ✓      ✓     ✓
+                                                                         rameterized as G = {Θ, f }, where Θ denotes explicit at-
+    Ours                             ✓      ✓      ✓     ✓      ✓        tributes—including position µ, rotation q, scale s, color c, and
+                                                                         opacity α—and f is a latent neural feature. A shallow MLP
+                                                                         decoder Φ maps these parameters to rectified attributes used
+result, they struggle to handle the complex topology and high-           for differentiable rendering. For efficient network processing,
+resolution requirements of unbounded driving environments.               the Gaussians are initially organized into a sparse voxel grid,
+As summarized in Table I, a clear gap remains for a gener-               with exactly one primitive assigned to each voxel.
+alizable densification framework capable of addressing these                To model the complex dynamics of urban scenes, we
+open-world challenges.                                                   instantiate three types of scene-graph nodes: (i) Static back-
+                                                                         ground nodes, defined in the world coordinate frame; (ii)
+C. 3DGS for Autonomous Driving                                           Dynamic rigid nodes, defined in a canonical object space and
+   Applying 3D Gaussian Splatting to autonomous driving in-              transformed over time using ground-truth trajectories Tt =
+troduces distinct challenges stemming from large-scale scenes,           [Rt | tt ]; and (iii) a learnable sky cubemap that represents
+dynamic agents, and ego-centric data sparsity. Early ap-                 distant background content. The final image is synthesized
+proaches primarily rely on per-scene optimization to construct           through unified differentiable Gaussian splatting, compositing
+high-fidelity digital twins. Street Gaussians [2] and Omnire             foreground Gaussians over the sky background.
+[3] pioneer explicit decomposition of static backgrounds and             Iterative Feedforward Optimization. We formulate scene
+dynamic objects, using 3D bounding boxes to separately track             reconstruction as a learnable iterative feed-forward process
+and reconstruct moving vehicles. To reduce reliance on manual            parameterized by a Sparse 3D U-Net Ψ. At each iteration t,
+annotations, Desire-GS [4] proposes a self-supervised frame-             the current scene representation is rendered from the input
+work that disentangles dynamic objects using appearance-                 viewpoints, and gradients of the Gaussian parameters with
+based cues, while AD-GS [37] introduces object-aware B-                  respect to the photometric MSE loss are computed. These
+spline Gaussians to model continuous trajectories. Addressing            gradients serve as error-feedback signals and are channel-wise
+multi-sensor fusion, Splatad [38] integrates LiDAR and camera            concatenated with the current Gaussian attributes Gt before
+data to account for real-world effects such as rolling shutter           being fed into Ψ. The network predicts a residual update that
+during reconstruction. Although these methods adapt Gaussian             refines the scene representation:
+Splatting to the complexities of dynamic urban environments,
+                                                                                           Gt+1 = Gt + Ψ(Gt , ∇Gt ) .                 (1)
+they fundamentally inherit the iterative per-scene optimization
+paradigm of vanilla 3DGS, resulting in slow reconstruction                  In parallel, a lightweight two-layer residual convolutional
+speeds that limit their practicality in real-world autonomous            network is used to iteratively reconstruct the sky cubemap.
+driving systems.                                                         The entire framework is trained end-to-end by minimizing the
+                                                                         rendering loss of the scene at each step.
+                             III. M ETHODS                               Geometric Regularization via Reparameterization. We ob-
+   Our proposed L2D2 framework operates by alternating                   serve that naively applying the proposed framework leads to
+between a feedforward reconstruction module and a policy-                severe geometric degeneration, particularly during the early
+based densification module, as illustrated in Fig. 2. To model           iterations of optimization. In practice, a pathological failure
+complex dynamics, we adopt a scene-graph representation that             mode arises in which foreground Gaussians rapidly collapse
+decomposes urban scenes into modular static and dynamic                  into extreme, needle-like shapes to overfit high-frequency
+nodes via predefined SE(3) transformations. Within the recon-            image residuals, while low-frequency components are erro-
+struction module (Sec. III-A), each node is parameterized by             neously compensated by background Gaussians. Once the
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                            4
+
+
+
+
+              Overall Workflow
+                          Dynamic Scene                                           Policy-based                              Dynamic Scene
+                                                                                                               ⋃
+                          Reconstruction                                      Gaussian Densification                        Reconstruction
+                                                               𝐺𝑐𝑜𝑎𝑟𝑠𝑒                                                                                       𝐺𝑓𝑖𝑛𝑒
+
+       Dynamic Scene Reconstruction (Sec. 3.1)                   Policy-based Gaussian Densification(Sec. 3.2)
+                                                                                                                                Point-wise
+                                                                 𝒫𝑞𝑢𝑒𝑟𝑦                                                         Probability
+           Dynamic                                                           Feature
+            Node                                                            Embedding                                                          Top-N 𝒫𝑑𝑒𝑛𝑠
+                                                                                                                                              Selection
+                                                                 𝐺𝑐𝑜𝑎𝑟𝑠𝑒
+              Static                                                         Feature
+              Node                                                          Embedding                Cross Attention
+                       Hybrid Neural Representation                                                                         𝓛𝒑𝒐𝒍𝒊𝒄𝒚 (Eq. 6)
+
+
+        𝐼 𝑟𝑒𝑛𝑑𝑒𝑟          𝐺𝑡                                      Self-Supervised Policy Learning (Sec. 3.3)
+                                                       𝐺 𝑡+1
+                                                   +                         𝒫𝑑𝑒𝑛𝑠                      Contribution
+                          ∇𝐺 𝑡              Δ𝐺 𝑡                                                      Attributing (Eq. 4)
+       𝐼 𝑠𝑜𝑢𝑟𝑐𝑒
+                                 3D U-Net                                                                                    𝐼 𝑓𝑖𝑛𝑒
+                                                                         Dynamic Scene                                                          Δ𝐸
+          Global Scale      Axial Ratio      Rotation                    Reconstruction
+                                                                                                             Splat
+                                                                                                     𝐺𝑓𝑖𝑛𝑒
+
+                                                                                                             Splat
+                     Geometric Regularization (Eq. 2)                                                                                           𝐼 𝑔𝑡
+                                                                              𝐺𝑐𝑜𝑎𝑟𝑠𝑒                                       𝐼 𝑐𝑜𝑎𝑟𝑠𝑒
+                                      𝒕 = 𝟎, 𝟏, … , 𝑻 − 𝟏                 ∶ Gradiant    𝒫 ∶ Points    𝐺 ∶ Gasussians Δ𝐸 ∶ Diff. between error maps
+
+Fig. 2. Overview of the proposed framework. Our method integrates a Dynamic Scene Reconstruction Module with a Policy-based Densification Module
+for dynamic outdoor scenes. We employ a Hybrid Neural Representation that decouples the scene into static and dynamic nodes, modeled via voxel-wise
+neural Gaussians. These Gaussians are recurrently optimized by sparse 3D U-Net. The Densification Module utilizes an attention mechanism to analyze
+local contexts of reconstructed Gaussians and predicts densification probabilities for query points. To supervise this process without ground truth, we propose
+a self-supervised learning strategy. This strategy computes an importance score for each densified point by weighting its pixel-wise visibility against the
+rendering error reduction.
+
+optimization enters this regime, a vicious cycle ensues: the                            B. Policy-based Gaussian Densification
+distorted geometry produces misleading rendering gradients
+                                                                                           In large-scale outdoor environments, dense geometric priors
+that no longer provide meaningful guidance for shape recov-
+                                                                                        are typically obtained either from dedicated hardware sensors,
+ery, rendering subsequent refinement ineffective. To mitigate
+                                                                                        such as LiDAR, or from large vision foundation models (e.g.,
+this issue, we introduce a geometric re-parameterization that
+                                                                                        VGGT [39]). However, naively initializing 3D Gaussian Splat-
+regularizes the optimization process.
+                                                                                        ting with such massive point clouds—where concatenating
+   Instead of treating the three scaling axes as independent
+                                                                                        LiDAR frames of a medium-sized scene can easily exceed
+variables, we decouple them into a single global log-scale
+                                                                                        107 points—incurs prohibitive memory costs that surpass the
+sg ∈ R and two expansive ratio coefficients ρ = [ρ1 , ρ2 ] ∈ R2 .
+                                                                                        capacity of even high-end GPUs.
+The final scaling vector s is derived via specific activation
+functions:                                                                                 To balance reconstruction fidelity with computational ef-
+                                                                                        ficiency, we propose a densification strategy driven by a
+                                                                                        generalizable network. Rather than relying on brute-force ini-
+                   s = ϕ(sg ) · [1, ψ(ρ1 ), ψ(ρ1 )ψ(ρ2 )]T ,                  (2)
+                                                                                        tialization, our approach follows a grow-on-demand paradigm:
+   here ϕ(x) = exp(x) controls the global scale magnitude,                              reconstruction begins from a sparse geometric initialization,
+while ψ(x) = |x| + 1 parameterizes the degree of shape                                  and the network progressively identifies and populates under-
+anisotropy. This design constrains the solution space to a                              represented regions with new Gaussian primitives during the
+manifold with an isotropic boundary. Initializing ρ = 0                                 iterative optimization process. Since the insertion of Gaussian
+anchors each Gaussian at the isotropic limit of the manifold,                           primitives is a discrete and inherently non-differentiable opera-
+since ψ(0) = 1. As a result, the network is prevented from                              tion, we formulate densification as a learnable policy. Inspired
+arbitrarily stretching Gaussian primitives; instead, it must                            by reinforcement learning, we treat the coarse Gaussian re-
+learn a well-defined trajectory on the constrained manifold                             construction Gcoarse as the current state, while the densification
+to introduce anisotropy. This structural constraint acts as a                           action is represented by a continuous probability distribution
+strong regularizer, effectively preventing needle-like degen-                           {wi }, where each wi reflects the policy’s confidence in incor-
+eracies during the early stages of optimization. A qualitative                          porating a candidate primitive into the scene.
+visualization illustrating the effect of this design is provided                           To instantiate the action space, we construct a candidate
+in the supplementary material.                                                          set Pquery by integrating multi-modal geometric priors (e.g.,
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                         5
+
+
+
+LiDAR points and depth-based unprojection). The policy               Policy Learning via Score Maximization. Drawing inspi-
+network embeds both the candidate primitives and Gcoarse into        ration from reinforcement learning, we formulate the den-
+separate feature spaces and applies a k-Nearest Neighbor (k-         sification task as a utility maximization problem. For each
+NN) attention mechanism to capture local geometric context.          candidate point, we compute a view-dependent utility score uvi
+By aggregating structural information from spatial neighbors,        that balances its rendering contribution Siv against a geometric
+the network predicts a probability wi ∈ [0, 1] for each              consistency penalty:
+candidate. During the forward pass, we execute the policy
+using deterministic top-N selection, instantiating only the                           uvi = Siv − λdepth Div − D̂iv .                           (5)
+highest-scoring candidates to efficiently alleviate geometric        Here, Div represents the rendered surface depth at the projec-
+sparsity. To enable end-to-end learning despite the discrete         tion of Gaussian i, while D̂iv denotes the center depth of the
+decision process, we further derive a pseudo-ground-truth            primitive itself. This term penalizes primitives that drift away
+reward through point-wise scoring, as detailed in Sec. III-C.        from the reconstructed surface.
+                                                                        The objective is to maximize the expected utility A while
+C. Self-Supervised Policy Learning                                   enforcing the diversity of the decision policy via entropy
+   Here, we detail the learning paradigm of the proposed den-        maximization. We minimize the negative sum to perform this
+sification policy. To quantitatively evaluate the effectiveness of   maximization:
+densification actions, we introduce a self-supervised training
+scheme that leverages feedback from the reconstruction mod-
+                                                                                                                                           
+ule (Sec. III-A) to update the policy. Specifically, we perform                      K                                                     
+                                                                                  1 X       X
+a tentative reconstruction using the densified scene state and                                 uvi
+                                                                                                                                            
+                                                                      Lpolicy = −        wi                        +λe      H(wi )          , (6)
+measure the resulting improvement in rendering quality. The                       K i=1 
+                                                                                        
+                                                                                             v
+                                                                                                                             | {z }         
+                                                                                                                                            
+                                                                                                                          Entropy Loss Le
+reduction in rendering loss is then attributed back to the newly
+                                                                                          | {z }
+                                                                                               Expected Utility A
+added Gaussian primitives, producing a point-wise contribu-
+tion score Si for each candidate. This score serves as a proxy       where wi is the selection probability predicted by the policy.
+supervision signal that reflects the candidate’s contribution to     Here, H(wi ) is the standard binary entropy defined as:
+the final image fidelity. Finally, we formulate the policy loss by          H(wi ) = − [wi log wi + (1 − wi ) log(1 − wi )] .                   (7)
+integrating these contribution scores with a geometric consis-
+tency regularization term. This joint objective trains the policy    By maximizing this entropy term, we penalize over-confident
+network to prioritize candidates that yield both photometric         predictions. This prevents the policy from converging to a
+improvements and structurally plausible geometry, resulting          deterministic state, thereby facilitating broader exploration of
+in stable and effective densification.                               the geometric configuration space and stablizeing the training.
+Attribution of Rendering Gains. We quantify the geometric
+utility of added Gaussians by measuring the reduction in             D. Training & Inference Process
+rendering error between the coarse (Ec ) and densified (Ef )            The complete scene reconstruction process is outlined in
+reconstruction. Specifically, we calculate the per-pixel L2 error    Algorithm 1, which alternates between continuous Gaussian
+maps for both passes, yielding a gain map ∆E = Ec − Ef               parameter updates via the reconstructor and discrete point
+that highlights regions with fidelity improvements.                  expansion driven by the policy network. However, simultane-
+   To attribute these 2D pixel-wise gains back to specific 3D        ously optimizing both components from a cold start presents
+primitives, we leverage the differentiable rasterization pipeline.   significant convergence challenges. Therefore, to ensure sta-
+Specifically, we augment the densified Gaussians with an             bility and efficiency, our training pipeline is divided into
+auxiliary mask channel m (mi = 1 for candidate points) and           three distinct phases: (1) Reconstructor Pre-training, (2) Policy
+                                              v                      Learning, and (3) Joint Training.
+rasterize it to obtain a contribution map Mdens    . We then treat
+the gain map ∆E as an upstream “pseudo-gradient” signal and          Stage 1: Reconstructor Pre-training. We first optimize the
+back-propagate it through a surrogate attribution loss:              reconstruction network (Sec. III-A). Same to Lines 5–10 of
+                                                                     Algorithm 1, this process involves an iterative update mech-
+                     Lvattr = ⟨∆E v , Mdens
+                                       v
+                                            ⟩.                (3)    anism: the network refines the Gaussian attributes based on
+Intuitively, this inner product projects the 2D fidelity improve-    their current state and the gradients back-propagated from the
+ments onto the visibility footprint of the added geometry. By        differentiable rasterizer. To train the network, we employ a
+performing a standard backward pass, we derive the rendering         combination of L2 photometric loss, LPIPS perceptual loss,
+contribution score Siv as the gradient with respect to the mask      and a scale regularization term to the optimized Gaussians:
+input:                                                                Lrecon = ∥Iren −Igt ∥2 +λlpips LLPIPS (Iren , Igt )+λreg Lreg (G), (8)
+                         Siv ≜ ∇mi Lvattr .                   (4)
+                                                                     where Iren and Igt denote the rendered and ground-truth
+This metric serves as a sensitivity proxy, quantifying the
+                                                                     images, respectively. The regularization term Lreg is explicitly
+individual contribution of each primitive to the global error
+                                                                     designed to penalize excessively large Gaussians, preventing
+reduction. Crucially, this process incurs zero additional com-
+                                                                     artifacts caused by oversized primitives:
+putational overhead by directly reusing the optimized CUDA                                     X
+backward kernels.                                                                   Lreg (G) =    max(0, ϕ(sg ) − ϵ),             (9)
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                             6
+
+
+
+Algorithm 1 L2D2-GS Pipeline                                                                IV. E XPERIMENTS
+Require: Sparse points Psparse , Candidate set Pquery
+Require: Input Images I, Camera Poses Π                               A. Implementation Details
+Require: Policy network π, Reconstruction network Ψ
+ 1: Initialization:
+                                                                      Network Architecture. Our reconstructor builds upon
+ 2: Pcurr ← Psparse
+                                                                      the encoder-decoder SparseResUNet architecture from
+ 3: Initialize Gaussians G (0) from Pcurr // Zero-init features
+                                                                      torchsparse [40]. The network takes the concatenation of
+ 4:                                    // Coarse Reconstruction       3D Gaussian features and rendering-induced gradients as its
+ 5: for t = 0, 1, . . . , T1 − 1 do
+                                                                      input. To effectively accommodate distribution shifts across
+ 6:     Î ← frast (G (t) , Π)                    // Render images    different optimization iterations, we employ step-specific
+ 7:     ∇G (t) ← ∇∥Î − I∥2              // Compute gradients via     independent weights rather than a shared network. The
+    rendering loss                                                    final residual updates are then predicted via a lightweight
+ 8:     G (t+1) ← G (t) + Ψt (G (t) , ∇G (t) ) // Forward update      output head consisting of a single linear layer with a
+    pass                                                              tanh activation. Furthermore, to enable a coarse-to-fine
+ 9:     if training then                                              reconstruction paradigm, we apply a linear scheduling
+10:          Update Ψt via Lrecon                                     strategy that progressively decays the update rate over
+11:     end if                                                        iterations, thereby stabilizing the optimization and facilitating
+12: end for
+                                                                      the refinement of high-frequency details. Finally, the sky
+13:                                           // Densification Step   cubemap (512 × 512 resolution per face) modeling distant
+14: w ← π(Pquery , G (T1 ) )              // Generate probabilities   backgrounds is explicitly optimized using a two-layer residual
+15: Pdens ← Select(Pquery , w)           // Select points based on    convolutional network.
+    current policy                                                       The policy network is parameterized by a k-NN cross-
+16: Pcurr ← Pcurr ∪ Pdens                     // Augment geometry     attention architecture. To handle heterogeneous inputs, inde-
+17: Initialize Gaussians G (0) from Pcurr                             pendent two-layer MLPs first embed candidate points and
+18:                   // Fine Reconstruction & Policy Update          existing Gaussians into 64-dimensional latent spaces. A k-NN
+19: for t = 0, 1, . . . , T2 − 1 do                                   cross-attention module (k = 16, Nheads = 4, dhead = 32) then
+20:     Î ← frast (G (t) , Π)                                        aggregates context by allowing candidate points to attend to
+21:     ∇G (t) ← ∇∥Î − I∥2                                           their local Gaussian neighbors. The retrieved context features
+22:     G (t+1) ← G (t) + Ψt (G (t) , ∇G (t) )                        are concatenated with the original candidate embeddings and
+23:     if training then                                              fed into a scoring MLP, followed by a Sigmoid activation to
+24:          Update Ψt via Lrecon                                     predict the discrete densification probability w ∈ [0, 1].
+25:          if t == T1 − 1 then                   // Policy Update   Inference Configuration. We initialize with a set of
+26:               Compute scores S for Pdens                          |Psparse | = 800K points. For the reconstruction process, we
+27:               Update Policy π via Lpolicy (S, w)                  set the number of coarse and fine optimization steps to
+28:          end if                                                   T1 = 12 and T2 = 24, respectively. For the densification
+29:     end if                                                        phase, the policy selects top-N points from a candidate pool
+30: end for                                                           of |Pquery | = 4M points to reach |Pdens | = 400K. The
+                                                                      candidates are sampled from the dataset’s raw LiDAR scans
+                                                                      and geometric priors derived from MapAnything [41].
+where ϕ(sg ) represents the global scale for the i-th Gaussian,       Training Configuration. We implement our framework using
+and ϵ serves as a scale threshold.                                    PyTorch. All models are trained with 8 × NVIDIA H20 GPUs.
+                                                                      We set the per-GPU scene batch size to 1, resulting in an total
+Stage 2: Policy Learning from Cached Scores. Calculating              scene batch size of 8. We utilize the AdamW optimizer with
+the gradient-based score S (Eq. 4) requires two reconstruction        an initial learning rate of 1 × 10−4 and a weight decay of
+passes of the scene, which is computationally expensive to per-       1 × 10−5 . The loss weights are empirically set as follows: the
+form at every iteration. To accelerate training, we implement         perceptual loss weight λlpips = 0.01, the regularization weight
+an offline caching strategy in this stage. Specifically, we pre-      λreg = 0.01, and the scale threshold ϵ = 0.01. For the policy-
+compute and store data tuples in the form of {Gcoarse , Pdens , S},   based densification module, we set the depth penalty weight
+comprising the current coarse Gaussians, the candidate points,        λdepth = 0.01 and the entropy constraint weight λe = 0.02.
+and their evaluated scores. Thereby, the policy network is            Datasets. We conduct our primary evaluation on the PandaSet
+efficiently trained via the policy loss (Eq. 6) using these pre-      dataset [42], which features challenging dynamic urban scenes
+calculated supervision signals.                                       captured with high-resolution LiDAR and cameras. To ensure a
+Stage 3: Joint Training. Finally, we unfreeze all modules and         fair and consistent comparison with SoTA methods, we strictly
+jointly optimize the entire framework according to Algorithm          adhere to the data partition protocol used in Flux4D [11]. To
+1. This stage allows the reconstruction network to adapt to           further assess the robustness of our reconstruction framework,
+the newly densified geometry, while the policy can update             we perform a cross-dataset generalization test on the Waymo
+based on the improved rendering feedback. The optimization            Open Dataset (WOD) [43]. In this setting, we directly evaluate
+objective is consistent with the previous phases.                     the model trained on PandaSet on unseen Waymo sequences
+      JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                7
+
+
+
+
+f13
+
+
+
+
+                   GT                            Storm                        AnySplat                          G3R                           Ours
+
+      Fig. 3. Visual comparison on Pandaset. Our approach produces sharp results with less artifacts, whereas competitors struggle to handle dynamics, exhibiting
+      issues like distorted foreground objects or significant blurring.
+
+
+
+
+                              GT                                               G3R                                                  Ours
+
+      Fig. 4. Full sequence reconstruction on Pandaset. While G3R exhibits severe blurring and artifacts due to missing geometry, our method preserves sharp
+      textures and clear geometry, validating the efficiency of our self-supervised densification strategy.
+
+      without any fine-tuning. We use the NOTR Dynamic32 split                       and faithfully preserves fine-grained details. This photomet-
+      provided by Emernerf [44] for evaluation.                                      ric improvement stems from our policy-based densification
+                                                                                     strategy, which explicitly allocates primitives to maximize ren-
+      B. Main Results                                                                dering rewards. Furthermore, to push the limits of efficiency,
+                                                                                     we evaluate a fast variant (Ours-f) configured with reduced
+      Full Sequence Reconstruction. Table II reports the perfor-
+                                                                                     optimization steps and smaller candidate pool (T1 = 4,
+      mance on full sequence reconstruction (80 frames), where odd
+                                                                                     T2 = 8, |Pquery | = 2M). This setup significantly reduces the
+      frames are used as inputs and even frames serve as the target
+                                                                                     computational overhead with marginal performance degrada-
+      novel views for evaluation. We include per-scene optimization
+                                                                                     tion. Discussion regarding optimization steps is provided in
+      methods [2], [23] as an upper-bound reference. While they
+                                                                                     the supplementary material.
+      yield higher PSNR, their deployment suffers from prohibitive
+      reconstruction time (∼70 mins per scene).                                      Short Sequence Reconstruction. We evaluate our method on
+         In the realm of generalizable methods, our approach                         short sequence interpolation following the protocol of Flux4D
+      achieves substantial rendering gains and superior visual fi-                   [11], testing with 1s snippets. As detailed in Table III, our
+      delity. Compared to G3R [10], we deliver higher rendering                      approach consistently outperforms existing SoTA methods.
+      quality while maintaining a compact representation. Qualita-                   Notably, we achieve a PSNR of 25.22 dB, surpassing the
+      tively, as shown in Fig. 4, this rendering advantage is clearly                closest competitor G3R. However, we observe that the im-
+      pronounced. While G3R suffers from noticeable blurring and                     provement in performance is smaller than in the full-sequence
+      visual artifacts, our method reconstructs sharper novel views                  scenario, as inaccurate geometry in short snippets is easier to
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                     8
+
+
+
+
+ GT
+
+
+
+
+Ours
+
+
+
+
+                                                                                                  640 s20                   592 s20
+                754 s0                          795 s20                      700 s0
+Fig. 5. Zero-shot generalization on Waymo Open Dataset. We directly apply the model trained on PandaSet to Waymo sequences. Despite the domain
+gap, our method synthesizes high-fidelity novel views with consistent geometry, demonstrating robust cross-dataset generalization capabilities.
+
+                          TABLE II                                                                 TABLE III
+ Q UANTITATIVE COMPARISON ON FULL SEQUENCE INTERPOLATION .                 Q UANTITATIVE COMPARISON ON SHORT SEQUENCE INTERPOLATION .
+B OLD AND UNDERLINE INDICATE THE BEST AND SECOND - BEST RESULTS          S INCE MOST FEEDFORWARD METHODS CANNOT HANDLE LONG DYNAMIC
+ AMONG GENERALIZABLE APPROACHES , RESPECTIVELY. ’*’ INDICATES                          SEQUENCES , B EST RESULTS ARE BOLDED .
+                     REPRODUCED RESULTS .
+                                                                                       Method      PSNR ↑     SSIM ↑    LPIPS ↓
+       Method       PSNR ↑   SSIM ↑   LPIPS ↓        Time   Ngs
+                                                                                       AnySplat      22.97     0.673      0.412
+       Optimization                                                                    STORM         19.69     0.628      0.683
+       StreetGS     24.54    0.739     0.224      ∼70min    3M                         G3R           24.35     0.686        -
+       OmniRe       24.57    0.739     0.222      ∼80min    3M                         G3R*          24.36     0.698      0.347
+                                                                                       Flux4D        23.84     0.675        -
+       Generalizable
+       G3R           23.15   0.636       -            60s    3M                        Ours          25.22     0.735      0.287
+       G3R∗          23.18   0.653     0.406          75s    3M
+       Ours          24.19   0.705     0.329          98s   1.2M
+       Ours-f        23.93   0.703     0.356          39s   1.2M                                  TABLE IV
+                                                                          Q UANTITATIVE COMPARISON ON CROSS - DATASET GENERALIZATION .
+                                                                              O UR METHOD DEMONSTRATES SUPERIOR GENERALIZABILITY.
+compensate for via overfitting. Qualitatively, the superiority
+                                                                                        Method     PSNR ↑    SSIM ↑     LPIPS ↓
+of our method remains evident. As illustrated in Fig. 3, our
+approach produces visual results with fewer artifacts compared                          STORM        20.14    0.734      0.630
+                                                                                        Ours         25.24    0.794      0.436
+to G3R. In contrast, other generalizable baselines struggle
+to handle scene dynamics: AnySplat fails to correctly model
+moving objects, leading to missing or distorted actors, while
+STORM suffers from severe motion blur.                                   quality still drops (e.g., PSNR 24.19 → 23.78 dB), demon-
+Future Extrapolation. We evaluate its performance on ex-                 strating that our adaptive densification strategy is far more
+trapolating to future frames beyond the training horizon. As             effective than dense initialization in capturing high-frequency
+illustrated in Fig. 8, our method generates plausible and                details. The performance degrades further without the repa-
+temporally consistent views for these unseen frames. This                rameterization module (23.41 dB), confirming that both our
+demonstrates that our model has learned a generalized scene              proposed modules are essential for high-fidelity reconstruction.
+representation rather than merely overfitting to input views.            Finally, both replacing the step-wise independent weights with
+Cross-Dataset Generalization. We evaluate generalizability               shared weights and removing the consistency penalty causes
+of our framework by training on PandaSet and directly testing            performance drop.
+on the WOD using 1s-snippets. As detailed in Table IV, our               Impact of Geometric Hypotheses. We investigate the influ-
+method outperforms the baseline STORM, achieving ∼5 dB                   ence of different point sources on our densification strategy,
+gain in PSNR and 0.19 reduction in LPIPS. As visualized in               which is designed to be compatible with various geometric
+Fig. 5, our method successfully reconstructs coherent scene              priors. As shown in Table VI, relying solely on LiDAR
+structures even under domain shifts.                                     provides high geometric accuracy but often suffers from spar-
+                                                                         sity, while using 3D-VFM improves scene coverage but may
+                                                                         lack precision. By integrating both, our method effectively
+C. Ablation Study                                                        combines the geometric accuracy of LiDAR with the extensive
+Component-wise Ablation. To validate the effectiveness of                scene coverage of 3D-VFM. This hybrid approach mitigates
+our design, we perform a component-wise ablation study                   the limitations of individual sources, resulting in the best
+as summarized in Table V. Specifically, for the variant w/o              reconstruction quality across all metrics.
+Densification, we increased the initialization density to ensure         Visualization of the Densification process. To intuitively
+a final budget of 1.2 million Gaussians, matching the full               validate the efficacy of our strategy, we visualize the densified
+model. Despite the equivalent primitive count, the rendering             points in Fig. 6. As observed, the learned policy demonstrates
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                     9
+
+
+
+
+                  GT                          Coarse Reconstruction                       Densified Points                     Fine Reconstruction
+
+Fig. 6. Visualization of the densification process. Our policy-based strategy effectively localizes under-represented areas within the scene that lack geometric
+detail. The newly added Gaussian primitives, highlighted as yellow points, are strategically inserted into these regions to refine the reconstruction.
+
+                            TABLE V                                                                            TABLE VI
+ C OMPONENT- WISE ABLATION STUDY. W E EVALUATE THE IMPACT OF                            A BLATION STUDY ON DIFFERENT GEOMETRIC PRIORS FOR
+  DIFFERENT CORE COMPONENTS OF OUR PROPOSED FRAMEWORK . T O                        DENSIFICATION . O UR STRATEGY IS COMPATIBLE WITH VARIOUS POINT
+ OBTAIN RELIABLE RESULTS , W E EVALUATE THE MEAN VALUE (µ) AND                       SOURCES . C OMBINING L I DAR WITH 3D-VFM LEVERAGES BOTH
+    STANDARD DEVIATION (σ) OF ALL METRICS BY INDEPENDENTLY                          GEOMETRIC ACCURACY AND SCENE COVERAGE , YIELDING THE BEST
+           RECONSTRUCTING EACH TEST SCENE 10 TIMES .                                    RECONSTRUCTION QUALITY. B EST RESULTS ARE BOLDED .
+
+
+                               PSNR ↑           SSIM ↑          LPIPS ↓                     Geometric Prior         PSNR ↑      SSIM ↑      LPIPS ↓
+  Method
+                              µ (σ ×103 )     µ (σ ×105 )      µ (σ ×105 )
+                                                                                            3D-VFM                    24.04       0.700       0.340
+  L2D2-GS                     24.19 (1.96)    0.705 (8.62)    0.329 (6.46)                  LiDAR                     24.14       0.703       0.335
+  − consistency penalty       24.17 (1.78)    0.704 (7.80)    0.330 (7.72)
+  − densification             23.78 (1.86)    0.682 (7.31)    0.368 (6.54)                  LiDAR + 3D-VFM            24.19       0.705       0.329
+  − reparameterization        23.41 (1.62)    0.667 (6.87)    0.396 (7.53)
+  − independent weights       23.18 (1.75)    0.653 (8.21)    0.406 (6.82)
+
+                                                                                 inconsistencies inherent in existing feedforward prediction
+                                                                                 models, we reformulated generalizable reconstruction as a
+a strong capability to localize under-represented regions. The
+                                                                                 robust, iterative process of optimization and densification. To
+densified Gaussians precisely align with geometric voids and
+                                                                                 overcome the lack of explicit supervision for primitive growth,
+structures that are insufficiently reconstructed. By strictly
+                                                                                 we introduced a fully self-supervised densification policy that
+confining the growth of new primitives to these identified ge-
+                                                                                 dynamically allocates Gaussian primitives by deriving explicit
+ometric gaps, our method effectively enhances reconstruction
+                                                                                 reward signals from global reconstruction gains. Furthermore,
+completeness while avoiding redundant Gaussians.
+                                                                                 to ensure structural stability during the highly volatile early
+Effect of Reparameterization. As illustrated in Fig. 7,
+                                                                                 stages of optimization, we proposed a geometric regulariza-
+our reparameterization approach substantially improves recon-
+                                                                                 tion mechanism utilizing reparameterization to constrain the
+struction quality by effectively reducing geometric degradation
+                                                                                 optimization manifold, effectively preventing primitives from
+in the foreground. While the baseline suffers from needle-like
+                                                                                 collapsing into unfavorable local optima.
+artifacts, our method maintains clean and coherent geometry
+                                                                                    Extensive evaluations on large-scale datasets demonstrated
+in these critical regions.
+                                                                                 that our method achieves state-of-the-art reconstruction fidelity
+                                                                                 and robust zero-shot generalization. We believe this iterative,
+D. Applications                                                                  learning-to-densify paradigm bridges the gap between fast
+   Our framework serves as a versatile engine for closed-loop                    feedforward inference and high-quality per-scene optimization.
+autonomous driving simulation. Leveraging our disentangled                       In future work, we plan to extend this framework by incor-
+dynamic representation, we enable flexible scene editing ca-                     porating temporal consistency regularizations across longer
+pabilities, such asvehicle removal and trajectory modification                   sequences and exploring its potential for real-time, closed-loop
+(see Fig. 9). These features facilitate the synthesis of diverse                 autonomous driving simulation.
+corner cases and clean background assets, providing a scalable
+and cost-effective solution for robust algorithm testing in                                                     R EFERENCES
+digital twin environments.
+                                                                                   [1] B. Kerbl, G. Kopanas, T. Leimkühler, and G. Drettakis, “3d gaussian
+                                                                                       splatting for real-time radiance field rendering.” ACM Trans. Graph.,
+                           V. C ONCLUSION                                              vol. 42, no. 4, pp. 139–1, 2023.
+   In this paper, we presented L2D2-GS, a unified framework                        [2] Y. Yan, H. Lin, C. Zhou, W. Wang, H. Sun, K. Zhan, X. Lang,
+                                                                                       X. Zhou, and S. Peng, “Street gaussians: Modeling dynamic urban
+for the generalizable reconstruction of dynamic urban environ-                         scenes with gaussian splatting,” in European Conference on Computer
+ments. Addressing the scalability bottlenecks and multi-view                           Vision. Springer, 2024, pp. 156–173.
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                      10
+
+
+
+ [3] Z. Chen, J. Yang, J. Huang, R. de Lutio, J. M. Esturo, B. Ivanovic,          [24] Y. Chen, M. Mihajlovic, X. Chen, Y. Wang, S. Prokudin, and S. Tang,
+     O. Litany, Z. Gojcic, S. Fidler, M. Pavone et al., “Omnire: Omni urban            “Splatformer: Point transformer for robust 3d gaussian splatting,” arXiv
+     scene reconstruction,” arXiv preprint arXiv:2408.16760, 2024.                     preprint arXiv:2411.06390, 2024.
+ [4] C. Peng, C. Zhang, Y. Wang, C. Xu, Y. Xie, W. Zheng, K. Keutzer,             [25] Z. Ye, W. Li, S. Liu, P. Qiao, and Y. Dou, “Absgs: Recovering fine details
+     M. Tomizuka, and W. Zhan, “Desire-gs: 4d street gaussians for static-             in 3d gaussian splatting,” in Proceedings of the 32nd ACM International
+     dynamic decomposition and surface reconstruction for urban driving                Conference on Multimedia, 2024, pp. 1053–1061.
+     scenes,” in Proceedings of the Computer Vision and Pattern Recognition       [26] S. Rota Bulò, L. Porzi, and P. Kontschieder, “Revising densification
+     Conference, 2025, pp. 6782–6791.                                                  in gaussian splatting,” in European Conference on Computer Vision.
+ [5] L. Jiang, Y. Mao, L. Xu, T. Lu, K. Ren, Y. Jin, X. Xu, M. Yu, J. Pang,            Springer, 2024, pp. 347–362.
+     F. Zhao et al., “Anysplat: Feed-forward 3d gaussian splatting from           [27] S. Kim, K. Lee, and Y. Lee, “Color-cued efficient densification method
+     unconstrained views,” ACM Transactions on Graphics (TOG), vol. 44,                for 3d gaussian splatting,” in Proceedings of the IEEE/CVF Conference
+     no. 6, pp. 1–16, 2025.                                                            on Computer Vision and Pattern Recognition, 2024, pp. 775–783.
+ [6] S. Miao, J. Huang, D. Bai, X. Yan, H. Zhou, Y. Wang, B. Liu, A. Geiger,      [28] F. Duan, Y. Zhang, X. Li, X. Tan, J. Wang, and L. Chen, “Bugs:
+     and Y. Liao, “Evolsplat: Efficient volume-based gaussian splatting for            Universal 3d gaussian splatting with a bi-directional gaussian growing
+     urban view synthesis,” in Proceedings of the Computer Vision and                  mechanism,” IEEE Transactions on Multimedia, pp. 1–11, 2026.
+     Pattern Recognition Conference, 2025, pp. 11 286–11 296.                     [29] H. Shuai, Y. Shi, Y. Sun, and Q. Liu, “Adversarial pruning networks
+ [7] J. Yang, J. Huang, Y. Chen, Y. Wang, B. Li, Y. You, A. Sharma, M. Igl,            for compact 3d gaussian splatting,” IEEE Transactions on Multimedia,
+     P. Karkus, D. Xu et al., “Storm: Spatio-temporal reconstruction model             vol. 28, pp. 1080–1089, 2026.
+     for large-scale outdoor scenes,” arXiv preprint arXiv:2501.00602, 2024.      [30] Z. Liang, D. Zhang, L. Shen, M. Zhang, J. Zhang, B. Ju, M. Dasari,
+ [8] X. Chen, Z. Xiong, Y. Chen, G. Li, N. Wang, H. Luo, L. Chen,                      F. Wang, and J. Liu, “4dgstream: Variable bitrate dynamic gaussian
+     H. Sun, B. Wang, G. Chen et al., “Dggt: Feedforward 4d reconstruction             splatting streaming,” IEEE Transactions on Multimedia, pp. 1–15, 2026.
+     of dynamic driving scenes using unposed images,” arXiv preprint              [31] G. Patle, N. Girgaonkar, N. Somraj, and R. Soundararajan, “Ad-gs:
+     arXiv:2512.03004, 2025.                                                           Alternating densification for sparse-input 3d gaussian splatting,” in
+ [9] H. Xu, S. Peng, F. Wang, H. Blum, D. Barath, A. Geiger, and M. Polle-             Proceedings of the SIGGRAPH Asia 2025 Conference Papers, 2025,
+     feys, “Depthsplat: Connecting gaussian splatting and depth,” in Proceed-          pp. 1–11.
+     ings of the Computer Vision and Pattern Recognition Conference, 2025,        [32] K.-C. Chan, J. Xiao, H. L. Goshu, and K.-M. Lam, “Point cloud
+     pp. 16 453–16 463.                                                                densification for 3d gaussian splatting from sparse input views,” in
+[10] Y. Chen, J. Wang, Z. Yang, S. Manivasagam, and R. Urtasun, “G3r:                  Proceedings of the 32nd ACM International Conference on Multimedia,
+     Gradient guided generalizable reconstruction,” in European Conference             2024, pp. 896–904.
+     on Computer Vision. Springer, 2024, pp. 305–323.                             [33] M. A. Mohamad, G. Elghazaly, A. Hubert, and R. Frank, “Denser:
+[11] J. Wang, H. Che, Y. Chen, Z. Yang, L. Goli, S. Manivasagam, and                   3d gaussian splatting for scene reconstruction of dynamic urban en-
+     R. Urtasun, “Flux4d: Flow-based unsupervised 4d reconstruction,” arXiv            vironments,” in 2025 IEEE International Conference on Robotics and
+     preprint arXiv:2512.03210, 2025.                                                  Automation (ICRA). IEEE, 2025, pp. 2701–2707.
+                                                                                  [34] Y.-C. Liu, L. Höllein, M. Nießner, and A. Dai, “Quicksplat: Fast 3d
+[12] H. Xu, D. Barath, A. Geiger, and M. Pollefeys, “Resplat: Learning
+                                                                                       surface reconstruction via learned gaussian initialization,” arXiv preprint
+     recurrent gaussian splats,” arXiv preprint arXiv:2510.08575, 2025.
+                                                                                       arXiv:2505.05591, 2025.
+[13] D. Charatan, S. L. Li, A. Tagliasacchi, and V. Sitzmann, “pixelsplat:
+                                                                                  [35] S. Nam, X. Sun, G. Kang, Y. Lee, S. Oh, and E. Park, “Generative den-
+     3d gaussian splats from image pairs for scalable generalizable 3d re-
+                                                                                       sification: Learning to densify gaussians for high-fidelity generalizable
+     construction,” in Proceedings of the IEEE/CVF conference on computer
+                                                                                       3d reconstruction,” in Proceedings of the Computer Vision and Pattern
+     vision and pattern recognition, 2024, pp. 19 457–19 467.
+                                                                                       Recognition Conference, 2025, pp. 26 683–26 693.
+[14] Y. Chen, H. Xu, C. Zheng, B. Zhuang, M. Pollefeys, A. Geiger, T.-
+                                                                                  [36] Y. Weng, Z. Wang, S. Peng, S. Xie, H. Zhou, and L. J. Guibas,
+     J. Cham, and J. Cai, “Mvsplat: Efficient 3d gaussian splatting from
+                                                                                       “Gaussianlens: Localized high-resolution reconstruction via on-demand
+     sparse multi-view images,” in European Conference on Computer Vision.
+                                                                                       gaussian densification,” arXiv preprint arXiv:2509.25603, 2025.
+     Springer, 2024, pp. 370–386.
+                                                                                  [37] J. Xu, K. Deng, Z. Fan, S. Wang, J. Xie, and J. Yang, “Ad-gs:
+[15] C. Zhang, Y. Zou, Z. Li, M. Yi, and H. Wang, “Transplat: Generalizable            Object-aware b-spline gaussian splatting for self-supervised autonomous
+     3d gaussian splatting from sparse multi-view images with transformers,”           driving,” in Proceedings of the IEEE/CVF International Conference on
+     in Proceedings of the AAAI Conference on Artificial Intelligence, vol. 39,        Computer Vision, 2025, pp. 24 770–24 779.
+     2025, pp. 9869–9877.                                                         [38] G. Hess, C. Lindström, M. Fatemi, C. Petersson, and L. Svensson,
+[16] Y. Xu, Z. Shi, W. Yifan, H. Chen, C. Yang, S. Peng, Y. Shen, and                  “Splatad: Real-time lidar and camera rendering with 3d gaussian splat-
+     G. Wetzstein, “Grm: Large gaussian reconstruction model for efficient             ting for autonomous driving,” in Proceedings of the Computer Vision
+     3d reconstruction and generation,” in European Conference on Computer             and Pattern Recognition Conference, 2025, pp. 11 982–11 992.
+     Vision. Springer, 2024, pp. 1–20.                                            [39] J. Wang, M. Chen, N. Karaev, A. Vedaldi, C. Rupprecht, and D. Novotny,
+[17] K. Zhang, S. Bi, H. Tan, Y. Xiangli, N. Zhao, K. Sunkavalli, and                  “Vggt: Visual geometry grounded transformer,” in Proceedings of the
+     Z. Xu, “Gs-lrm: Large reconstruction model for 3d gaussian splatting,”            Computer Vision and Pattern Recognition Conference, 2025, pp. 5294–
+     in European Conference on Computer Vision. Springer, 2024, pp. 1–19.              5306.
+[18] C. Ziwen, H. Tan, K. Zhang, S. Bi, F. Luan, Y. Hong, L. Fuxin, and           [40] H. Tang, S. Yang, Z. Liu, K. Hong, Z. Yu, X. Li, G. Dai, Y. Wang,
+     Z. Xu, “Long-lrm: Long-sequence large reconstruction model for wide-              and S. Han, “Torchsparse++: Efficient training and inference framework
+     coverage gaussian splats,” in Proceedings of the IEEE/CVF International           for sparse convolution on gpus,” in Proceedings of the 56th Annual
+     Conference on Computer Vision, 2025, pp. 4349–4359.                               IEEE/ACM International Symposium on Microarchitecture, 2023, pp.
+[19] S. Szymanowicz, C. Rupprecht, and A. Vedaldi, “Splatter image: Ultra-             225–239.
+     fast single-view 3d reconstruction,” in Proceedings of the IEEE/CVF          [41] N. Keetha, N. Müller, J. Schönberger, L. Porzi, Y. Zhang, T. Fischer,
+     conference on computer vision and pattern recognition, 2024, pp.                  A. Knapitsch, D. Zauss, E. Weber, N. Antunes et al., “Mapany-
+     10 208–10 217.                                                                    thing: Universal feed-forward metric 3d reconstruction,” arXiv preprint
+[20] Y. Chen, C. Zheng, H. Xu, B. Zhuang, A. Vedaldi, T.-J. Cham, and                  arXiv:2509.13414, 2025.
+     J. Cai, “Mvsplat360: Feed-forward 360 scene synthesis from sparse            [42] P. Xiao, Z. Shao, S. Hao, Z. Zhang, X. Chai, J. Jiao, Z. Li, J. Wu, K. Sun,
+     views,” Advances in Neural Information Processing Systems, vol. 37,               K. Jiang et al., “Pandaset: Advanced sensor suite dataset for autonomous
+     pp. 107 064–107 086, 2024.                                                        driving,” in 2021 IEEE international intelligent transportation systems
+[21] B. Smart, C. Zheng, I. Laina, and V. A. Prisacariu, “Splatt3r: Zero-              conference (ITSC). IEEE, 2021, pp. 3095–3101.
+     shot gaussian splatting from uncalibrated image pairs,” arXiv preprint       [43] P. Sun, H. Kretzschmar, X. Dotiwalla, A. Chouard, V. Patnaik, P. Tsui,
+     arXiv:2408.13912, 2024.                                                           J. Guo, Y. Zhou, Y. Chai, B. Caine et al., “Scalability in perception
+[22] B. Ye, S. Liu, H. Xu, X. Li, M. Pollefeys, M.-H. Yang, and S. Peng, “No           for autonomous driving: Waymo open dataset,” in Proceedings of the
+     pose, no problem: Surprisingly simple 3d gaussian splats from sparse              IEEE/CVF conference on computer vision and pattern recognition, 2020,
+     unposed images,” arXiv preprint arXiv:2410.24207, 2024.                           pp. 2446–2454.
+[23] D. Wei, Z. Li, and P. Liu, “Omni-scene: Omni-gaussian representation         [44] J. Yang, B. Ivanovic, O. Litany, X. Weng, S. W. Kim, B. Li, T. Che,
+     for ego-centric sparse-view scene reconstruction,” in Proceedings of the          D. Xu, S. Fidler, M. Pavone et al., “Emernerf: Emergent spatial-
+     Computer Vision and Pattern Recognition Conference, 2025, pp. 22 317–             temporal scene decomposition via self-supervision,” arXiv preprint
+     22 327.                                                                           arXiv:2311.02077, 2023.
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                               11
+
+
+
+
+                               GT                                       w/o geo reg                                 w geo reg
+
+
+Fig. 7. Effectiveness of geometric regularization. Without reparameterization, the reconstruction is plagued by degenerate artifacts (highlighted in red
+boxes). Our method effectively suppresses these irregularities, ensuring robust geometric convergence.
+
+                   T+1                          T+2                           T+3                           T+4                            T+5
+
+
+
+ GT
+
+
+
+
+Ours
+
+
+
+
+Fig. 8. Future prediction under novel views. Our framework generalizes to unseen timestamps, rendering high-fidelity images of future states while allowing
+for free viewpoint navigation.
+
+
+
+         VI. A DDITIONAL E XPERIMENTAL R ESULTS                                                         TABLE VII
+                                                                                Q UANTITATIVE COMPARISON FOLLOWING THE G3R PROTOCOL . W E
+Experimental Results in G3R Configuration [10]. To ensure                       REPORT THE PERFORMANCE ON FULL SEQUENCE INTERPOLATION USING
+a comprehensive and fair comparison, we further evaluated                                    THE DATASET SPLIT DEFINED IN G3R [10].
+
+our method following the exact dataset split and experimental
+                                                                                               Method      PSNR ↑       SSIM ↑    LPIPS ↓
+protocol defined in G3R [10]. We trained our model from
+scratch under this setting and conducted testing on the desig-                                 G3R          25.22        0.742     0.371
+                                                                                               Ours         26.87        0.789     0.254
+nated test scenes (Scenes 1, 30, 40, 80, 90, 110, and 120). The
+quantitative results are reported in Table VII, demonstrating
+that our method consistently outperforms the baseline across
+all metrics.                                                                   Leveraging our disentangled dynamic representation, we en-
+Effect of Geometry Reparameterization. As illustrated in                       able flexible scene editing capabilities, such asvehicle removal
+Fig. 7, our reparameterization strategy significantly enhances                 and trajectory modification (see Fig. 9). These features facili-
+reconstruction quality by effectively mitigating geometric                     tate the synthesis of diverse corner cases and clean background
+degradation in the foreground. While the baseline suffers from                 assets, providing a scalable and cost-effective solution for
+needle-like artifacts, our method maintains clean and coherent                 robust algorithm testing in digital twin environments.
+geometry in these critical regions.                                            Hyperparameter Sensitivity Analysis. We investigate the
+Future Extrapolation. We evaluate its performance on ex-                       impact of different densification configurations on the objec-
+trapolating to future frames beyond the training horizon. As                   tive reconstruction performance, as reported in Table VIII.
+illustrated in Fig. 8, our method generates plausible and                      The results indicate that reducing the number of candidate
+temporally consistent views for these unseen frames. This                      points degrades the rendering quality, whereas decreasing the
+demonstrates that our model has learned a generalized scene                    number of actually densified points yields a relatively marginal
+representation rather than merely overfitting to the observed                  performance drop. This observation validates the efficacy of
+timestamps.                                                                    our proposed strategy, demonstrating its ability to accurately
+Scene Editting Application. Our framework serves as a ver-                     identify and select the most crucial points from the candidate
+satile engine for closed-loop autonomous driving simulation.                   set for densification.
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                               12
+
+
+
+
+          Reconstruction                        Instance Removal                                        Instance Displacement
+
+Fig. 9. Scene editing applications. Our disentangled representation enables flexible manipulation of dynamic agents, such as vehicle removal and trajectory
+modification. This facilitates the synthesis of diverse corner cases for robust autonomous driving simulation.
+
+
+
+
+                  GT                                 AnySplat                           Ours (w/o Densify)                           Ours
+
+
+Fig. 10. Qualitative comparison on the DL3DV dataset. We use a 64-input-view setting to evaluate multiview consistency. AnySplat struggles with dense
+view input, whereas our method remains robust. The last two columns highlight the visual improvements brought by our densification module.
+
+
+
+                           TABLE VIII                                          the performance of both our overall framework and the den-
+  A BLATION STUDY ON THE NUMBER OF NEAREST NEIGHBORS (Nk ),                    sification network. Specifically, we selected a subset of 1,000
+   QUERY POINTS (Nq ), AND DENSIFIED POINTS (Nd ). T HE METRICS
+REPORT THE RELATIVE PERFORMANCE CHANGES (∆) COMPARED TO THE                    scenes from the DL3DV dataset at a resolution of 960 × 540,
+                   BASELINE CONFIGURATION .                                    allocating 900 scenes for training and 100 scenes for testing.
+                                                                               Because the DL3DV dataset do not contain Lidar, we only use
+   Nk    Nq (×106 )    Nd (×105 )   ∆PSNR ↑      ∆SSIM ↑     ∆LPIPS ↓          MapAnything [41] as geometry prior.
+    16        4            4           0.00         0.000       0.000
+    16        2            4           -0.08       -0.003       0.003             As reported in Table IX, our method achieves substantially
+    16        1            4           -0.18       -0.005       0.005          better performance than the representative feedforward Gaus-
+    16        4            2           -0.01       -0.001       0.004          sian prediction method (AnySplat). This substantial improve-
+    16        4            1           -0.06       -0.003       0.008
+    8         4            4           -0.08       -0.013       0.003          ment is primarily attributed to our joint iterative optimization
+                                                                               and densification framework, which more effectively handles
+                                                                               multi-view consistency across dense viewpoints. Furthermore,
+   Furthermore, we evaluate the sensitivity of our model to                    conducting an ablation by disabling the densification module
+the number of nearest neighbors, Nk , in the KNN attention                     (“w/o densify”) results in a noticeable performance drop,
+mechanism. We retrain the densification network from scratch                   demonstrating the efficacy of our proposed densification net-
+with the modified hyperparameter. As shown in the table,                       work.
+decreasing Nk harms overall performance, indicating that a                        Qualitative comparisons are provided in Fig. 10. As illus-
+sufficient local receptive field is necessary for robust feature               trated, AnySplat struggles to maintain rendering fidelity when
+aggregation and accurate densification policy learning.                        provided with dense input views. Furthermore, we observe
+Generalization Experiment on DL3DV. To ensure a fair                           that AnySplat occasionally fails under inward-facing camera
+comparison with feedforward Gaussian prediction methods                        configurations (bottom row), which is likely attributable to
+and to validate the generalization capabilities of our approach,               inaccurate geometry estimation. In contrast, our approach ex-
+we finetuned our model on the DL3DV dataset and evaluated                      hibits strong robustness in these challenging scenarios. Addi-
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                                                13
+
+
+
+                                 TABLE IX
+             NVS RESULT ON THE DL3DV DATASET. W E EVALUATE THE
+ GENERALIZATION CAPABILITY OF OUR FRAMEWORK AGAINST THE S OTA                                 GT
+    FEEDFORWARD METHOD (A NY S PLAT ) AND AN ABLATION OF OUR
+       DENSIFICATION MODULE . T HE BEST RESULTS ARE BOLD .
+
+
+  Input Views       Method                PSNR ↑         SSIM ↑     LPIPS ↓   Ngs             T=1
+                    AnySplat               18.76          0.569       0.389    5M
+            32      Ours (w/o densify)     23.97          0.737       0.256   700K
+                    Ours                   24.19          0.746       0.249   700K
+                    AnySplat               17.33          0.518       0.458   10M             T=2
+            64      Ours (w/o densify)     23.63          0.721       0.277   700K
+                    Ours                   23.88          0.733       0.269   700K
+
+
+                                                                                              T=4
+tionally, the visual comparisons in the last two columns clearly
+demonstrate the effectiveness of our proposed densification
+method in capturing fine details.
+Scene Reconstruction Trajectory. Our scene reconstruction                                     T=8
+
+module demonstrates the capability to consistently optimize
+the scene representations over time. To explicitly illustrate
+this progression, Fig. 11 presents the evolution of quantitative
+                                                                                              T=16
+metrics across different reconstruction timesteps, with the
+results averaged over the test set. The curves exhibit a stable
+and continuous improvement in rendering fidelity, confirming
+the effectiveness of our progressive optimization strategy.                                   T=24
+   Furthermore, we provide a qualitative visual trajectory of
+the reconstruction process in Fig. 12. As observed in the
+subjective results, our method rapidly establishes the coarse                                Fig. 12. Qualitative Reconstruction Trajectory. Visualizations of the
+global geometry and overall topological structure of the scene                               rendered novel views at different timesteps. Our method recovers the coarse
+within merely 4 timesteps. The subsequent optimization steps                                 scene structure efficiently within the first 4 timesteps, while the subsequent
+                                                                                             steps progressively refine high-frequency geometric and textural details (e.g.,
+are primarily dedicated to the meticulous refinement of high-                                street lamps and textual signs).
+frequency local details, such as the thin structures of street
+lamp poles and the legible text on traffic signs. This coarse-
+to-fine convergence behavior ensures both efficient structural                                Scene Initialization. We initialize the positions of the 3D
+initialization and high-fidelity detail preservation.                                         neural Gaussians using downsampled 3D LiDAR points. We
+                                                                                              voxelize these points to generate voxel-wise Gaussians. To ex-
+       24
+                                                                                              plicitly handle scene dynamics, we utilize Ground Truth (GT)
+                                                0.70
+                                                                                             0.6
+                                                                                              cuboids to initialize the dynamic nodes, ensuring that dynamic
+                                                0.68                                          Gaussians are correctly instantiated within the moving objects.
+       22
+                                                0.66                                         0.5
+                                                                                              For geometric attributes, the scale of each Gaussian is initial-
+                                                                                     LPIPS
+PSNR
+
+
+
+
+                                         SSIM
+
+
+
+
+       20                                                                                     ized isotropically as the distance to its third nearest neighbor to
+                                                0.64
+                                                                                             0.4
+                                                                                              ensure sufficient coverage, while the rotation is set to identity
+       18                                       0.62                                          and the opacity to 0.7. Regarding the neural features, unlike
+            0 3 6 9 12 15 18 21 24                     0 3 6 9 12 15 18 21 24                 previous
+                                                                                                 0 3 6 methods
+                                                                                                          9 12 15 that
+                                                                                                                    18 21use24 random initialization, we initialize
+                    Timestep                                      Timestep                                 Timestep
+                                                                                              all other feature  channels to zero. We empirically find that this
+                                                                                              zero-initialization strategy facilitates more stable convergence
+Fig. 11. Quantitative Reconstruction Trajectory. Evolution of objective
+metrics across reconstruction timesteps, averaged over the test scenes. The
+                                                                                              during training stages.
+consistent trends demonstrate the stable convergence of our reconstruction                    Metrics. Following standard evaluation protocols, we report
+module.                                                                                       Peak Signal-to-Noise Ratio (PSNR), Structural Similarity
+                                                                                              (SSIM) , and Learned Perceptual Image Patch Similarity
+                                                                                              (LPIPS) to quantitatively assess the photorealism of novel
+                    VII. I MPLEMENTATION D ETAILS                                             view synthesis. For LPIPS, we utilize the AlexNet backbone,
+Neural Gaussian Representation. We formulate the dy-                                          as it is the standard configuration in recent view synthesis
+namic scene using a hybrid neural Gaussian representation.                                    benchmarks. Additionally, to evaluate efficiency, we report the
+Specifically, each Gaussian primitive is defined as a tuple                                   reconstruction time measured on a single NVIDIA H20 GPU.
+G = {Θ, f } with a total of 46 feature channels (C = 46). Here,
+Θ denotes the 14-dimensional explicit attributes (position,                                         VIII. BASELINE I MPLEMENTATION D ETAILS
+rotation, scaling, color, and opacity), while f represents a 32-                             Street Gaussians. To benchmark our method against SoTA
+dimensional implicit latent feature.                                                         dynamic scene reconstruction, we implement Street Gaussians
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021                                                                                        14
+
+
+
+[2] using the codebase provided in the DriveStudio framework
+1
+  . We strictly adhere to the original training protocols and
+hyperparameter settings to ensure a fair evaluation. The scene
+is initialized with a total of 1 million primitives: this consists of
+600K points downsampled from the aggregated LiDAR scans
+to provide a geometric coarse structure, augmented by 400K
+points uniformly sampled within the scene’s bounding box.
+We train the model for 30,000 iterations per scene.
+OmniRe. We also utilize the official implementation of Om-
+niRe [3] provided within the DriveStudio framework for
+comparison. To ensure a consistent experimental setup, we
+                                                                        Fig. 13. Upper bound of reachable anisotropy ratio. We plot the maximum
+adopt the same initialization strategy as Street Gaussians,             anisotropy ratio theoretically reachable under cumulative updates (assuming
+employing a hybrid set of 600K downsampled LiDAR points                 a constant unit update step per iteration). Our reparameterization (orange)
+and 400K randomly sampled points. The model is trained for              effectively constrains the optimization manifold, enforcing a linear upper
+                                                                        bound on shape deformation. In contrast, the standard formulation (blue)
+30,000 iterations per scene. We disable the SMPL module                 allows the boundary to explode exponentially, making degenerate local optima
+as it utilizes additional human pose annotations. Moreover,             easily accessible in early stages.
+the negligible pedestrian presence in the evaluation sequences
+renders specific articulation modeling redundant.
+                                                                                IX. A NALYSIS OF O PTIMIZATION M ANIFOLD
+AnySplat. We evaluate AnySplat [5] using its official imple-
+                                                                                              C ONSTRAINTS
+mentation 2 . For the testing configuration, we adopt a frame
+interpolation setting: the model takes two adjacent even frames            To validate the theoretical effectiveness of our geometric
+(I2k , I2k+2 ) as input to synthesize the intermediate odd frame        regularization, we analyze the upper bound of the anisotropy
+(I2k+1 ). Note that the final odd frame in each sequence is             ratio reachable by the optimization process. We define the
+excluded from evaluation due to the absence of a subsequent             anisotropy ratio as the quotient of the maximum scale to the
+neighbor. Regarding the model weights, we directly utilize              minimum scale (λmax /λmin ) of a Gaussian primitive. Fig. 13
+the official pre-trained checkpoints, leveraging their general-         visualizes the maximum possible anisotropy ratio allowed by
+ization capability derived from large-scale training on diverse         the parameterization. Specifically, we assume a normalized
+datasets, including outdoor scenes. Since the architecture does         update step where the raw parameters controlling the scale
+not support high-resolution input, we downsample the input              (e.g., exponents or our latent factors) are updated within a
+images to 448 × 448 for inference and bilinearly upsample               range of (−1, 1) at each timestep. The vertical axis represents
+the rendered outputs back to the original input resolution for          the ratio between the maximum and minimum achievable
+metric calculation.                                                     scales (λmax /λmin ) given these cumulative updates.
+                                                                           • Unconstrained Baseline (Blue): Without regularization,
+G3R. To ensure a fair comparison, we faithfully reproduce the
+performance of G3R [10] strictly following the implementation                 the scale is typically modeled via an exponential ac-
+details provided in the original paper. The model is trained                  tivation (exp(s)). In this space, a linear update in the
+on 8 NVIDIA A100 GPUs for 50,000 iterations, which takes                      exponent leads to an exponential divergence in the actual
+approximately two days to complete. We employ the AdamW                       scale. Consequently, the maximum possible anisotropy
+optimizer with a learning rate of 10−4 and a weight decay                     ratio explodes exponentially, allowing the optimizer to
+of 10−5 . Consistent with the original setting, we utilize                    easily reach degenerate, needle-like configurations (>
+a optimization process of 24 timesteps. This configuration                    100) within the first few iterations.
+                                                                           • Ours with Reparameterization (Orange): Our method
+corresponds to 2,000 scene iterations, ensuring that each
+training scene is processed approximately 20 times during                     reparameterizes the scale factors to map linear updates
+optimization.                                                                 to a linear growth in anisotropy. As shown by the or-
+                                                                              ange curve, the maximum reachable anisotropy increases
+STORM. We evaluate STORM [7] using the official open-                         linearly and slowly. This imposes a strict structural
+source implementation3 . We strictly adhere to the testing                    constraint on the optimization manifold: even if the
+protocols and hyperparameters described in the original paper,                gradients are large, the network is physically incapable
+with the sole exception that our evaluation is conducted                      of generating extreme needle-like artifacts in the early
+exclusively on the front-facing camera. To ensure a fair                      stages. This ”speed limit” on shape deformation forces the
+comparison with other baselines that operate at full resolution,              optimization to prioritize low-frequency geometric place-
+we upsample the rendered images from STORM to the original                    ment before refining high-frequency anisotropic details.
+video resolution via bilinear interpolation before calculating
+quantitative metrics.
+
+
+  1 https://github.com/ziyc/drivestudio
+  2 https://github.com/InternRobotics/AnySplat
+  3 https://github.com/NVlabs/GaussianSTORM
+

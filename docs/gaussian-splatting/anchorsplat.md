@@ -44,7 +44,7 @@ Benchmark: ScanNet++ v2. Metrics: PSNR↑, SSIM↑, LPIPS↓, depth δ1↑, AbsR
 | AnchorSplat⋆  | feed-forward | 20.96 | 0.78  | 0.47   | 0.94 | 0.068   | 247,153   | 3.11         |
 | AnchorSplat   | feed-forward | 21.48 | 0.79  | 0.38   | 0.94 | 0.066   | 247,153   | 5.52         |
 
-AnchorSplat wins on PSNR, SSIM, and both depth metrics with ~22× fewer Gaussians, but note it _loses on LPIPS_: even with the Refiner (0.38) it is worse than AnySplat's 0.32 and optimization-based 3DGS's 0.30.
+AnchorSplat wins on PSNR, SSIM, and both depth metrics with ~22× fewer Gaussians (247,153 vs AnySplat's 5,550,940), but note it _loses on LPIPS_: even with the Refiner (0.38) it is worse than AnySplat's 0.32 and optimization-based 3DGS's 0.30.
 
 원논문 Table 2 (varying input/novel views).
 

@@ -1,0 +1,1085 @@
+                                         Preprint. Under review.
+
+
+
+
+                                         IVGT: I MPLICIT V ISUAL G EOMETRY T RANSFORMER
+                                         FOR N EURAL S CENE R EPRESENTATION
+
+                                          Yuqi Wu∗ Tianyu Hu∗ Wenzhao Zheng∗,†
+                                          Yuanhui Huang Haowen Sun Jie Zhou Jiwen Lu
+                                          Intelligent Vision Group, Tsinghua University
+                                          Page: https://wzzheng.net/IVGT/
+                                          Code: https://github.com/wzzheng/IVGT/
+
+                                                                                                      Mesh
+arXiv:2605.16258v2 [cs.CV] 21 May 2026
+
+
+
+
+                                                          Unposed                Surface Extraction
+                                                           RGBs
+
+
+
+
+                                             Pixel-wise      Neural Scene
+                                             Prediction     Representation                                       Implicit Visual Geometry
+
+                                                                                                                    Render at Any Viewpoint
+
+                                                                                                                         RGB     Depth
+
+
+                                                 Explicit Visual Geometry
+                                                                                                                        Normal   Points
+                                                           by VGGT
+
+                                         Figure 1: IVGT implicitly models coherent 3D geometry and appearance from pose-free multi-view
+                                         images in one feedforward pass. It learns a continuous neural scene representation in a global
+                                         canonical coordinate system, enabling various downstream tasks including mesh reconstruction,
+                                         novel-view synthesis, and surface estimation across diverse scenes.
+
+                                                                                                        A BSTRACT
+                                                      Reconstructing coherent 3D geometry and appearance from unposed multi-view
+                                                      images is a fundamental yet challenging problem in computer vision. Most exist-
+                                                      ing visual geometry foundation models predict explicit geometry by regressing
+                                                      pixel-aligned pointmaps, often suffering from redundancy and limited geometric
+                                                      continuity. We propose IVGT, an Implicit Visual Geometry Transformer that
+                                                      implicitly models continuous and coherent geometry from pose-free multi-view
+                                                      images. This formulation learns a continuous neural scene representation in a
+                                                      canonical coordinate system and supports continuous spatial queries at any 3D
+                                                      positions, retrieving local features to predict signed distance (SDF) values and
+                                                      colors using lightweight decoders. It allows direct extraction of continuous and
+                                                      coherent surface geometry, enabling rendering of RGB images, depth maps, and
+                                                      surface normal maps from arbitrary viewpoints. We train IVGT via multi-dataset
+                                                      joint optimization with 2D supervision and 3D geometric regularization. IVGT
+                                                      demonstrates generalization across scenes and achieves strong performance on
+                                                      various tasks, including mesh and point cloud reconstruction, novel view synthesis,
+                                                      depth and surface normal estimation, and camera pose estimation.
+
+                                         1       I NTRODUCTION
+
+                                         Reconstructing 3D scenes from multi-view images (Snavely et al., 2006; Furukawa & Ponce, 2009;
+                                         Schönberger & Frahm, 2016) has long been a central problem in computer vision, with wide
+                                         applications in robotics (Wang et al., 2024b; Wu et al., 2025b) and autonomous driving (Huang et al.,
+                                             ∗
+                                                 Equal contributions. † Project leader.
+
+
+                                                                                                             1
+Preprint. Under review.
+
+
+
+
+2023; Zuo et al., 2026a;b). Given multi-view images, the goal is to recover a representation that
+captures both accurate geometry and view-consistent appearance, while supporting flexible rendering
+and downstream reasoning (Mildenhall et al., 2021; Yu et al., 2021). However, learning such a unified
+3D representation from multi-view images remains challenging, as the reconstructed geometry should
+be consistent across viewpoints and exhibit continuous and coherent surface structures.
+Conventional methods estimate sparse geometry and camera poses via structure-from-motion
+(SfM) (Snavely et al., 2006; Frahm et al., 2010; Schönberger & Frahm, 2016), followed by dense
+reconstruction using multi-view stereo (MVS) (Furukawa & Ponce, 2009; Gu et al., 2020), neural ra-
+diance fields (NeRF) (Mildenhall et al., 2021; Barron et al., 2022; Müller et al., 2022), or 3D Gaussian
+splatting (3DGS) (Kerbl et al., 2023). While some methods (Yariv et al., 2021; Wang et al., 2021a;
+Yu et al., 2022; Sun et al., 2021) have explored modeling scenes as an implicit signed distance field
+(SDF) for extraction of continuous and smooth surfaces, typically require long per-scene optimization
+or accurate input camera poses. The recent emergence of visual geometry foundation models (Wang
+et al., 2024a; 2025a; Wu et al., 2025a; Zhuo et al., 2025) has significantly revolutionized the paradigm
+of 3D reconstruction. By adopting an end-to-end formulation and large-scale pretraining, they directly
+regress multi-view observations into a shared coordinate system without requiring explicit camera
+poses (Wang & Agapito, 2024; Wang et al., 2025b; Wu et al., 2025a; Zhuo et al., 2025; Chen et al.,
+2025; Lan et al., 2025; Fang et al., 2025) . They decode pixel-aligned features into explicit 3D
+point coordinates, simplifying the previously complex reconstruction pipeline. However, this explicit
+pixel-aligned formulation often leads to redundant representations and lacks geometric continuity.
+Furthermore, rendering novel views from this representation requires additional modeling (Liu et al.,
+2025) or post-processing. As a result, learning an visual geometry foundation model that supports
+coherent surface reconstruction and continuous rendering is of great value but remains unexplored.
+To bridge this gap, we propose an Implicit Visual Geometry Transformer (IVGT) that learns a global
+neural scene representation from pose-free multi-view images to implicitly model continuous and
+coherent geometry, as shown in Figure 1. Specifically, a transformer backbone jointly processes
+tokens from all input views through alternating intra-view and cross-view attention, aggregating
+multi-view observations into a unified canonical representation without requiring explicit camera
+poses as input. This representation implicitly aligns multiple views within a shared coordinate system
+and supports continuous spatial queries over the 3D space. Given an arbitrary 3D query point, the
+model projects it onto each input view to retrieve the corresponding pixel-aligned features, which
+are further augmented with view-relative depth encodings to disambiguate points lying along the
+same projection ray. The aggregated local spatial feature is then decoded by cascaded MLP decoders:
+a geometry decoder predicts the signed distance function (SDF) value at the query point, and an
+appearance decoder takes the SDF gradient (i.e., the surface normal) and the viewing direction to
+predict view-dependent color. This implicit SDF-based formulation enables unified modeling of
+geometry and appearance under a single continuous representation. The predicted SDF values are
+converted to densities to support differentiable volume rendering, allowing the model to render RGB
+images, depth maps, and surface normal maps from arbitrary novel viewpoints. Moreover, IVGT
+achieves efficient and high-quality surface extraction via the Marching Cubes algorithm (Lorensen
+& Cline, 1998), directly yielding continuous mesh representations of the scene, which is inherently
+difficult to achieve with discrete and pixel-aligned explicit outputs.
+To fully leverage large-scale datasets with only 2D observations and pose annotations, we design a
+multi-stage training strategy that relies solely on 2D supervision and 3D geometric regularization.
+This training process progressively enables the model to learn view-consistent rendering and stable
+surface reconstruction. Through joint training on object-level and scene-level datasets, our model
+generalizes across diverse scenes and performs inference in a single forward pass, without any
+test-time optimization or post-processing. We evaluate our method on diverse tasks including mesh
+and pointmap reconstruction, novel view synthesis, depth and surface normal estimation. Extensive
+experiments demonstrate that our model achieves strong performance in consistent and continuous
+geometry reconstruction from pose-free multi-view inputs.
+
+
+2    R ELATED W ORK
+
+Multi-view 3D Reconstruction. Reconstructing 3D geometry from multi-view images is a fun-
+damental problem in computer vision. Conventional pipelines typically decompose this problem
+
+
+                                                   2
+Preprint. Under review.
+
+
+
+
+into multiple stages, where sparse geometry and camera poses are first estimated via structure-from-
+motion (SfM) (Agarwal et al., 2011; Crandall et al., 2012; Wu, 2013; Wilson & Snavely, 2014;
+Schönberger & Frahm, 2016), followed by dense reconstruction using multi-view stereo (MVS) (Fu-
+rukawa et al., 2015; Schönberger et al., 2016; Wei et al., 2021; Fu et al., 2022), neural radiance fields
+(NeRF) (Mildenhall et al., 2021; Barron et al., 2022; Chen et al., 2022), or 3D Gaussian splatting
+(3DGS) (Kerbl et al., 2023). While these methods can produce high-quality results, they rely heavily
+on accurate camera pose estimation and involve complex cascaded stages, which hinder the end-to-
+end optimization and result in limited robustness in challenging scenarios. Recent learning-based
+methods (Wang et al., 2024a; 2025b; Wu et al., 2025a; Zhuo et al., 2025; Wang et al., 2025a) aim to
+simplify this process by directly learning geometry from images. They remove the dependency on
+camera poses by jointly reasoning about multi-view correspondences, enabling end-to-end training
+and large-scale generalization. However, they primarily focus on predicting geometry in view-aligned
+explicit forms such as depth maps or point maps, and do not directly model continuous scene repre-
+sentations that support flexible querying and rendering. This limits their ability to unify multi-view
+understanding with downstream tasks such as novel view synthesis and surface reconstruction.
+Neural Implicit Scene Representations. Neural implicit representations model 3D scenes as
+continuous functions parameterized by neural networks. Early methods (Xie et al., 2022; Chen &
+Zhang, 2019; Mescheder et al., 2019) rely on an MLP to represent geometry and appearance of a
+single scene, achieving strong reconstruction quality at the object level but struggling to scale to
+complex scenes due to limited model capacity and slow optimization. Subsequent works (Chibane
+et al., 2020; Martel et al., 2021; Takikawa et al., 2021; Yu et al., 2022) introduce hybrid designs that
+combine MLPs with multi-resolution voxel grids to capture finer geometric details more efficiently.
+While these methods improve representation capacity, their computational costs grow significantly
+with scene size. More importantly, most neural implicit approaches are optimized on a per-scene
+basis, requiring long training times and preventing direct generalization across different scenarios.
+As a result, although they provide continuous and flexible representations, their applicability in
+large-scale or real-time settings remains limited, motivating the need for representations that can be
+learned across scenes while retaining the advantages of continuous geometry modeling.
+Generalizable Neural Fields. The transformer architecture has demonstrated strong generalizable
+capability in aggregating multi-scale contextual information across a wide range of dense prediction
+tasks, including segmentation (Yang et al., 2022), depth estimation (Ranftl et al., 2021), and optical
+flow (Teed & Deng, 2020). Motivated by this success, recent works (Yu et al., 2021; Wang et al.,
+2021b; Chen et al., 2021; Sun et al., 2021; Yu et al., 2026) explore generalizable neural fields that can
+be trained across multiple scenes and adapted to new scenes with minimal finetuning, conditioning
+3D predictions on transformer-extracted image features. These methods enable fast inference and
+improved generalization across scenes. However, they typically rely on known camera poses to
+establish geometric relationships across views (Sun et al., 2021; Guo et al., 2022; Sayed et al., 2022).
+In addition, since these methods are primarily designed for novel view synthesis, they focus more on
+appearance modeling than on enforcing consistent multi-view geometry (Jeong et al., 2026), which
+can limit the quality of reconstructed surfaces. Differently, we train an implicit visual geometry
+transformer that aggregates a neural scene representation from pose-free images, enabling not only
+continuous spatial queries to render RGB images, depth maps, and surface normal maps from arbitrary
+viewpoints, but also to extract a continuous surface representation.
+
+3     P ROPOSED A PPROACH
+
+We introduce IVGT, an implicit visual geometry transformer that learns a neural scene representation
+within a canonical coordinate system from pose-free multi-view images. We first introduce the
+problem in Sec. 3.1, then elaborate on our pose-free neural scene representation in Sec. 3.2, followed
+by rendering and surface extraction in Sec. 3.3, and finally describe the training setup in Sec. 3.4.
+
+3.1   I MPLICIT V ISUAL G EOMETRY M ODELING
+
+Visual geometry foundation models aim to recover the 3D structure of a scene from unposed multi-
+view images in a single forward pass, without per-scene optimization or known camera parameters.
+By learning from large-scale multi-view data, such models acquire generalizable geometric priors and
+enable fast, robust reconstruction across diverse scenes and domains (Wang et al., 2024a; 2025a; Wu
+
+
+                                                   3
+Preprint. Under review.
+
+
+
+
+          View Features                            RGB 1       Neural Scene
+
+
+
+
+                                                                                                    Surface Extraction
+                                                               Representation
+RGB 1                                 Pointmap 1   RGB 2                                                                  RGBs
+
+
+
+
+                                                                                                      Rendering &
+                           Decoders
+
+
+
+
+                                                                                Decoders
+RGB 2                                 Pointmap 2      …                                                                  Depths
+  …            …                         …         RGB N                                                                 Normals
+                                                                                           SDFs &
+                                                                     XYZs
+RGB N                                 Pointmap N                                           Colors                        Meshes
+
+ Input    Explicit Geometry Models      Output     Input               Implicit Geometry Model (Ours)                    Output
+
+Figure 2: Explicit vs. implicit visual geometry paradigms. Existing explicit models decode per-
+pixel 3D point coordinates for each input view independently, producing discrete and view-indexed
+pointmaps. Our implicit model instead learns a continuous 3D field from which any spatial location
+can be queried, enabling direct surface extraction and novel view rendering without post-processing.
+et al., 2025a; Zhuo et al., 2025). A central design choice in these models is how scene geometry is
+represented: the representation determines what geometric queries are supported, whether the output
+is continuous or discrete, and how rendering and surface extraction can be performed.
+Explicit Visual Geometry. As illustrated in Figure 2, existing visual geometry foundation mod-
+els (Wang et al., 2024a; 2025a; Wu et al., 2025a) follow an explicit paradigm, where the model
+directly decodes a pixel-aligned pointmap for each input view. Formally, given N input images
+                                                  H×W ×3
+{Ii }N
+     i=1 , these methods produce a pointmap Pi ∈ R        per view:
+                                       Pi = hi (F),       F = Enc({Ii }N
+                                                                       i=1 ),                                                (1)
+where hi is a per-view decoder and F is the encoded multi-view feature. The full scene geometry
+is thus a finite collection of N × H × W discrete 3D points, each anchored to a specific pixel in
+a specific view. While effective for coarse geometry estimation and camera pose prediction, this
+explicit formulation has two fundamental limitations. First, the representation is inherently discrete:
+geometry is only defined at pixel-aligned locations, so arbitrary 3D points cannot be queried and no
+continuous surface is implied. Second, the same physical surface point x may appear in multiple
+views and be predicted redundantly, yielding potentially inconsistent estimates across views. As a
+result, extracting a continuous surface or rendering from a novel viewpoint both require additional
+modeling or non-trivial post-processing.
+Implicit Visual Geometry (Ours). In contrast, we propose to learn a continuous 3D field from
+pose-free multi-view images. Rather than decoding a fixed set of pixel-aligned points, the model
+learns a global neural scene representation F that can be queried at any 3D location x ∈ R3 :
+                                                 
+                                  ŝ(x), ĉ(x, v) = Dec(x, v; F) ,                            (2)
+where ŝ(x) ∈ R is the signed distance value and ĉ(x, v) ∈ R3 is the view-dependent color for viewing
+direction v. The scene surface is uniquely defined as the zero level set S = {x ∈ R3 : ŝ(x) = 0},
+which is continuous and view-count-independent. Volume rendering along any ray directly yields
+RGB, depth, and surface normal, and the iso-surface can be extracted via Marching Cubes (Lorensen
+& Cline, 1998) without post-processing. The full input–output mapping of IVGT is:
+                                   F, (Di , gi )N              N
+                                                                  
+                                                i=1 = f {Ii }i=1 ,                                  (3)
+
+where gi ∈ R9 and Di ∈ RH×W are auxiliary camera parameters and depth maps predicted alongside
+F. We take the first image as the reference frame, and the model is permutation equivariant for all
+remaining views.
+
+3.2      P OSE - FREE C ONTINUOUS N EURAL S CENE R EPRESENTATION
+
+Image Encoder and Global Feature Extraction. We adopt a transformer-based backbone to extract
+multi-view image features and learn a global scene representation. Given a set of input images
+(Ii )N
+     i=1 , each image is first converted into a set of tokens by DINO (Oquab et al., 2023). All tokens
+from different views are then jointly processed by a multi-layer transformer that alternates between
+frame-wise and global self-attention (Wang et al., 2025a), enabling both intra-view feature learning
+and cross-view information aggregation. This design allows the model to implicitly align multi-view
+observations without requiring explicit camera poses. In addition to feature extraction, the backbone
+also predicts auxiliary geometric quantities for each view, including depth map Di and camera
+
+
+                                                           4
+Preprint. Under review.
+
+
+
+
+ Unposed               Camera                                                              Neural Scene Representation   Continuous
+RGB Inputs             Token                                                                                             3D Query
+                                                                                                                                       Cascaded
+
+
+
+
+             Encoder
+              Image
+                                                                                                                                       Decoders
+
+                                                                                                                                   σ
+
+
+
+
+                                Global Feature Attention
+
+
+
+
+                                                                Camera
+                                                                 Head
+                                                                                                           raydepth
+
+             Encoder
+              Image
+                                                                                                                                        Ray Distance
+                                                                                                                                        Volume
+
+
+
+
+                                                                Feature
+                                                                 Head
+                                                                                                                                       Rendering
+             Encoder
+              Image
+
+
+
+
+                                                           xL
+                                                                                                                             RGB       Depth   Normal
+Figure 3: Framework of IVGT. Our model takes pose-free multi-view images as input and encodes
+them into per-view features, which are aggregated via global feature attention into a unified scene
+representation in a canonical coordinate system. This representation supports continuous 3D queries,
+where cascaded decoders predict SDF and colors for volume rendering and surface extraction.We
+additionally decode camera poses and per-view depth maps for the input views.
+parameters gi , which provide useful geometric cues for downstream representation learning. We
+obtain a global scene representation F = {Fi }N    i=1 from this backbone, where each Fi encodes
+view-specific features that are implicitly aligned within a shared canonical coordinate system.
+Continuous 3D Query and Multi-view Aggregation. For an arbitrary 3D point x defined in
+the canonical coordinate system of the first frame, we project it onto all input views using the
+corresponding camera parameters. Suppose that x is visible in Nk valid views, we first sample and
+aggregate the corresponding features from these views:
+                                                                                 Nk
+                                                                                 X
+                                                                          zf =         Fi (π(x)).                                                  (4)
+                                                                                 i=1
+However, points located at different positions along the same projection ray may be mapped to the
+same pixel and thus share identical image features, while their underlying geometry and appearance
+can differ significantly. Therefore, it is necessary to augment each queried point with positional
+information that reflects its spatial location. A straightforward approach is to apply positional
+encoding directly on the 3D coordinates of x. However, we argue that such encoding is ambiguous in
+our setting. Specifically, the 3D coordinates of a certain point depend on the choice of the reference
+frame. For the same scene, different choices of the reference frame would lead to different coordinate
+values for the same physical point, resulting in inconsistent positional encodings. This may cause the
+network to rely on absolute coordinates and hinder its ability to learn consistent geometry.
+Instead, we observe that what remains invariant is the relative position of a point with respect to each
+view, which can be represented by its ray depth. We therefore encode the ray depths of x with respect
+to all valid views using a lightweight MLP and aggregate them to obtain a ray-depth feature:
+                                                                           Nk
+                                                                           X
+                                                                  zd =           fraydepth (di (x)),                                               (5)
+                                                                           i=1
+where di (x) is the ray depth of x in each valid view and fraydepth denotes the MLP we design for
+this ray-depth embedding. Finally, we concatenate the aggregated multi-view image features zf with
+the ray-depth feature zd to form the local spatial feature z of x.
+Geometry and Appearance Decoding. Given the spatial feature of a queried point, we employ
+cascaded geometry and appearance decoders to predict its SDF value and color. Specifically, we first
+use an 8-layer MLP to decode the SDF value ŝ and an intermediate appearance feature ẑ:
+                                            (ŝ, ẑ) = fθ (z).                                    (6)
+Then, we concatenate the appearance feature ẑ, the gradient n̂ of the SDF value at this point, and a
+fixed positional encoding of the corresponding viewing direction v. This concatenated feature is fed
+into a 2-layer MLP to predict the final color values:
+                                         ĉ = cθ (ẑ, n̂, γ(v)),                                  (7)
+where γ denotes the positional encoding following NeRF (Mildenhall et al., 2021).
+
+
+                                                                                       5
+Preprint. Under review.
+
+
+
+
+3.3   R ENDERING AND S URFACE E XTRACTION
+
+Volume Rendering. We optimize the neural scene representation described in Sec. 3.2 via a render-
+based reconstruction loss using differentiable volume rendering (Oechsle et al., 2021; Wang et al.,
+2021a; Yu et al., 2022). To render a pixel from input or novel viewpoints, we cast a ray r from the
+camera center o through the pixel along its view direction v. Along each ray, we sample M points
+xir = o + tri v and predict their SDF values ŝir and color values ĉir . Following VolSDF (Yariv et al.,
+2021), we transform the SDF values ŝir to density values σri for volume rendering:
+                                                
+                                     1 exp s                      if s ≤ 0
+                                       2β        β
+                          σβ (s) =                                          ,                     (8)
+                                       1         1         s
+                                       β 1 − 2 exp − β             if s > 0
+                                    
+
+where β is a learnable parameter shared across different scenes. Following NeRF (Mildenhall et al.,
+2021), we compute the transmittance Tri and alpha value αri of sample point i along ray r:
+                                      i−1
+                                      Y
+                            Tri =               1 − αrj       αri = 1 − exp −σri δri ,
+                                                                                   
+                                                                                                                     (9)
+                                      j=1
+
+where δri is the distance between neighboring sample points. Then we can compute the color Ĉ(r),
+the depth D̂(r) and normal N̂ (r) of the surface intersecting the current ray as:
+                           M
+                           X                                  M
+                                                              X                              M
+                                                                                             X
+                 Ĉ(r) =         Tri αri ĉir    D̂(r) =            Tri αri tir   N̂ (r) =         Tri αri n̂ir .   (10)
+                           i=1                                i=1                            i=1
+
+
+Surface Extraction. During inference, we first project the depth maps predicted from the input-view
+features into the coordinate system of the first frame using the estimated camera poses, obtaining
+a coarse scene point cloud. The spatial extent of the scene is then computed by the extrema of this
+point cloud. Next, we uniformly sample a 643 grid of points within this bounding volume and infer
+their SDF values. Points whose absolute SDF values are below a predefined threshold are marked
+as valid. We then upsample the grid to a higher resolution of 5123 , retain only the valid regions,
+and evaluate their SDF values for surface reconstruction. The final surface is extracted using the
+Marching Cubes algorithm (Lorensen & Cline, 1998). Finally, we predict colors for the extracted
+surface points. During color decoding for mesh vertices, the viewing direction required in Eq. 7 is
+approximated using the surface normal direction at each surface point.
+
+3.4   T RAINING
+
+Training Losses. To stabilize the training of our implicit visual geometry transformer, we adopt a
+two-stage training strategy. In the first stage, we supervise only the pose estimation and the rendered
+2D outputs. Specifically, we use the following loss functions:
+                                      X
+                             Lrgb =         ∥Ĉ(r) − C(r)∥1 ,
+                                           r∈R
+                                           X
+                   Ldepth−render =                ∥D̂(r) − D(r)∥1 ,
+                                           r∈R
+                                           X                                                                        (11)
+                          Lnormal =               ∥N̂ (r) − N̄ (r)∥1 + ∥1 − N̂ (r)⊤ N̄ (r)∥1 ,
+                                           r∈R
+                                           N
+                                           X
+                          Lcamera =              ∥ĝi − gi ∥ϵ ,
+                                           i=1
+
+where R denotes the set of pixels in the sampled batch, C(r) is the observed pixel color, D(r) is the
+ground-truth depth normalized over the entire input sequence, and N̄ (r) is the predicted monocular
+normals transformed to the first-frame coordinate system. gi is the ground-truth camera parameters
+and |·|ϵ denotes the Huber loss. The final loss used in the first stage is as follows:
+                   Lstage1 = Lrgb + λ1 Ldepth−render + λ2 Lnormal + λ3 Lcamera .                                    (12)
+
+
+                                                               6
+Preprint. Under review.
+
+
+
+
+Table 1: Scene-level mesh reconstruction on ScanNet. We compare against per-scene optimization
+baselines on Accuracy, Completeness, Chamfer Distance, Precision, Recall, and F-score.
+                                        Setting       Acc↓    Comp↓   Chamfer ↓           Prec↑   Recall↑   F-score↑
+ COLMAP (Schönberger et al., 2016)    Per-Scene       0.047   0.235     0.141             0.711   0.441      0.537
+ UNISURF (Oechsle et al., 2021)       Per-Scene       0.554   0.164     0.359             0.212   0.362      0.267
+ NeuS (Wang et al., 2021a)            Per-Scene       0.179   0.208     0.194             0.313   0.275      0.291
+ VolSDF (Yariv et al., 2021)          Per-Scene       0.414   0.120     0.267             0.321   0.394      0.346
+ Manhattan-SDF (Guo et al., 2022)     Per-Scene       0.072   0.068     0.070             0.621   0.586      0.602
+ MonoSDF (Yu et al., 2022)            Per-Scene       0.035   0.048     0.042             0.799   0.681      0.733
+ IVGT                                Generalizable    0.069   0.051     0.060             0.663   0.639      0.647
+
+In the second stage, we add an Eiknoal term (Gropp et al., 2020) and a smoothness term (Oechsle et al.,
+2021; Yu et al., 2022) to regularize SDF values to improve the stability of geometry reconstruction:
+                                      X                      2
+                          Leikonal =      (∥∇fθ (x)∥2 − 1) ,
+                                       x∈X
+                                                                                                                (13)
+                                        X          ∇fθ (x)      ∇fθ (x+ )
+                          Lsmooth =                          −                        ,
+                                                  ∥∇fθ (x)∥2   ∥∇fθ (x+ )∥2       2
+                                       x∈X
+
+where X are a set of uniformly sampled points together with near-surface points (Yariv et al., 2021)
+and x+ are neighboring points after adding small perturbations to the original sampled points. And
+we also use the depth loss from VGGT (Wang et al., 2025a) to supervise the depth maps directly
+decoded from the input image features:
+                      N
+                      X                                      
+           Ldepth =          ∥ΣD                  D                         D
+                               i ⊙ D̂i − Di ∥ + ∥Σi ⊙ ∇D̂i − ∇Di ∥ − α log Σi ,                                 (14)
+                       i=1
+
+where ΣDi is the predicted uncertainty map between the predicted depth D̂i and the ground-truth
+depth Di , and ⊙ is the channel-broadcast element-wise product. The final loss in the second stage is:
+                      Lstage2 = Lstage1 + λ4 Leikonal + λ5 Lsmooth + λ6 Ldepth .                                (15)
+
+Training Data. We train our IVGT using a diverse collection of datasets: ARKitScenes (Baruch
+et al., 2021), CO3Dv2 (Reizenstein et al., 2021), HyperSim (Roberts et al., 2021), MegaDepth (Li &
+Snavely, 2018), OmniObject3D (Wu et al., 2023), ScanNet (Dai et al., 2017), ScanNet++ (Yeshwanth
+et al., 2023), Unreal4K (Tosi et al., 2021) and WildRGBD (Xia et al., 2024). These datasets cover
+objects and scenes, including both real and synthetic data. We only require camera poses and RGB-D
+data as supervision (surface normals are obtained by predicting from RGB images using DSine (Bae
+& Davison, 2024)), which allows us to fully leverage existing 3D datasets.
+Implementation Details. We initialize the image encoder and global feature extraction module with
+pre-trained weights from VGGT (Wang et al., 2025a). We use the AdamW optimizer (Loshchilov &
+Hutter, 2017) and the learning rate warms up to a maximum value of 2e-4 and decreases according to
+a cosine schedule. We set λ1 , λ2 , λ3 , λ4 , λ5 , λ6 to 0.1, 0.05, 1.0, 0.01, 0.01, 0.1, respectively. We
+render from 8 viewpoints (4 context and 4 novel) per iteration and sample 1024 rays per view. We
+apply the error-bounded sampling strategy (Yariv et al., 2021) to sample points along each ray. We
+train our model on 4 A800 NVIDIA GPUs for 4 days.
+
+4     E XPERIMENTS
+We use various 2D/3D tasks (3D reconstruction, novel view synthesis, depth estimation, surface
+normal estimation, and camera pose estimation) to evalute our IVGT. For each task, we select some
+representative methods as baselines and conduct comprehensive comparisons with our IVGT. We
+also provide various visualizations to demonstrate the effectiveness of our method.
+
+4.1   3D M ESH R ECONSTRUCTION
+
+We compare against various baselines to show the performance of IVGT for mesh reconstruction.
+On ScanNet (Dai et al., 2017), we use the test split following Manhattan-SDF (Guo et al., 2022)
+
+
+                                                       7
+Preprint. Under review.
+
+
+
+
+        Input             Manhattan-SDF       MonoSDF                Ours               GT
+
+
+
+
+Figure 4: Qualitative mesh reconstruction on ScanNet. IVGT produces geometrically complete and
+surface-coherent meshes in a single forward pass, achieving comparable or superior reconstruction
+quality to per-scene optimization baselines.
+
+
+
+
+Figure 5: Colored mesh reconstruction on diverse scenes and objects. IVGT generalizes across
+indoor scenes and objects of varying scale, producing geometrically complete and visually consistent
+colored meshes without any test-time optimization.
+
+and MonoSDF (Yu et al., 2022). In Table 1, we report the average reconstruction results for IVGT
+and baselines on several test scenes. As a generalizable method, our method surpasses most per-
+scene optimization methods and ranks second only to MonoSDF. Given that MonoSDF requires
+several hours of optimization for each scene, IVGT offers a superior trade-off between computational
+efficiency and reconstruction quality. Qualitative comparisons with several representative baselines
+are shown in Figure 4. We also visualize our mesh reconstruction results on a wider range of
+scene-level and object-level examples, as shown in Figure 5.
+
+4.2   3D P OINTMAP R ECONSTRUCTION
+
+IVGT estimates the relative poses of input images with respect to the first-frame coordinate system
+and predicts depth maps from the corresponding image features. These depth maps are then used to
+reconstruct point maps of the input views within the first-frame coordinate system. In addition, we
+can render depth maps for the input viewpoints from the learned neural scene representation. These
+rendered depth maps similarly allow us to obtain pointmap reconstructions under the same coordinate
+system. We evaluate the quality of pointmap reconstruction on both scene-level and object-level
+datasets, including 7-Scenes (Shotton et al., 2013), NRGBD (Azinović et al., 2022), and DTU (Jensen
+
+
+                                                 8
+Preprint. Under review.
+
+
+
+
+Table 2: Pointmap reconstruction on 7-Scenes, NRGBD, and DTU. We report mean and median
+Accuracy and Completeness (in meters for scene-level, mm for object-level). Pointmaps decoded
+directly from per-view features (IVGT) consistently outperform prior methods, while pointmaps
+projected from rendered depth maps (IVGT (from render)) also achieve competitive results.
+                              7-Scenes (scene, kf=50)     NRGBD (scene, kf=100)     DTU (object, kf=5)
+Method                          Acc. ↓      Comp. ↓        Acc. ↓       Comp. ↓     Acc. ↓     Comp. ↓
+                             Mean Med. Mean Med. Mean Med. Mean Med. Mean Med. Mean Med.
+Fast3R (Yang et al., 2025)     0.053 0.023 0.084 0.033 0.080 0.039 0.075 0.039 3.605 1.855 3.048 1.274
+CUT3R (Wang et al., 2025b)     0.024 0.011 0.028 0.009 0.086 0.038 0.047 0.016 4.749 2.588 2.764 1.176
+Point3R (Wu et al., 2025a)     0.030 0.015 0.026 0.010 0.065 0.035 0.030 0.013 6.111 3.930 2.880 1.399
+StreamVGGT (Zhuo et al., 2025) 0.046 0.025 0.032 0.014 0.080 0.056 0.044 0.021 2.520 1.395 2.048 1.075
+VGGT (Wang et al., 2025a)      0.020 0.008 0.028 0.012 0.018 0.010 0.017 0.009 1.305 0.743 2.435 1.737
+IVGT                           0.016 0.007 0.021 0.009 0.017 0.011 0.015 0.006 1.686 0.889 1.458 0.792
+IVGT (from render)             0.023 0.010 0.038 0.018 0.043 0.023 0.031 0.014 2.476 1.167 2.979 1.576
+Input      VGGT Points          IVGT Mesh               Input       VGGT Points        IVGT Mesh
+
+
+
+
+         Input
+         Input            GT
+                          GTPoints
+                             Points         VGGT
+                                            VGGTPoints
+                                                 Points              IVGT
+                                                                      IVGTPoints
+                                                                           Points        IVGT
+                                                                                          IVGTMesh
+                                                                                               Mesh
+
+
+
+
+Figure 6: Mesh vs. pointmap representations. Pixel-aligned pointmap reconstruction suffers from
+sparsity and surface discontinuities, especially at object boundaries. Meshes and points extracted
+from IVGT exhibit significantly improved geometric continuity and completeness, validating the
+advantage of continuous implicit geometry over discrete explicit representations.
+et al., 2014) in Table 2. Note that we only provide comparisons with a few representative methods for
+reference, as pointmap reconstruction is not the primary focus of IVGT but rather a by-product of our
+representation. We can observe that the point maps reconstructed from depth maps directly decoded
+from image features achieve better performance than previous methods. The point maps obtained by
+projecting rendered depth maps also achieve results comparable to these representative methods.
+To further compare mesh and pointmap representations, we provide qualitative comparisons in
+Figure 6. Pixel-aligned pointmap reconstruction often suffers from sparsity and lack of surface
+continuity. In contrast, meshes extracted from our implicit representation exhibit significantly
+improved surface coherence and geometric completeness. This demonstrates that IVGT enables not
+only accurate point-level reconstruction but also high-quality continuous surface modeling.
+
+4.3   C AMERA P OSE E STIMATION
+
+Following MonST3R (Zhang et al., 2024) and CUT3R (Wang et al., 2025b), we evaluate the camera
+pose estimation performance on ScanNet, Sintel and TUM-dynamics, as shown in Table 3. We report
+Absolute Translation Error (ATE), Relative Translation Error (RPE trans), and Relative Rotation
+Error (RPE rot) after applying a Sim(3) Umeyama alignment with the ground truth. Our method
+achieves comparable or even superior performance to representative feed-forward approaches on
+camera pose estimation metrics across multiple datasets.
+
+
+                                                   9
+Preprint. Under review.
+
+
+
+
+Table 3: Camera pose estimation on ScanNet, Sintel, and TUM-dynamics. We report Absolute
+Translation Error (ATE), Relative Translation Error (RPE trans), and Relative Rotation Error (RPE
+rot) after Sim(3) Umeyama alignment. IVGT achieves competitive or superior performance to state-
+of-the-art feed-forward methods across all three benchmarks.
+                                        ScanNet (Static)                             Sintel                    TUM-dynamics
+ Method
+                                 ATE↓ RPE trans↓ RPE rot↓ ATE↓ RPE trans↓ RPE rot↓ ATE↓ RPE trans↓ RPE rot↓
+ Fast3R (Yang et al., 2025)     0.084      0.059        2.844        0.274      0.224         15.69    0.048      0.052     1.197
+ CUT3R (Wang et al., 2025b) 0.096          0.022        0.733        0.210      0.071         0.627    0.045      0.014     0.441
+ FLARE (Zhang et al., 2025) 0.069          0.025        0.991        0.158      0.082         2.863    0.026      0.013     0.475
+ VGGT (Wang et al., 2025a)      0.035      0.015        0.403        0.169      0.064         0.478    0.012      0.010     0.313
+ WorldMirror (Liu et al., 2025) 0.037      0.017        0.422        0.121      0.063         0.535    0.012      0.010     0.301
+ IVGT                           0.032      0.014        0.422        0.140      0.060         0.530    0.012      0.010     0.319
+
+Table 4: Novel view synthesis on RealEstate10K and DL3DV. We evaluate under sparse-view (2/8
+views) and dense-view (32/64 views) settings and report PSNR, SSIM, and LPIPS. IVGT achieves
+competitive PSNR and SSIM scores, demonstrating that the learned implicit representation supports
+high-fidelity rendering from novel viewpoints.
+                             RealEstate10K (2 views)       DL3DV (8 views)            RealEstate10K (32 views)   DL3DV (64 views)
+Method
+                             PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓ PSNR↑ SSIM↑ LPIPS↓
+FLARE (Zhang et al., 2025) 16.33       0.574   0.410    15.35    0.516       0.591       –     –        –          –     –     –
+AnySplat (Jiang et al., 2025) 17.62    0.616   0.242    18.31    0.569       0.258     19.96 0.718    0.234      18.40 0.602 0.286
+WorldMirror (Liu et al., 2025) 20.62   0.706   0.187    20.92    0.667       0.203     25.14 0.859    0.109      21.25 0.703 0.223
+IVGT                           18.97   0.656   0.449    19.74    0.627       0.494     21.91 0.751    0.394      19.62 0.659 0.515
+
+         GT              Rendered                  GT                  Rendered                       GT              Rendered
+
+
+
+
+Figure 7: Novel view synthesis on ScanNet. Given pose-free multi-view inputs, IVGT renders RGB
+images, depth maps, and surface normal maps from unseen viewpoints. The outputs are visually
+coherent and geometrically smooth, confirming that the unified implicit representation captures both
+appearance and 3D structure. All three modalities are derived from the same SDF field without any
+task-specific decoding heads, demonstrating the versatility of our continuous implicit geometry.
+
+4.4    N OVEL V IEW S YNTHESIS
+
+We use Table 4 to report the quantitative evaluation results for novel view synthesis under the feed-
+forward setting. For RealEstate10K (Zhou et al., 2018), we use 200 sampled test scenes following
+NopoSplat (Ye et al., 2024) and WorldMirror (Liu et al., 2025). We use 3 novel views per scene in
+the sparse-view setting and 4 novel views per scene in the dense-view setting. For DL3DV (Ling
+et al., 2024), we follow the FLARE (Zhang et al., 2025) test split and evaluate in 112 unseen scenes.
+Each test scene contains 9 novel views in both sparse-view and dense-view settings. Our method
+achieves performance comparable to existing feed-forward methods on this task.
+We visualize the novel view synthesis results on the ScanNet test scenes in Figure 7. Given multi-
+view input images, IVGT renders RGB images, depth maps, and surface normal maps from unseen
+viewpoints using the learned scene representation. The rendered results are visually consistent with
+the ground truth, while depth maps and surface normal maps exhibit smooth and coherent structures,
+which indicate that the representation captures both geometry and appearance in a unified manner.
+
+
+                                                                10
+Preprint. Under review.
+
+
+
+
+Table 5: Monocular and video depth estimation on NYUv2 and Sintel. We report Abs Rel and
+δ < 1.25 for both monocular and video settings. Depth maps decoded directly from per-view features
+(IVGT) outperform prior methods, while depth maps rendered from the implicit field (IVGT (from
+render)) remain competitive, demonstrating complementary strengths of the two decoding pathways.
+                                   NYUv2 (Monocular)            Sintel (Monocular)              Sintel (Video)
+  Method
+                                   Abs Rel↓   δ < 1.25 ↑    Abs Rel↓        δ < 1.25 ↑    Abs Rel↓     δ < 1.25 ↑
+  Fast3R (Yang et al., 2025)        0.093       0.898           0.544         0.509        0.638            0.422
+  CUT3R (Wang et al., 2025b)        0.081       0.914           0.418         0.520        0.417            0.507
+  FLARE (Zhang et al., 2025)        0.089       0.898           0.606         0.402        0.729            0.336
+  VGGT (Wang et al., 2025a)         0.056       0.951           0.606         0.599        0.299            0.638
+  IVGT                              0.063       0.954           0.309         0.620        0.295            0.646
+  IVGT (from render)                0.067       0.945           0.398         0.570        0.542            0.582
+Table 6: Surface normal estimation on NYUv2 and iBims-1. We report mean/median angular
+error and the percentage of pixels within 22.5◦ and 30◦ angular thresholds. IVGT achieves results
+comparable to dedicated normal estimation methods, demonstrating that the SDF-based representation
+captures high-quality surface geometry as a natural by-product of multi-view reconstruction.
+                                                 NYUv2                                     iBims-1
+  Method
+                                                           ◦            ◦
+                                     mean↓    med↓      22.5 ↑     30 ↑      mean↓       med↓     22.5◦ ↑     30◦ ↑
+  OASIS (Chen et al., 2020)           29.2    23.4       48.4      60.7       32.6       24.6      46.6       57.4
+  EESNU (Bae et al., 2021)            16.2     8.5       77.2      83.5       20.0       8.4       73.4       78.2
+  Omnidata v2 (Kar et al., 2022)      17.2     9.7       76.5      83.0       18.2       7.0       77.4       81.1
+  DSine (Bae & Davison, 2024)         16.4    8.4        77.7      83.5       17.1       6.1       79.0       82.3
+  IVGT                                16.6    10.4       77.3      84.2       20.1       10.6      74.4       79.6
+
+
+4.5   M ONOCULAR AND V IDEO D EPTH E STIMATION
+
+We compare with several representative feed-forward methods in Table 5. We evaluate the monocular
+depth estimation on NYUv2 (Silberman et al., 2012) and Sintel (Butler et al., 2012) datasets, and
+evaluate the video depth estimation on Sintel dataset. The depth maps directly decoded from multi-
+view features achieve better performance in depth estimation metrics than prior methods, while the
+depth maps rendered from the neural scene representation obtain comparable results under the same
+metrics, demonstrating that the implicit representation preserves accurate geometry.
+
+4.6   S URFACE N ORMAL E STIMATION
+
+Following DSine (Bae & Davison, 2024), we evaluate surface normal estimation on NYUv2 and
+iBims-1, as shown in Table 6. We report the angular error between predicted and ground-truth normal
+maps, including mean and median errors, as well as the percentage of pixels with angular error below
+22.5◦ and 30◦ . We compare our method with representative normal estimation approaches, such as
+OASIS (Chen et al., 2020), EESNU (Bae et al., 2021), Omnidata v2 (Kar et al., 2022) and DSine (Bae
+& Davison, 2024). Our results are comparable to these strong baselines, demonstrating that our
+model can recover consistent surface geometry despite being primarily optimized for multi-view 3D
+reconstruction rather than dedicated normal estimation.
+
+4.7   A BLATION AND M ORE A NALYSIS
+
+Ablation on the Positional Information Injecting Choices. As discussed in Sec. 3.2, directly
+encoding positional information using absolute 3D coordinates may introduce ambiguity due to the
+dependence on the choice of reference frame. To further validate this, we conduct an ablation study
+on ScanNet, where we train four variants with different positional information injecting strategies
+under exactly the same training setup. Each setting is trained for 16 hours. No Embed means using
+no spatial encoding, XYZ-PosEnc refers to applying fixed positional encoding on 3D coordinates, and
+XYZ-Embed means directly embedding coordinates using an MLP. We evalute the mesh reconstruction
+performance of these four variants on several test scenes we use in Sec. 4.1 and report the average
+metrics in Table 7. The No Embed variant fails to learn meaningful geometry, as most points are
+predicted with positive SDF values, resulting in empty space and no valid mesh for evaluation,
+highlighting the necessity of positional information. Both XYZ-PosEnc and XYZ-Embed variants
+
+
+                                                     11
+Preprint. Under review.
+
+
+
+
+Table 7: Ablation on positional encoding strategies for 3D query points. We compare XYZ-
+PosEnc (fixed encoding on absolute 3D coordinates), XYZ-Embed (MLP on 3D coordinates), and
+our Raydepth-Embed (MLP on view-relative ray depths). Absolute-coordinate encodings introduce
+reference-frame ambiguity and degrade performance, while our view-consistent ray depth encoding
+achieves the best results across all metrics.
+                          Acc↓       Comp↓        Chamfer ↓       Prec↑      Recall↑       F-score↑
+    XYZ-PosEnc            0.624      0.158            0.391       0.220       0.346         0.260
+    XYZ-Embed             0.494      0.148            0.321       0.272       0.364         0.306
+    Raydepth-Embed        0.219      0.103            0.161       0.434       0.431         0.429
+       Input              Stage1             Stage2               Input          Stage1      Stage2
+
+
+
+
+Figure 8: Effect of the two-stage training strategy. The first stage (2D supervision only) captures
+coarse geometry but produces rough, irregular surfaces. Adding Eikonal and smoothness regulariza-
+tion in the second stage significantly improves surface quality, yielding smooth and coherent meshes.
+rely on absolute coordinates and achieve limited performance, likely due to ambiguity introduced by
+reference-frame-dependent representations. In contrast, our Raydepth-Embed design achieves the
+best performance across all metrics by encoding view-consistent relative geometry.
+Analysis on the Training Setup. We adopt a two-stage training strategy to balance geometric
+learning and surface regularization. Directly introducing 3D constraints in the early stage tends to
+hinder the model from learning the underlying geometric distribution, while relying solely on 2D
+supervision leads to rough and irregular surfaces. We therefore first train the model using only 2D
+supervision to capture coarse geometry, and then introduce Eikonal and smoothness regularization in
+the second stage to enforce surface consistency. As shown in Figure 8, the first stage results exhibit
+noticeable surface irregularities, whereas the second stage produces significantly smoother and more
+coherent surfaces, validating the effectiveness of our training setup.
+
+5    C ONCLUSION AND D ISCUSSIONS
+In this paper, we have presented IVGT, an implicit visual geometry transformer that learns a pose-free
+neural scene representation and enables continuous spatial queries for joint geometry and appearance
+modeling. Unlike prior explicit models that decode discrete, pixel-aligned pointmaps, IVGT models
+the scene as a global implicit SDF field that supports continuous 3D queries at arbitrary locations.
+Extensive experiments demonstrate that our method achieves strong performance across multiple
+tasks, including mesh reconstruction, point cloud reconstruction, novel view synthesis, depth and
+surface normal estimation, and camera pose estimation, while generalizing across diverse scenes. Our
+formulation bridges feed-forward multi-view representation learning with neural implicit geometry
+modeling, representing a step toward scalable and pose-free continuous surface reconstruction.
+Limitations. Despite the promising results, IVGT has several limitations for future exploration:
+• While our SDF-based rendering produces geometrically coherent outputs, the rendering quality in
+  terms of high-frequency appearance details lags behind dedicated novel view synthesis methods
+  such as those based on 3D Gaussian splatting (Liu et al., 2025), as reflected by the quantitative
+  results. The smoothness prior enforced by Eikonal regularization, while beneficial for surface
+  coherence, suppresses fine-grained geometric structures such as thin objects and sharp edges.
+• The current framework assumes a static scene and a bounded spatial extent, limiting its applicability
+  to dynamic environments or large-scale unbounded outdoor scenes.
+• The continuous 3D query mechanism requires projecting each sampled point onto all input views
+  and aggregating features, which is more computationally intensive than direct pixel-aligned
+  decoding at inference time, which may hinder real-time deployment.
+Addressing these (e.g., incorporating appearance-oriented decoding heads, handling dynamic content,
+or developing more efficient query strategies) remains an important direction for future research.
+
+
+                                                 12
+Preprint. Under review.
+
+
+
+
+R EFERENCES
+Sameer Agarwal, Yasutaka Furukawa, Noah Snavely, Ian Simon, Brian Curless, Steven M Seitz, and
+  Richard Szeliski. Building rome in a day. Communications of the ACM, 54(10):105–112, 2011.
+Dejan Azinović, Ricardo Martin-Brualla, Dan B Goldman, Matthias Nießner, and Justus Thies.
+  Neural rgb-d surface reconstruction. In CVPR, pp. 6290–6301, 2022.
+Gwangbin Bae and Andrew J Davison. Rethinking inductive biases for surface normal estimation. In
+ CVPR, pp. 9535–9545, 2024.
+Gwangbin Bae, Ignas Budvytis, and Roberto Cipolla. Estimating and exploiting the aleatoric
+ uncertainty in surface normal estimation. In ICCV, pp. 13137–13146, 2021.
+Jonathan T Barron, Ben Mildenhall, Dor Verbin, Pratul P Srinivasan, and Peter Hedman. Mip-nerf
+  360: Unbounded anti-aliased neural radiance fields. In CVPR, pp. 5470–5479, 2022.
+Gilad Baruch, Zhuoyuan Chen, Afshin Dehghan, Tal Dimry, Yuri Feigin, Peter Fu, Thomas Gebauer,
+  Brandon Joffe, Daniel Kurz, Arik Schwartz, et al. Arkitscenes: A diverse real-world dataset for 3d
+  indoor scene understanding using mobile rgb-d data. arXiv preprint arXiv:2111.08897, 2021.
+Daniel J Butler, Jonas Wulff, Garrett B Stanley, and Michael J Black. A naturalistic open source
+  movie for optical flow evaluation. In ECCV, pp. 611–625. Springer, 2012.
+Anpei Chen, Zexiang Xu, Fuqiang Zhao, Xiaoshuai Zhang, Fanbo Xiang, Jingyi Yu, and Hao Su.
+  Mvsnerf: Fast generalizable radiance field reconstruction from multi-view stereo. In ICCV, pp.
+ 14124–14133, 2021.
+Anpei Chen, Zexiang Xu, Andreas Geiger, Jingyi Yu, and Hao Su. Tensorf: Tensorial radiance fields.
+  In ECCV, pp. 333–350. Springer, 2022.
+Weifeng Chen, Shengyi Qian, David Fan, Noriyuki Kojima, Max Hamilton, and Jia Deng. Oasis: A
+ large-scale dataset for single image 3d in the wild. In CVPR, pp. 679–688, 2020.
+Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, and Anpei Chen. Ttt3r: 3d reconstruction as
+  test-time training. arXiv preprint arXiv:2509.26645, 2025.
+Zhiqin Chen and Hao Zhang. Learning implicit fields for generative shape modeling. In CVPR, pp.
+  5939–5948, 2019.
+Julian Chibane, Thiemo Alldieck, and Gerard Pons-Moll. Implicit functions in feature space for 3d
+  shape reconstruction and completion. In CVPR, pp. 6970–6981, 2020.
+David J Crandall, Andrew Owens, Noah Snavely, and Daniel P Huttenlocher. Sfm with mrfs: Discrete-
+  continuous optimization for large-scale structure from motion. TPAMI, 35(12):2841–2853, 2012.
+Angela Dai, Angel X Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias
+  Nießner. Scannet: Richly-annotated 3d reconstructions of indoor scenes. In CVPR, pp. 5828–5839,
+  2017.
+Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren,
+  Zhonglei Yang, Xiaokang Yang, Yichao Yan, et al. Dens3r: A foundation model for 3d geometry
+  prediction. arXiv preprint arXiv:2507.16290, 2025.
+Jan-Michael Frahm, Pierre Fite-Georgel, David Gallup, Tim Johnson, Rahul Raguram, Changchang
+  Wu, Yi-Hung Jen, Enrique Dunn, Brian Clipp, Svetlana Lazebnik, et al. Building rome on a
+  cloudless day. In ECCV, pp. 368–381. Springer, 2010.
+Qiancheng Fu, Qingshan Xu, Yew Soon Ong, and Wenbing Tao. Geo-neus: Geometry-consistent
+  neural implicit surfaces learning for multi-view reconstruction. NeurIPS, 35:3403–3416, 2022.
+Yasutaka Furukawa and Jean Ponce. Accurate, dense, and robust multiview stereopsis. TPAMI, 32
+  (8):1362–1376, 2009.
+
+
+                                                13
+Preprint. Under review.
+
+
+
+
+Yasutaka Furukawa, Carlos Hernández, et al. Multi-view stereo: A tutorial. Foundations and Trends®
+  in Computer Graphics and Vision, 9(1-2):1–148, 2015.
+Amos Gropp, Lior Yariv, Niv Haim, Matan Atzmon, and Yaron Lipman. Implicit geometric regular-
+ ization for learning shapes. arXiv preprint arXiv:2002.10099, 2020.
+Xiaodong Gu, Zhiwen Fan, Siyu Zhu, Zuozhuo Dai, Feitong Tan, and Ping Tan. Cascade cost volume
+  for high-resolution multi-view stereo and stereo matching. In CVPR, pp. 2495–2504, 2020.
+Haoyu Guo, Sida Peng, Haotong Lin, Qianqian Wang, Guofeng Zhang, Hujun Bao, and Xiaowei
+  Zhou. Neural 3d scene reconstruction with the manhattan-world assumption. In CVPR, pp.
+  5511–5520, 2022.
+Yuanhui Huang, Wenzhao Zheng, Yunpeng Zhang, Jie Zhou, and Jiwen Lu. Tri-perspective view for
+  vision-based 3d semantic occupancy prediction. In CVPR, pp. 9223–9232, 2023.
+Rasmus Jensen, Anders Dahl, George Vogiatzis, Engil Tola, and Henrik Aanæs. Large scale multi-
+  view stereopsis evaluation. In CVPR, pp. 406–413. IEEE, 2014.
+Hyeonjun Jeong, Juyeb Shin, and Dongsuk Kum. To view transform or not to view transform:
+  Nerf-based pre-training perspective. arXiv preprint arXiv:2603.28090, 2026.
+Lihan Jiang, Yucheng Mao, Linning Xu, Tao Lu, Kerui Ren, Yichen Jin, Xudong Xu, Mulin
+  Yu, Jiangmiao Pang, Feng Zhao, et al. Anysplat: Feed-forward 3d gaussian splatting from
+  unconstrained views. TOG, 44(6):1–16, 2025.
+Oğuzhan Fatih Kar, Teresa Yeo, Andrei Atanov, and Amir Zamir. 3d common corruptions and data
+  augmentation. In CVPR, pp. 18963–18974, 2022.
+Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, and George Drettakis. 3d gaussian splatting
+  for real-time radiance field rendering. TOG, 42(4), July 2023.
+Yushi Lan, Yihang Luo, Fangzhou Hong, Shangchen Zhou, Honghua Chen, Zhaoyang Lyu, Shuai
+  Yang, Bo Dai, Chen Change Loy, and Xingang Pan. Stream3r: Scalable sequential 3d reconstruction
+  with causal transformer. arXiv preprint arXiv:2508.10893, 2025.
+Zhengqi Li and Noah Snavely. Megadepth: Learning single-view depth prediction from internet
+  photos. In CVPR, pp. 2041–2050, 2018.
+Lu Ling, Yichen Sheng, Zhi Tu, Wentian Zhao, Cheng Xin, Kun Wan, Lantao Yu, Qianyu Guo, Zixun
+  Yu, Yawen Lu, et al. Dl3dv-10k: A large-scale scene dataset for deep learning-based 3d vision. In
+  CVPR, pp. 22160–22169, 2024.
+Yifan Liu, Zhiyuan Min, Zhenwei Wang, Junta Wu, Tengfei Wang, Yixuan Yuan, Yawei Luo, and
+  Chunchao Guo. Worldmirror: Universal 3d world reconstruction with any-prior prompting. arXiv
+  preprint arXiv:2510.10726, 2025.
+William E Lorensen and Harvey E Cline. Marching cubes: A high resolution 3d surface construction
+ algorithm. In Seminal graphics: pioneering efforts that shaped the field, pp. 347–353. 1998.
+Ilya Loshchilov and Frank Hutter.      Decoupled weight decay regularization.      arXiv preprint
+   arXiv:1711.05101, 2017.
+Julien NP Martel, David B Lindell, Connor Z Lin, Eric R Chan, Marco Monteiro, and Gordon
+  Wetzstein. Acorn: Adaptive coordinate networks for neural scene representation. arXiv preprint
+  arXiv:2105.02788, 2021.
+Lars Mescheder, Michael Oechsle, Michael Niemeyer, Sebastian Nowozin, and Andreas Geiger.
+  Occupancy networks: Learning 3d reconstruction in function space. In CVPR, pp. 4460–4470,
+  2019.
+Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik, Jonathan T Barron, Ravi Ramamoorthi, and
+  Ren Ng. Nerf: Representing scenes as neural radiance fields for view synthesis. Communications
+  of the ACM, 65(1):99–106, 2021.
+
+
+                                                14
+Preprint. Under review.
+
+
+
+
+Thomas Müller, Alex Evans, Christoph Schied, and Alexander Keller. Instant neural graphics
+  primitives with a multiresolution hash encoding. TOG, 41(4):1–15, 2022.
+
+Michael Oechsle, Songyou Peng, and Andreas Geiger. Unisurf: Unifying neural implicit surfaces
+ and radiance fields for multi-view reconstruction. In ICCV, pp. 5589–5599, 2021.
+
+Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov,
+ Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. Dinov2: Learning
+ robust visual features without supervision. arXiv preprint arXiv:2304.07193, 2023.
+
+René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vision transformers for dense prediction. In
+  ICCV, pp. 12179–12188, 2021.
+
+Jeremy Reizenstein, Roman Shapovalov, Philipp Henzler, Luca Sbordone, Patrick Labatut, and David
+   Novotny. Common objects in 3d: Large-scale learning and evaluation of real-life 3d category
+   reconstruction. In ICCV, pp. 10901–10911, 2021.
+
+Mike Roberts, Jason Ramapuram, Anurag Ranjan, Atulit Kumar, Miguel Angel Bautista, Nathan
+ Paczan, Russ Webb, and Joshua M Susskind. Hypersim: A photorealistic synthetic dataset for
+ holistic indoor scene understanding. In ICCV, pp. 10912–10922, 2021.
+
+Mohamed Sayed, John Gibson, Jamie Watson, Victor Prisacariu, Michael Firman, and Clément
+ Godard. Simplerecon: 3d reconstruction without 3d convolutions. In ECCV, pp. 1–19, 2022.
+
+Johannes Lutz Schönberger and Jan-Michael Frahm. Structure-from-motion revisited. In CVPR,
+  2016.
+
+Johannes Lutz Schönberger, Enliang Zheng, Marc Pollefeys, and Jan-Michael Frahm. Pixelwise view
+  selection for unstructured multi-view stereo. In ECCV, 2016.
+
+Jamie Shotton, Ben Glocker, Christopher Zach, Shahram Izadi, Antonio Criminisi, and Andrew
+  Fitzgibbon. Scene coordinate regression forests for camera relocalization in rgb-d images. In
+  CVPR, pp. 2930–2937, 2013.
+
+Nathan Silberman, Derek Hoiem, Pushmeet Kohli, and Rob Fergus. Indoor segmentation and support
+  inference from rgbd images. In ECCV, pp. 746–760. Springer, 2012.
+
+Noah Snavely, Steven M Seitz, and Richard Szeliski. Photo tourism: exploring photo collections in
+  3d. In ACM siggraph 2006 papers, pp. 835–846. 2006.
+
+Jiaming Sun, Yiming Xie, Linghao Chen, Xiaowei Zhou, and Hujun Bao. Neuralrecon: Real-time
+   coherent 3d reconstruction from monocular video. In CVPR, pp. 15598–15607, 2021.
+
+Towaki Takikawa, Joey Litalien, Kangxue Yin, Karsten Kreis, Charles Loop, Derek Nowrouzezahrai,
+  Alec Jacobson, Morgan McGuire, and Sanja Fidler. Neural geometric level of detail: Real-time
+  rendering with implicit 3d shapes. In CVPR, pp. 11358–11367, 2021.
+
+Zachary Teed and Jia Deng. Raft: Recurrent all-pairs field transforms for optical flow. In ECCV, pp.
+  402–419. Springer, 2020.
+
+Fabio Tosi, Yiyi Liao, Carolin Schmitt, and Andreas Geiger. Smd-nets: Stereo mixture density
+  networks. In CVPR, pp. 8942–8952, 2021.
+
+Hengyi Wang and Lourdes Agapito. 3d reconstruction with spatial memory. arXiv preprint
+  arXiv:2408.16061, 2024.
+
+Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David
+   Novotny. Vggt: Visual geometry grounded transformer. In CVPR, pp. 5294–5306, 2025a.
+
+Peng Wang, Lingjie Liu, Yuan Liu, Christian Theobalt, Taku Komura, and Wenping Wang. Neus:
+  Learning neural implicit surfaces by volume rendering for multi-view reconstruction. arXiv
+  preprint arXiv:2106.10689, 2021a.
+
+
+                                                15
+Preprint. Under review.
+
+
+
+
+Qianqian Wang, Zhicheng Wang, Kyle Genova, Pratul P Srinivasan, Howard Zhou, Jonathan T Barron,
+  Ricardo Martin-Brualla, Noah Snavely, and Thomas Funkhouser. Ibrnet: Learning multi-view
+  image-based rendering. In CVPR, pp. 4690–4699, 2021b.
+Qianqian Wang, Yifei Zhang, Aleksander Holynski, Alexei A. Efros, and Angjoo Kanazawa. Contin-
+  uous 3d perception model with persistent state, 2025b.
+Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r:
+  Geometric 3d vision made easy. In CVPR, pp. 20697–20709, 2024a.
+Tai Wang, Xiaohan Mao, Chenming Zhu, Runsen Xu, Ruiyuan Lyu, Peisen Li, Xiao Chen, Wenwei
+  Zhang, Kai Chen, Tianfan Xue, et al. Embodiedscan: A holistic multi-modal 3d perception suite
+  towards embodied ai. In CVPR, pp. 19757–19767, 2024b.
+Yi Wei, Shaohui Liu, Yongming Rao, Wang Zhao, Jiwen Lu, and Jie Zhou. Nerfingmvs: Guided
+  optimization of neural radiance fields for indoor multi-view stereo. In ICCV, pp. 5610–5619,
+  October 2021.
+Kyle Wilson and Noah Snavely. Robust global translations with 1dsfm. In ECCV, pp. 61–75. Springer,
+  2014.
+Changchang Wu. Towards linear-time incremental structure from motion. In 2013 International
+  Conference on 3D Vision-3DV 2013, pp. 127–134. IEEE, 2013.
+Tong Wu, Jiarui Zhang, Xiao Fu, Yuxin Wang, Jiawei Ren, Liang Pan, Wayne Wu, Lei Yang, Jiaqi
+  Wang, Chen Qian, et al. Omniobject3d: Large-vocabulary 3d object dataset for realistic perception,
+  reconstruction and generation. In CVPR, pp. 803–814, 2023.
+Yuqi Wu, Wenzhao Zheng, Jie Zhou, and Jiwen Lu. Point3r: Streaming 3d reconstruction with
+  explicit spatial pointer memory. In NeurIPS, 2025a.
+Yuqi Wu, Wenzhao Zheng, Sicheng Zuo, Yuanhui Huang, Jie Zhou, and Jiwen Lu. Embodiedocc:
+  Embodied 3d occupancy prediction for vision-based online scene understanding. In ICCV, 2025b.
+Hongchi Xia, Yang Fu, Sifei Liu, and Xiaolong Wang. Rgbd objects in the wild: scaling real-world
+  3d object learning from rgb-d videos. In CVPR, pp. 22378–22389, 2024.
+Yiheng Xie, Towaki Takikawa, Shunsuke Saito, Or Litany, Shiqin Yan, Numair Khan, Federico
+  Tombari, James Tompkin, Vincent Sitzmann, and Srinath Sridhar. Neural fields in visual computing
+  and beyond. In Computer graphics forum, pp. 641–676. Wiley Online Library, 2022.
+Jianing Yang, Alexander Sax, Kevin J Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai,
+   Franziska Meier, and Matt Feiszli. Fast3r: Towards 3d reconstruction of 1000+ images in one
+   forward pass. arXiv preprint arXiv:2501.13928, 2025.
+Zhao Yang, Jiaqi Wang, Yansong Tang, Kai Chen, Hengshuang Zhao, and Philip HS Torr. Lavt:
+  Language-aware vision transformer for referring image segmentation. In CVPR, pp. 18155–18165,
+  2022.
+Lior Yariv, Jiatao Gu, Yoni Kasten, and Yaron Lipman. Volume rendering of neural implicit surfaces.
+  NeurIPS, 34:4805–4815, 2021.
+Botao Ye, Sifei Liu, Haofei Xu, Xueting Li, Marc Pollefeys, Ming-Hsuan Yang, and Songyou Peng.
+  No pose, no problem: Surprisingly simple 3d gaussian splats from sparse unposed images. arXiv
+  preprint arXiv:2410.24207, 2024.
+Chandan Yeshwanth, Yueh-Cheng Liu, Matthias Nießner, and Angela Dai. Scannet++: A high-fidelity
+  dataset of 3d indoor scenes. In ICCV, pp. 12–22, 2023.
+Alex Yu, Vickie Ye, Matthew Tancik, and Angjoo Kanazawa. pixelnerf: Neural radiance fields from
+  one or few images. In CVPR, pp. 4578–4587, 2021.
+Hao Yu, Haotong Lin, Jiawei Wang, Jiaxin Li, Yida Wang, Xueyang Zhang, Yue Wang, Xiaowei Zhou,
+  Ruizhen Hu, and Sida Peng. Infinidepth: Arbitrary-resolution and fine-grained depth estimation
+  with neural implicit fields. arXiv preprint arXiv:2601.03252, 2026.
+
+
+                                                16
+Preprint. Under review.
+
+
+
+
+Zehao Yu, Songyou Peng, Michael Niemeyer, Torsten Sattler, and Andreas Geiger. Monosdf:
+  Exploring monocular geometric cues for neural implicit surface reconstruction. NeurIPS, 35:
+  25018–25032, 2022.
+Junyi Zhang, Charles Herrmann, Junhwa Hur, Varun Jampani, Trevor Darrell, Forrester Cole, Deqing
+  Sun, and Ming-Hsuan Yang. Monst3r: A simple approach for estimating geometry in the presence
+  of motion. arXiv preprint arXiv:2410.03825, 2024.
+Shangzhan Zhang, Jianyuan Wang, Yinghao Xu, Nan Xue, Christian Rupprecht, Xiaowei Zhou, Yujun
+  Shen, and Gordon Wetzstein. Flare: Feed-forward geometry, appearance and camera estimation
+  from uncalibrated sparse views. In CVPR, pp. 21936–21947, 2025.
+Tinghui Zhou, Richard Tucker, John Flynn, Graham Fyffe, and Noah Snavely. Stereo magnification:
+  Learning view synthesis using multiplane images. arXiv preprint arXiv:1805.09817, 2018.
+Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou, and Jiwen Lu. Streaming 4d visual
+  geometry transformer. ICLR, 2025.
+Sicheng Zuo, Zixun Xie, Wenzhao Zheng, Shaoqing Xu, Fang Li, Shengyin Jiang, Long Chen,
+  Zhi-Xin Yang, and Jiwen Lu. Dvgt: Driving visual geometry transformer. In CVPR, 2026a.
+Sicheng Zuo, Zixun Xie, Wenzhao Zheng, Shaoqing Xu, Fang Li, Hanbing Li, Long Chen, Zhi-Xin
+  Yang, and Jiwen Lu. Dvgt-2: Vision-geometry-action model for autonomous driving at scale.
+  arXiv preprint arXiv:2604.00813, 2026b.
+
+
+
+
+                                              17
+
