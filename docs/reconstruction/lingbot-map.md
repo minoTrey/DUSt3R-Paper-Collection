@@ -3,7 +3,7 @@
 ## 📋 Overview
 
 - **Authors**: Lin-Zhuo Chen, Jian Gao, Yihang Chen, Ka Leong Cheng, Yipengjing Sun, Liangxiao Hu, Nan Xue, Xing Zhu, Yujun Shen, Yao Yao, Yinghao Xu
-- **Institution**: Not stated on page 1 of the PDF (authors are listed without affiliation markers; the project is hosted at technology.robbyant.com)
+- **Institution**: 원논문 1페이지에 소속 표기 없음
 - **Venue**: arXiv preprint (2026-04)
 - **Links**: [Paper](https://arxiv.org/abs/2604.14141) | [Code](https://github.com/robbyant/lingbot-map) | [Project Page](https://technology.robbyant.com/lingbot-map)
 - **Verification**: PREPRINT (2026-07-20)

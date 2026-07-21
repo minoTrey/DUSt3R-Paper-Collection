@@ -6,7 +6,7 @@ _POMATO combines explicit pointmap matching with temporal motion modeling for dy
 ## 📋 Overview
 
 - **Authors**: Songyan Zhang, Yongtao Ge, Jinyuan Tian, Guangkai Xu, Hao Chen, Chen Lv, Chunhua Shen
-- **Institution**: Not specified in available sources
+- **Institution**: Nanyang Technological University, Zhejiang University, The University of Adelaide
 - **Venue**: ICCV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2504.05692) | [Code](https://github.com/wyddmw/POMATO) | [Project Page](Coming Soon)
 - **TL;DR**: Unified framework combining pointmap matching with temporal motion modeling to enable accurate dynamic 3D reconstruction by addressing DUSt3R's limitations in handling moving scenes.

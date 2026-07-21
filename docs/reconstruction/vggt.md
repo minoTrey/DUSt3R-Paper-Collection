@@ -6,7 +6,7 @@ _VGGT unifies all geometric tasks in a single transformer: ~0.2s inference vs DU
 ## 📋 Overview
 
 - **Authors**: Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, David Novotny
-- **Institution**: Meta GenAI, Zhejiang University
+- **Institution**: Visual Geometry Group, University of Oxford, Meta AI
 - **Venue**: CVPR 2025
 - **Award**: Best Paper Award
 - **Links**: [Paper](https://arxiv.org/abs/2503.11651) | [Code](https://github.com/facebookresearch/vggt) | [Project Page](https://vgg-t.github.io/)
