@@ -102,6 +102,73 @@ def build() -> str:
 
 CAT_BEGIN = "<!-- GENERATED:paper-index -->"
 CAT_END = "<!-- /GENERATED -->"
+FEAT_BEGIN = "<!-- GENERATED:featured -->"
+FEAT_END = "<!-- /GENERATED:featured -->"
+
+# 수상 등급 우선순위 (높을수록 먼저)
+_AWARD_RANK = [
+    ("best paper", 5),
+    ("oral", 4),
+    ("spotlight", 3),
+    ("highlight", 2),
+]
+
+
+def _award_score(award: str) -> int:
+    a = (award or "").lower()
+    for kw, sc in _AWARD_RANK:
+        if kw in a:
+            return sc
+    return 1 if a else 0
+
+
+def featured_block(recs_c: list[dict], limit: int = 8) -> str:
+    """카테고리별 Featured — 손큐레이션이 아니라 검증 가능한 신호로 자동 선정.
+
+    과거엔 손으로 관리해 낡았다("Complete (110)"인데 19개, 신규 133편 미반영).
+    이제 수상(Best Paper/Oral/Highlight/Spotlight) → CONFIRMED 게재작 순으로
+    자동 선정한다. award/venue는 원문 대조를 거친 사실 카드에서 온다.
+    """
+    def eligible(r) -> bool:
+        """수상작, 또는 학회 게재(확정/유력). 순수 프리프린트는 Featured 제외."""
+        f = r["fields"]
+        if f.get("Award"):
+            return True
+        ver = f.get("Verification", "")
+        # arXiv preprint venue는 게재작이 아니다
+        is_venue = "arxiv" not in f.get("Venue", "").lower()
+        return is_venue and ("CONFIRMED" in ver or "LIKELY" in ver)
+
+    def key(r):
+        f = r["fields"]
+        aw = _award_score(f.get("Award", ""))
+        conf = 1 if "CONFIRMED" in f.get("Verification", "") else 0
+        m = re.search(r"\b(20\d{2})\b", f.get("Venue", ""))
+        yr = int(m.group(1)) if m else 0
+        return (aw, conf, yr)
+
+    picks = sorted([r for r in recs_c if eligible(r)], key=key, reverse=True)[:limit]
+    lines = [
+        FEAT_BEGIN,
+        "",
+        "## ⭐ Featured Papers",
+        "",
+        "> 수상·게재 확정을 기준으로 **자동 선정** (`tools/build_papers_list.py`). "
+        "전체 목록은 하단 “All Papers in This Category”.",
+        "",
+    ]
+    if not picks:
+        lines.append("_(이 카테고리에는 아직 수상·게재 확정 논문이 없다. "
+                     "전체 목록은 하단 참조.)_")
+    for r in picks:
+        name, sub, venue = parse_h1(r)
+        link = pathlib.Path(r["file"]).name
+        aw = r["fields"].get("Award", "")
+        badge = f" — **{aw}**" if aw else ""
+        tail = f" ({venue})"
+        lines.append(f"- [**{name}**]({link}){tail}{badge}")
+    lines += ["", FEAT_END]
+    return "\n".join(lines)
 
 
 def category_block(recs_c: list[dict]) -> str:
@@ -138,17 +205,44 @@ def apply_category(recs: list[dict], check: bool) -> tuple[int, list[str]]:
         if not rp.exists():
             continue
         old = rp.read_text(encoding="utf-8")
+        new = old
+
+        # 1) 전체 목록 블록 (하단)
         block = category_block(recs_c)
-        if CAT_BEGIN in old:
+        if CAT_BEGIN in new:
             new = re.sub(
                 re.escape(CAT_BEGIN) + r".*?" + re.escape(CAT_END),
                 block,
-                old,
+                new,
                 flags=re.S,
             )
-        else:  # 처음이면 파일 끝(푸터 앞)에 삽입
-            new = old.rstrip() + "\n\n" + block + "\n"
-        # (구) Paper List 카운트 갱신은 헤더를 Featured Papers로 바꾸며 제거함.
+        else:
+            new = new.rstrip() + "\n\n" + block + "\n"
+
+        # 2) Featured 블록 (자동). 기존 마커가 있으면 교체.
+        feat = featured_block(recs_c)
+        if FEAT_BEGIN in new:
+            new = re.sub(
+                re.escape(FEAT_BEGIN) + r".*?" + re.escape(FEAT_END),
+                feat,
+                new,
+                flags=re.S,
+            )
+        else:
+            # 마커가 없으면: 손큐레이션 "⭐ Featured Papers" 섹션(다음 ## 전까지)을
+            # 자동 블록으로 교체한다. 없으면 파일 앞부분(첫 ## 뒤)에 삽입.
+            m = re.search(
+                r"##\s*⭐?\s*Featured Papers.*?(?=\n##\s|\n<!-- GENERATED)",
+                new,
+                flags=re.S,
+            )
+            if m:
+                new = new[: m.start()] + feat + "\n\n" + new[m.end():]
+            else:
+                # 첫 번째 '## ' 앞(개요 뒤)에 삽입
+                m2 = re.search(r"\n##\s", new)
+                pos = m2.start() if m2 else len(new)
+                new = new[:pos] + "\n\n" + feat + "\n" + new[pos:]
         if new != old:
             changed += 1
             stale.append(cat)

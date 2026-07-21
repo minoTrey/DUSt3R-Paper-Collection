@@ -400,6 +400,33 @@ conference paper at ICLR 2026" 근거로 격상.
 
 도구: `discover_papers.py`(발굴), verify_prose_claims에 콤마 천단위 근거 인식 추가.
 MD059(약칭 링크 텍스트 오탐) 비활성화.
+
+## [2026-07-21] 카테고리 README 전면 자동화 — Featured + 낡은 하드코딩 제거
+
+앞서 "Complete Paper List (N)" 거짓 제목을 "Featured Papers"로 바꿨지만, 그건
+**반쪽 수정이었다.** 내용을 안 건드려서 Featured가 여전히 옛 논문(pi3·VGGT 등)만
+담고 신규 133편을 하나도 반영 못 했다. 게다가 각 README에 낡은 하드코딩 서술
+("Key Research Directions")과 **검증 안 된 벤치마크 표**가 방치돼 있었다 —
+reconstruction README의 "DUSt3R 2.677 / VGGT 1.338" 은 루트 README에서 이미
+날조로 판명해 지웠던 바로 그 수치였다.
+
+**제대로 된 수정:**
+
+- **Featured 자동 생성**: 손큐레이션 대신 검증 가능한 신호로 자동 선정 —
+  수상(Best Paper/Oral/Highlight/Spotlight) → 게재 확정(CONFIRMED/LIKELY) 순.
+  순수 프리프린트는 제외. award/venue는 원문 대조를 거친 사실 카드에서 온다.
+  이제 reconstruction Featured = VGGT(Best Paper)·DA3·VGGT-Ω(Oral) 등 최신 반영.
+- **낡은 하드코딩 제거**: 각 카테고리 README를 [제목 + Overview + 자동 Featured +
+  자동 전체목록]으로 재구성. "Key Research Directions", 검증 안 된 벤치마크 표,
+  "Getting Started" 논문 나열 등 손큐레이션·낡은 표를 전부 제거.
+  카테고리 README의 하드코딩 날조 수치(2.677 등) 0개.
+
+**재발 방지**: build_papers_list.py --check 가 Featured 블록과 전체목록 블록의
+정합을 CI에서 감시한다. 손상시켜 확인함 — 어긋나면 non-zero.
+
+교훈: 개별 문서를 아무리 검증해도 그 위의 색인·표시 층(카테고리 README)이
+손으로 관리되면 낡고, 날조 수치가 그리로 새어들어간다. 표시 층까지 자동 생성으로
+옮겨 구조적으로 막았다.
 **미해결 backlog**
 
 - PDF는 `docs/papers/`에 있으나 문서 미작성: **MoGe-2, Mono3R, RIG3R**
