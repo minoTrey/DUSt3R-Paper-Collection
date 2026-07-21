@@ -152,7 +152,7 @@ The paper's summary is that S-MUSt3R gives lower pose and angular errors, and it
 | VGGT-Long    | 33.31    | 2.239     |
 | **S-MUSt3R** | **7.10** | **0.251** |
 
-This is the paper's strongest result by a wide margin — a 6× APE reduction over the next-best. The explanation given is a specific failure mode: the other three methods work well _except_ when robots navigate a narrow corridor with featureless walls, where S-MUSt3R recovers the track thanks to segment overlaps and loop closures.
+This is the paper's strongest result by a wide margin — a 6× APE reduction over the next-best (0.251 vs 1.580). The explanation given is a specific failure mode: the other three methods work well _except_ when robots navigate a narrow corridor with featureless walls, where S-MUSt3R recovers the track thanks to segment overlaps and loop closures.
 
 ### Ablation: segment length
 
