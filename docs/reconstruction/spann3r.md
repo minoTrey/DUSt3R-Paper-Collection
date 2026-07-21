@@ -7,7 +7,7 @@ _Spann3R achieves real-time 3D reconstruction using dual spatial memory for glob
 
 - **Authors**: Hengyi Wang, Lourdes Agapito
 - **Institution**: University College London
-- **Venue**: 3DV 2025 (International Conference on 3D Vision)
+- **Venue**: 3DV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2408.16061) | [Code](https://github.com/HengyiWang/spann3r) | [Project Page](https://hengyiwang.github.io/projects/spanner)
 - **TL;DR**: Real-time (50+ FPS) 3D reconstruction using external spatial memory to generate globally aligned pointmaps without camera information or post-optimization.
 
@@ -159,7 +159,7 @@ w/o clip은 attention weight clipping을 뺀 경우다. long-term memory가 결�
 
 ### Building On
 
-- **DUSt3R**: Base pairwise architecture
+- **[DUSt3R](../foundation/dust3r.md)**: Base pairwise architecture
 - **Attention Mechanisms**: Memory design
 - **Online SLAM**: Sequential processing
 

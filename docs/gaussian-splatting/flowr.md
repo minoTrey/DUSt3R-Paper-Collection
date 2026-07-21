@@ -151,7 +151,7 @@ Output: Dense 3D Gaussian representation
 - **3D Gaussian Splatting**: Efficient 3D representation
 - **Flow Estimation**: Guidance for densification
 - **Progressive Methods**: Incremental building approaches
-- **Foundation Models**: DUSt3R and related work
+- **Foundation Models**: [DUSt3R](../foundation/dust3r.md) and related work
 
 ### Enables
 

@@ -128,18 +128,18 @@ Result: More accurate initial pose estimates
 
 ### Building On
 
-- **3D Foundation Models**: DUSt3R and derivatives
+- **3D Foundation Models**: [DUSt3R](../foundation/dust3r.md) and derivatives
 - **Template Matching**: Classical pose estimation
 - **Zero-shot Learning**: Generalization techniques
 
 ### Comparison with Reloc3r
 
-| Aspect   | Reloc3r      | Pos3R        |
-| -------- | ------------ | ------------ |
-| Task     | Camera pose  | Object pose  |
-| Scale    | Scene-level  | Object-level |
-| Training | 8M pairs     | None         |
-| Focus    | Localization | Manipulation |
+| Aspect   | [Reloc3r](reloc3r.md) | Pos3R        |
+| -------- | --------------------- | ------------ |
+| Task     | Camera pose           | Object pose  |
+| Scale    | Scene-level           | Object-level |
+| Training | 8M pairs              | None         |
+| Focus    | Localization          | Manipulation |
 
 ### Enables
 

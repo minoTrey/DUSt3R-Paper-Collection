@@ -139,3 +139,14 @@ Reloc3R/Pos3R: Direct pose estimation → Faster & specialized
 ---
 
 _Pose Estimation demonstrates how DUSt3R's general 3D understanding can be specialized for critical spatial tasks, achieving real-time performance while maintaining the zero-shot generalization that makes foundation models powerful._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (2)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**Pos3R**](pos3r.md) (CVPR 2025) — 6D Pose Estimation for Unseen Objects Made Easy
+- [**Reloc3r**](reloc3r.md) (CVPR 2025) — Large-Scale Training of Relative Camera Pose Regression for Generalizable, Fast, and Accurate Visual Localization
+
+<!-- /GENERATED -->

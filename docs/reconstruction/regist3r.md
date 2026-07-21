@@ -201,14 +201,14 @@ REGIST3R:
 
 ### Comparison with Scaling Methods
 
-- **MUSt3R**: Memory-based, different approach
-- **Fast3R**: Parallel processing, less scalable
-- **Pow3R**: General unconstrained, not incremental
+- **[MUSt3R](must3r.md)**: Memory-based, different approach
+- **[Fast3R](fast3r.md)**: Parallel processing, less scalable
+- **[Pow3R](pow3r.md)**: General unconstrained, not incremental
 - **REGIST3R**: Sequential, most scalable
 
 ### Builds On
 
-- **DUSt3R**: Base architecture
+- **[DUSt3R](../foundation/dust3r.md)**: Base architecture
 - **Incremental SfM**: Sequential registration concept
 - **MST algorithms**: Graph theory for ordering
 

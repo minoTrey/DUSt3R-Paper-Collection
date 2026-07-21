@@ -147,8 +147,8 @@ _MASt3R grounds image matching in 3D space, unifying dense correspondence with g
 
 ### Building on MASt3R
 
-- **MASt3R-SfM**: Complete Structure from Motion pipeline
-- **MASt3R-SLAM**: Real-time SLAM integration
+- **[MASt3R-SfM](mast3r-sfm.md)**: Complete Structure from Motion pipeline
+- **[MASt3R-SLAM](../reconstruction/mast3r-slam.md)**: Real-time SLAM integration
 - Various applications in AR/VR and robotics
 
 ### Comparison with Contemporary Methods

@@ -8,7 +8,7 @@ _PE3R achieves 9× speedup by integrating semantic understanding into 3D reconst
 
 - **Authors**: Jie Hu, Shizun Wang, Xinchao Wang
 - **Institution**: xML Lab, National University of Singapore
-- **Venue**: arXiv preprint (2025)
+- **Venue**: arXiv preprint (2025-03)
 - **Links**: [Paper](https://arxiv.org/abs/2503.07507) | [Code](https://github.com/hujiecpp/PE3R) | Project Page (Coming Soon)
 - **TL;DR**: Extends DUSt3R with semantic understanding, achieving 9× speedup while enabling text-based 3D scene exploration from just 2-3 photos.
 
@@ -191,19 +191,19 @@ python pe3r_demo.py
 
 ### Building On
 
-- **DUSt3R/MASt3R**: Core 3D reconstruction backbone
+- **[DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md)**: Core 3D reconstruction backbone
 - **SAM/SAM2**: Segmentation and tracking
 - **CLIP**: Vision-language understanding
 - **SigLIP**: Enhanced vision-language processing
 
 ### Comparison with DUSt3R Family
 
-| Method   | Speed       | Semantic | Text Query | Phone-Ready |
-| -------- | ----------- | -------- | ---------- | ----------- |
-| DUSt3R   | Medium      | No       | No         | Yes         |
-| MASt3R   | Medium      | No       | No         | Yes         |
-| Splatt3R | Fast        | No       | No         | Yes         |
-| **PE3R** | **Fastest** | **Yes**  | **Yes**    | **Yes**     |
+| Method                                        | Speed       | Semantic | Text Query | Phone-Ready |
+| --------------------------------------------- | ----------- | -------- | ---------- | ----------- |
+| DUSt3R                                        | Medium      | No       | No         | Yes         |
+| MASt3R                                        | Medium      | No       | No         | Yes         |
+| [Splatt3R](../gaussian-splatting/splatt3r.md) | Fast        | No       | No         | Yes         |
+| **PE3R**                                      | **Fastest** | **Yes**  | **Yes**    | **Yes**     |
 
 ### Enables
 

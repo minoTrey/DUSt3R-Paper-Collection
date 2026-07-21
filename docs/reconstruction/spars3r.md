@@ -169,16 +169,16 @@ SPARS3R이 쓰는 registration은 COLMAP + MASt3R feature matching이다.
 
 ### Builds On
 
-- **DUSt3R/MASt3R**: Dense depth estimation
+- **[DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md)**: Dense depth estimation
 - **COLMAP**: Traditional SfM pipeline
 - **SAM**: Semantic segmentation
 - **3D Gaussian Splatting**: Rendering framework
 
 ### Comparison with Others
 
-- **InstantSplat**: Also uses DUSt3R but no semantic refinement
+- **[InstantSplat](../gaussian-splatting/instantsplat.md)**: Also uses DUSt3R but no semantic refinement
 - **FSGS**: Sparse-view focused but no dense priors
-- **Mono3R**: Different approach to handling DUSt3R limitations
+- **[Mono3R](mono3r.md)**: Different approach to handling DUSt3R limitations
 
 ## 📚 Key Takeaways
 

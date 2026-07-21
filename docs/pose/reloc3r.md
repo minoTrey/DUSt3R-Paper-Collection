@@ -176,7 +176,7 @@ Image Pair → Network → Pose
 
 ### Building On
 
-- **DUSt3R**: Pre-trained backbone and inspiration
+- **[DUSt3R](../foundation/dust3r.md)**: Pre-trained backbone and inspiration
 - **Pose Regression**: Early works showed feasibility
 - **Large-Scale Training**: Proven in other domains
 

@@ -7,7 +7,7 @@ _Dust to Tower achieves photo-realistic scene reconstruction through a coarse-to
 
 - **Authors**: Xudong Cai, Yongcai Wang, Zhaoxin Fan, Deng Haoran, Shuo Wang, Wanting Li, Deying Li, Lun Luo, Minhang Wang, Jintao Xu
 - **Institution**: Renmin University of China, Beijing Key Laboratory of Traffic Data Analysis and Mining
-- **Venue**: arXiv preprint (2024)
+- **Venue**: arXiv preprint (2024-12)
 - **Links**: [Paper](https://arxiv.org/abs/2412.19518) | Project Page (not available) | Code (coming soon)
 - **TL;DR**: Coarse-to-fine reconstruction pipeline that transforms sparse uncalibrated images into photo-realistic 3D scenes using progressive refinement strategies.
 
@@ -181,12 +181,12 @@ Output: High-quality 3D scene representation
 
 논문의 카테고리 구분(원논문 Table 1–3)에 따른 정성 비교입니다. 수치는 위 Results 섹션을 참조하십시오.
 
-| Category     | Representative Methods   | Requires Poses | Notes                                         |
-| ------------ | ------------------------ | -------------- | --------------------------------------------- |
-| Sparse       | FSGS, DNGaussian, 3DGS   | Yes            | Depth/geometry priors on given camera poses   |
-| Unpose       | CF-3DGS, Nope-NeRF       | No             | Rely on dense input; struggle in sparse views |
-| Unconstraint | InstantSplat, COGS       | No             | Sparse and uncalibrated input                 |
-| Unconstraint | **Dust to Tower (Ours)** | **No**         | **Coarse-to-fine with CADA + WIGI**           |
+| Category     | Representative Methods                | Requires Poses | Notes                                         |
+| ------------ | ------------------------------------- | -------------- | --------------------------------------------- |
+| Sparse       | FSGS, DNGaussian, 3DGS                | Yes            | Depth/geometry priors on given camera poses   |
+| Unpose       | CF-3DGS, Nope-NeRF                    | No             | Rely on dense input; struggle in sparse views |
+| Unconstraint | [InstantSplat](instantsplat.md), COGS | No             | Sparse and uncalibrated input                 |
+| Unconstraint | **Dust to Tower (Ours)**              | **No**         | **Coarse-to-fine with CADA + WIGI**           |
 
 ### Builds On
 
@@ -200,7 +200,7 @@ Output: High-quality 3D scene representation
 - **Progressive Philosophy**: Shares multi-stage optimization approach
 - **Quality Focus**: Emphasis on high-quality reconstruction
 - **Sparse-View**: Handles limited input scenarios
-- **Foundation Integration**: Could leverage DUSt3R for initialization
+- **Foundation Integration**: Could leverage [DUSt3R](../foundation/dust3r.md) for initialization
 
 ## 📚 Key Takeaways
 

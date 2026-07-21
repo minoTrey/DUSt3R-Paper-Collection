@@ -250,18 +250,18 @@ for block in range(4):
 
 ### Comparison Matrix
 
-| Method      | Type             | Optimization | Speed       | Max Images |
-| ----------- | ---------------- | ------------ | ----------- | ---------- |
-| COLMAP      | Classical        | Heavy        | Hours       | Unlimited  |
-| DUSt3R      | Neural+Opt       | Moderate     | Minutes     | ~100       |
-| MASt3R-SfM  | Hybrid           | Moderate     | Minutes     | ~500       |
-| Spann3R     | Sequential       | None         | Fast        | 1000+      |
-| **Light3R** | **Feed-forward** | **None**     | **Fastest** | **~1000**  |
+| Method                                    | Type             | Optimization | Speed       | Max Images |
+| ----------------------------------------- | ---------------- | ------------ | ----------- | ---------- |
+| COLMAP                                    | Classical        | Heavy        | Hours       | Unlimited  |
+| [DUSt3R](../foundation/dust3r.md)         | Neural+Opt       | Moderate     | Minutes     | ~100       |
+| [MASt3R-SfM](../foundation/mast3r-sfm.md) | Hybrid           | Moderate     | Minutes     | ~500       |
+| [Spann3R](spann3r.md)                     | Sequential       | None         | Fast        | 1000+      |
+| **Light3R**                               | **Feed-forward** | **None**     | **Fastest** | **~1000**  |
 
 ### Building On
 
 - **DUSt3R**: Dense pointmap representation
-- **MASt3R**: Enhanced matching capabilities
+- **[MASt3R](../foundation/mast3r.md)**: Enhanced matching capabilities
 - **Transformer Architectures**: Global reasoning via attention
 
 ### Key Differences

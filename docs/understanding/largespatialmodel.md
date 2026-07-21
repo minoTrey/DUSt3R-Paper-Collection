@@ -183,7 +183,7 @@ Novel-view synthesis 부분 (같은 Table 1의 Target View 열):
 ### Relationship to DUSt3R Ecosystem
 
 - **Different Focus**: Semantic understanding vs geometric reconstruction
-- **Complementary**: Could enhance DUSt3R with semantics
+- **Complementary**: Could enhance [DUSt3R](../foundation/dust3r.md) with semantics
 - **Shared Philosophy**: End-to-end learning approach
 - **Potential Integration**: Semantic-aware geometric reconstruction
 

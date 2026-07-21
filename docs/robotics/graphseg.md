@@ -8,7 +8,7 @@ _GraphSeg generates consistent 3D object segmentations from sparse 2D images via
 
 - **Authors**: Haozhan Tang, Tianyi Zhang, Oliver Kroemer, Matthew Johnson-Roberson, Weiming Zhi
 - **Institution**: Robotics Institute, Carnegie Mellon University
-- **Venue**: arXiv preprint (2025)
+- **Venue**: arXiv preprint (2025-04)
 - **Links**: [Paper](https://arxiv.org/abs/2504.03129) | [Code](https://github.com/tomtang502/graphseg)
 - **TL;DR**: Framework for generating consistent 3D object segmentations from sparse 2D images using graph operations, leveraging DUSt3R for 3D understanding.
 
@@ -158,7 +158,7 @@ IOU/F1/IoU_sel은 높을수록, d_chamfer는 낮을수록 좋다.
 
 ### Builds On
 
-- **DUSt3R**: 3D foundation model for coordinate prediction
+- **[DUSt3R](../foundation/dust3r.md)**: 3D foundation model for coordinate prediction
 - **SAM**: 2D segmentation capabilities
 - **Graph Theory**: Edge addition and contraction operations
 - **Multi-View Geometry**: Cross-view correspondence

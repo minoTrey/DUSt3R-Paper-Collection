@@ -7,7 +7,7 @@ _MASt3R-SfM replaces the entire traditional SfM pipeline with an end-to-end foun
 
 - **Authors**: Bardienus Pieter Duisterhof, Lojze Zust, Philippe Weinzaepfel, Vincent Leroy, Yohann Cabon, Jerome Revaud
 - **Institution**: NAVER LABS Europe
-- **Venue**: International Conference on 3D Vision (3DV) 2025
+- **Venue**: 3DV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2409.19152) | [Code](https://github.com/naver/mast3r)
 - **TL;DR**: Complete end-to-end SfM pipeline using MASt3R, replacing traditional multi-stage approaches with a unified framework that handles unconstrained image collections.
 
@@ -119,9 +119,9 @@ _MASt3R-SfM replaces the entire traditional SfM pipeline with an end-to-end foun
 
 ### Evolution from Foundation Papers
 
-- **CroCo/CroCo v2**: Pre-training strategy
-- **DUSt3R**: Direct 3D prediction
-- **MASt3R**: Added matching capabilities
+- **[CroCo](croco.md)/[CroCo v2](croco-v2.md)**: Pre-training strategy
+- **[DUSt3R](dust3r.md)**: Direct 3D prediction
+- **[MASt3R](mast3r.md)**: Added matching capabilities
 - **MASt3R-SfM**: Complete SfM solution
 
 ### Contemporary Approaches

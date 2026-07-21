@@ -189,7 +189,7 @@ Flow 없이도 동적 마스크 레이블로 명시적으로 학습한 DAS3R을 
 
 ### Building On
 
-- **DUSt3R**: Base architecture (unchanged)
+- **[DUSt3R](../foundation/dust3r.md)**: Base architecture (unchanged)
 - **Attention Mechanisms**: Information extraction
 - **Epipolar Geometry**: Motion constraints
 
@@ -201,7 +201,7 @@ Flow 없이도 동적 마스크 레이블로 명시적으로 학습한 DAS3R을 
 
 ### Comparison with MonST3R
 
-- MonST3R: Trained, modified architecture
+- [MonST3R](monst3r.md): Trained, modified architecture
 - Easi3R: Training-free, attention mining
 - Both: Enable 4D reconstruction
 - Easi3R advantage: No training, better accuracy

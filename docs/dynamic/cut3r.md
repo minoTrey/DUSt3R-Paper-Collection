@@ -126,8 +126,8 @@ CUT3R: Maintain evolving state across observations
 
 ### Comparison with Dynamic Methods
 
-- **MonST3R**: Per-frame approach, CUT3R uses persistent state
-- **Easi3R**: Training-free, CUT3R requires training but offers richer features
+- **[MonST3R](monst3r.md)**: Per-frame approach, CUT3R uses persistent state
+- **[Easi3R](easi3r.md)**: Training-free, CUT3R requires training but offers richer features
 - **SLAM methods**: CUT3R provides dense reconstruction without explicit mapping
 - **NeRF-based**: CUT3R offers online processing vs. offline optimization
 
@@ -135,7 +135,7 @@ CUT3R: Maintain evolving state across observations
 
 - **Transformer architectures**: Leverages attention mechanisms
 - **Recurrent models**: Adds state persistence
-- **DUSt3R foundation**: Extends to continuous perception
+- **[DUSt3R](../foundation/dust3r.md) foundation**: Extends to continuous perception
 - **Online learning**: Adapts during inference
 
 ## 📚 Key Takeaways

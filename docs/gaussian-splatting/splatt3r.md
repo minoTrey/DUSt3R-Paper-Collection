@@ -7,7 +7,7 @@ _Splatt3R enables instant 3D Gaussian Splatting from uncalibrated image pairs by
 
 - **Authors**: Brandon Smart, Chuanxia Zheng, Iro Laina, Victor Adrian Prisacariu
 - **Institution**: Active Vision Lab, University of Oxford
-- **Venue**: arXiv preprint (August 2024)
+- **Venue**: arXiv preprint (2024-08)
 - **Links**: [Paper](https://arxiv.org/abs/2408.13912) | [Code](https://github.com/btsmart/splatt3r) | [Project Page](https://splatt3r.active.vision/)
 - **TL;DR**: First method to predict 3D Gaussian Splats directly from uncalibrated image pairs without SfM, enabling instant novel view synthesis.
 
@@ -166,7 +166,7 @@ For each 3D point from MASt3R:
 
 ### Builds On
 
-- **MASt3R**: Provides base architecture and 3D predictions
+- **[MASt3R](../foundation/mast3r.md)**: Provides base architecture and 3D predictions
 - **3D Gaussian Splatting**: Rendering representation
 - **pixelSplat**: Contemporary feed-forward approach
 

@@ -174,16 +174,16 @@ Stereo4D로 각각 학습해 비교한다. EPE3D는 낮을수록, δ3D는 높을
 
 ### Building On
 
-- **DUSt3R**: Base architecture
+- **[DUSt3R](../foundation/dust3r.md)**: Base architecture
 - **Stereo Vision**: Depth from binocular
 - **Point Tracking**: 2D motion estimation
 - **Structure from Motion**: 3D reconstruction
 
 ### Comparison with Other Dynamic Methods
 
-- **MonST3R**: Frame-by-frame vs trajectories
-- **CUT3R**: Recurrent vs feed-forward
-- **Geo4D**: Synthetic vs real data
+- **[MonST3R](monst3r.md)**: Frame-by-frame vs trajectories
+- **[CUT3R](cut3r.md)**: Recurrent vs feed-forward
+- **[Geo4D](geo4d.md)**: Synthetic vs real data
 - **Stereo4D**: Real stereo advantage
 
 ### Enables

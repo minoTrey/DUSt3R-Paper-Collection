@@ -172,11 +172,11 @@ MonST3R은 intrinsics 없이도 pose 전용 방법들과 경쟁한다.
 - **DROID-SLAM**: Requires optimization, MonST3R is feed-forward
 - **CasualSAM**: Complex pipeline, MonST3R is end-to-end
 - **SceneFlow methods**: Task-specific, MonST3R is general
-- **Easi3R**: Also simple but different approach
+- **[Easi3R](easi3r.md)**: Also simple but different approach
 
 ### Building On
 
-- **DUSt3R**: Base architecture and training
+- **[DUSt3R](../foundation/dust3r.md)**: Base architecture and training
 - **Video depth**: Extends to temporal domain
 - **4D reconstruction**: Enables spatiotemporal modeling
 

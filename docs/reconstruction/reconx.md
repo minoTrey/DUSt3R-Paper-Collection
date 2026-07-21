@@ -200,7 +200,7 @@ Output: Complete 3D scene representation
 - **Neural Scene Representation**: NeRF and variants
 - **View Synthesis**: Novel view generation techniques
 
-### Relationship to DUSt3R Ecosystem
+### Relationship to [DUSt3R](../foundation/dust3r.md) Ecosystem
 
 - **Complementary**: Different approach to sparse reconstruction
 - **Enhanced**: Uses generative priors vs geometric only

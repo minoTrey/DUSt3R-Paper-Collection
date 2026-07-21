@@ -196,7 +196,7 @@ Depth Anything V2 and the synthetic second stage of Depth Pro.
 
 ### Building On
 
-- **MoGe**: supplies the affine-invariant point map representation, the ROE alignment solver, the multi-scale local supervision, and the dataset weighting recipe. MoGe-2 keeps all of it and adds a scale branch.
+- **[MoGe](moge.md)**: supplies the affine-invariant point map representation, the ROE alignment solver, the multi-scale local supervision, and the dataset weighting recipe. MoGe-2 keeps all of it and adds a scale branch.
 - **DINOv2**: ViT backbone; its CLS token is what makes the decoupled scale head viable.
 - **Depth Pro**: source of the boundary F1 sharpness metric used for evaluation, and the closest competitor on sharpness.
 

@@ -375,7 +375,17 @@ Pow3R opens doors for:
 
 ## 🔗 Related Work
 
-Related-work coverage for this paper is pending; no comparison material exists in this document yet.
+### Position in the Collection
+
+Pow3R sits directly downstream of the DUSt3R line of feed-forward reconstructors and extends it along a new axis: test-time conditioning on camera and scene priors.
+
+- **Foundation it builds on**: Pow3R adopts the [DUSt3R](../foundation/dust3r.md) framework wholesale — the shared ViT encoder, twin transformer decoders, and pointmap regression are inherited, and the paper frames DUSt3R as the "breakthrough foundation model" whose central limitation it targets: DUSt3R has no mechanism to exploit camera or depth information that is often available at test time. Pow3R keeps DUSt3R's cross-view completion pretraining ([CroCo v2](../foundation/croco-v2.md)), which the paper cites as the source of the encoder's geometric prior.
+- **Relation to MASt3R and its offshoots**: The paper positions [MASt3R](../foundation/mast3r.md) as DUSt3R's successor — improving it with dense local features and a matching loss — and states that Pow3R instead takes a "different and complementary direction," improving DUSt3R's core capabilities rather than adding a task head. The authors argue this could benefit MASt3R-derived methods such as [Splatt3R](../gaussian-splatting/splatt3r.md), which marries MASt3R with Gaussian Splatting.
+- **Contrast with memory and dynamic successors**: Pow3R's Related Work explicitly distinguishes itself from [Spann3R](spann3r.md), which scales DUSt3R to many views via an external spatial memory, and [MonST3R](../dynamic/monst3r.md), which retrains DUSt3R for dynamic scenes. Pow3R frames its prior-conditioning as orthogonal to these lines and potentially combinable with them.
+
+### How It Is Evaluated
+
+Because Pow3R is a drop-in enhancement of DUSt3R, its experiments use [DUSt3R](../foundation/dust3r.md) as the primary baseline across every task — multi-view depth estimation, multi-view stereo on DTU, and multi-view pose estimation — reporting both the original DUSt3R figures and a re-run of the public checkpoint. The paper's headline claim is relational: with no priors supplied, Pow3R performs on par with DUSt3R, and each added modality (intrinsics, relative pose, depth) improves over that same DUSt3R baseline. See the Results section for the numbers.
 
 ## 📚 Key Takeaways
 

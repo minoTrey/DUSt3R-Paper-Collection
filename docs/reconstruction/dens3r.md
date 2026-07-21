@@ -7,7 +7,7 @@ _Dens3R provides unified geometric dense prediction for high-quality 3D reconstr
 
 - **Authors**: Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang, Xiaokang Yang, Yichao Yan, Chengfei Lyu
 - **Institution**: Alibaba Group, Shanghai Jiao Tong University
-- **Venue**: arXiv preprint (2025)
+- **Venue**: arXiv preprint (2025-07)
 - **Links**: [Paper](https://arxiv.org/abs/2507.16290) | [Project Page](https://g-1nonly.github.io/Dens3R/) | [Code](https://github.com/G-1nOnly/Dens3R)
 - **TL;DR**: Foundation model for unified 3D geometry prediction that jointly models depth, surface normals, and point maps with explicit structural coupling.
 
@@ -275,12 +275,12 @@ _Experiments conducted on image pairs with 512 resolution_
 
 ### Comparison with Foundation Models
 
-| Model      | Geometric Quantities | Coupling     | Resolution | Multi-view    |
-| ---------- | -------------------- | ------------ | ---------- | ------------- |
-| DUSt3R     | Point maps           | None         | 512        | Limited       |
-| MASt3R     | Points + Matching    | Basic        | 512        | Good          |
-| MoGe       | Depth + Normals      | Limited      | 1024       | Medium        |
-| **Dens3R** | **All + Unified**    | **Explicit** | **2048**   | **Excellent** |
+| Model                             | Geometric Quantities | Coupling     | Resolution | Multi-view    |
+| --------------------------------- | -------------------- | ------------ | ---------- | ------------- |
+| [DUSt3R](../foundation/dust3r.md) | Point maps           | None         | 512        | Limited       |
+| [MASt3R](../foundation/mast3r.md) | Points + Matching    | Basic        | 512        | Good          |
+| [MoGe](moge.md)                   | Depth + Normals      | Limited      | 1024       | Medium        |
+| **Dens3R**                        | **All + Unified**    | **Explicit** | **2048**   | **Excellent** |
 
 ### Builds On
 

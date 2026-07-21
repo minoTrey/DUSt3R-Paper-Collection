@@ -7,7 +7,7 @@ _LaRI models multiple surface layers along camera rays, enabling reasoning about
 
 - **Authors**: Rui Li, Biao Zhang, Zhenyu Li, Federico Tombari, Peter Wonka
 - **Institution**: KAUST and affiliates
-- **Venue**: arXiv preprint (2025)
+- **Venue**: arXiv preprint (2025-04)
 - **Links**: [Paper](https://arxiv.org/abs/2504.18424) | [Code](https://github.com/ruili3/lari) | [Demo](https://huggingface.co/spaces/ruili3/LaRI)
 - **TL;DR**: Models multiple surface layers along camera rays from single images, enabling reasoning about occluded geometry with only 17% of parameters compared to large generative models.
 
@@ -169,7 +169,7 @@ for each_pixel:
 
 ### Building On
 
-- **MoGe**: Monocular geometry estimation
+- **[MoGe](../reconstruction/moge.md)**: Monocular geometry estimation
 - **Depth Estimation**: Single-view 3D
 - **Amodal Perception**: Reasoning about occlusions
 - **Efficient Architectures**: Lightweight models

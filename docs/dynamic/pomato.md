@@ -166,17 +166,17 @@ PStudio APD가 16.94 → 23.10으로 크게 오른다.
 
 ### Building On
 
-- **DUSt3R**: Pointmap representation foundation
+- **[DUSt3R](../foundation/dust3r.md)**: Pointmap representation foundation
 - **Feed-forward 3D**: End-to-end paradigm
 - **Video Understanding**: Temporal modeling
 
 ### Comparison with Dynamic Methods
 
-| Method     | Approach     | Matching     | Temporal |
-| ---------- | ------------ | ------------ | -------- |
-| MonST3R    | Per-frame    | Implicit     | Limited  |
-| D²USt3R    | 4D pointmaps | Implicit     | Yes      |
-| **POMATO** | **Unified**  | **Explicit** | **Yes**  |
+| Method                | Approach     | Matching     | Temporal |
+| --------------------- | ------------ | ------------ | -------- |
+| [MonST3R](monst3r.md) | Per-frame    | Implicit     | Limited  |
+| [D²USt3R](d2ust3r.md) | 4D pointmaps | Implicit     | Yes      |
+| **POMATO**            | **Unified**  | **Explicit** | **Yes**  |
 
 ### Enables
 

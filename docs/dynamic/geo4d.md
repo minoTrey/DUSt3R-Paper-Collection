@@ -150,17 +150,17 @@ Building on DUSt3R:
 
 ### Building On
 
-- **DUSt3R**: Point map representation
+- **[DUSt3R](../foundation/dust3r.md)**: Point map representation
 - **DynamiCrafter**: Video generation foundation
-- **MonST3R**: Dynamic scene baseline
+- **[MonST3R](monst3r.md)**: Dynamic scene baseline
 
 ### Comparison with Dynamic Methods
 
-| Method    | Approach            | Training      | Quality  |
-| --------- | ------------------- | ------------- | -------- |
-| MonST3R   | Per-frame           | Real data     | Good     |
-| Easi3R    | Attention           | None          | Medium   |
-| **Geo4D** | **Video diffusion** | **Synthetic** | **Best** |
+| Method              | Approach            | Training      | Quality  |
+| ------------------- | ------------------- | ------------- | -------- |
+| MonST3R             | Per-frame           | Real data     | Good     |
+| [Easi3R](easi3r.md) | Attention           | None          | Medium   |
+| **Geo4D**           | **Video diffusion** | **Synthetic** | **Best** |
 
 ### Enables
 

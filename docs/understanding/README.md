@@ -24,7 +24,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - Single feed-forward architectures
 - Cross-modal understanding
 
-## 📚 Paper List (3 papers)
+## 📚 Paper List (9 papers)
 
 ### 1. [**PE3R**: Perception-Efficient 3D Reconstruction](pe3r.md)
 
@@ -135,3 +135,21 @@ These papers extend DUSt3R's geometric understanding:
 ---
 
 _Scene Understanding represents the evolution from pure 3D reconstruction to complete scene comprehension, enabling more intelligent and context-aware 3D vision systems._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (9)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**EPS3D**](eps3d.md) (ICML 2026) — End-to-End Feed-Forward 3D Panoptic Segmentation
+- [**FF3R**](ff3r.md) (CVPR 2026) — Feedforward Feature 3D Reconstruction from Unconstrained views
+- [**HAMSt3R**](hamst3r.md) (ICCV 2025) — Human-Aware Multi-view Stereo 3D Reconstruction
+- [**IGGT**](iggt.md) (ICLR 2026) — Instance-Grounded Geometry Transformer for Semantic 3D Reconstruction
+- [**LargeSpatialModel**](largespatialmodel.md) (NeurIPS 2024) — End-to-end Unposed Images to Semantic 3D
+- [**MEt3R**](met3r.md) (CVPR 2025) — Measuring Multi-View Consistency in Generated Images
+- [**PanSt3R**](panst3r.md) (ICCV 2025) — Multi-view Consistent Panoptic Segmentation
+- [**PE3R**](pe3r.md) (arXiv preprint (2025-03)) — Perception-Efficient 3D Reconstruction
+- [**SegVGGT**](segvggt.md) (ECCV 2026) — Joint 3D Reconstruction and Instance Segmentation from Multi-View Images
+
+<!-- /GENERATED -->

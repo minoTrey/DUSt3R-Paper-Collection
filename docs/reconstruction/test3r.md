@@ -149,14 +149,14 @@ rel은 Absolute Relative Error, τ는 3% 임계값 inlier ratio, 정렬 방식�
 
 ### Builds On
 
-- **DUSt3R/MASt3R**: Base reconstruction methods
+- **[DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md)**: Base reconstruction methods
 - **Test-time Adaptation**: General ML technique
 - **Prompt Tuning**: Efficient fine-tuning method
 
 ### Comparison with Other Quality Methods
 
-- **VGGT**: Architectural improvements
-- **Mono3R**: Additional monocular cues
+- **[VGGT](vggt.md)**: Architectural improvements
+- **[Mono3R](mono3r.md)**: Additional monocular cues
 - **Test3R**: Test-time optimization
 
 ### Enables Future Work

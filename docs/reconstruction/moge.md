@@ -446,20 +446,20 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 
 ### Relationship to DUSt3R Ecosystem
 
-- **Complementary Role**: Provides single-image geometry for DUSt3R initialization
+- **Complementary Role**: Provides single-image geometry for [DUSt3R](../foundation/dust3r.md) initialization
 - **Different Focus**: MoGe handles monocular, DUSt3R handles multi-view
 - **Potential Integration**: Could provide better priors for DUSt3R's optimization
 - **Shared Philosophy**: Both use large-scale training for robustness
 
 ### Comparison with Contemporary Methods
 
-| Method         | Focus               | Strength                   | Limitation              |
-| -------------- | ------------------- | -------------------------- | ----------------------- |
-| DUSt3R/MASt3R  | Multi-view 3D       | Metric reconstruction      | Requires multiple views |
-| Depth Anything | Universal depth     | Fast, lightweight          | Scale ambiguity         |
-| UniDepth       | Metric depth        | Camera-aware               | Limited generalization  |
-| Metric3D       | Metric depth        | Good accuracy              | Scene-specific          |
-| **MoGe**       | **Affine geometry** | **Best relative accuracy** | **No absolute scale**   |
+| Method                                   | Focus               | Strength                   | Limitation              |
+| ---------------------------------------- | ------------------- | -------------------------- | ----------------------- |
+| DUSt3R/[MASt3R](../foundation/mast3r.md) | Multi-view 3D       | Metric reconstruction      | Requires multiple views |
+| Depth Anything                           | Universal depth     | Fast, lightweight          | Scale ambiguity         |
+| UniDepth                                 | Metric depth        | Camera-aware               | Limited generalization  |
+| Metric3D                                 | Metric depth        | Good accuracy              | Scene-specific          |
+| **MoGe**                                 | **Affine geometry** | **Best relative accuracy** | **No absolute scale**   |
 
 ## 📚 Key Takeaways
 

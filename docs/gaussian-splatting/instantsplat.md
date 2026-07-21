@@ -221,7 +221,7 @@ InstantSplat: DUSt3R (seconds) → Fast Gaussians (seconds)
 
 ### Building On
 
-- **DUSt3R/MASt3R**: Dense stereo initialization
+- **[DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md)**: Dense stereo initialization
 - **3D Gaussian Splatting**: Efficient representation
 - **Bundle Adjustment**: Joint optimization
 - **Graph-based SfM**: View selection
@@ -229,7 +229,7 @@ InstantSplat: DUSt3R (seconds) → Fast Gaussians (seconds)
 ### Key Differences from Splatt3R
 
 - InstantSplat: General scenes, multiple views
-- Splatt3R: Focused on stereo pairs
+- [Splatt3R](splatt3r.md): Focused on stereo pairs
 - Both: Leverage DUSt3R foundations
 - Speed: InstantSplat optimized for larger scenes
 

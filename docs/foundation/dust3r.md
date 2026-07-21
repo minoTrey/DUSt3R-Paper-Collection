@@ -139,17 +139,17 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Direct Extensions
 
-- **Efficiency**: Fast3R, SLAM3R, Spann3R (speed improvements)
-- **Quality**: MASt3R, VGGT, π³ (Pi3) (improved accuracy)
-- **Scale**: REGIST3R, ReconX, Light3R-SfM (larger scenes)
-- **Applications**: Splatt3R, Dust-GS (Gaussian Splatting), RIG3R (robotics)
+- **Efficiency**: [Fast3R](../reconstruction/fast3r.md), [SLAM3R](../reconstruction/slam3r.md), [Spann3R](../reconstruction/spann3r.md) (speed improvements)
+- **Quality**: [MASt3R](mast3r.md), [VGGT](../reconstruction/vggt.md), [π³](../reconstruction/pi3.md) (Pi3) (improved accuracy)
+- **Scale**: [REGIST3R](../reconstruction/regist3r.md), [ReconX](../reconstruction/reconx.md), [Light3R-SfM](../reconstruction/light3r-sfm.md) (larger scenes)
+- **Applications**: [Splatt3R](../gaussian-splatting/splatt3r.md), [Dust-GS](../gaussian-splatting/dust-gs.md) (Gaussian Splatting), [RIG3R](../robotics/rig3r.md) (robotics)
 
 ### Research Directions Enabled
 
-1. **Dynamic Reconstruction**: MonST3R, POMATO, D²USt3R, Stereo4D
-2. **Neural Rendering**: Splatt3R, PreF3R, InstantSplat
-3. **Scene Understanding**: PE3R, MEt3R, LargeSpatialModel
-4. **Robotics**: RIG3R, GraphSeg, SLAM3R
+1. **Dynamic Reconstruction**: [MonST3R](../dynamic/monst3r.md), [POMATO](../dynamic/pomato.md), [D²USt3R](../dynamic/d2ust3r.md), [Stereo4D](../dynamic/stereo4d.md)
+2. **Neural Rendering**: Splatt3R, [PreF3R](../gaussian-splatting/pref3r.md), [InstantSplat](../gaussian-splatting/instantsplat.md)
+3. **Scene Understanding**: [PE3R](../understanding/pe3r.md), [MEt3R](../understanding/met3r.md), [LargeSpatialModel](../understanding/largespatialmodel.md)
+4. **Robotics**: RIG3R, [GraphSeg](../robotics/graphseg.md), SLAM3R
 
 ## 📚 Key Takeaways
 

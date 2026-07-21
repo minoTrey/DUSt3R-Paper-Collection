@@ -168,7 +168,7 @@ Long-term Memory:
 
 ### Builds On
 
-- **DUSt3R**: Base architecture
+- **[DUSt3R](../foundation/dust3r.md)**: Base architecture
 - **Surgical SLAM**: Domain knowledge
 - **Medical Vision**: Clinical requirements
 

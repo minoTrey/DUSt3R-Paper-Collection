@@ -14,7 +14,7 @@ _Left: DAVIS dataset results showing dynamic object removal. Right: Sintel datas
 
 - **Authors**: Kai Xu, Tze Ho Elden Tse, Jizong Peng, Angela Yao
 - **Institution**: National University of Singapore, dConstruct Robotics
-- **Venue**: arXiv preprint (2024)
+- **Venue**: arXiv preprint (2024-12)
 - **Links**: [Paper](https://arxiv.org/abs/2412.19584) | [Code](https://github.com/kai422/das3r) | [Project Page](https://kai422.github.io/DAS3R/)
 - **TL;DR**: Reconstructs clean static scenes from videos with moving objects by predicting dynamic masks and incorporating staticness as a Gaussian attribute, achieving 2+ dB PSNR improvement.
 
@@ -188,9 +188,9 @@ global_masks = align_masks_globally(local_masks)
 
 ### Building On
 
-- **MonST3R**: Dynamic understanding from DUSt3R
+- **[MonST3R](../dynamic/monst3r.md)**: Dynamic understanding from [DUSt3R](../foundation/dust3r.md)
 - **Gaussian Splatting**: Efficient 3D representation
-- **InstantSplat**: Fast reconstruction baseline
+- **[InstantSplat](instantsplat.md)**: Fast reconstruction baseline
 - **Cross-attention**: Motion-pose decomposition
 
 ### Within DUSt3R Ecosystem
@@ -202,7 +202,7 @@ global_masks = align_masks_globally(local_masks)
 
 ### Comparison with Splatt3R
 
-- Splatt3R: General Gaussian prediction
+- [Splatt3R](splatt3r.md): General Gaussian prediction
 - DAS3R: Specialized for dynamic filtering
 - Both: Leverage DUSt3R foundations
 - Different: Focus and applications

@@ -219,8 +219,8 @@ _ATE: Absolute Trajectory Error, AFE: Average Focal Length Error_
 
 ### Foundation Models Tested
 
-- **DUSt3R**: Base results shown in paper
-- **MASt3R**: Compatible but not extensively tested
+- **[DUSt3R](../foundation/dust3r.md)**: Base results shown in paper
+- **[MASt3R](../foundation/mast3r.md)**: Compatible but not extensively tested
 - **Other**: Framework generalizes to any pointmap model
 
 ### Key Differences from LoRA in NLP

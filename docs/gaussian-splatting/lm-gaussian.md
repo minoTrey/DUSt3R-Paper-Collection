@@ -7,7 +7,7 @@ _LM-Gaussian leverages large model priors to enhance sparse-view 3D Gaussian spl
 
 - **Authors**: Hanyang Yu, Xiaoxiao Long, Ping Tan
 - **Institution**: The Hong Kong University of Science and Technology
-- **Venue**: arXiv preprint (2024)
+- **Venue**: arXiv preprint (2024-09)
 - **Links**: [Paper](https://arxiv.org/abs/2409.03456) | [Project Page](https://hanyangyu1021.github.io/lm-gaussian.github.io/) | [Code](https://github.com/hanyangyu1021/LMGaussian)
 - **TL;DR**: Enhances sparse-view 3D Gaussian splatting by incorporating priors from large foundation models, achieving high-quality novel view synthesis from limited input views.
 
@@ -191,7 +191,7 @@ Output: High-quality 3D Gaussian representation
 
 원논문이 Table II·III에서 직접 비교한 방법들: PixelNeRF, MVSNeRF, DietNeRF,
 RegNeRF, FreeNeRF, SparseNeRF, DNGaussian, Splatfield, Scaffold-GS, CoR-GS,
-InstantSplat. 정량 수치는 위 `## 📊 Results` 표 참조.
+[InstantSplat](instantsplat.md). 정량 수치는 위 `## 📊 Results` 표 참조.
 
 ### Builds On
 
@@ -200,7 +200,7 @@ InstantSplat. 정량 수치는 위 `## 📊 Results` 표 참조.
 - **Sparse-View NeRF**: Limited view reconstruction techniques
 - **Multi-Modal Learning**: Vision-language model integration
 
-### Relationship to DUSt3R Ecosystem
+### Relationship to [DUSt3R](../foundation/dust3r.md) Ecosystem
 
 - **Complementary**: Enhances sparse reconstruction quality
 - **Foundation Synergy**: Both leverage pre-trained knowledge

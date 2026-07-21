@@ -163,19 +163,19 @@ Re10K로 학습한 방법은 없다.
 
 ### Evolution from DUSt3R
 
-| Aspect       | DUSt3R      | VGGT          |
-| ------------ | ----------- | ------------- |
-| Tasks        | 3D only     | All geometric |
-| Speed        | ~7s         | ~0.2s         |
-| Scale        | ~32 views   | 200+ views    |
-| Architecture | Specialized | Unified       |
-| Post-process | Required    | None          |
+| Aspect       | [DUSt3R](../foundation/dust3r.md) | VGGT          |
+| ------------ | --------------------------------- | ------------- |
+| Tasks        | 3D only                           | All geometric |
+| Speed        | ~7s                               | ~0.2s         |
+| Scale        | ~32 views                         | 200+ views    |
+| Architecture | Specialized                       | Unified       |
+| Post-process | Required                          | None          |
 
 ### Comparison with Other Extensions
 
-- **MUSt3R**: Memory for scale → VGGT: Direct scale
-- **Fast3R**: Speed focus → VGGT: Speed + quality
-- **Test3R**: Test-time adapt → VGGT: Direct generalization
+- **[MUSt3R](must3r.md)**: Memory for scale → VGGT: Direct scale
+- **[Fast3R](fast3r.md)**: Speed focus → VGGT: Speed + quality
+- **[Test3R](test3r.md)**: Test-time adapt → VGGT: Direct generalization
 
 ## 📚 Key Takeaways
 

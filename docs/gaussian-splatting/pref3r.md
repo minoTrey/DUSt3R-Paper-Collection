@@ -7,7 +7,7 @@ _PreF3R enables feed-forward 3D Gaussian Splatting using spatial memory networks
 
 - **Authors**: Zequn Chen, Jiezhi Yang, Heng Yang
 - **Institution**: Harvard University, Computational Robotics Lab
-- **Venue**: arXiv preprint (2024)
+- **Venue**: arXiv preprint (2024-11)
 - **Links**: [Paper](https://arxiv.org/abs/2411.16877) | [Project Page](https://computationalrobotics.seas.harvard.edu/PreF3R/)
 - **TL;DR**: Feed-forward 3D Gaussian Splatting from unposed images using spatial memory network, achieving 20 FPS reconstruction without SfM or optimization.
 
@@ -183,15 +183,15 @@ PreF3R은 0.472초다.
 
 ### Building On
 
-- **DUSt3R**: Core architecture and priors
+- **[DUSt3R](../foundation/dust3r.md)**: Core architecture and priors
 - **Spatial Memory**: From video understanding
 - **Feed-Forward 3D**: Direct prediction trend
 - **Gaussian Splatting**: Efficient representation
 
 ### Key Differences
 
-- **vs InstantSplat**: No optimization needed
-- **vs Splatt3R**: Handles sequences, not pairs
+- **vs [InstantSplat](instantsplat.md)**: No optimization needed
+- **vs [Splatt3R](splatt3r.md)**: Handles sequences, not pairs
 - **vs pixelSplat**: 100× faster, better quality
 - **Unique**: Variable-length capability
 

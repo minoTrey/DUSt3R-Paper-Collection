@@ -111,7 +111,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 | Fast3R     | 1500+      | O(N)       | Low            | 251 FPS         | Speed priority        |
 | Spann3R    | Unlimited  | O(N)       | Constant       | Sequential      | Unbounded scenes      |
 
-## 📚 Complete Paper List (18 papers)
+## 📚 Complete Paper List (64 papers)
 
 ### 🏆 State-of-the-Art Methods
 
@@ -212,4 +212,77 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 ---
 
-_Last updated: July 2025 | 18 papers documented_
+_Auto-generated index · 64 papers_
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (64)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**AMB3R**](amb3r.md) (CVPR 2026) — Accurate Feed-forward Metric-scale 3D Reconstruction with Backend
+- [**Anchor3R**](anchor3r.md) (arXiv preprint (2026-06)) — Streaming 3D Reconstruction with Transient Anchors for Long-Horizon Visual Mapping
+- [**Co-Me**](co-me.md) (CVPR 2026) — Confidence Guided Token Merging for Visual Geometric Transformers
+- [**DejaView**](deja-view.md) (arXiv preprint (2026-05)) — Looping Transformers for Multi-View 3D Reconstruction
+- [**Dens3R**](dens3r.md) (arXiv preprint (2025-07)) — A Foundation Model for 3D Geometry Prediction
+- [**DA3**](depth-anything-3.md) (ICLR 2026) — Recovering the Visual Space from Any Views
+- [**E-RayZer**](e-rayzer.md) (CVPR 2026) — Self-supervised 3D Reconstruction as Spatial Visual Pre-training
+- [**Fast3R**](fast3r.md) (CVPR 2025) — Towards 3D Reconstruction of 1000+ Images in One Forward Pass
+- [**FastVGGT**](fastvggt.md) (ICLR 2026) — Training-Free Acceleration of Visual Geometry Transformer
+- [**Fin3R**](fin3r.md) (NeurIPS 2025) — Fine-tuning Feed-forward 3D Reconstruction Models via Monocular Knowledge Distillation
+- [**G-CUT3R**](g-cut3r.md) (ICLR 2026) — Guided 3D Reconstruction with Camera and Depth Prior Integration
+- [**GGPT**](ggpt.md) (CVPR 2026) — Geometry-Grounded Point Transformer
+- [**HorizonStream**](horizonstream.md) (arXiv preprint (2026-05)) — Long-Horizon Attention for Streaming 3D Reconstruction
+- [**iLRM**](ilrm.md) (CVPR 2026) — An Iterative Large 3D Reconstruction Model
+- [**Light3R-SfM**](light3r-sfm.md) (CVPR 2025) — Towards Feed-forward Structure-from-Motion
+- [**LingBot-Map**](lingbot-map.md) (arXiv preprint (2026-04)) — Geometric Context Transformer for Streaming 3D Reconstruction
+- [**LiteVGGT**](litevggt.md) (CVPR 2026) — Boosting Vanilla VGGT via Geometry-aware Cached Token Merging
+- [**LoGeR**](loger.md) (arXiv preprint (2026-03)) — Long-Context Geometric Reconstruction with Hybrid Memory
+- [**LONG3R**](long3r.md) (ICCV 2025) — Long Sequence Streaming 3D Reconstruction
+- [**LoRA3D**](lora3d.md) (ICLR 2025) — Low-Rank Self-Calibration of 3D Geometric Foundation Models
+- [**MapAnything**](mapanything.md) (3DV 2026) — Universal Feed-Forward Metric 3D Reconstruction
+- [**MASt3R-SLAM**](mast3r-slam.md) (CVPR 2025) — Real-Time Dense SLAM with 3D Reconstruction Priors
+- [**MERG3R**](merg3r.md) (CVPR 2026) — A Divide-and-Conquer Approach to Large-Scale Neural Visual Geometry
+- [**MoGe**](moge.md) (CVPR 2025) — Unlocking Accurate Monocular Geometry Estimation for Open-Domain Images
+- [**MoGe-2**](moge-2.md) (arXiv preprint (2025-07)) — Accurate Monocular Geometry with Metric Scale and Sharp Details
+- [**Mono3R**](mono3r.md) (ACM MM 2025) — Exploiting Monocular Cues for Geometric 3D Reconstruction
+- [**MUSt3R**](must3r.md) (CVPR 2025) — Multi-view Stereo 3D Reconstruction
+- [**MV-DUSt3R+**](mv-dust3r-plus.md) (CVPR 2025) — Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds
+- [**NoDrift3R**](nodrift3r.md) (arXiv preprint (2026-07)) — Raymap-Guided Coupling for Drift-Robust Unposed Feed-Forward 3D Reconstruction
+- [**OmniVGGT**](omnivggt.md) (CVPR 2026) — Omni-Modality Driven Visual Geometry Grounded Transformer
+- [**π³**](pi3.md) (arXiv preprint (2025-07)) — Scalable Permutation-Equivariant Visual Geometry Learning
+- [**Point3R**](point3r.md) (NeurIPS 2025) — Streaming 3D Reconstruction with Explicit Spatial Pointer Memory
+- [**Pow3R**](pow3r.md) (CVPR 2025) — Empowering Unconstrained 3D Reconstruction with Camera and Scene Priors
+- [**QuantVGGT**](quantvggt.md) (ICLR 2026) — Quantized Visual Geometry Grounded Transformer
+- [**ReconX**](reconx.md) (IEEE TIP 2026) — Reconstruct Any Scene from Sparse Views with Video Diffusion Model
+- [**REGIST3R**](regist3r.md) (ACM MM 2025) — Incremental Registration with Stereo Foundation Model
+- [**Reliev3R**](reliev3r.md) (CVPR 2026) — Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations
+- [**S-MUSt3R**](s-must3r.md) (arXiv preprint (2026-02)) — Sliding Multi-view 3D Reconstruction
+- [**S-VGGT**](s-vggt.md) (ICME 2026) — Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models
+- [**SAIL-Recon**](sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization
+- [**Scal3R**](scal3r.md) (CVPR 2026) — Scalable Test-Time Training for Large-Scale 3D Reconstruction
+- [**SING3R-SLAM**](sing3r-slam.md) (arXiv preprint (2025-11)) — Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors
+- [**SLAM-Former**](slam-former.md) (ECCV 2026) — Putting SLAM into One Transformer
+- [**SLAM3R**](slam3r.md) (CVPR 2025) — Real-Time Dense Scene Reconstruction from Monocular RGB Videos
+- [**Spann3R**](spann3r.md) (3DV 2025) — 3D Reconstruction with Spatial Memory
+- [**SPARS3R**](spars3r.md) (CVPR 2025) — Semantic Prior Alignment and Regularization for Sparse 3D Reconstruction
+- [**Sparse-VGGT**](sparse-vggt.md) (CVPR 2026) — Block-Sparse Global Attention for Efficient Multi-View Geometry Transformers
+- [**Speed3R**](speed3r.md) (CVPR 2026) — Sparse Feed-forward 3D Reconstruction Models
+- [**Spurfies**](spurfies.md) (3DV 2025) — Sparse Surface Reconstruction using Local Geometry Priors
+- [**STream3R**](stream3r.md) (ICLR 2026) — Scalable Sequential 3D Reconstruction with Causal Transformer
+- [**StreamVGGT**](streamvggt.md) (ICLR 2026) — Streaming Visual Geometry Transformer
+- [**TALO**](talo.md) (CVPR 2026) — Pushing 3D Vision Foundation Models Towards Globally Consistent Online Reconstruction
+- [**Test3R**](test3r.md) (NeurIPS 2025) — Learning to Reconstruct 3D at Test Time
+- [**TTT3R**](ttt3r.md) (ICLR 2026) — 3D Reconstruction as Test-Time Training
+- [**TurboVGGT**](turbovggt.md) (arXiv preprint (2026-05)) — Fast Visual Geometry Reconstruction with Adaptive Alternating Attention
+- [**UniQueR**](uniquer.md) (arXiv preprint (2026-03)) — Unified Query-based Feedforward 3D Reconstruction
+- [**VGG-T3**](vgg-t3.md) (CVPR 2026) — Offline Feed-Forward 3D Reconstruction at Scale
+- [**VGGT**](vggt.md) (CVPR 2025) — Visual Geometry Grounded Transformer
+- [**VGGT-Long**](vggt-long.md) (ICRA 2026) — Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences
+- [**VGGT-Ω**](vggt-omega.md) (CVPR 2026) — Scaling Feed-Forward Reconstruction with Registers and Self-Supervision
+- [**VGGT-SLAM**](vggt-slam.md) (NeurIPS 2025) — Dense RGB SLAM Optimized on the SL(4) Manifold
+- [**WinT3R**](wint3r.md) (arXiv preprint (2025-09)) — Window-based Streaming Reconstruction with Camera Token Pool
+- [**WorldMirror**](worldmirror.md) (ICML 2026) — Universal 3D World Reconstruction with Any-Prior Prompting
+- [**ZipMap**](zipmap.md) (CVPR 2026) — Linear-Time Stateful 3D Reconstruction via Test-Time Training
+
+<!-- /GENERATED -->

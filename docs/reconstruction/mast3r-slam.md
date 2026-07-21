@@ -283,7 +283,7 @@ _MASt3R-SLAM_ denotes uncalibrated setting
 
 ### Builds On
 
-- **MASt3R**: Core 3D reconstruction prior
+- **[MASt3R](../foundation/mast3r.md)**: Core 3D reconstruction prior
 - **DROID-SLAM**: Differentiable optimization
 - **ORB-SLAM**: Classical SLAM pipeline
 

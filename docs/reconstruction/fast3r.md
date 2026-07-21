@@ -226,14 +226,14 @@ DUSt3R와 Fast3R는 대등하며, 둘 다 COLMAP-DENSE를 크게 앞선다.
 
 ### Comparison with Recent Methods
 
-| Method     | Approach              | Max Views | Speed         | Requires Poses |
-| ---------- | --------------------- | --------- | ------------- | -------------- |
-| COLMAP     | SfM + MVS             | Unlimited | Very Slow     | No             |
-| DUSt3R     | Pairwise + Align      | ~50       | Slow          | No             |
-| MASt3R     | Enhanced Pairwise     | ~100      | Very Slow     | No             |
-| MUSt3R     | Memory Efficient      | 200+      | Medium        | No             |
-| Spann3R    | Incremental           | 1000+     | Medium        | No             |
-| **Fast3R** | **Direct All-to-All** | **1500+** | **Very Fast** | **No**         |
+| Method                            | Approach              | Max Views | Speed         | Requires Poses |
+| --------------------------------- | --------------------- | --------- | ------------- | -------------- |
+| COLMAP                            | SfM + MVS             | Unlimited | Very Slow     | No             |
+| [DUSt3R](../foundation/dust3r.md) | Pairwise + Align      | ~50       | Slow          | No             |
+| [MASt3R](../foundation/mast3r.md) | Enhanced Pairwise     | ~100      | Very Slow     | No             |
+| [MUSt3R](must3r.md)               | Memory Efficient      | 200+      | Medium        | No             |
+| [Spann3R](spann3r.md)             | Incremental           | 1000+     | Medium        | No             |
+| **Fast3R**                        | **Direct All-to-All** | **1500+** | **Very Fast** | **No**         |
 
 ### Relationship to DUSt3R Ecosystem
 

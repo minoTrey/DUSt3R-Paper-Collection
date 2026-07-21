@@ -7,7 +7,7 @@ _Adapt3R synthesizes RGBD observations into robust 3D representations for domain
 
 - **Authors**: Albert Wilcox¹'², Mohamed Ghanem¹, Masoud Moghani³, Pierre Barroso², Benjamin Joffe¹'², Animesh Garg¹
 - **Institution**: ¹Georgia Institute of Technology, ²Georgia Tech Research Institute, ³University of Toronto
-- **Venue**: arXiv preprint (submitted March 2025, revised May 2025)
+- **Venue**: arXiv preprint (2025-03)
 - **Links**: [Paper](https://arxiv.org/abs/2503.04877) | [Project Page](https://www.pair.toronto.edu/Adapt3R/) | [Code](https://github.com/pairlab/Adapt3R)
 - **TL;DR**: Novel approach for robust domain transfer in robotic imitation learning using adaptive 3D scene representations that handle visual domain shifts effectively.
 

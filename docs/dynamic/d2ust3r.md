@@ -7,7 +7,7 @@ _D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspo
 
 - **Authors**: Jisang Han, Honggyu An, Jaewoo Jung, Takuya Narihira, Junyoung Seo, Kazumi Fukuda, Chaehyun Kim, Sunghwan Hong, Yuki Mitsufuji, Seungryong Kim
 - **Institution**: KAIST AI, Sony AI, Korea University
-- **Venue**: arXiv preprint
+- **Venue**: arXiv preprint (2025-04)
 - **Links**: [Paper](https://arxiv.org/abs/2504.06264) | [Code](https://github.com/cvlab-kaist/DDUSt3R) | [Project Page](https://cvlab-kaist.github.io/DDUSt3R/)
 - **TL;DR**: Extends DUSt3R from 3D to 4D pointmaps, enabling accurate reconstruction of dynamic scenes through spatio-temporal correspondence.
 
@@ -195,14 +195,14 @@ Sintel 평가에서 회색 처리(비교 대상 제외)됐다.
 
 ### Comparison with Other Dynamic Methods
 
-- **MonST3R**: Simple per-frame approach
-- **Easi3R**: Training-free motion extraction
-- **CUT3R**: Recurrent state tracking
+- **[MonST3R](monst3r.md)**: Simple per-frame approach
+- **[Easi3R](easi3r.md)**: Training-free motion extraction
+- **[CUT3R](cut3r.md)**: Recurrent state tracking
 - **D²USt3R**: Unified 4D representation
 
 ### Builds On
 
-- **DUSt3R**: Base 3D architecture
+- **[DUSt3R](../foundation/dust3r.md)**: Base 3D architecture
 - **Optical Flow**: Motion estimation
 - **4D Representations**: Spatio-temporal modeling
 

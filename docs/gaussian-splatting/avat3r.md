@@ -130,7 +130,7 @@ AVAT3R: 4 phone images → Forward pass → Animatable avatar in minutes
 
 ### Builds On
 
-- **DUSt3R**: 3D position map generation
+- **[DUSt3R](../foundation/dust3r.md)**: 3D position map generation
 - **Sapiens**: Human understanding features
 - **3D Gaussian Splatting**: Rendering representation
 - **LRM**: Large reconstruction model concept

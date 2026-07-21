@@ -205,7 +205,7 @@ Jitter만 WHAM보다 나쁘다 — 저자들은 2D에서 보이지 않는 가려
 
 While not directly based on DUSt3R:
 
-- Complementary: DUSt3R for static, ODHSR for dynamic
+- Complementary: [DUSt3R](../foundation/dust3r.md) for static, ODHSR for dynamic
 - Similar goal: Dense 3D from limited input
 - Different approach: Online vs offline processing
 - Both enable: Practical 3D reconstruction

@@ -214,15 +214,15 @@ demonstrated at low resolution.
 
 ### Building On
 
-- **DUSt3R**: supplies the entire pairwise branch — encoder, dual-way decoder, DPT head, pre-trained weights, training data recipe, and the confidence-weighted loss.
-- **MoGe**: supplies the frozen monocular branch, chosen for its demonstrated effectiveness on diverse in-the-wild data and its direct affine-invariant point map prediction.
+- **[DUSt3R](../foundation/dust3r.md)**: supplies the entire pairwise branch — encoder, dual-way decoder, DPT head, pre-trained weights, training data recipe, and the confidence-weighted loss.
+- **[MoGe](moge.md)**: supplies the frozen monocular branch, chosen for its demonstrated effectiveness on diverse in-the-wild data and its direct affine-invariant point map prediction.
 - **ConvGRU**: the iterative update architecture for the refinement module.
 - **Umeyama algorithm**: closed-form Sim(3) alignment between the two branches.
 
 ### Baselines Compared
 
-- **Spann3R**: replaces DUSt3R's global alignment with sequential processing and a learned spatial memory; evaluated here in offline mode, which the paper notes performs better for unordered collections.
-- **Fast3R**: multi-view generalization of DUSt3R processing many views in parallel.
+- **[Spann3R](spann3r.md)**: replaces DUSt3R's global alignment with sequential processing and a learned spatial memory; evaluated here in offline mode, which the paper notes performs better for unordered collections.
+- **[Fast3R](fast3r.md)**: multi-view generalization of DUSt3R processing many views in parallel.
 
 ### Related Prior-Injection Approaches
 

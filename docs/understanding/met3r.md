@@ -146,7 +146,7 @@ print(f"Consistency: {score.mean():.3f}")
 
 ### Building On
 
-- **DUSt3R/MASt3R**: Dense 3D reconstruction backbone
+- **[DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md)**: Dense 3D reconstruction backbone
 - **DINO/DINOv2**: View-invariant feature extraction
 - **FeatUp**: High-resolution feature upsampling
 

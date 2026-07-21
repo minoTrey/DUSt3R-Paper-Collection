@@ -139,12 +139,12 @@ Output: High-quality 3D scene representation
 
 ### Comparison with Integration Methods
 
-| Method         | Point Source | Quality       | Speed    | Complexity |
-| -------------- | ------------ | ------------- | -------- | ---------- |
-| Vanilla 3DGS   | SfM          | Poor          | Medium   | Low        |
-| Point-E + 3DGS | Generated    | Medium        | Fast     | Medium     |
-| NeRF → 3DGS    | Neural       | Good          | Slow     | High       |
-| **Dust-GS**    | **DUSt3R**   | **Excellent** | **Fast** | **Low**    |
+| Method         | Point Source                          | Quality       | Speed    | Complexity |
+| -------------- | ------------------------------------- | ------------- | -------- | ---------- |
+| Vanilla 3DGS   | SfM                                   | Poor          | Medium   | Low        |
+| Point-E + 3DGS | Generated                             | Medium        | Fast     | Medium     |
+| NeRF → 3DGS    | Neural                                | Good          | Slow     | High       |
+| **Dust-GS**    | **[DUSt3R](../foundation/dust3r.md)** | **Excellent** | **Fast** | **Low**    |
 
 ### Builds On
 

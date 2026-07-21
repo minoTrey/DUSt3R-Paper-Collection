@@ -21,7 +21,7 @@ The Scene Reasoning category explores advanced geometric reasoning capabilities 
 - Understanding layered scene structure
 - Ray-based geometric reasoning
 
-## 📚 Paper List (3 papers)
+## 📚 Paper List (4 papers)
 
 ### 1. [**LaRI**: Layered Ray Intersections for Single-view 3D Geometric Reasoning](lari.md)
 
@@ -146,3 +146,16 @@ The ability to reason about unseen geometry is fundamental for:
 ---
 
 _Scene Reasoning extends DUSt3R's capabilities from reconstructing what we see to understanding what we cannot see, enabling more intelligent and complete 3D understanding._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (4)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**Amodal3R**](amodal3r.md) (ICCV 2025) — Amodal 3D Reconstruction from Occluded 2D Images
+- [**LaRI**](lari.md) (arXiv preprint (2025-04)) — Layered Ray Intersections for Single-view 3D Geometric Reasoning
+- [**NOVA3R**](nova3r.md) (ICLR 2026) — Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction
+- [**RaySt3R**](rayst3r.md) (NeurIPS 2025) — Predicting Novel Depth Maps for Zero-Shot Object Completion
+
+<!-- /GENERATED -->

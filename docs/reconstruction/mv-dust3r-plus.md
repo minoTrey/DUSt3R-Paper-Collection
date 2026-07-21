@@ -293,12 +293,12 @@ MV-DUSt3R+           → Robustness: Cross-reference fusion mechanism
 
 #### Method Comparison (12 views)
 
-| Method         | Speed     | DAc       | Architecture   |
-| -------------- | --------- | --------- | -------------- |
-| DUSt3R         | 8.28s     | 30.7%     | O(N²) pairwise |
-| Spann3R        | 1.34s     | 0.0%      | Sequential     |
-| MV-DUSt3R      | 0.15s     | 79.5%     | Single-stage   |
-| **MV-DUSt3R+** | **0.89s** | **91.5%** | **+ Fusion**   |
+| Method                            | Speed     | DAc       | Architecture   |
+| --------------------------------- | --------- | --------- | -------------- |
+| [DUSt3R](../foundation/dust3r.md) | 8.28s     | 30.7%     | O(N²) pairwise |
+| [Spann3R](spann3r.md)             | 1.34s     | 0.0%      | Sequential     |
+| MV-DUSt3R                         | 0.15s     | 79.5%     | Single-stage   |
+| **MV-DUSt3R+**                    | **0.89s** | **91.5%** | **+ Fusion**   |
 
 ## 📚 Key Takeaways
 

@@ -423,8 +423,8 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 
 ### Relationship to DUSt3R Ecosystem
 
-- **Foundation**: Built directly on DUSt3R architecture
-- **Complement to MASt3R**: Different scaling approach
+- **Foundation**: Built directly on [DUSt3R](../foundation/dust3r.md) architecture
+- **Complement to [MASt3R](../foundation/mast3r.md)**: Different scaling approach
 - **Enables**: New applications requiring many views
 - **Trade-offs**: Complexity vs quality balance
 
@@ -447,12 +447,12 @@ This work advances the field by introducing novel approaches to 3D reconstructio
 
 ### Comparison with Contemporary Methods
 
-| Method     | Focus           | Strength        | Limitation     |
-| ---------- | --------------- | --------------- | -------------- |
-| DUSt3R     | Pairwise 3D     | High quality    | O(N²) scaling  |
-| MASt3R     | Matching        | Best accuracy   | Still pairwise |
-| Spann3R    | Speed           | 47.9 FPS        | Lower quality  |
-| **MUSt3R** | **Scalability** | **1000+ views** | **8.4 FPS**    |
+| Method                | Focus           | Strength        | Limitation     |
+| --------------------- | --------------- | --------------- | -------------- |
+| DUSt3R                | Pairwise 3D     | High quality    | O(N²) scaling  |
+| MASt3R                | Matching        | Best accuracy   | Still pairwise |
+| [Spann3R](spann3r.md) | Speed           | 47.9 FPS        | Lower quality  |
+| **MUSt3R**            | **Scalability** | **1000+ views** | **8.4 FPS**    |
 
 ## 📚 Key Takeaways
 

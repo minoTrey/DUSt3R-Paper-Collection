@@ -38,7 +38,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - Dynamic scene filtering
 - Avatar reconstruction
 
-## 📚 Paper List (10 papers)
+## 📚 Paper List (13 papers)
 
 ### 🚀 Core Methods
 
@@ -199,3 +199,25 @@ The Gaussian Splatting category shows how DUSt3R's geometric foundation enables:
 ---
 
 _The marriage of DUSt3R and Gaussian Splatting has transformed novel view synthesis from a complex multi-hour pipeline to a simple minute-long process, opening 3D content creation to millions of users._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (13)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**ARTDECO**](artdeco.md) (ICLR 2026) — Towards Efficient and High-Fidelity On-the-Fly 3D Reconstruction with Structured Scene Representation
+- [**AVAT3R**](avat3r.md) (ICCV 2025) — Large Animatable Gaussian Reconstruction Model for High-fidelity 3D Head Avatars
+- [**DAS3R**](das3r.md) (arXiv preprint (2024-12)) — Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction
+- [**Dense Point Clouds Matter**](dust-gs.md) (ICASSP 2025) — Dust-GS for Scene Reconstruction from Sparse Viewpoints
+- [**Dust to Tower**](dust-to-tower.md) (arXiv preprint (2024-12)) — Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images
+- [**FlowR**](flowr.md) (ICCV 2025) — Flowing from Sparse to Dense 3D Reconstructions
+- [**InstantSplat**](instantsplat.md) (arXiv preprint (2024-03)) — Sparse-view Gaussian Splatting in Seconds
+- [**LM-Gaussian**](lm-gaussian.md) (arXiv preprint (2024-09)) — Boost Sparse-view 3D Gaussian Splatting with Large Model Priors
+- [**PreF3R**](pref3r.md) (arXiv preprint (2024-11)) — Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence
+- [**Splatt3R**](splatt3r.md) (arXiv preprint (2024-08)) — Zero-shot Gaussian Splatting from Uncalibrated Image Pairs
+- [**Styl3R**](styl3r.md) (NeurIPS 2025) — Instant 3D Stylized Reconstruction for Arbitrary Scenes and Styles
+- [**TokenSplat**](tokensplat.md) (CVPR 2026) — Token-aligned 3D Gaussian Splatting for Feed-forward Pose-free Reconstruction
+- [**YoNoSplat**](yonosplat.md) (ICLR 2026) — You Only Need One Model for Feedforward 3D Gaussian Splatting
+
+<!-- /GENERATED -->

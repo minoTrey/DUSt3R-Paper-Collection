@@ -215,15 +215,15 @@ the cleanest empirical evidence that these two quantities have been successfully
 
 ### Building On
 
-- **DUSt3R**: pointmap regression formulation, the confidence-weighted pointmap loss, and encoder initialization.
-- **Fast3R**: the 1D sine-cosine index embedding scheme that lets Rig3R generalize to varying frame and camera counts.
-- **VGGT**: motivates learning scale and direction norms directly, which the paper finds more stable for camera centers near the origin.
+- **[DUSt3R](../foundation/dust3r.md)**: pointmap regression formulation, the confidence-weighted pointmap loss, and encoder initialization.
+- **[Fast3R](../reconstruction/fast3r.md)**: the 1D sine-cosine index embedding scheme that lets Rig3R generalize to varying frame and camera counts.
+- **[VGGT](../reconstruction/vggt.md)**: motivates learning scale and direction norms directly, which the paper finds more stable for camera centers near the origin.
 - **DPT**: pointmap head architecture.
 
 ### Contrast with Conditioning Approaches
 
-- **Pow3R**: improves flexibility via lightweight conditioning on intrinsics, relative pose, or depth. Rig3R conditions on a different and complementary axis — rig identity and structure rather than per-camera calibration.
-- **MV-DUSt3R**: multi-frame attention; **Fast3R**: scales to hundreds of views. Both still treat views as unordered.
+- **[Pow3R](../reconstruction/pow3r.md)**: improves flexibility via lightweight conditioning on intrinsics, relative pose, or depth. Rig3R conditions on a different and complementary axis — rig identity and structure rather than per-camera calibration.
+- **[MV-DUSt3R](../reconstruction/mv-dust3r-plus.md)**: multi-frame attention; **Fast3R**: scales to hundreds of views. Both still treat views as unordered.
 
 ### Contrast with Classical Rig-Aware Methods
 

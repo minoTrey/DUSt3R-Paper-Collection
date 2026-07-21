@@ -136,10 +136,10 @@ First pure transformer method to achieve SOTA without:
 
 ### Evolution Path
 
-- **CroCo** (NeurIPS 2022): Original cross-view completion
+- **[CroCo](croco.md)** (NeurIPS 2022): Original cross-view completion
 - **CroCo v2** (ICCV 2023): This work
-- **DUSt3R** (CVPR 2024): Extends to uncalibrated 3D reconstruction
-- **MASt3R** (ECCV 2024): Further unification of 3D tasks
+- **[DUSt3R](dust3r.md)** (CVPR 2024): Extends to uncalibrated 3D reconstruction
+- **[MASt3R](mast3r.md)** (ECCV 2024): Further unification of 3D tasks
 
 ### Contemporary Methods
 

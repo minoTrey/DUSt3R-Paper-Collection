@@ -144,9 +144,9 @@ _Note: CroCo achieves competitive results without task-specific design or tempor
 
 ### Building on CroCo
 
-- **CroCo v2** (ICCV 2023): Enhanced version for stereo and optical flow
-- **DUSt3R** (CVPR 2024): Extended to end-to-end 3D reconstruction
-- **MASt3R** (ECCV 2024): Unified 3D-aware matching and reconstruction
+- **[CroCo v2](croco-v2.md)** (ICCV 2023): Enhanced version for stereo and optical flow
+- **[DUSt3R](dust3r.md)** (CVPR 2024): Extended to end-to-end 3D reconstruction
+- **[MASt3R](mast3r.md)** (ECCV 2024): Unified 3D-aware matching and reconstruction
 
 ### Contemporary Approaches
 

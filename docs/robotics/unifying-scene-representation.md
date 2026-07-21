@@ -155,7 +155,7 @@ COLMAP은 이미지 수가 적으면 일부 포즈만 복원해 발산(NA)한다
 - **Scene Representation**: 3D scene encoding methods
 - **Robotic Perception**: Vision-based manipulation systems
 
-### Relationship to DUSt3R Ecosystem
+### Relationship to [DUSt3R](../foundation/dust3r.md) Ecosystem
 
 - **Foundation Integration**: Natural use of 3D foundation models
 - **Robotic Extension**: Extends geometric understanding to robotics

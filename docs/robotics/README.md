@@ -18,7 +18,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 - Real-time 3D perception
 - Cross-view consistency
 
-## 📚 Paper List (2 papers)
+## 📚 Paper List (7 papers)
 
 ### 1. [**GraphSeg**: Segmented 3D Representations via Graph Edge Addition and Contraction](graphseg.md)
 
@@ -187,3 +187,19 @@ For robotic applications:
 ---
 
 _The integration of DUSt3R and 3D foundation models into robotics represents a significant step toward more capable and adaptable robotic systems that can understand and interact with complex 3D environments._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (7)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**Calib3R**](calib3r.md) (arXiv preprint (2025-09)) — A 3D Foundation Model for Multi-Camera to Robot Calibration and 3D Metric-Scaled Scene Reconstruction
+- [**FVO**](fvo.md) (arXiv preprint (2025-10)) — Fast Visual Odometry with Transformers
+- [**GraphSeg**](graphseg.md) (arXiv preprint (2025-04)) — Segmented 3D Representations via Graph Edge Addition and Contraction
+- [**MASt3R-Fusion**](mast3r-fusion.md) (arXiv preprint (2025-09)) — Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM
+- [**Rig3R**](rig3r.md) (arXiv preprint (2025-06)) — Rig-Aware Conditioning for Learned 3D Reconstruction
+- [**Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models (RA-L 2024)**](unifying-scene-representation.md) (RA-L 2024)
+- [**ViPE**](vipe.md) (arXiv preprint (2025-08)) — Video Pose Engine for 3D Geometric Perception
+
+<!-- /GENERATED -->

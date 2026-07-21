@@ -294,3 +294,17 @@ The foundation models enable all other categories:
 ---
 
 _These foundation models represent a paradigm shift in 3D computer vision, making what was once complex and fragile now simple and robust. They are the bedrock upon which the entire [DUSt3R](dust3r.md) ecosystem is built._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (5)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**CroCo**](croco.md) (NeurIPS 2022) — Self-Supervised Pre-training for 3D Vision Tasks by Cross-View Completion
+- [**CroCo v2**](croco-v2.md) (ICCV 2023) — Improved Cross-view Completion Pre-training for Stereo Matching and Optical Flow
+- [**DUSt3R**](dust3r.md) (CVPR 2024) — Geometric 3D Vision Made Easy
+- [**MASt3R**](mast3r.md) (ECCV 2024) — Grounding Image Matching in 3D
+- [**MASt3R-SfM**](mast3r-sfm.md) (3DV 2025) — A Fully-Integrated Solution for Unconstrained Structure-from-Motion
+
+<!-- /GENERATED -->

@@ -14,7 +14,7 @@ Dynamic scenes introduce complexity beyond static reconstruction:
 4. **Memory Efficiency**: Handling long videos without exhausting resources
 5. **Real-time Processing**: Achieving online performance for applications
 
-## 📚 Paper List (11 papers)
+## 📚 Paper List (22 papers)
 
 ### 🏃 Motion Modeling & Tracking
 
@@ -271,3 +271,34 @@ motion_fields = results['motion']  # Scene flow
 ---
 
 _Dynamic Scene Reconstruction represents the frontier of 4D vision, extending DUSt3R's revolutionary approach from spatial to spatiotemporal understanding. These methods are paving the way for AI systems that truly understand how the world moves and changes._
+
+<!-- GENERATED:paper-index -->
+
+## 📄 All Papers in This Category (22)
+
+> 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
+
+- [**Adapt3R**](adapt3r.md) (arXiv preprint (2025-03)) — Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning
+- [**Align3R**](align3r.md) (CVPR 2025) — Aligned Monocular Depth Estimation for Dynamic Videos
+- [**Any4D**](any4d.md) (arXiv preprint (2025-12)) — Unified Feed-Forward Metric 4D Reconstruction
+- [**C4D**](c4d.md) (ICCV 2025) — 4D Made from 3D through Dual Correspondences
+- [**Continuous 3D Perception Model with Persistent State (CVPR 2025)**](cut3r.md) (CVPR 2025)
+- [**D²USt3R**](d2ust3r.md) (arXiv preprint (2025-04)) — Enhancing 3D Reconstruction with 4D Pointmaps for Dynamic Scenes
+- [**D4RT**](d4rt.md) (CVPR 2026) — Efficiently Reconstructing Dynamic Scenes One Query at a Time
+- [**DGGT**](dggt.md) (CVPR 2026) — Feedforward 4D Reconstruction of Dynamic Driving Scenes using Unposed Images
+- [**Dynamic Point Maps**](dynamic-point-maps.md) (ICCV 2025) — A Versatile Representation for Dynamic 3D Reconstruction
+- [**DynamicVGGT**](dynamicvggt.md) (arXiv preprint (2026-03)) — Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving
+- [**Easi3R**](easi3r.md) (ICCV 2025) — Estimating Disentangled Motion from DUSt3R Without Training
+- [**Geo4D**](geo4d.md) (ICCV 2025) — Leveraging Video Generators for Geometric 4D Scene Reconstruction
+- [**Human3R**](human3r.md) (ICLR 2026) — Everyone Everywhere All at Once
+- [**MonST3R**](monst3r.md) (ICLR 2025) — A Simple Approach for Estimating Geometry in the Presence of Motion
+- [**NoPo4D**](nopo4d.md) (arXiv preprint (2026-05)) — No Pose, No Problem in 4D — Feed-Forward Dynamic Gaussians from Unposed Multi-View Videos
+- [**ODHSR**](odhsr.md) (CVPR 2025) — Online Dense 3D Reconstruction of Humans and Scenes from Monocular Videos
+- [**PAGE-4D**](page-4d.md) (ICLR 2026) — VGGT-4D Perception via Disentangled Pose and Geometry Estimation
+- [**PointSt3R**](pointst3r.md) (WACV 2026) — Point Tracking through 3D Grounded Correspondence
+- [**POMATO**](pomato.md) (ICCV 2025) — Marrying Pointmap Matching with Temporal Motion for Dynamic 3D Reconstruction
+- [**Stereo4D**](stereo4d.md) (CVPR 2025) — Learning How Things Move in 3D from Internet Stereo Videos
+- [**V-DPM**](v-dpm.md) (CVPR 2026) — 4D Video Reconstruction with Dynamic Point Maps
+- [**VGGT4D**](vggt4d.md) (CVPR 2026) — Mining Motion Cues in Visual Geometry Transformers for 4D Scene Reconstruction
+
+<!-- /GENERATED -->

@@ -190,7 +190,7 @@ Kubric-G·Waymo에서 이를 앞선다. Object Flow는 RAFT-3D가 수행할 수 
 
 - **Dynamic Extension**: Adds temporal dimension to reconstruction
 - **Point Compatibility**: Natural fit with point-based representations
-- **Multi-Task**: Could enhance DUSt3R with dynamic capabilities
+- **Multi-Task**: Could enhance [DUSt3R](../foundation/dust3r.md) with dynamic capabilities
 - **Efficiency**: Maintains computational efficiency
 
 ## 📚 Key Takeaways

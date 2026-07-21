@@ -169,10 +169,10 @@ _SLAM3R achieves real-time dense 3D reconstruction with two-hierarchy networks: 
 
 ### Comparison with SLAM Methods
 
-- **Offline pointmap (DUSt3R, MASt3R)**: High quality but below 1 FPS
+- **Offline pointmap ([DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md))**: High quality but below 1 FPS
 - **Learning-based SLAM (DROID-SLAM)**: ∼20 FPS, but weaker completeness on Replica
 - **Neural SLAM (GO-SLAM, DIM-SLAM)**: Dense but ∼8 FPS and ∼3 FPS respectively
-- **Incremental pointmap (Spann3R)**: >50 FPS but markedly higher reconstruction error
+- **Incremental pointmap ([Spann3R](spann3r.md))**: >50 FPS but markedly higher reconstruction error
 - **SLAM3R**: Dense reconstruction at ∼24–25 FPS
 
 논문은 ORB-SLAM3를 정량 평가 대상으로 삼지 않으며, 참고문헌에서만 언급합니다.

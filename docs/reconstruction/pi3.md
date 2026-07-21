@@ -7,7 +7,7 @@ _π³ achieves true permutation equivariance in visual geometry through symmetri
 
 - **Authors**: Yifan Wang, Jianjun Zhou, Haoyi Zhu, Wenzheng Chang, Yang Zhou, Zizun Li, Junyi Chen, Jiangmiao Pang, Chunhua Shen, Tong He
 - **Institution**: Shanghai AI Lab, ZJU, SII
-- **Venue**: arXiv preprint (2025)
+- **Venue**: arXiv preprint (2025-07)
 - **Links**: [Paper](https://arxiv.org/abs/2507.13347) | [Project Page](https://yyfz.github.io/pi3/) | [Code](https://github.com/yyfz/Pi3) | [Demo](https://huggingface.co/spaces/yyfz233/Pi3)
 - **TL;DR**: First visual geometry model achieving true permutation equivariance by eliminating all order-dependent components, surpassing VGGT across all benchmarks.
 
@@ -262,6 +262,15 @@ L_total = L_points + λ_normal·L_normal + λ_conf·L_conf + λ_cam·L_cam
 - **Limited to Static Scenes**: Like most geometry methods, assumes static content
 
 ## 🔗 Related Work
+
+### Position in the Collection
+
+π³ is defined by its relationship to the feed-forward reconstruction lineage catalogued here, and specifically by what it removes from it.
+
+- **Direct successor to [VGGT](vggt.md)**: π³'s Related Work and method sections single out VGGT as the state of the art it targets. VGGT reaches high accuracy through multi-task learning on large-scale data, but π³ observes that VGGT still designates a reference view through special camera tokens, leaving it "highly sensitive to the initial view selection." π³ removes exactly this dependence — discarding positional embeddings and the reference/camera tokens — so that reconstruction quality no longer depends on which frame is chosen as reference. Its order-robustness experiments report substantially lower variance across input permutations than VGGT.
+- **Departure from [DUSt3R](../foundation/dust3r.md)**: π³ traces the reference-view convention back to DUSt3R, which predicts pointmaps in the first camera's coordinate system and needs a fragile global-alignment step to scale beyond image pairs. π³ frames its reference-free, relative-supervision design as a break from this DUSt3R-inherited paradigm.
+- **Contrast with [Fast3R](fast3r.md)**: π³ credits Fast3R with eliminating the global-alignment stage by inferring on many views at once, but notes that Fast3R still retains order-dependent components; π³ pushes further to full permutation equivariance.
+- **Competing baseline [CUT3R](../dynamic/cut3r.md)**: CUT3R is one of the recurrent/streaming reconstructors π³ benchmarks against throughout its tables (camera pose, point maps, video depth). The paper notes CUT3R is the one baseline to have seen RealEstate10K during training, context it uses to frame its own zero-shot result on that dataset.
 
 ### Paradigm Shift in Visual Geometry
 

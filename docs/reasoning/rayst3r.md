@@ -178,7 +178,7 @@ SceneComplete는 HOPE에서 VRAM 부족으로 N/A.
 
 ### Building On
 
-- **DUSt3R**: Transformer architecture inspiration
+- **[DUSt3R](../foundation/dust3r.md)**: Transformer architecture inspiration
 - **DINOv2**: Visual feature extraction
 - **DPT**: Dense prediction heads
 - **Novel View Synthesis**: Core concept
