@@ -1,0 +1,67 @@
+name: discover-papers
+
+# 새 논문 발굴 — 주간 cron. DUSt3R/후속을 초석으로 하는 논문을 후보 큐에 쌓고,
+# 신규가 있으면 이슈로 게시한다. 자동 병합·자동 문서화는 하지 않는다 (수동 승인).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # 매주 월요일 06:00 UTC
+  workflow_dispatch: # 수동 실행 허용
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 발굴 실행
+        id: run
+        run: |
+          before=$(wc -l < candidates/queue.jsonl 2>/dev/null || echo 0)
+          python3 tools/discover_papers.py 2>&1 | tee /tmp/discover.log
+          after=$(wc -l < candidates/queue.jsonl 2>/dev/null || echo 0)
+          echo "new=$((after - before))" >> "$GITHUB_OUTPUT"
+
+      - name: 큐 갱신 커밋
+        if: steps.run.outputs.new != '0'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add candidates/queue.jsonl candidates/last_run.txt
+          git commit -m "chore(discover): 신규 후보 ${{ steps.run.outputs.new }}편" || true
+          git push || true
+
+      - name: 신규 후보 이슈 게시
+        if: steps.run.outputs.new != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('/tmp/discover.log', 'utf8');
+            const body = [
+              `발굴에서 신규 후보 **${{ steps.run.outputs.new }}편**을 찾았습니다.`,
+              ``,
+              `\`candidates/queue.jsonl\`에 \`status: new\`로 적재됐습니다.`,
+              `검토 후 범위에 맞는 것만 문서화하세요 (candidates/README.md 참조).`,
+              ``,
+              `<details><summary>발굴 로그</summary>`,
+              ``,
+              '```',
+              log.split('\n').slice(-25).join('\n'),
+              '```',
+              `</details>`,
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[discover] 신규 논문 후보 ${{ steps.run.outputs.new }}편 (${new Date().toISOString().slice(0,10)})`,
+              body,
+              labels: ['paper-candidate'],
+            });
