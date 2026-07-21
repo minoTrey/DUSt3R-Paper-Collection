@@ -14,7 +14,7 @@ _Figure 7: CroCo v2 results_
 - **Authors**: Philippe Weinzaepfel, Thomas Lucas, Vincent Leroy, Yohann Cabon, Vaibhav Arora, Romain Brégier, Gabriela Csurka, Leonid Antsfeld, Boris Chidlovskii, Jérôme Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: ICCV 2023
-- **Links**: [Paper](https://arxiv.org/abs/2211.10408) | [Code](https://github.com/naver/croco) | [Project Page](https://croco.europe.naverlabs.com/)
+- **Links**: [Paper](https://arxiv.org/abs/2211.10408) | [Code](https://github.com/naver/croco)
 - **TL;DR**: Enhanced CroCo with real-world data, relative position embeddings, and larger models, achieving SOTA on stereo and optical flow without task-specific components.
 
 ## 🎯 Key Contributions

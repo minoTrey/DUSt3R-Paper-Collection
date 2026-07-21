@@ -17,7 +17,7 @@ _Figure 3: CroCo architecture_
 - **Authors**: Philippe Weinzaepfel, Vincent Leroy, Thomas Lucas, Romain Brégier, Yohann Cabon, Vaibhav Arora, Leonid Antsfeld, Boris Chidlovskii, Gabriela Csurka, Jérôme Revaud
 - **Institution**: NAVER LABS Europe
 - **Venue**: NeurIPS 2022
-- **Links**: [Paper](https://arxiv.org/abs/2210.10716) | [Code](https://github.com/naver/croco) | [Project Page](https://croco.europe.naverlabs.com/)
+- **Links**: [Paper](https://arxiv.org/abs/2210.10716) | [Code](https://github.com/naver/croco)
 - **TL;DR**: Self-supervised pre-training method that learns 3D-aware representations by reconstructing masked image regions using cross-view information.
 
 ## 🎯 Key Contributions

@@ -8,7 +8,7 @@ _Fast3R enables efficient 3D reconstruction from 1000+ images in a single forwar
 - **Authors**: Jianing Yang, Alexander Sax, Kevin J. Liang, Mikael Henaff, Hao Tang, Ang Cao, Joyce Chai, Franziska Meier, Matt Feiszli
 - **Institution**: Meta FAIR, University of Michigan
 - **Venue**: CVPR 2025
-- **Links**: [Paper](https://arxiv.org/abs/2501.13928) | [Code](https://github.com/facebookresearch/fast3r) | [Demo](https://huggingface.co/spaces/jedyang97/Fast3R)
+- **Links**: [Paper](https://arxiv.org/abs/2501.13928) | [Code](https://github.com/facebookresearch/fast3r)
 - **TL;DR**: Transformer-based model that processes 1000+ unordered, unposed images in one forward pass at 251.1 FPS through all-to-all attention and position interpolation.
 
 ## 🎯 Key Contributions

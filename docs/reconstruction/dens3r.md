@@ -5,7 +5,7 @@ _Dens3R provides unified geometric dense prediction for high-quality 3D reconstr
 
 ## 📋 Overview
 
-- **Authors**: Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lyu, Qiaomu Ren, Zhonglei Yang, Xiaokang Yang, Yichao Yan, Chengfei Lyu
+- **Authors**: Xianze Fang, Jingnan Gao, Zhe Wang, Zhuo Chen, Xingyu Ren, Jiangjing Lv, Qiaomu Ren, Zhonglei Yang, Xiaokang Yang, Yichao Yan, Chengfei Lv
 - **Institution**: Alibaba Group, Shanghai Jiao Tong University
 - **Venue**: arXiv preprint (2025-07)
 - **Links**: [Paper](https://arxiv.org/abs/2507.16290) | [Project Page](https://g-1nonly.github.io/Dens3R/) | [Code](https://github.com/G-1nOnly/Dens3R)

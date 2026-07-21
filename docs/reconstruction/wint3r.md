@@ -5,9 +5,9 @@
 - **Authors**: Zizun Li, Jianjun Zhou, Yifan Wang, Haoyu Guo, Wenzheng Chang, Yang Zhou, Haoyi Zhu, Junyi Chen, Chunhua Shen, Tong He
 - **Institution**: University of Science and Technology of China, Shanghai AI Lab, SII, Zhejiang University
 - **Venue**: arXiv preprint (2025-09)
-- **Note**: The venue could not be confirmed from any primary source (no acceptance statement appears in the PDF, and no external record was available). This should be re-checked before the entry is relied upon.
+- **Note**: 저장소 README의 BibTeX가 arXiv preprint로 자체 표기(archivePrefix=arXiv). 학회 게재 근거는 없다.
 - **Links**: [Paper](https://arxiv.org/abs/2509.05296) | [Code](https://github.com/LiZizun/WinT3R)
-- **Verification**: UNKNOWN (2026-07-20)
+- **Verification**: PREPRINT (2026-07-21)
 - **TL;DR**: An online feed-forward reconstruction model that processes an image stream in half-overlapping sliding windows and keeps a growing pool of compact per-frame camera tokens as lightweight global memory, running at 17.2 FPS.
 
 ## 🎯 Key Contributions

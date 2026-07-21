@@ -9,7 +9,7 @@ _SLAM3R achieves real-time dense 3D reconstruction with two-hierarchy networks: 
 - **Institution**: Peking University, The University of Hong Kong, Aalto University, VIVO
 - **Venue**: CVPR 2025
 - **Award**: Highlight Paper
-- **Links**: [Paper](https://arxiv.org/abs/2412.09401) | [Code](https://github.com/PKU-VCL-3DV/SLAM3R) | [Project Page](https://pku-vcl-3dv.github.io/SLAM3R/)
+- **Links**: [Paper](https://arxiv.org/abs/2412.09401) | [Code](https://github.com/PKU-VCL-3DV/SLAM3R)
 - **Verification**: CONFIRMED (2026-07-20)
 - **TL;DR**: Real-time (20+ FPS) dense 3D reconstruction from monocular RGB video using feed-forward networks without explicit camera parameter estimation.
 
