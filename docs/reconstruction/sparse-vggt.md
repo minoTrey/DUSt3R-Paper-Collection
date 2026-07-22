@@ -1,5 +1,9 @@
 # Sparse-VGGT: Block-Sparse Global Attention for Efficient Multi-View Geometry Transformers (CVPR 2026)
 
+![sparse-vggt — architecture](https://brianwang00001.github.io/sparse-vggt/static/images/vggt_arch_overview.jpg)
+
+_모델 아키텍처 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Chung-Shien Brian Wang, Christian Schmidt, Jens Piekenbrinck, Bastian Leibe

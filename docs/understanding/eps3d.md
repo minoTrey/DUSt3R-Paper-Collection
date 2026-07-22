@@ -1,5 +1,9 @@
 # EPS3D: End-to-End Feed-Forward 3D Panoptic Segmentation (ICML 2026)
 
+![eps3d — overview](https://raw.githubusercontent.com/Runsong123/EPS3D/main/assets/Overview.png)
+
+_전체 개요 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Runsong Zhu, Jiaxin Guo, Xiaoyang Guo, Zhengzhe Liu, Ka-Hei Hui, Wei Yin, Kai Chen, Wei Chen, Weiqiang Ren, Yunhui Liu, Pheng-Ann Heng, Chi-Wing Fu

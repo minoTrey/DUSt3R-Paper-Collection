@@ -1,5 +1,9 @@
 # ViPE: Video Pose Engine for 3D Geometric Perception (arXiv preprint)
 
+![vipe — method](https://research.nvidia.com/labs/toronto-ai/vipe/assets/images/method.png)
+
+_메소드 개요 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Jiahui Huang, Qunjie Zhou, Hesam Rabeti, Aleksandr Korovko, Huan Ling, Xuanchi Ren, Tianchang Shen, Jun Gao, Dmitry Slepichev, Chen-Hsuan Lin, Jiawei Ren, Kevin Xie, Joydeep Biswas, Laura Leal-Taixe, Sanja Fidler

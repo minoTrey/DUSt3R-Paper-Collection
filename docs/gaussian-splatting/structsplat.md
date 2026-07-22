@@ -1,5 +1,9 @@
 # StructSplat: Generalizable 3D Gaussian Splatting from Uncalibrated Sparse Views (arXiv preprint (2026-06))
 
+![structsplat — overview](https://raw.githubusercontent.com/J-C-Zhao/StructSplat/main/asserts/demo.jpeg)
+
+_전체 개요 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Jia-Chen Zhao, Beiqi Chen, Xinyang Chen, Guangcong Wang, Liqiang Nie

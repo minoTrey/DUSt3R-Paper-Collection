@@ -1,5 +1,9 @@
 # V-DPM: 4D Video Reconstruction with Dynamic Point Maps (CVPR 2026)
 
+![v-dpm — architecture](https://www.robots.ox.ac.uk/~vgg/research/vdpm/resources/architecture.png)
+
+_모델 아키텍처 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Edgar Sucar, Eldar Insafutdinov, Zihang Lai, Andrea Vedaldi

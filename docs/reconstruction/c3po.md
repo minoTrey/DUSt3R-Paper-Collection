@@ -1,5 +1,9 @@
 # C3Po: Cross-View Cross-Modality Correspondence by Pointmap Prediction (NeurIPS 2025)
 
+![c3po — teaser](https://c3po-correspondence.github.io/static/images/teaser.png)
+
+_핵심 개념 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Kuan Wei Huang, Brandon Li, Bharath Hariharan, Noah Snavely

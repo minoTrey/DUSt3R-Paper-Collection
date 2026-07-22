@@ -1,5 +1,9 @@
 # ArtSplat: Feed-Forward Articulated 3D Gaussian Splatting from Sparse Multi-State Uncalibrated Views (arXiv preprint 2026-05)
 
+![artsplat — method](https://artsplat.github.io/static/images/method.png)
+
+_메소드 개요 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Inseo Lee, Yoonji Kim, Eugene Sohn, Jiwoong Lee, Jungmin You, Joonseok Lee, Jin-Hwa Kim

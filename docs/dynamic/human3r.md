@@ -1,5 +1,9 @@
 # Human3R: Everyone Everywhere All at Once (ICLR 2026)
 
+![human3r — pipeline](https://fanegg.github.io/Human3R/static/images/fig_pipe.png)
+
+_전체 파이프라인 (저자 project page)_
+
 ## 📋 Overview
 
 - **Authors**: Yue Chen, Xingyu Chen, Yuxuan Xue, Anpei Chen, Yuliang Xiu, Gerard Pons-Moll
