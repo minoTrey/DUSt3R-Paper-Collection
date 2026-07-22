@@ -1,5 +1,9 @@
 # ViGT: Visual Implicit Geometry Transformer for Autonomous Driving (arXiv preprint 2026-02)
 
+![vigt — architecture](https://arxiv.org/html/2602.05573/x1.png)
+
+_Our architecture consists of three main components: (1) an image encoder (ViT-L) that independently processes each image and extracts feature tokens… (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Arsenii Shirokov, Mikhail Kuznetsov, Danila Stepochkin, Egor Evdokimov, Daniil Glazkov, Nikolay Patakin, Anton Konushin, Dmitry Senushkin

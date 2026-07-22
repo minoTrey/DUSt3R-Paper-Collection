@@ -1,5 +1,9 @@
 # PAS3R: Pose-Adaptive Streaming 3D Reconstruction for Long Video Sequences (arXiv preprint (2026-03))
 
+![pas3r — architecture](https://arxiv.org/html/2603.21436v1/x1.png)
+
+_The overall pipeline (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Lanbo Xu, Liang Guo, Caigui Jiang, Cheng Wang

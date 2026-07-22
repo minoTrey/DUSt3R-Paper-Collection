@@ -1,5 +1,9 @@
 # VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator (ICLR 2026)
 
+![vist3a — architecture](https://arxiv.org/html/2510.13454v2/x1.png)
+
+_Text-to-3D generation with VIST3A (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Hyojun Go, Dominik Narnhofer, Goutam Bhat, Prune Truong, Federico Tombari, Konrad Schindler

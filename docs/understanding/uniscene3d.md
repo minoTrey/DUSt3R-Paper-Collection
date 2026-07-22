@@ -1,5 +1,9 @@
 # UniScene3D: RGB-Pointmap Pretraining for Unified 3D Scene Understanding (ECCV 2026)
 
+![uniscene3d — architecture](https://arxiv.org/html/2604.02546v3/x2.png)
+
+_Overview of UniScene3D pretraining (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Ye Mao, Weixun Luo, Ranran Huang, Junpeng Jing, Krystian Mikolajczyk

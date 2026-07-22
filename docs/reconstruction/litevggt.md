@@ -1,5 +1,9 @@
 # LiteVGGT: Boosting Vanilla VGGT via Geometry-aware Cached Token Merging (CVPR 2026)
 
+![litevggt — architecture](https://arxiv.org/html/2512.04939/x2.png)
+
+_Architecture Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhijian Shu, Cheng Lin, Tao Xie, Wei Yin, Ben Li, Zhiyuan Pu, Weize Li, Yao Yao, Xun Cao, Xiaoyang Guo, Xiao-Xiao Long

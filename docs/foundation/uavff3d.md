@@ -1,5 +1,9 @@
 # UAVFF3D: A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction (arXiv preprint 2026-05)
 
+![uavff3d — architecture](https://arxiv.org/html/2605.17942v2/x1.png)
+
+_Typical failure cases of feed-forward UAV reconstruction (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xiang Yang, Yongli Wang, HaiFeng Li, Yunsheng Zhang

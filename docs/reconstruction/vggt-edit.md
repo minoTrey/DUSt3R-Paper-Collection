@@ -1,5 +1,9 @@
 # VGGT-Edit: Feed-forward Native 3D Scene Editing with Residual Field Prediction (arXiv preprint 2026-05)
 
+![vggt-edit — architecture](https://arxiv.org/html/2605.15186v2/x2.png)
+
+_The DeltaScene Data Pipeline (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Kaixin Zhu, Yiwen Tang, Yifan Yang, Renrui Zhang, Bohan Zeng, Ziyu Guo, Ruichuan An, Zhou Liu, Qizhi Chen, Delin Qu, Jaehong Yoon, Wentao Zhang

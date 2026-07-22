@@ -1,5 +1,9 @@
 # NoDrift3R: Raymap-Guided Coupling for Drift-Robust Unposed Feed-Forward 3D Reconstruction (arXiv preprint)
 
+![nodrift3r — architecture](https://arxiv.org/html/2607.07168v2/figures/problem_formulation_epark.png)
+
+_Our synergistic framework for "Rendering-to-Geometry Gain". (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xiangyu Sun, Liu Liu, Seungkwon Yang, Jingbing Han, Seungtae Nam, Zhizhong Su, Eunbyung Park

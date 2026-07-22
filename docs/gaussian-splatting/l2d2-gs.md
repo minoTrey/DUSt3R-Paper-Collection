@@ -1,5 +1,9 @@
 # L2D2-GS: Learning to Densify for Feedforward Dynamic Gaussian Scene Reconstruction (arXiv preprint (2026-06))
 
+![l2d2-gs — architecture](https://arxiv.org/html/2606.29374v1/x1.png)
+
+_Our proposed learning-to-densitfy framework enables generalizable reconstruction of dynamic urban scenes through a combination of feedforward… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Zetian Song, Chenming Wu, Junnan Liu, Chitian Sun, Liangliang He, Hangjun Ye, Jiaqi Zhang, Siwei Ma, Wen Gao

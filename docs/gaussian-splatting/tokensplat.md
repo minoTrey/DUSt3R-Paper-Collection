@@ -1,5 +1,9 @@
 # TokenSplat: Token-aligned 3D Gaussian Splatting for Feed-forward Pose-free Reconstruction (CVPR 2026)
 
+![tokensplat — architecture](https://arxiv.org/html/2603.00697v1/img/pipeline.png)
+
+_Overview of TokenSplat (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yihui Li, Chengxin Lv, Zichen Tang, Hongyu Yang, Di Huang

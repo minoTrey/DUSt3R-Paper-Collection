@@ -1,5 +1,9 @@
 # MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details (arXiv preprint)
 
+![moge-2 — architecture](https://arxiv.org/html/2507.02546/x1.png)
+
+_Rankings in comprehensive evaluations (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Ruicheng Wang, Sicheng Xu, Yue Dong, Yu Deng, Jianfeng Xiang, Zelong Lv, Guangzhong Sun, Xin Tong, Jiaolong Yang

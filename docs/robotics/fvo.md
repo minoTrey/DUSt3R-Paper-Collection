@@ -1,5 +1,9 @@
 # FVO: Fast Visual Odometry with Transformers (arXiv preprint)
 
+![fvo — architecture](https://arxiv.org/html/2510.03348v3/figures/teaser.png)
+
+_Fast Visual Odometry Pipeline (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Vladimir Yugay, Duy-Kien Nguyen, Theo Gevers, Cees G. M. Snoek, Martin R. Oswald

@@ -1,5 +1,9 @@
 # VGGT-Long: Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences (ICRA 2026)
 
+![vggt-long — architecture](https://arxiv.org/html/2507.16443v2/x2.png)
+
+_Overview of VGGT-Long (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Kai Deng, Zexin Ti, Jiawei Xu, Jian Yang, Jin Xie

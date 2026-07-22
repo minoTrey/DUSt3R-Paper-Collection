@@ -1,5 +1,9 @@
 # MV-SAM: Multi-view Promptable Segmentation using Pointmap Guidance (arXiv preprint 2026-01)
 
+![mv-sam — architecture](https://arxiv.org/html/2601.17866/x1.png)
+
+_MV-SAM (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yoonwoo Jeong, Cheng Sun, Yu-Chiang Frank Wang, Minsu Cho, Jaesung Choe

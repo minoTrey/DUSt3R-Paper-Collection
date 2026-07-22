@@ -1,5 +1,9 @@
 # HorizonStream: Long-Horizon Attention for Streaming 3D Reconstruction (arXiv preprint)
 
+![horizonstream — architecture](https://arxiv.org/html/2605.23889v1/x2.png)
+
+_Visualization of long-range streaming 3D reconstruction across diverse scenes (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Chong Cheng, Peilin Tao, Nanjie Yao, Guanzhi Ding, Xianda Chen, Yuansen Du, Xiaoyang Guo, Wei Yin, Weiqiang Ren, Qian Zhang, Zhengqing Chen, Hao Wang

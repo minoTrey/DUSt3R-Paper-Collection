@@ -1,5 +1,9 @@
 # FrameVGGT: Coherence-Preserving Memory for Bounded Streaming Geometry (arXiv preprint (2026-03))
 
+![framevggt — architecture](https://arxiv.org/html/2603.07690v3/x2.png)
+
+_Pipeline of FrameVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhisong Xu, Takeshi Oishi

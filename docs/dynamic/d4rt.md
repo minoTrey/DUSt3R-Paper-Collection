@@ -1,5 +1,9 @@
 # D4RT: Efficiently Reconstructing Dynamic Scenes One Query at a Time (CVPR 2026)
 
+![d4rt — architecture](https://arxiv.org/html/2512.08924/x1.png)
+
+_D4RT is a unified, efficient, feedforward method for Dynamic 4D Reconstruction and Tracking, unlocking a variety of outputs including point cloud… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Chuhan Zhang, Guillaume Le Moing, Skanda Koppula, Ignacio Rocco, Liliane Momeni, Junyu Xie, Shuyang Sun, Rahul Sukthankar, Joëlle K. Barral, Raia Hadsell, Zoubin Ghahramani, Andrew Zisserman, Junlin Zhang, Mehdi S. M. Sajjadi

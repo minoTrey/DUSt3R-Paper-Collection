@@ -1,5 +1,9 @@
 # HyVGGT-VO: Tightly Coupled Hybrid Dense Visual Odometry with Feed-Forward Models (arXiv preprint (2026-04))
 
+![hyvggt-vo — architecture](https://arxiv.org/html/2604.02107v1/figures/system_overview.png)
+
+_Overall architecture of the proposed HyVGGT-VO framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Junxiang Pang, Lipu Zhou, Baojie Chen

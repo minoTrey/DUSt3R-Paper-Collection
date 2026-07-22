@@ -1,5 +1,9 @@
 # DAGE: Dual-Stream Architecture for Efficient and Fine-Grained Geometry Estimation (CVPR 2026)
 
+![dage — architecture](https://arxiv.org/html/2603.03744v2/x2.png)
+
+_Overview of DAGE (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Tuan Duc Ngo, Jiahui Huang, Seoung Wug Oh, Kevin Blackburn-Matzen, Evangelos Kalogerakis, Chuang Gan, Joon-Young Lee

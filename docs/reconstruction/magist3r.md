@@ -1,5 +1,9 @@
 # MAGiSt3R: Multi-Agent Feed-forward 3D Reconstruction from Monocular RGB Videos (arXiv preprint (2026-07))
 
+![magist3r — architecture](https://arxiv.org/html/2607.15211v1/x1.png)
+
+_Overview of MAGiSt3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Ziren Gong, Xiaohan Li, Fabio Tosi, Ninghui Xu, Stefano Mattoccia, Jianfei Cai, Matteo Poggi

@@ -1,5 +1,9 @@
 # VGG-T3: Offline Feed-Forward 3D Reconstruction at Scale (CVPR 2026)
 
+![vgg-t3 — architecture](https://arxiv.org/html/2602.23361v1/figures/method/vggt_workings.png)
+
+_(a) VGGT (원논문 Fig. 99)_
+
 ## 📋 Overview
 
 - **Authors**: Sven Elflein, Ruilong Li, Sérgio Agostinho, Zan Gojcic, Laura Leal-Taixé, Qunjie Zhou, Aljosa Osep

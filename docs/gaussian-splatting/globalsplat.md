@@ -1,5 +1,9 @@
 # GlobalSplat: Efficient Feed-Forward 3D Gaussian Splatting via Global Scene Tokens (arXiv preprint (2026-04))
 
+![globalsplat — architecture](https://arxiv.org/html/2604.15284v2/x5.png)
+
+_GlobalSplat Architecture Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Roni Itkin, Noam Issachar, Yehonatan Keypur, Xingyu Chen, Anpei Chen, Sagie Benaim

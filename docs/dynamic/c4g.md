@@ -1,5 +1,9 @@
 # C4G: Learning Global Motion with Compact Gaussians for Feed-Forward 4D Reconstruction (arXiv preprint (2026-05))
 
+![c4g — architecture](https://arxiv.org/html/2605.31595v1/x2.png)
+
+_Pixel-wise 4DGS vs (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Mungyeom Kim, Minkyeong Jeon, Honggyu An, Jaewoo Jung, Hyunah Ko, Jisang Han, Hyeonseo Yu, Donghwan Shin, Sunghwan Hong, Takuya Narihira, Kazumi Fukuda, Yuki Mitsufuji, Seungryong Kim

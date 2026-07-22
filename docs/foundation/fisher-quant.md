@@ -1,5 +1,9 @@
 # FGQ: Fisher-Guided Quantization for Visual Geometry Transformer (arXiv preprint (2026-05))
 
+![fisher-quant — architecture](https://arxiv.org/html/2605.15828v2/x1.png)
+
+_FGQ effectively preserves the point map reconstruction fidelity under 4-bit quantization, surpassing previous state-of-the-art VGGT (QuantVGGT (Feng… (원논문 Fig. 1)_
+
 _FGQ preserves point-map reconstruction fidelity under 4-bit quantization, surpassing the prior VGGT-specific PTQ method QuantVGGT (원논문 Figure 1, 수치 미인쇄)._
 
 ## 📋 Overview

@@ -1,5 +1,9 @@
 # RayMap3R: Inference-Time RayMap for Dynamic 3D Reconstruction (arXiv preprint (2026-03))
 
+![raymap3r — architecture](https://arxiv.org/html/2603.20588v1/x4.png)
+
+_Method Overview (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: Feiran Wang, Zezhou Shang, Gaowen Liu, Yan Yan

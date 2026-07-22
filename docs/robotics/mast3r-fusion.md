@@ -1,5 +1,9 @@
 # MASt3R-Fusion: Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM (arXiv preprint)
 
+![mast3r-fusion — architecture](https://arxiv.org/html/2509.20757/x1.png)
+
+_Illustration of the MASt3R-Fusion system (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yuxuan Zhou, Xingxing Li, Shengyu Li, Zhuohao Yan, Chunxi Xia, Shaoquan Feng

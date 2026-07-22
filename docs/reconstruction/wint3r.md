@@ -1,5 +1,9 @@
 # WinT3R: Window-based Streaming Reconstruction with Camera Token Pool (arXiv preprint)
 
+![wint3r — architecture](https://arxiv.org/html/2509.05296/x1.png)
+
+_Overview (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Zizun Li, Jianjun Zhou, Yifan Wang, Haoyu Guo, Wenzheng Chang, Yang Zhou, Haoyi Zhu, Junyi Chen, Chunhua Shen, Tong He

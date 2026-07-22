@@ -1,5 +1,9 @@
 # MoonSeg3R: Monocular Online Zero-Shot Segment Anything in 3D with Reconstructive Foundation Priors (CVPR 2026)
 
+![moonseg3r — architecture](https://arxiv.org/html/2512.15577v2/x1.png)
+
+_Previous VFM-assisted Online Paradigm v.s (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Zhipeng Du, Duolikun Danier, Jan Eric Lenssen, Hakan Bilen

@@ -1,5 +1,9 @@
 # ZipMap: Linear-Time Stateful 3D Reconstruction via Test-Time Training (CVPR 2026)
 
+![zipmap — architecture](https://arxiv.org/html/2603.04385v3/x2.png)
+
+_Method Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Haian Jin, Rundi Wu, Tianyuan Zhang, Ruiqi Gao, Jonathan T. Barron, Noah Snavely, Aleksander Hołyński

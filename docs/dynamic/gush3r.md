@@ -1,5 +1,9 @@
 # GUSH3R: Everyone Everywhere All at Once as Gaussians (arXiv preprint (2026-07))
 
+![gush3r — architecture](https://arxiv.org/html/2607.05243v1/x2.png)
+
+_Overview of the proposed framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Keito Abe, Kaede Shiohara, Takashi Otonari, Toshihiko Yamasaki

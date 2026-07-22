@@ -1,5 +1,9 @@
 # Interp3R: Continuous-time 3D Geometry Estimation with Frames and Events (arXiv preprint (2026-03))
 
+![interp3r — architecture](https://arxiv.org/html/2603.14528v1/x1.png)
+
+_The proposed method takes two images I0,I1I_{0},I_{1} and the events between them ℰ\mathcal{E} as input (Left), and recovers the scene geometry (in… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Shuang Guo, Filbert Febryanto, Lei Sun, Guillermo Gallego

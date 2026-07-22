@@ -1,5 +1,9 @@
 # StreamVGGT: Streaming Visual Geometry Transformer (ICLR 2026)
 
+![streamvggt — architecture](https://arxiv.org/html/2507.11539v2/x3.png)
+
+_Framework of StreamVGGT (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Dong Zhuo, Wenzhao Zheng, Jiahe Guo, Yuqi Wu, Jie Zhou, Jiwen Lu

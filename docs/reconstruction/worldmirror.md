@@ -1,5 +1,9 @@
 # WorldMirror: Universal 3D World Reconstruction with Any-Prior Prompting (ICML 2026)
 
+![worldmirror — architecture](https://arxiv.org/html/2510.10726/Figs/teaser.png)
+
+_WorldMirror is a large feed-forward 3D reconstruction model that takes raw images along with optional priors (depth, calibrated intrinsics, camera… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yifan Liu, Zhiyuan Min, Zhenwei Wang, Junta Wu, Tengfei Wang, Yixuan Yuan, Yawei Luo, Chunchao Guo

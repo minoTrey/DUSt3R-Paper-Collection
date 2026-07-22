@@ -1,5 +1,9 @@
 # Evict3R: Training-Free Token Eviction for Memory-Bounded Streaming Visual Geometry Transformers (arXiv preprint (2025-09))
 
+![evict3r — architecture](https://arxiv.org/html/2509.17650/figures/image.png)
+
+_Overview of our token eviction framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Soroush Mahdi, Fardin Ayar, Ehsan Javanmardi, Manabu Tsukada, Mahdi Javanmardi

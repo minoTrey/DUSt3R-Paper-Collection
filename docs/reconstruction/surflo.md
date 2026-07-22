@@ -1,5 +1,9 @@
 # Surflo: Consistent 3D Surface Flow Model with Global State (arXiv preprint (2026-06))
 
+![surflo — architecture](https://arxiv.org/html/2606.13644v1/x1.png)
+
+_Surflo turns a handful of unposed RGB views into a detailed 3D surface (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Antoine Guédon, Shu Nakamura, Nicolas Dufour, Jiahui Lei, Ko Nishino, Angjoo Kanazawa

@@ -1,5 +1,9 @@
 # PanSt3R: Multi-view Consistent Panoptic Segmentation (ICCV 2025)
 
+![panst3r — architecture](https://arxiv.org/html/2506.21348/x1.png)
+
+_Architecture of PanSt3R (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Lojze Žust, Yohann Cabon, Juliette Marrie, Leonid Antsfeld, Boris Chidlovskii, Jerome Revaud, Gabriela Csurka

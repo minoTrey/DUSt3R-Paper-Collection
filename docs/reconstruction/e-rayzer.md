@@ -1,5 +1,9 @@
 # E-RayZer: Self-supervised 3D Reconstruction as Spatial Visual Pre-training (CVPR 2026)
 
+![e-rayzer — architecture](https://arxiv.org/html/2512.10950v2/x1.png)
+
+_E-RayZer Model & Training (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Qitao Zhao, Hao Tan, Qianqian Wang, Sai Bi, Kai Zhang, Kalyan Sunkavalli, Shubham Tulsiani, Hanwen Jiang

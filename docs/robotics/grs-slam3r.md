@@ -1,5 +1,9 @@
 # GRS-SLAM3R: Real-Time Dense SLAM with Gated Recurrent State (arXiv preprint 2025-09)
 
+![grs-slam3r — architecture](https://arxiv.org/html/2509.23737/pipeline1.png)
+
+_System overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Guole Shen, Tianchen Deng, Yanbo Wang, Yongtao Chen, Yilin Shen, Jiuming Liu, Jingchuan Wang

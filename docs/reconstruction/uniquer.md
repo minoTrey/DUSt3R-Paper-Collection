@@ -1,5 +1,9 @@
 # UniQueR: Unified Query-based Feedforward 3D Reconstruction (arXiv preprint)
 
+![uniquer — architecture](https://arxiv.org/html/2603.22851v1/x2.png)
+
+_UniQueR pipeline overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Chensheng Peng, Quentin Herau, Jiezhi Yang, Yichen Xie, Yihan Hu, Wenzhao Zheng, Matthew Strong, Masayoshi Tomizuka, Wei Zhan

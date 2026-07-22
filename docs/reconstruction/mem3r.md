@@ -1,5 +1,9 @@
 # Mem3R: Streaming 3D Reconstruction with Hybrid Memory via Test-Time Training (arXiv preprint (2026-04))
 
+![mem3r — architecture](https://arxiv.org/html/2604.07279v1/x2.png)
+
+_Overview of Mem3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Changkun Liu, Jiezhi Yang, Zeman Li, Yuan Deng, Jiancong Guo, Luca Ballan

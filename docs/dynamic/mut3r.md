@@ -1,5 +1,9 @@
 # MUT3R: Motion-aware Updating Transformer for Dynamic 3D Reconstruction (arXiv preprint (2025-12))
 
+![mut3r — architecture](https://arxiv.org/html/2512.03939/fig-head.png)
+
+_We present MUT3R, a training-free framework that derives motion cues from CUT3R’s attention maps and performs early-layer motion suppression to… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Guole Shen, Tianchen Deng, Xingrui Qin, Nailin Wang, Jianyu Wang, Yanbo Wang, Yongtao Chen, Hesheng Wang, Jingchuan Wang

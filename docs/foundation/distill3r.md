@@ -1,5 +1,9 @@
 # Distill3R: A Pipeline for Democratizing 3D Foundation Models on Commodity Hardware (arXiv preprint (2026-01))
 
+![distill3r — architecture](https://arxiv.org/html/2602.00865/figures/student_model.png)
+
+_Student Architecture (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Brandon Leblanc, Charalambos Poullis

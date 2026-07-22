@@ -1,5 +1,9 @@
 # 3DTurboQuant: Training-Free Near-Optimal Quantization for 3D Reconstruction Models (arXiv preprint (2026-04))
 
+![3dturboquant — architecture](https://arxiv.org/html/2604.05366v1/figures/dust3r_input.png)
+
+_DUSt3R KV cache quantization: depth map visualization (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Jae Joong Lee

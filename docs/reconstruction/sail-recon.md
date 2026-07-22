@@ -1,5 +1,9 @@
 # SAIL-Recon: Large SfM by Augmenting Scene Regression with Localization (3DV 2026)
 
+![sail-recon — architecture](https://arxiv.org/html/2508.17972/x1.png)
+
+_Architecture Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Junyuan Deng, Heng Li, Tao Xie, Weiqiang Ren, Qian Zhang, Ping Tan, Xiaoyang Guo

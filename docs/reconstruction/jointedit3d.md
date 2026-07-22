@@ -1,5 +1,9 @@
 # JointEdit3D: Feed-Forward 3D Scene Editing in a Unified Latent Space (arXiv preprint (2026-06))
 
+![jointedit3d — architecture](https://arxiv.org/html/2606.13345v1/x1.png)
+
+_JointEdit3D pipeline (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xinnan Zhu, Ruijie Xu, Jiayu Ying, Daoguo Dong, Jiachen Xu, Yuan Xie, Xin Tan (Xinnan Zhu and Ruijie Xu contributed equally; Xin Tan is corresponding author)

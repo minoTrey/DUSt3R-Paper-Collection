@@ -1,5 +1,9 @@
 # 4DLangVGGT: 4D Language-Visual Geometry Grounded Transformer (arXiv preprint 2025-12)
 
+![4dlangvggt — architecture](https://arxiv.org/html/2512.05060/x2.png)
+
+_Overview of 4DLangVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xianfeng Wu, Yajing Bai, Minghan Li, Xianzu Wu, Xueqi Zhao, Zhongyuan Lai, Wenyu Liu, Xinggang Wang

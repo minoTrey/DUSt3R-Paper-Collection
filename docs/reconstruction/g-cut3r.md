@@ -1,5 +1,9 @@
 # G-CUT3R: Guided 3D Reconstruction with Camera and Depth Prior Integration (ICLR 2026)
 
+![g-cut3r — architecture](https://arxiv.org/html/2508.11379/x1.png)
+
+_Overview of the G-CUT3R architecture (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Ramil Khafizov, Artem Komarichev, Ruslan Rakhimov, Peter Wonka, Evgeny Burnaev

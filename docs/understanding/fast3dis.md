@@ -1,5 +1,9 @@
 # FAST3DIS: Feed-forward Anchored Scene Transformer for 3D Instance Segmentation (arXiv preprint 2026-03)
 
+![fast3dis — architecture](https://arxiv.org/html/2603.25993v1/figs/overview.jpg)
+
+_Overview of the FAST3DIS framework (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Changyang Li, Xueqing Huang, Shin-Fang Chng, Huangying Zhan, Qingan Yan, Yi Xu

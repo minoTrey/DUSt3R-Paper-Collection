@@ -1,5 +1,9 @@
 # NOVA3R: Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction (ICLR 2026)
 
+![nova3r — architecture](https://arxiv.org/html/2603.04179v2/x3.png)
+
+_Overview of NOVA3R (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Weirong Chen, Chuanxia Zheng, Ganlin Zhang, Andrea Vedaldi, Daniel Cremers

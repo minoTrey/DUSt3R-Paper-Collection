@@ -1,5 +1,9 @@
 # Wat3R: Underwater 3D Geometry Learning without Annotations (ECCV 2026)
 
+![wat3r — architecture](https://arxiv.org/html/2607.08772v1/x9.png)
+
+_Figure A2: Synthetic underwater rendering examples (원논문 Fig. 99)_
+
 ## 📋 Overview
 
 - **Authors**: Jiangwei Ren, Xingyu Jiang, Zijie Song, Wei Xu, Hongkai Lin, Dingkang Liang, Xiang Bai

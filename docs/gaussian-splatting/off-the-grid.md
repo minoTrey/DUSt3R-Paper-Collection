@@ -1,5 +1,9 @@
 # Off The Grid: Detection of Primitives for Feed-Forward 3D Gaussian Splatting (CVPR 2026)
 
+![off-the-grid — architecture](https://arxiv.org/html/2512.15508v2/x2.png)
+
+_Overview of our pose-free 3DGS training framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Arthur Moreau, Richard Shaw, Michal Nazarczuk, Jisu Shin, Thomas Tanay, Zhensong Zhang, Songcen Xu, Eduardo Pérez-Pellitero

@@ -1,5 +1,9 @@
 # Instant NuRec: Feed-Forward 3D Gaussian Reconstruction for Driving Scene Simulation (arXiv preprint (2026-07))
 
+![instant-nurec — architecture](https://arxiv.org/html/2607.14203v1/x2.png)
+
+_Pipeline overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: NVIDIA (full list of contributors provided in the paper's Appendix A)

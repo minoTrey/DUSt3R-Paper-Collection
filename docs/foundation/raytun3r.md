@@ -1,5 +1,9 @@
 # RayTun3R: Online Camera Adaptation in 3D Foundation Models (arXiv preprint 2026-07)
 
+![raytun3r — architecture](https://arxiv.org/html/2607.02711v1/x1.png)
+
+_RayTun3R overview (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Daniil Sinitsyn, Nikita Araslanov, Daniel Cremers

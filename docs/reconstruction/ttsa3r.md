@@ -1,5 +1,9 @@
 # TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction (arXiv preprint 2026-01)
 
+![ttsa3r — architecture](https://arxiv.org/html/2601.22615v3/sec/imgs/TTSA3R.png)
+
+_Overview of our framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhijie Zheng, Xinhao Xiang, Jiawei Zhang

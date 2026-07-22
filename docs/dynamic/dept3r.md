@@ -1,5 +1,9 @@
 # DePT3R: Joint Dense Point Tracking and 3D Reconstruction of Dynamic Scenes in a Single Forward Pass (arXiv preprint (2025-12))
 
+![dept3r — architecture](https://arxiv.org/html/2512.13122v2/figures/framework.jpg)
+
+_Our proposed DePT3R framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Vivek Alumootil, Tuan-Anh Vu

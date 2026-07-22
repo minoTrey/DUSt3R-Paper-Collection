@@ -1,5 +1,9 @@
 # CARVE: Unlocking the Power of Critical Factors for 3D Visual Geometry Estimation (CVPR 2026)
 
+![carve — architecture](https://arxiv.org/html/2604.21713v1/x1.png)
+
+_Network architecture of our proposed CARVE model (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Guangkai Xu, Hua Geng, Huanyi Zheng, Songyi Yin, Yanlong Sun, Hao Chen, Chunhua Shen

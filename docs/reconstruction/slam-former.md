@@ -1,5 +1,9 @@
 # SLAM-Former: Putting SLAM into One Transformer (ECCV 2026)
 
+![slam-former — architecture](https://arxiv.org/html/2509.16909/x2.png)
+
+_The working pipeline of SLAM-Former (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yijun Yuan, Zhuoguang Chen, Kenan Li, Weibang Wang, Hang Zhao

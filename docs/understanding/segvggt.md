@@ -1,5 +1,9 @@
 # SegVGGT: Joint 3D Reconstruction and Instance Segmentation from Multi-View Images (ECCV 2026)
 
+![segvggt — architecture](https://arxiv.org/html/2603.19926v1/x2.png)
+
+_Overall architecture of SegVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Jinyuan Qu, Hongyang Li, Lei Zhang

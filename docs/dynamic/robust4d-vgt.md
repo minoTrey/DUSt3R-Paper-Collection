@@ -1,5 +1,9 @@
 # Robust4D-VGT: Robust 4D Visual Geometry Transformer with Uncertainty-Aware Priors (arXiv preprint (2026-04))
 
+![robust4d-vgt — architecture](https://arxiv.org/html/2604.09366v1/x1.png)
+
+_Overview of the proposed framwwork. (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Ying Zang, Yidong Han, Chaotao Ding, Yuanqi Hu, Deyi Ji, Qi Zhu, Xuanfu Li, Jin Ma, Lingyun Sun, Tianrun Chen, Lanyun Zhu

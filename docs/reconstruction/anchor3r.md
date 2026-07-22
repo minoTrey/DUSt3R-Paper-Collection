@@ -1,5 +1,9 @@
 # Anchor3R: Streaming 3D Reconstruction with Transient Anchors for Long-Horizon Visual Mapping (arXiv preprint)
 
+![anchor3r — architecture](https://arxiv.org/html/2606.05035v1/x2.png)
+
+_Overview of Anchor3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Peilin Tao, Chong Cheng, Yuansen Du, Caiwei Song, Zhengqing Chen, Xiaoyang Guo, Wei Yin, Weiqiang Ren, Qian Zhang, Hainan Cui, Shuhan Shen

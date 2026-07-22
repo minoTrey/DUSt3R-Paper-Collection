@@ -1,5 +1,9 @@
 # PRISM: Feed-Forward Single-Image 3D Reconstruction via Geometric Warp-Residual Modeling (arXiv preprint (2026-06))
 
+![prism — architecture](https://arxiv.org/html/2606.25430v1/sec/imgs/FIG2-Structure_Comparison.png)
+
+_From diffusion sampling to feed-forward geometric reasoning (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhijie Zheng, Xinhao Xiang, Jiawei Zhang

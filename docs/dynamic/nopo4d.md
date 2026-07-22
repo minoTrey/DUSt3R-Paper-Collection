@@ -1,5 +1,9 @@
 # NoPo4D: No Pose, No Problem in 4D — Feed-Forward Dynamic Gaussians from Unposed Multi-View Videos (arXiv preprint)
 
+![nopo4d — architecture](https://arxiv.org/html/2605.22190v1/x1.png)
+
+_Architecture overview (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Matteo Balice, Yanik Künzi, Chenyangguang Zhang, Matteo Matteucci, Marc Pollefeys, Sungwhan Hong

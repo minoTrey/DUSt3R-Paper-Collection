@@ -1,5 +1,9 @@
 # ReCoSplat: Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare (arXiv preprint (2026-03))
 
+![recosplat — architecture](https://arxiv.org/html/2603.09968v1/x1.png)
+
+_Autoregressive Reconstruction (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Freeman Cheng, Botao Ye, Xueting Li, Junqi You, Fangneng Zhan, Ming-Hsuan Yang

@@ -1,5 +1,9 @@
 # MapAnything: Universal Feed-Forward Metric 3D Reconstruction (3DV 2026)
 
+![mapanything — architecture](https://arxiv.org/html/2509.13414/x2.png)
+
+_Overview of the MapAnything Architecture (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Nikhil Keetha, Norman Müller, Johannes Schönberger, Lorenzo Porzi, Yuchen Zhang, Tobias Fischer, Arno Knapitsch, Duncan Zauss, Ethan Weber, Nelson Antunes, Jonathon Luiten, Manuel Lopez-Antequera, Samuel Rota Bulò, Christian Richardt, Deva Ramanan, Sebastian Scherer, Peter Kontschieder

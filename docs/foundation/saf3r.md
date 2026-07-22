@@ -1,5 +1,9 @@
 # SAF3R: Dynamic Sparse Attention for Feed-Forward 3D Reconstruction Transformers (ECCV 2026)
 
+![saf3r — architecture](https://arxiv.org/html/2607.03612v1/x1.png)
+
+_Left: SAF3R accelerates feed-forward 3D reconstruction (F3R) models while preserving reconstruction quality (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Jianing Deng, Yuanzhe Li, Jialu Wang, Song Wang, Tianlong Chen, Huanrui Yang, Jingtong Hu

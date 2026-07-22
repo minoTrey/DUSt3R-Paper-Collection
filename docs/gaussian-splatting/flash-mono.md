@@ -1,5 +1,9 @@
 # Flash-Mono: Feed-Forward Accelerated Gaussian Splatting Monocular SLAM (arXiv preprint 2026-04)
 
+![flash-mono — architecture](https://arxiv.org/html/2604.03092v1/figures/cover_v1.png)
+
+_Our Results for Reconstruction and Rendering & Tracking & Speed Metrics (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Zicheng Zhang, Ke Wu, Xiangting Meng, Keyu Liu, Jieru Zhao, Wenchao Ding

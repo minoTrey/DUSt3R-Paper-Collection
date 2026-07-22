@@ -1,5 +1,9 @@
 # Event3R: Asynchronous-to-Global 3D Reconstruction from Event Camera via Spatial-Temporal Feature Aggregation (IROS 2026)
 
+![event3r — architecture](https://arxiv.org/html/2607.15727v1/x1.png)
+
+_Overview of the Event3R pipeline (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Jian Huang, Haotian Shen, Xinhao Lou, Chengrui Dong, Wenpu Li, Peidong Liu

@@ -1,5 +1,9 @@
 # Reliev3R: Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations (CVPR 2026)
 
+![reliev3r — architecture](https://arxiv.org/html/2604.00548v1/figures/Figure1-v7-ds4.jpg)
+
+_In this paper, we propose Reliev3R, the first learning paradigm to train a Feed-forward Reconstruction Model (FFRM) from scratch without reliance on… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Youyu Chen, Junjun Jiang, Yueru Luo, Kui Jiang, Xianming Liu, Xu Yan, Dave Zhenyu Chen

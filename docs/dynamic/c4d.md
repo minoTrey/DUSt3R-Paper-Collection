@@ -1,5 +1,9 @@
 # C4D: 4D Made from 3D through Dual Correspondences (ICCV 2025)
 
+![c4d — architecture](https://arxiv.org/html/2510.14960/x2.png)
+
+_Overview of C4D (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Shizun Wang, Zhenxiang Jiang, Xingyi Yang, Xinchao Wang

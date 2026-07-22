@@ -1,5 +1,9 @@
 # G-MASt3R-SfM: Graph-based View Pruning and Multi-Stage Optimization for Robust SfM (arXiv preprint (2026-06))
 
+![g-mast3r-sfm — architecture](https://arxiv.org/html/2606.22856v1/x1.png)
+
+_The overall pipeline of the proposed G-MASt3R-SfM (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Toshiki Watanabe, Shintaro Ito, Natsuki Takama, Koichi Ito, Takafumi Aoki

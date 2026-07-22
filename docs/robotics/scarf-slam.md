@@ -1,5 +1,9 @@
 # ScaRF-SLAM: Scale-Consistent Reconstruction with Feed-Forward Models and Classical Visual SLAM (arXiv preprint 2026-05)
 
+![scarf-slam — architecture](https://arxiv.org/html/2606.00307v1/images/recon_demo.jpg)
+
+_Top: A consistent two-floor dense reconstruction produced by our mapping module, including rooms visited multiple times (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yuhao Zhang, Yifu Tao, Frank Dellaert, Maurice Fallon

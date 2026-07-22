@@ -1,5 +1,9 @@
 # GARD: Geometry-Aware Representation Denoising for Robust Multi-view 3D Reconstruction (arXiv preprint (2026-05))
 
+![gard — architecture](https://arxiv.org/html/2605.26230v1/x1.png)
+
+_Geometry-Aware Representation Denoising (GARD) framework (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Jin Hyeon Kim, Jaeeun Lee, Claire Kim, Kyoungjin Oh, Paul Hyunbin Cho, Jaewon Min, Yeji Choi, Jihye Park, Hyunhee Park, Minkyu Park, Seungryong Kim

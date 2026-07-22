@@ -1,5 +1,9 @@
 # Online3R: Online Learning for Consistent Sequential Reconstruction Based on Geometry Foundation Model (arXiv preprint (2026-04))
 
+![online3r — architecture](https://arxiv.org/html/2604.09480v1/x1.png)
+
+_Overview of our proposed Online3R (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Shunkai Zhou, Zike Yan, Fei Xue, Dong Wu, Yuchen Deng, Hongbin Zha

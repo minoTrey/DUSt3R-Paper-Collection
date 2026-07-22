@@ -1,5 +1,9 @@
 # YoNoSplat: You Only Need One Model for Feedforward 3D Gaussian Splatting (ICLR 2026)
 
+![yonosplat — architecture](https://arxiv.org/html/2511.07321/x3.png)
+
+_Overview of YoNoSplat (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Botao Ye, Boqi Chen, Haofei Xu, Daniel Barath, Marc Pollefeys

@@ -1,5 +1,9 @@
 # Any4D: Unified Feed-Forward Metric 4D Reconstruction (arXiv preprint)
 
+![any4d — architecture](https://arxiv.org/html/2512.10935/x6.png)
+
+_Figure S.1: 4-View training is key to enabling multi-frame generalization during inference (원논문 Fig. 99)_
+
 ## 📋 Overview
 
 - **Authors**: Jay Karhade, Nikhil Keetha, Yuchen Zhang, Tanisha Gupta, Akash Sharma, Sebastian Scherer, Deva Ramanan

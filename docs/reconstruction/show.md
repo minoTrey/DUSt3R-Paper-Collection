@@ -1,5 +1,9 @@
 # SHOW: Scene and Human in One World — Reconstruction in a Feedforward Pass (arXiv preprint (2026-06))
 
+![show — architecture](https://arxiv.org/html/2606.27720v1/x1.png)
+
+_Our method can produce better human and scene alignment under monocular human-centric video input (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Boao Shi, Qiao Feng, Yiming Huang, Lingjie Liu

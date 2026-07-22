@@ -1,5 +1,9 @@
 # FF-ProCams: Feed-Forward Gaussian Splatting for Projector-Camera System (arXiv preprint 2026-07)
 
+![ff-procams — architecture](https://arxiv.org/html/2607.17803v1/x1.png)
+
+_Overview of our FF-ProCams framework (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Ziyao Wang, Yuqi Li, Wenxing Zheng, Jiaying Chen, Chong Wang

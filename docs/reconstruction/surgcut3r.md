@@ -1,5 +1,9 @@
 # SurgCUT3R: Surgical Scene-Aware Continuous Understanding of Temporal 3D Representation (arXiv preprint (2026-03))
 
+![surgcut3r — architecture](https://arxiv.org/html/2603.06971v1/figures/pipeline.png)
+
+_Overview of SurgCUT3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Kaiyuan Xu, Fangzhou Hong, Daniel Elson, Baoru Huang

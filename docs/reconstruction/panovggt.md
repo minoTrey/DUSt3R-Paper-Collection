@@ -1,5 +1,9 @@
 # PanoVGGT: Feed-Forward 3D Reconstruction from Panoramic Imagery (CVPR 2026)
 
+![panovggt — architecture](https://arxiv.org/html/2603.17571v1/x2.png)
+
+_Overview of the proposed PanoVGGT framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yijing Guo, Mengjun Chao, Luo Wang, Tianyang Zhao, Haizhao Dai, Yingliang Zhang, Jingyi Yu, Yujiao Shi

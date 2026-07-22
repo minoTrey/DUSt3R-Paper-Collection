@@ -1,5 +1,9 @@
 # GLUEMAP: Global Structure-from-Motion Meets Feedforward Reconstruction (CVPR 2026)
 
+![gluemap — architecture](https://arxiv.org/html/2605.26103v2/x2.png)
+
+_Illustration of our proposed GLUEMAP pipeline consisting of four major steps: view graph initialization, feedforward local inference, global motion… (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Linfei Pan, Johannes Schönberger, Marc Pollefeys

@@ -1,5 +1,9 @@
 # S-MUSt3R: Sliding Multi-view 3D Reconstruction (arXiv preprint)
 
+![s-must3r — architecture](https://arxiv.org/html/2602.04517/fig/tum/tum-fr1-desk.png)
+
+_Segment pose correction with lightweight loop closure, for TUM (top) and 7-Scenes (down) datasets. (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: Leonid Antsfeld, Boris Chidlovskii, Yohann Cabon, Vincent Leroy, Jerome Revaud

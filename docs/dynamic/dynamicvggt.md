@@ -1,5 +1,9 @@
 # DynamicVGGT: Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving (arXiv preprint)
 
+![dynamicvggt — architecture](https://arxiv.org/html/2603.08254v1/x2.png)
+
+_Proposed DynamicVGGT training framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhuolin He, Jing Li, Guanghao Li, Xiaolei Chen, Jiacheng Tang, Siyang Zhang, Zhounan Jin, Feipeng Cai, Bin Li, Jian Pu, Jia Cai, Xiangyang Xue

@@ -1,5 +1,9 @@
 # FF3D-Survey: Feed-Forward 3D Scene Modeling — A Problem-Driven Perspective (arXiv preprint 2026-04)
 
+![ff3d-survey — architecture](https://arxiv.org/html/2604.14025v1/x6.png)
+
+_Outline of the survey (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Weijie Wang, Qihang Cao, Sensen Gao, Donny Y. Chen, Haofei Xu, Wenjing Bian, Songyou Peng, Tat-Jen Cham, Chuanxia Zheng, Andreas Geiger, Jianfei Cai, Jia-Wang Bian, Bohan Zhuang

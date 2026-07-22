@@ -1,5 +1,9 @@
 # EAG3R: Event-Augmented 3D Geometry Estimation for Dynamic and Extreme-Lighting Scenes (NeurIPS 2025)
 
+![eag3r — architecture](https://arxiv.org/html/2512.00771/x1.png)
+
+_EAG3R pipeline for event-augmented dynamic 3D reconstruction (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xiaoshan Wu, Yifei Yu, Xiaoyang Lyu, Yihua Huang, Bo Wang, Baoheng Zhang, Zhongrui Wang, Xiaojuan Qi

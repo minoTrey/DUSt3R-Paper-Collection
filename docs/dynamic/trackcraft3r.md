@@ -1,5 +1,9 @@
 # TrackCraft3R: Repurposing Video Diffusion Transformers for Dense 3D Tracking (arXiv preprint (2026-05))
 
+![trackcraft3r — architecture](https://arxiv.org/html/2605.12587v1/x1.png)
+
+_Overall architecture (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Jisu Nam, Jahyeok Koo, Soowon Son, Jaewoo Jung, Honggyu An, Junhwa Hur, Seungryong Kim

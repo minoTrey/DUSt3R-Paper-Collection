@@ -1,5 +1,9 @@
 # Fin3R: Fine-tuning Feed-forward 3D Reconstruction Models via Monocular Knowledge Distillation (NeurIPS 2025)
 
+![fin3r — architecture](https://arxiv.org/html/2511.22429/x3.png)
+
+_Pipeline of our method (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: Weining Ren, Hongjun Wang, Xiao Tan, Kai Han

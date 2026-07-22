@@ -1,5 +1,9 @@
 # QVGGT: Post-Training Quantized Visual Geometry Grounded Transformer (CVPR 2026)
 
+![qvggt — architecture](https://arxiv.org/html/2605.31124v1/x2.png)
+
+_Overview of QVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhizhen Pan, Hesong Wang, Huan Wang

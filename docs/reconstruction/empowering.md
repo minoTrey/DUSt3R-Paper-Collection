@@ -1,5 +1,9 @@
 # Empowering: Metric-Scale Feed-Forward Reconstruction via Satellite Images (arXiv preprint (2026-06))
 
+![empowering — architecture](https://arxiv.org/html/2606.08205v1/x1.png)
+
+_By incorporating satellite patches retrieved from coarse GPS signals, our method resolves the scale ambiguity of foundation-model-based 3D estimation… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xianghui Ze, Yongjian Luo, Mengjun Chao, Zhenbo Song, Jianfeng Lu, Yujiao Shi

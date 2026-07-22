@@ -1,5 +1,9 @@
 # Spa3R: Predictive Spatial Field Modeling for 3D Visual Reasoning (arXiv preprint 2026-02)
 
+![spa3r — architecture](https://arxiv.org/html/2602.21186/x1.png)
+
+_Overview of the Spa3R framework and Spa3-VLM integration (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Haoyi Jiang, Liu Liu, Xinjie Wang, Yonghao He, Wei Sui, Zhizhong Su, Wenyu Liu, Xinggang Wang

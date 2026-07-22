@@ -1,5 +1,9 @@
 # DejaView: Looping Transformers for Multi-View 3D Reconstruction (arXiv preprint)
 
+![deja-view — architecture](https://arxiv.org/html/2605.30215v2/x2.png)
+
+_Method overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Alessandro Burzio, Tobias Fischer, Sven Elflein, Qunjie Zhou, Riccardo de Lutio, Jiawei Ren, Jiahui Huang, Shengyu Huang, Marc Pollefeys, Laura Leal-Taixé, Zan Gojcic, Haithem Turki

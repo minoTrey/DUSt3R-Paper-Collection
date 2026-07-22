@@ -1,5 +1,9 @@
 # AMB3R: Accurate Feed-forward Metric-scale 3D Reconstruction with Backend (CVPR 2026)
 
+![amb3r — architecture](https://arxiv.org/html/2511.20343/x2.png)
+
+_Overview of AMB3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Hengyi Wang, Lourdes Agapito

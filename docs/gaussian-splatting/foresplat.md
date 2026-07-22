@@ -1,5 +1,9 @@
 # ForeSplat: Optimization-Aware Foresight for Feed-Forward 3D Gaussian Splatting (arXiv preprint 2026-05)
 
+![foresplat — architecture](https://arxiv.org/html/2605.22020v2/x1.png)
+
+_Overview of ForeSplat (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yuke Li, Weihang Liu, Cheng Zhang, Yuefeng Zhang, Jiadi Cui, Zixuan Wang, Junran Ding, Haoyu Wu, Yujiao Shi, Jingyi Yu, Xin Lou

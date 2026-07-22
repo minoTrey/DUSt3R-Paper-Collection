@@ -1,5 +1,9 @@
 # G3T: Gravity Aligned Coordinate Frames Simplify Pointmap Processing (arXiv preprint (2026-05))
 
+![g3t — architecture](https://arxiv.org/html/2605.27372v1/x3.png)
+
+_Model architecture (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Bharath Raj Nagoor Kani, Noah Snavely

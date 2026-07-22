@@ -1,5 +1,9 @@
 # DriveVGGT: Calibration-Constrained Visual Geometry Transformers for Multi-Camera Autonomous Driving (arXiv preprint (2025-11))
 
+![drivevggt — architecture](https://arxiv.org/html/2511.22264v2/x1.png)
+
+_Model Comparisons (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xiaosong Jia, Yanhao Liu, Yu Hong, Renqiu Xia, Junqi You, Bin Sun, Zhihui Hao, Junchi Yan

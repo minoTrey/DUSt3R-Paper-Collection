@@ -1,5 +1,9 @@
 # FFAvatar: Feed-Forward 4D Head Avatar Reconstruction from Sparse Portrait Images (ECCV 2026)
 
+![ffavatar — architecture](https://arxiv.org/html/2606.30347v2/x2.png)
+
+_Overview of FFAvatar (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Jianjiang Yao, Ke Xian, Renxiang Dai, Robert Caiming Qiu

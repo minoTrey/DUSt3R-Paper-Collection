@@ -1,5 +1,9 @@
 # InfiniteVGGT: Visual Geometry Grounded Transformer for Endless Streams (arXiv preprint (2026-01))
 
+![infinitevggt — architecture](https://arxiv.org/html/2601.02281v1/x3.png)
+
+_Overview of the InfiniteVGGT, illustrating a rolling memory paradigm that prunes KV cache contents to prevent VRAM accumulation over time, employing… (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Shuai Yuan, Yantai Yang, Xiaotian Yang, Xupeng Zhang, Zhonghao Zhao, Lingming Zhang, Zhipeng Zhang

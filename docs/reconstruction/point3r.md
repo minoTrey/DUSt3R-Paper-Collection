@@ -1,5 +1,9 @@
 # Point3R: Streaming 3D Reconstruction with Explicit Spatial Pointer Memory (NeurIPS 2025)
 
+![point3r — architecture](https://arxiv.org/html/2507.02863/x2.png)
+
+_Overview of Point3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yuqi Wu, Wenzhao Zheng, Jie Zhou, Jiwen Lu

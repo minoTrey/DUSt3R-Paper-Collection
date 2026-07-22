@@ -1,5 +1,9 @@
 # IVGT: Implicit Visual Geometry Transformer for Neural Scene Representation (arXiv preprint (2026-05))
 
+![ivgt — architecture](https://arxiv.org/html/2605.16258v2/x2.png)
+
+_Explicit vs (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yuqi Wu\*, Tianyu Hu\*, Wenzhao Zheng\*†, Yuanhui Huang, Haowen Sun, Jie Zhou, Jiwen Lu (\* Equal contributions, † Project leader)

@@ -1,5 +1,9 @@
 # Fisheye3R: Adapting Unified 3D Feed-Forward Foundation Models to Fisheye Lenses (arXiv preprint (2026-03))
 
+![fisheye3r — architecture](https://arxiv.org/html/2603.28896v2/x1.png)
+
+_Foundation models for 3D reconstruction generally fail on fisheye images (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Ruxiao Duan, Erin Hong, Dongxu Zhao, Eric Turner, Alex Wong, Yunwen Zhou

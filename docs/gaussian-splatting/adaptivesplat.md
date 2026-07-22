@@ -1,5 +1,9 @@
 # AdaptiveSplat: Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction (ECCV 2026)
 
+![adaptivesplat — architecture](https://arxiv.org/html/2607.04256v1/x1.png)
+
+_Overview: We demonstrate AdaptiveSplat’s ability to maintain scene fidelity while controlling the allocation of primitives (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Badrinath Singhal, Srihari K G, Sreehari Iyer, Ankit Dhiman, Venkatesh Babu Radhakrishnan

@@ -1,5 +1,9 @@
 # Muskie: Multi-view Masked Image Modeling for 3D Vision Pre-training (arXiv preprint 2025-11)
 
+![muskie — architecture](https://arxiv.org/html/2511.18115/x3.png)
+
+_Visualizations of the reconstructions from masked images (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Wenyu Li, Sidun Liu, Peng Qiao, Yong Dou, Tongrui Hu

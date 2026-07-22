@@ -1,5 +1,9 @@
 # Co-Me: Confidence Guided Token Merging for Visual Geometric Transformers (CVPR 2026)
 
+![co-me — architecture](https://arxiv.org/html/2511.14751v2/x2.png)
+
+_Overview of Co-Me (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yutian Chen, Yuheng Qiu, Ruogu Li, Ali Agha, Shayegan Omidshafiei, Jay Patrikar, Sebastian Scherer

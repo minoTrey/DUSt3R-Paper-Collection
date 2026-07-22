@@ -1,5 +1,9 @@
 # Cross3R: Feedforward 3D Reconstruction from Satellite, Drone, and Ground Images (arXiv preprint (2026-05))
 
+![cross3r — architecture](https://arxiv.org/html/2605.07978v1/framework.png)
+
+_Overview of Cross3R (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Qiwei Wang, Zhongyao Tuo, Xianghui Ze, Yujiao Shi

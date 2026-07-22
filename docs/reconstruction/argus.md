@@ -1,5 +1,9 @@
 # Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes (arXiv preprint (2026-06))
 
+![argus — architecture](https://arxiv.org/html/2606.30047v3/x2.png)
+
+_Overview of Argus (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xi Li, Linyuan Li, Yan Wu, Tong Rao, Kai Zhang, Xinchen Hui, Cihui Pan

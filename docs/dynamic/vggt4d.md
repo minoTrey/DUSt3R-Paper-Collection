@@ -1,5 +1,9 @@
 # VGGT4D: Mining Motion Cues in Visual Geometry Transformers for 4D Scene Reconstruction (CVPR 2026)
 
+![vggt4d — architecture](https://arxiv.org/html/2511.19971/x2.png)
+
+_Overview of VGGT4D (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yu Hu, Chong Cheng, Sicheng Yu, Xiaoyang Guo, Hao Wang

@@ -1,5 +1,9 @@
 # FUSER: Feed-Forward Multiview 3D Registration Transformer and SE(3)N Diffusion Refinement (CVPR 2026)
 
+![fuser — architecture](https://arxiv.org/html/2512.09373v3/x2.png)
+
+_Architecture of FUSER (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Haobo Jiang, Jin Xie, Jian Yang, Liang Yu, Jianmin Zheng

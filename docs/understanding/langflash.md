@@ -1,5 +1,9 @@
 # LangFlash: Feed-forward 3D Language Gaussian Splatting from Sparse Unposed Images (arXiv preprint 2026-05)
 
+![langflash — architecture](https://arxiv.org/html/2605.23287v1/x2.png)
+
+_The overall architecture of LangFlash is illustrated as follows (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yilong Liu, Wanhua Li, Chen Zhu-Tian, Hanspeter Pfister

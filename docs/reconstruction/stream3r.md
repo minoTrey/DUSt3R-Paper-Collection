@@ -1,5 +1,9 @@
 # STream3R: Scalable Sequential 3D Reconstruction with Causal Transformer (ICLR 2026)
 
+![stream3r — architecture](https://arxiv.org/html/2508.10893/x1.png)
+
+_STream3R (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yushi Lan, Yihang Luo, Fangzhou Hong, Shangchen Zhou, Honghua Chen, Zhaoyang Lyu, Shuai Yang, Bo Dai, Chen Change Loy, Xingang Pan

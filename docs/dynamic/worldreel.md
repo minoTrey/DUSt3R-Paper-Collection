@@ -1,5 +1,9 @@
 # WorldReel: 4D Video Generation with Consistent Geometry and Motion Modeling (arXiv preprint (2025-12))
 
+![worldreel — architecture](https://arxiv.org/html/2512.07821/figures/figure2_v2.png)
+
+_Overview of WorldReel (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Shaoheng Fang, Hanwen Jiang, Yunpeng Bai, Niloy J. Mitra, Qixing Huang

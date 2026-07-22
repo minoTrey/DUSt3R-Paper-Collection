@@ -1,5 +1,9 @@
 # AirSplat: Alignment and Rating for Robust Feed-Forward 3D Gaussian Splatting (arXiv preprint 2026-03)
 
+![airsplat — architecture](https://arxiv.org/html/2603.25129v1/figures/main_architecture.png)
+
+_Overview of our AirSplat training pipeline (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Minh-Quan Viet Bui, Jaeho Moon, Munchurl Kim (Bui and Moon are co-first authors, equal contribution)

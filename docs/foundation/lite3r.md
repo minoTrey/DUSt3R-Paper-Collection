@@ -1,5 +1,9 @@
 # Lite3R: A Model-Agnostic Framework for Efficient Feed-Forward 3D Reconstruction (arXiv preprint (2026-05))
 
+![lite3r — architecture](https://arxiv.org/html/2605.11354v1/headfig.png)
+
+_Overview of Lite3R (원논문 Fig. 1)_
+
 _Lite3R adapts a dense pretrained 3D reconstruction backbone into a lightweight student via Sparse Linear Attention, FP8-aware QAT, and partial attention distillation (원논문 Figure 1)._
 
 ## 📋 Overview

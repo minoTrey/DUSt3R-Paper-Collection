@@ -1,5 +1,9 @@
 # FastVGGT: Training-Free Acceleration of Visual Geometry Transformer (ICLR 2026)
 
+![fastvggt — architecture](https://arxiv.org/html/2509.02560/x4.png)
+
+_Overview of the proposed token merging strategy (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: You Shen, Zhipeng Zhang, Yansong Qu, Xiawu Zheng, Jiayi Ji, Shengchuan Zhang, Liujuan Cao

@@ -1,5 +1,9 @@
 # CoMo3R-SLAM: Collaborative Monocular Dense SLAM with Learned 3D Reconstruction Priors for Outdoor Multi-Agent Systems (arXiv preprint 2026-05)
 
+![como3r-slam — architecture](https://arxiv.org/html/2605.30488v1/x2.png)
+
+_Overview of CoMo3R-SLAM (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhihao Cao, Qi Shao, Shuhao Zhai, Feng Tian, Anh Nguyen, Hesheng Wang, Baoru Huang

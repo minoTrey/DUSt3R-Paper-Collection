@@ -1,5 +1,9 @@
 # LONG3R: Long Sequence Streaming 3D Reconstruction (ICCV 2025)
 
+![long3r — architecture](https://arxiv.org/html/2507.18255/x2.png)
+
+_(a) Main Architecture. (원논문 Fig. 99)_
+
 ## 📋 Overview
 
 - **Authors**: Zhuoguang Chen, Minghui Qin, Tianyuan Yuan, Zhe Liu, Hang Zhao

@@ -1,5 +1,9 @@
 # TriSplat: Simulation-Ready Feed-Forward 3D Scene Reconstruction (arXiv preprint (2026-05))
 
+![trisplat — architecture](https://arxiv.org/html/2605.26115v1/x1.png)
+
+_Overview of TriSplat (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Weijie Wang, Zimu Li, Jinchuan Shi, Zeyu Zhang, Botao Ye, Marc Pollefeys, Donny Y. Chen, Bohan Zhuang

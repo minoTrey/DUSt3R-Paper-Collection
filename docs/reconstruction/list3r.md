@@ -1,5 +1,9 @@
 # LIST3R: Long-sequence Instance-aware 3D Reconstruction (arXiv preprint (2026-07))
 
+![list3r — architecture](https://arxiv.org/html/2607.00375v1/x2.png)
+
+_Method overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Jing Gao, Wei Wang, Feiran Wang, Yan Yan

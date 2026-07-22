@@ -1,5 +1,9 @@
 # Stereo4D: Learning How Things Move in 3D from Internet Stereo Videos (CVPR 2025)
 
+![stereo4d — architecture](https://arxiv.org/html/2412.09621/x2.png)
+
+_Data processing pipeline (원논문 Fig. 2)_
+
 <video width="100%" controls>
   <source src="https://github.com/user-attachments/assets/45f1f704-7962-4411-981c-2dd012d73b4c" type="video/mp4">
   Your browser does not support the video tag.

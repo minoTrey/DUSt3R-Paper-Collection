@@ -1,5 +1,9 @@
 # Envision4D: Envisioning Visual Futures via Feed-forward 4D Gaussian Splatting for Autonomous Driving (arXiv preprint (2026-06))
 
+![envision4d — architecture](https://arxiv.org/html/2606.10656v1/x2.png)
+
+_Framework of Envision4D (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Qi Song, Yifei He, Chi Zhang, Zheng Fu, Xuhe Zhao, Mengmeng Yang, Kun Jiang, Rui Huang, Diange Yang

@@ -1,5 +1,9 @@
 # HiReFF: High-Resolution Feedforward Human Reconstruction from Uncalibrated Sparse-View Video (arXiv preprint (2026-06))
 
+![hireff — architecture](https://arxiv.org/html/2606.29333v1/x4.png)
+
+_More visualization results (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: Yiming Jiang, Hanzhang Tu, Wenfeng Song, Siyou Lin, Liang An, Shuai Li, Aimin Hao, Yebin Liu

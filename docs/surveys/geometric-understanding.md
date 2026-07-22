@@ -1,5 +1,9 @@
 # GeomUnderstanding: On Geometric Understanding and Learned Priors in Feed-forward 3D Reconstruction Models (arXiv preprint)
 
+![geometric-understanding — architecture](https://arxiv.org/html/2512.11508v2/x25.png)
+
+_Occlusion experiment (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: Jelena Bratulić, Sudhanshu Mittal, Thomas Brox, Christian Rupprecht

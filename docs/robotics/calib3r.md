@@ -1,5 +1,9 @@
 # Calib3R: A 3D Foundation Model for Multi-Camera to Robot Calibration and 3D Metric-Scaled Scene Reconstruction (arXiv preprint)
 
+![calib3r — architecture](https://arxiv.org/html/2509.08813/x1.png)
+
+_Overview of the Calib3R method (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Davide Allegro, Matteo Terreran, Stefano Ghidoni

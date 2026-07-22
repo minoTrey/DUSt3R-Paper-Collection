@@ -1,5 +1,9 @@
 # Track4World: Feedforward World-centric Dense 3D Tracking of All Pixels (arXiv preprint (2026-03))
 
+![track4world — architecture](https://arxiv.org/html/2603.02573v2/x1.png)
+
+_Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Jiahao Lu, Jiayi Xu, Wenbo Hu, Ruijie Zhu, Chengfeng Zhao, Sai-Kit Yeung, Ying Shan, Yuan Liu

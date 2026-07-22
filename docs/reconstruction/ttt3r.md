@@ -1,5 +1,9 @@
 # TTT3R: 3D Reconstruction as Test-Time Training (ICLR 2026)
 
+![ttt3r — architecture](https://arxiv.org/html/2509.26645v4/x2.png)
+
+_GPU memory cost for inference. (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xingyu Chen, Yue Chen, Yuliang Xiu, Andreas Geiger, Anpei Chen

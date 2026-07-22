@@ -1,5 +1,9 @@
 # PointSt3R: Point Tracking through 3D Grounded Correspondence (WACV 2026)
 
+![pointst3r — architecture](https://arxiv.org/html/2510.26443/x2.png)
+
+_PCA visualisation of feature maps extracted from CoTracker3 [14], MASt3R [18] and our PointSt3R on two frames of a TAP-Vid-DAVIS [8] video (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Rhodri Guerrier, Adam W. Harley, Dima Damen

@@ -1,5 +1,9 @@
 # OmniX: Any-view and Any-time 4D Reconstruction via Feed-forward Trajectory Fields (ECCV 2026)
 
+![omnix — architecture](https://arxiv.org/html/2607.10840v1/x1.png)
+
+_Framework of OmniX (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yanqin Jiang, Tengfei Wang, Zhengwei Wang, Chenjie Cao, Junta Wu, Wenhan Luo, Weiming Hu, Jin Gao, Chunchao Guo

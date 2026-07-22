@@ -1,5 +1,9 @@
 # WildSplatter: Feed-forward 3D Gaussian Splatting with Appearance Control from Unconstrained Images (arXiv preprint (2026-04))
 
+![wildsplatter — architecture](https://arxiv.org/html/2604.21182v1/x1.png)
+
+_We propose WildSplatter, a feed-forward 3DGS model for unconstrained images with unknown camera parameters and varying lighting conditions (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Yuki Fujimura, Takahiro Kushida, Kazuya Kitano, Takuya Funatomi, Yasuhiro Mukaigawa

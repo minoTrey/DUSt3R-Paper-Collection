@@ -1,5 +1,9 @@
 # AIM-SLAM: Dense Monocular SLAM via Adaptive and Informative Multi-View Keyframe Prioritization with Foundation Model (arXiv preprint 2026-03)
 
+![aim-slam — architecture](https://arxiv.org/html/2603.05097v3/x2.png)
+
+_Overall architecture of AIM-SLAM (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Jinwoo Jeon, Dong-Uk Seo, Eungchang Mason Lee, Hyun Myung

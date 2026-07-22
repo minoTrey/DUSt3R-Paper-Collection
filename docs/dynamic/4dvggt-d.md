@@ -1,5 +1,9 @@
 # 4DVGGT-D: 4D Visual Geometry Transformer with Improved Dynamic Depth Estimation (arXiv preprint (2026-05))
 
+![4dvggt-d — architecture](https://arxiv.org/html/2605.12027v1/x1.png)
+
+_Overview of the proposed progressive decoupling framework (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Ying Zang, Xuanyi Liu, Yidong Han, Deyi Ji, Chaotao Ding, Yuanqi Hu, Qi Zhu, Xuanfu Li, Jin Ma, Lingyun Sun, Tianrun Chen, Lanyun Zhu

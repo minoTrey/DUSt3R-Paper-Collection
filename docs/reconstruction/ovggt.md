@@ -1,5 +1,9 @@
 # OVGGT: O(1) Constant-Cost Streaming Visual Geometry Transformer (arXiv preprint (2026-03))
 
+![ovggt — architecture](https://arxiv.org/html/2603.05959v3/x1.png)
+
+_Overview of OVGGT (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Si-Yu Lu, Po-Ting Chen, Hui-Che Hsu, Sin-Ye Jhong, Wen-Huang Cheng, Yung-Yao Chen

@@ -1,5 +1,9 @@
 # HD-VGGT: High-Resolution Visual Geometry Transformer (arXiv preprint (2026-03))
 
+![hd-vggt — architecture](https://arxiv.org/html/2603.27222v2/x1.png)
+
+_Overview of the HD-VGGT architecture (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Tianrun Chen, Yuanqi Hu, Yidong Han, Hanjie Xu, Deyi Ji, Qi Zhu, Chunan Yu, Xin Zhang, Cheng Chen, Chaotao Ding, Ying Zang, Xuanfu Li, Jin Ma, Lanyun Zhu

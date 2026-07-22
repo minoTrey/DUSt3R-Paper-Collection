@@ -1,5 +1,9 @@
 # DA3: Recovering the Visual Space from Any Views (ICLR 2026)
 
+![depth-anything-3 — architecture](https://arxiv.org/html/2511.10647/figs/pdfs/pipeline.png)
+
+_Pipeline of Depth Anything 3 (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Haotong Lin, Sili Chen, Jun Hao Liew, Donny Y. Chen, Zhenyu Li, Guang Shi, Jiashi Feng, Bingyi Kang

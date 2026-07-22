@@ -1,5 +1,9 @@
 # SING3R-SLAM: Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors (arXiv preprint)
 
+![sing3r-slam — architecture](https://arxiv.org/html/2511.17207v2/x2.png)
+
+_Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Kunyi Li, Michael Niemeyer, Sen Wang, Stefano Gasperini, Nassir Navab, Federico Tombari

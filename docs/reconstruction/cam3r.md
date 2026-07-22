@@ -1,5 +1,9 @@
 # CAM3R: Camera-Agnostic Model for 3D Reconstruction (arXiv preprint (2026-03))
 
+![cam3r — architecture](https://arxiv.org/html/2603.22631v1/pipeline_image_corrected.jpg)
+
+_CAM3R Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Namitha Guruprasad, Abhay Yadav, Cheng Peng, Rama Chellappa

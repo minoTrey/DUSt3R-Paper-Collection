@@ -1,5 +1,9 @@
 # Rig3R: Rig-Aware Conditioning for Learned 3D Reconstruction (arXiv preprint)
 
+![rig3r — architecture](https://arxiv.org/html/2506.02265/extracted/6504962/assets/rig3r_teaser_12.png)
+
+_Rig3R is the first learned 3D vision model to leverage rig constraints when available, and the first method to support rig calibration discovery from… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Samuel Li, Pujith Kachana, Prajwal Chidananda, Saurabh Nair, Yasutaka Furukawa, Matthew Brown

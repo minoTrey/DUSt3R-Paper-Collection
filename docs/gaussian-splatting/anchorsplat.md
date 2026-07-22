@@ -1,5 +1,9 @@
 # AnchorSplat: Feed-Forward 3D Gaussian Splatting with 3D Geometric Priors (CVPR 2026)
 
+![anchorsplat — architecture](https://arxiv.org/html/2604.07053v2/x3.png)
+
+_Overview of the proposed AnchorSplat pipeline (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Xiaoxue Zhang, Xiaoxu Zheng, Yixuan Yin, Tiao Zhao, Kaihua Tang, Michael Bi Mi, Zhan Xu, Dave Zhenyu Chen

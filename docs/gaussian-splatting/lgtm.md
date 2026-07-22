@@ -1,5 +1,9 @@
 # LGTM: Less Gaussians, Texture More — 4K Feed-Forward Textured Splatting (ICLR 2026)
 
+![lgtm — architecture](https://arxiv.org/html/2603.25745v1/x2.png)
+
+_LGTM Architecture (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yixing Lao, Xuyang Bai, Xiaoyang Wu, Nuoyuan Yan, Zixin Luo, Tian Fang, Jean-Daniel Nahmias, Yanghai Tsin, Shiwei Li, Hengshuang Zhao

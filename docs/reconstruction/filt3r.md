@@ -1,5 +1,9 @@
 # FILT3R: Latent State Adaptive Kalman Filter for Streaming 3D Reconstruction (arXiv preprint (2026-03))
 
+![filt3r — architecture](https://arxiv.org/html/2603.18493v1/x2.png)
+
+_FILT3R overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Seonghyun Jin, Jong Chul Ye

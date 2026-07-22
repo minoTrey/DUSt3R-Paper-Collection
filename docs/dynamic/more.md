@@ -1,5 +1,9 @@
 # MoRe: Motion-aware Feed-forward 4D Reconstruction Transformer (CVPR 2026)
 
+![more — architecture](https://arxiv.org/html/2603.05078v2/x2.png)
+
+_Method Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Junton Fang, Zequn Chen, Weiqi Zhang, Donglin Di, Xuancheng Zhang, Chengmin Yang, Yu-Shen Liu

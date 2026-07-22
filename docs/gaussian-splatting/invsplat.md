@@ -1,5 +1,9 @@
 # InvSplat: Inverse Feed-Forward Scene Splatting (arXiv preprint (2026-07))
 
+![invsplat — architecture](https://arxiv.org/html/2607.02301v1/x1.png)
+
+_InvSplat Overview (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Polina Karpikova, Wenjing Bian, Haofei Xu, Hendrik Lensch, Andreas Geiger

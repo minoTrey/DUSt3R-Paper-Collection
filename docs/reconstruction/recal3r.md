@@ -1,5 +1,9 @@
 # ReCal3R: Reliability-Calibrated Learning Rates for Streaming 3D Reconstruction (arXiv preprint (2026-07))
 
+![recal3r — architecture](https://arxiv.org/html/2607.05356v2/x1.png)
+
+_Given the current image and the recurrent scene state, ReCal3R derives a candidate learning rate and estimates state token reliability from… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xinze Li, Yiyuan Wang, Pengxu Chen, Weifeng Su, Weisi Lin, Wentao Cheng

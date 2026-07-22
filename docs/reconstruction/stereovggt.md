@@ -1,5 +1,9 @@
 # StereoVGGT: A Training-Free Visual Geometry Transformer for Stereo Vision (arXiv preprint (2026-03))
 
+![stereovggt — architecture](https://arxiv.org/html/2603.29368v1/x3.png)
+
+_VGGT suffers from spatial-structural degradation during its feature processing (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Ziyang Chen, Yansong Qu, You Shen, Xuan Cheng, Liujuan Cao

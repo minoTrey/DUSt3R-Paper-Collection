@@ -1,5 +1,9 @@
 # LSRM: High-Fidelity Object-Centric Reconstruction via Scaled Context Windows (arXiv preprint (2026-04))
 
+![lsrm — architecture](https://arxiv.org/html/2604.05182v2/x2.png)
+
+_Network architecture of LSRM (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhengqin Li, Cheng Zhang, Jakob Engel, Zhao Dong

@@ -1,5 +1,9 @@
 # HGGT: Robust and Flexible 3D Hand Mesh Reconstruction from Uncalibrated Images (arXiv preprint (2026-03))
 
+![hggt — architecture](https://arxiv.org/html/2603.23997v2/images/pipeline_new.png)
+
+_The pipeline of HGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yumeng Liu, Xiao-Xiao Long, Marc Habermann, Xuanze Yang, Cheng Lin, Yuan Liu, Yuexin Ma, Wenping Wang, Ligang Liu

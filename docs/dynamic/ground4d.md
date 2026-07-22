@@ -1,5 +1,9 @@
 # Ground4D: Spatially-Grounded Feedforward 4D Reconstruction for Unstructured Off-Road Scenes (arXiv preprint (2026-05))
 
+![ground4d — architecture](https://arxiv.org/html/2605.04435v1/x2.png)
+
+_Overview of our Ground4D framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Shuo Wang, Jilin Mei, Fuyang Liu, Wenfei Guan, Fanjie Kong, Zhihua Zhao, Shuai Wang, Chen Min, Yu Hu

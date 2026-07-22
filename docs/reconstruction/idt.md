@@ -1,5 +1,9 @@
 # IDT: A Physically Grounded Transformer for Feed-Forward Multi-View Intrinsic Decomposition (arXiv preprint (2025-12))
 
+![idt — architecture](https://arxiv.org/html/2512.23667/assets/pipeline.png)
+
+_Overview of the IDT pipeline (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Kang Du, Yirui Guan, Zeyu Wang

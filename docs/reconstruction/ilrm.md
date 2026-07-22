@@ -1,5 +1,9 @@
 # iLRM: An Iterative Large 3D Reconstruction Model (CVPR 2026)
 
+![ilrm — architecture](https://arxiv.org/html/2507.23277v3/main_figure/update.jpg)
+
+_Network architecture. (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Gyeongjin Kang, Seungtae Nam, Seungkwon Yang, Xiangyu Sun, Sameh Khamis, Abdelrahman Mohamed, Eunbyung Park

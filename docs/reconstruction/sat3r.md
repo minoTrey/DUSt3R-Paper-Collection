@@ -1,5 +1,9 @@
 # Sat3R: Satellite DSM Reconstruction via RPC-Aware Depth Fine-tuning (arXiv preprint (2026-05))
 
+![sat3r — architecture](https://arxiv.org/html/2605.07264v1/figs/method_new.png)
+
+_Overview of Sat3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Qiaoyi Yang, Chaoyi Zhou, Xi Liu, Run Wang, Minghui Xu, Mert D. Pesé, Feng Luo, Yuhao Xu, Zhi-Qi Cheng, Qiushi Chen, Hairong Qi, Siyu Huang

@@ -1,5 +1,9 @@
 # OmniVGGT: Omni-Modality Driven Visual Geometry Grounded Transformer (CVPR 2026)
 
+![omnivggt — architecture](https://arxiv.org/html/2511.10560/x2.png)
+
+_Overview of OmniVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Haosong Peng, Hao Li, Yalun Dai, Yushi Lan, Yihang Luo, Tianyu Qi, Zhengshen Zhang, Yufeng Zhan, Junfei Zhang, Wenchao Xu, Ziwei Liu

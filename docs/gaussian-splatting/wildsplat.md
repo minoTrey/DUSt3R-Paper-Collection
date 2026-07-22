@@ -1,5 +1,9 @@
 # WildSplat: Feedforward Gaussian Splatting from Unposed In-the-Wild Images (ECCV 2026)
 
+![wildsplat — architecture](https://arxiv.org/html/2607.05347v1/x2.png)
+
+_Overview of WildSplat (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xiyu Zhang, Jingyu Zhuang, Hongjia Zhai, Zizheng Yan, Jinwei Chen, Guofeng Zhang, Qingnan Fan

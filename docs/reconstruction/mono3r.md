@@ -1,5 +1,9 @@
 # Mono3R: Exploiting Monocular Cues for Geometric 3D Reconstruction (ACM MM 2025)
 
+![mono3r — architecture](https://arxiv.org/html/2504.13419/x1.png)
+
+_In this paper, we reveal the limitations of DUSt3R in reconstructing textureless regions and fine structures, as demonstrated in the 2nd row (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Wenyu Li, Sidun Liu, Peng Qiao, Yong Dou

@@ -1,5 +1,9 @@
 # S-VGGT: Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models (ICME 2026)
 
+![s-vggt — architecture](https://arxiv.org/html/2603.17625v1/x2.png)
+
+_The framework of S-VGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xinze Li, Pengxu Chen, Yiyuan Wang, Weifeng Su, Wentao Cheng

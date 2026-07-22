@@ -1,5 +1,9 @@
 # Cross-View Splatter: Feed-Forward View Synthesis with Georeferenced Images (CVPR 2026)
 
+![cross-view-splatter — architecture](https://arxiv.org/html/2605.19656v1/x2.png)
+
+_Method overview: Given geolocalized ground images and a single orthorectified satellite perspective, our model synthesizes 3D Gaussian splats in a… (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Matias Turkulainen, Akshay Krishnan, Filippo Aleotti, Mohamed Sayed, Guillermo Garcia-Hernando, Juho Kannala, Arno Solin, Gabriel Brostow, Daniyar Turmukhambetov

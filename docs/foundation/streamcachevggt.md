@@ -1,5 +1,9 @@
 # StreamCacheVGGT: Streaming Visual Geometry Transformers with Robust Scoring and Hybrid Cache Compression (arXiv preprint 2026-04)
 
+![streamcachevggt — architecture](https://arxiv.org/html/2604.15237v2/x1.png)
+
+_Overall architecture of our streaming 3D reconstruction framework (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Xuanyi Liu, Chunan Yu, Deyi Ji, Qi Zhu, Lingyun Sun, Xuanfu Li, Jin Ma, Tianrun Chen, Lanyun Zhu

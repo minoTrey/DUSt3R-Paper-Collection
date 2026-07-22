@@ -1,5 +1,9 @@
 # TurboVGGT: Fast Visual Geometry Reconstruction with Adaptive Alternating Attention (arXiv preprint)
 
+![turbovggt — architecture](https://arxiv.org/html/2605.14315v1/x2.png)
+
+_The overall framework of the proposed TurboVGGT. (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: David Huang, Guile Wu, Chengjie Huang, Bingbing Liu, Dongfeng Bai

@@ -1,5 +1,9 @@
 # TALO: Pushing 3D Vision Foundation Models Towards Globally Consistent Online Reconstruction (CVPR 2026)
 
+![talo — architecture](https://arxiv.org/html/2512.02341v3/Fig/Fig1.png)
+
+_Degeneration of Sim​(3)\mathrm{Sim}(3) alignment used in VGGT-Long [8] and SL​(4)\mathrm{SL}(4) in VGGT-SLAM [23] (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Fengyi Zhang, Tianjun Zhang, Kasra Khosoussi, Zheng Zhang, Zi Huang, Yadan Luo

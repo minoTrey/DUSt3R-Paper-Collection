@@ -1,5 +1,9 @@
 # PaceVGGT: Pre-Alternating-Attention Token Pruning for Visual Geometry Transformers (arXiv preprint 2026-05)
 
+![pacevggt — architecture](https://arxiv.org/html/2605.08371v1/x3.png)
+
+_Overview of PaceVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Haotang Li, Zhenyu Qi, Shaohan Henry Wang, Kebin Peng, Zi Wang, Qing Guo, Sen He, Huanrui Yang

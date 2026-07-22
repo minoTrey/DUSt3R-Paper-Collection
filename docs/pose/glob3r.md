@@ -1,5 +1,9 @@
 # Glob3R: Global Structure-from-Motion with 3D Foundation Models (arXiv preprint (2026-07))
 
+![glob3r — architecture](https://arxiv.org/html/2607.09225v1/x1.png)
+
+_Overview of the proposed reconstruction framework (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Junyuan Deng, Heng Li, Kejie Qiu, Lingteng Qiu, Rui Peng, Weichao Shen, Weihao Yuan, Siyu Zhu, Zilong Dong, Ping Tan

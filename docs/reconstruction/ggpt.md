@@ -1,5 +1,9 @@
 # GGPT: Geometry-Grounded Point Transformer (CVPR 2026)
 
+![ggpt — architecture](https://arxiv.org/html/2603.11174v1/fig/fig2.jpg)
+
+_Overview of our method (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yutong Chen, Yiming Wang, Xucong Zhang, Sergey Prokudin, Siyu Tang

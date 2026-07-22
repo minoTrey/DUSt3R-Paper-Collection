@@ -1,5 +1,9 @@
 # QuantVGGT: Quantized Visual Geometry Grounded Transformer (ICLR 2026)
 
+![quantvggt — architecture](https://arxiv.org/html/2509.21302v4/x2.png)
+
+_Overview of proposed QuantVGGT (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Weilun Feng, Haotong Qin, Mingqiang Wu, Chuanguang Yang, Yuqi Li, Xiangqi Li, Zhulin An, Libo Huang, Yulun Zhang, Michele Magno, Yongjun Xu

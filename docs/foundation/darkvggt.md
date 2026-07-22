@@ -1,5 +1,9 @@
 # DarkVGGT: Seeing Through Darkness Using Thermal Geometry without Daylight Tax (arXiv preprint (2026-06))
 
+![darkvggt — architecture](https://arxiv.org/html/2606.11326v2/x2.png)
+
+_Overview of the DarkVGGT framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Minseong Kweon, Wenyuan Zhao, Nuo Chen, Lulin Liu, Huiwen Han, Zihao Zhu, Srinivas Shakkottai, Chao Tian, Zhiwen Fan

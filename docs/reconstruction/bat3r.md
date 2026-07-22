@@ -1,5 +1,9 @@
 # BAT3R: Bootstrapping Articulated 3D Reconstruction from 2D Image Collections (ECCV 2026)
 
+![bat3r — architecture](https://arxiv.org/html/2607.03891v1/x1.png)
+
+_While effective, supervised approaches for 3D shape estimation from 2D images rely on the availability of large manually crafted and curated 3D shape… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Jakub Zadrozny, Oisin Mac Aodha, Hakan Bilen

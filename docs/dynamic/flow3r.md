@@ -1,5 +1,9 @@
 # Flow3r: Factored Flow Prediction for Scalable Visual Geometry Learning (CVPR 2026)
 
+![flow3r — architecture](https://arxiv.org/html/2602.20157/x1.png)
+
+_Mechanisms for flow prediction (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zhongxiao Cong, Qitao Zhao, Minsik Jeon, Shubham Tulsiani

@@ -1,5 +1,9 @@
 # Wid3R: Wide Field-of-View 3D Reconstruction via Camera Model Conditioning (arXiv preprint 2026-02)
 
+![wid3r — architecture](https://arxiv.org/html/2602.05321v2/x1.png)
+
+_Wid3R surpasses VGGT [wang2025vggt] and π3\pi^{3} [wang2025pi] in feed-forward reconstruction of fisheye and 360∘ imagery, demonstrating strong… (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Dongki Jung, Jaehoon Choi, Adil Qureshi, Somi Jeong, Dinesh Manocha, Suyong Yeon

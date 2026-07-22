@@ -1,5 +1,9 @@
 # GIFSplat: Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views (arXiv preprint (2026-02))
 
+![gifsplat — architecture](https://arxiv.org/html/2602.22571v1/pics/overview.png)
+
+_Overview of GIFSplat (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Tianyu Chen, Wei Xiang, Kang Han, Yu Lu, Di Wu, Gaowen Liu, Ramana Rao Kompella

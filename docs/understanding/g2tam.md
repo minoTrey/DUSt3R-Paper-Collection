@@ -1,5 +1,9 @@
 # G2TAM: Geometry Grounded Track Anything Model (ICML 2026)
 
+![g2tam — architecture](https://arxiv.org/html/2607.03789v1/figures/model_v4.jpeg)
+
+_Overview of G2TAM (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Chenming Zhu, Peizhou Cao, Jingli Lin, Wenbo Hu, Yunlong Ran, Jiangmiao Pang, Tai Wang, Xihui Liu

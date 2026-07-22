@@ -1,5 +1,9 @@
 # FlashVGGT: Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention (arXiv preprint (2025-12))
 
+![flashvggt — architecture](https://arxiv.org/html/2512.01540v2/x4.png)
+
+_Architecture Overview (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Zipeng Wang, Dan Xu

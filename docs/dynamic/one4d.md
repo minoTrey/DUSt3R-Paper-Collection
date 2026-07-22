@@ -1,5 +1,9 @@
 # One4D: Unified 4D Generation and Reconstruction via Decoupled LoRA Control (arXiv preprint (2025-11))
 
+![one4d — architecture](https://arxiv.org/html/2511.18922/x4.png)
+
+_Overview of the One4D framework (원논문 Fig. 4)_
+
 ## 📋 Overview
 
 - **Authors**: Zhenxing Mi, Yuxin Wang, Dan Xu

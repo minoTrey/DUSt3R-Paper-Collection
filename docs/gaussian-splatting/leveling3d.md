@@ -1,5 +1,9 @@
 # Leveling3D: Leveling Up 3D Reconstruction with Feed-Forward 3D Gaussian Splatting and Geometry-Aware Generation (arXiv preprint (2026-03))
 
+![leveling3d — architecture](https://arxiv.org/html/2603.16211v1/x2.png)
+
+_Overview of the Leveling3D pipeline (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Yiming Huang, Baixiang Huang, Beilei Cui, CHI KIT NG, Long Bai, Hongliang Ren

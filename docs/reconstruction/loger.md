@@ -1,5 +1,9 @@
 # LoGeR: Long-Context Geometric Reconstruction with Hybrid Memory (arXiv preprint)
 
+![loger — architecture](https://arxiv.org/html/2603.03269v2/x2.png)
+
+_Overview of a single block of our hybrid memory module (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Junyi Zhang, Charles Herrmann, Junhwa Hur, Chen Sun, Ming-Hsuan Yang, Forrester Cole, Trevor Darrell, Deqing Sun

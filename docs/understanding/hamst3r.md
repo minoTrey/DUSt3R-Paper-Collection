@@ -1,5 +1,9 @@
 # HAMSt3R: Human-Aware Multi-view Stereo 3D Reconstruction (ICCV 2025)
 
+![hamst3r — architecture](https://arxiv.org/html/2508.16433/imgs/GA_scene/input_0.jpg)
+
+_Results on HumGen3D data (on a scene not seen during training), using global alignment: Given a set of images of a scene (three out of eight of them… (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Sara Rojas, Matthieu Armando, Bernard Ghanem, Philippe Weinzaepfel, Vincent Leroy, Grégory Rogez

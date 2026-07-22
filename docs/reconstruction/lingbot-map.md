@@ -1,5 +1,9 @@
 # LingBot-Map: Geometric Context Transformer for Streaming 3D Reconstruction (arXiv preprint)
 
+![lingbot-map — architecture](https://arxiv.org/html/2604.14141v2/x4.png)
+
+_(a) Row-major grid layout. (원논문 Fig. 99)_
+
 ## 📋 Overview
 
 - **Authors**: Lin-Zhuo Chen, Jian Gao, Yihang Chen, Ka Leong Cheng, Yipengjing Sun, Liangxiao Hu, Nan Xue, Xing Zhu, Yujun Shen, Yao Yao, Yinghao Xu

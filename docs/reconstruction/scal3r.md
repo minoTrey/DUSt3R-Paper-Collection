@@ -1,5 +1,9 @@
 # Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction (CVPR 2026)
 
+![scal3r — architecture](https://arxiv.org/html/2604.08542v1/x2.png)
+
+_Overview of Scal3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Tao Xie, Peishan Yang, Yudong Jin, Yingfeng Cai, Wei Yin, Weiqiang Ren, Qian Zhang, Wei Hua, Sida Peng, Xiaoyang Guo, Xiaowei Zhou

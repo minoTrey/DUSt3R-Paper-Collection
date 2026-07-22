@@ -1,5 +1,9 @@
 # GoToHunt: Good Token Hunting for Visual Geometry Transformers (arXiv preprint (2026-05))
 
+![good-token-hunting — architecture](https://arxiv.org/html/2605.23892v1/x1.png)
+
+_We accelerate visual geometry transformers via a two-stage hierarchical token selection scheme: inter-frame selection followed by intra-frame… (원논문 Fig. 1)_
+
 _Figure 1: A two-stage hierarchical token selection scheme (inter-frame → intra-frame) that scales near-linearly with the number of input frames and accelerates VGGT by over 85% on 500-image scenes while maintaining or improving accuracy._
 
 ## 📋 Overview

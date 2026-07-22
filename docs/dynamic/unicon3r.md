@@ -1,5 +1,9 @@
 # UniCon3R: Unified Contact-aware 4D Human-Scene Reconstruction from Monocular Video (arXiv preprint (2026-04))
 
+![unicon3r — architecture](https://arxiv.org/html/2604.19923v2/figure/UniCon3R_architecture_new14.png)
+
+_Overview of UniCon3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Tanuj Sur, Shashank Tripathi, Nikos Athanasiou, Ha Linh Nguyen, Kai Xu, Michael J. Black, Angela Yao

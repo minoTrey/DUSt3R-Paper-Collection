@@ -1,5 +1,9 @@
 # Keyframe-Based Feed-Forward VO: RL-Driven Keyframe Selection for VGGT (arXiv preprint (2026-01))
 
+![keyframe-based — architecture](https://arxiv.org/html/2601.16020/x1.png)
+
+_Method Overview: We propose a keyframe-based feed-forward VO with VGGT [13] as backbone and a RL-based keyframe method (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Weichen Dai, Wenhan Su, Da Kong, Yuhang Ming, Wanzeng Kong

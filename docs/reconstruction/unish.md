@@ -1,5 +1,9 @@
 # UniSH: Unifying Scene and Human Reconstruction in a Feed-Forward Pass (arXiv preprint 2026-01)
 
+![unish — architecture](https://arxiv.org/html/2601.01222/x1.png)
+
+_The network architecture of UniSH (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Mengfei Li, Peng Li, Zheng Zhang, Jiahao Lu, Chengfeng Zhao, Wei Xue, Qifeng Liu, Sida Peng, Wenxiao Zhang, Wenhan Luo, Yuan Liu, Yike Guo

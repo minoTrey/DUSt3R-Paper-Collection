@@ -1,5 +1,9 @@
 # Robo3R: Enhancing Robotic Manipulation with Accurate Feed-Forward 3D Reconstruction (RSS 2026)
 
+![robo3r — architecture](https://arxiv.org/html/2602.10101v2/x1.png)
+
+_Method Overview (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Sizhe Yang, Linning Xu, Hao Li, Juncheng Mu, Jia Zeng, Dahua Lin, Jiangmiao Pang

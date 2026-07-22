@@ -1,5 +1,9 @@
 # UFO: Unifying Feed-Forward and Optimization-based Methods for Large Driving Scene Modeling (arXiv preprint (2026-02))
 
+![ufo — architecture](https://arxiv.org/html/2602.20943/images/pipeline_v7.png)
+
+_Overview of our proposed framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Kaiyuan Tan\*, Yingying Shen\*, Ziyue Zhu, Mingfei Tu, Haohui Zhu, Bing Wang, Guang Chen, Hangjun Ye (B), Haiyang Sun (†)

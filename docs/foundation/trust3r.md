@@ -1,5 +1,9 @@
 # Trust3R: Evidential Uncertainty for Feed-Forward 3D Reconstruction (ICML 2026)
 
+![trust3r — architecture](https://arxiv.org/html/2605.19539v1/x2.png)
+
+_Overview of the proposed Trust3R framework (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zihao Zhu, Wenyuan Zhao, Nuo Chen, Chao Tian, Zhiwen Fan

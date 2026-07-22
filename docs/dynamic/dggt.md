@@ -1,5 +1,9 @@
 # DGGT: Feedforward 4D Reconstruction of Dynamic Driving Scenes using Unposed Images (CVPR 2026)
 
+![dggt — architecture](https://arxiv.org/html/2512.03004/x3.png)
+
+_Overall Architecture (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xiaoxue Chen, Ziyi Xiong, Yuantao Chen, Gen Li, Nan Wang, Hongcheng Luo, Long Chen, Haiyang Sun, Bing Wang, Guang Chen, Hangjun Ye, Hongyang Li, Ya-Qin Zhang, Hao Zhao

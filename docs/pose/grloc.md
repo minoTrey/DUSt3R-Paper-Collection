@@ -1,5 +1,9 @@
 # GRLoc: Geometric Representation Regression for Visual Localization (arXiv preprint (2025-11))
 
+![grloc — architecture](https://arxiv.org/html/2511.13864v2/figs/comp_twosides.jpg)
+
+_Left: Our Geometric Representation Regression (GRR) paradigm is inspired by Novel View Synthesis (NVS) (원논문 Fig. 1)_
+
 ## 📋 Overview
 
 - **Authors**: Changyang Li, Xuejian Ma, Lixiang Liu, Zhan Li, Qingan Yan, Yi Xu

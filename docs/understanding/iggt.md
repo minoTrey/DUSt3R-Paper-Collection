@@ -1,5 +1,9 @@
 # IGGT: Instance-Grounded Geometry Transformer for Semantic 3D Reconstruction (ICLR 2026)
 
+![iggt — architecture](https://arxiv.org/html/2510.22706/x2.png)
+
+_Data Curation Pipeline (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Hao Li, Zhengyu Zou, Fangfu Liu, Xuanyang Zhang, Fangzhou Hong, Yukang Cao, Yushi Lan, Manyuan Zhang, Gang Yu, Dingwen Zhang, Ziwei Liu

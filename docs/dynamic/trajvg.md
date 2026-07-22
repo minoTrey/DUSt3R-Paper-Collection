@@ -1,5 +1,9 @@
 # TrajVG: 3D Trajectory-Coupled Visual Geometry Learning (arXiv preprint (2026-02))
 
+![trajvg — architecture](https://arxiv.org/html/2602.04439/x2.png)
+
+_Overview of our model (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Xingyu Miao, Weiguang Zhao, Tao Lu, Linning Xu, Mulin Yu, Yang Long*, Jiangmiao Pang, Junting Dong\*† (\* Corresponding author, † Project lead)

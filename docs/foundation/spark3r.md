@@ -1,5 +1,9 @@
 # Spark3R: Asymmetric Token Reduction Makes Fast Feed-Forward 3D Reconstruction (arXiv preprint 2026-05)
 
+![spark3r — architecture](https://arxiv.org/html/2605.06270v2/x2.png)
+
+_Overview of Spark3R (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Zecheng Tang, Jiaye Fu, Qiankun Gao, Haijie Li, Yanmin Wu, Jiaqi Zhang, Siwei Ma, Jian Zhang

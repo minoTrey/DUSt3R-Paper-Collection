@@ -1,5 +1,9 @@
 # Free Geometry: Refining 3D Reconstruction from Longer Versions of Itself (arXiv preprint (2026-04))
 
+![free-geometry — architecture](https://arxiv.org/html/2604.14048v1/figures/arch.png)
+
+_Architecture of Free Geometry (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Yuhang Dai, Xingyi Yang

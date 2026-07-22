@@ -1,5 +1,9 @@
 # DVGT: Driving Visual Geometry Transformer (arXiv preprint (2025-12))
 
+![dvgt — architecture](https://arxiv.org/html/2512.16919v2/x2.png)
+
+_Framework of our DVGT for metric-scaled 3D scene geometry prediction (원논문 Fig. 3)_
+
 ## 📋 Overview
 
 - **Authors**: Sicheng Zuo, Zixun Xie, Wenzhao Zheng, Shaoqing Xu, Fang Li, Shengyin Jiang, Long Chen, Zhi-Xin Yang, Jiwen Lu

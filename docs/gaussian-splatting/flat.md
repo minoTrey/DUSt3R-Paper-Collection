@@ -1,5 +1,9 @@
 # FLAT: Feedforward Latent Triangle Splatting for Geometrically Accurate Scene Generation (arXiv preprint 2026-06)
 
+![flat — architecture](https://arxiv.org/html/2606.24876v1/x1.png)
+
+_Pipeline: Starting from a single image, we construct a point-cloud-based control video by rendering along the target camera trajectory (원논문 Fig. 2)_
+
 ## 📋 Overview
 
 - **Authors**: Orest Kupyn, Goutam Bhat, Philipp Henzler, Fabian Manhardt, Christian Rupprecht, Federico Tombari
