@@ -440,3 +440,31 @@ reconstruction README의 "DUSt3R 2.677 / VGGT 1.338" 은 루트 README에서 이
   서버를 붙이는 방식이 아니다.
 - 벤치마크 검증은 **CI에서 돌지 않는다** — PDF가 gitignore라 GitHub Actions에
   원문이 없다. 표를 건드렸다면 로컬에서 `verify_benchmarks.py`를 수동 실행할 것.
+
+## [2026-07-28] 그림 203편 추가 + 편입 완료 반영 + 세션 연속성 정비
+
+**핵심 그림 추가 (203편).** 논문 정리 페이지에 아키텍처·메소드 그림이 없어 글만 있는
+반쪽이었다. 기존 54편은 저자 그림을 핫링크했으나 신규 133편엔 빠져 있었다.
+- arXiv HTML(`arxiv.org/html/<id>`)에서 캡션 스코어링으로 메소드 그림 선택 → **195편**.
+  `tools/fetch_figures.py`. 삽입된 고유 이미지 URL 207개 전수 렌더링 확인(HTTP 200,
+  죽은 이미지 0). GitHub camo 프록시도 200 반환 확인 — 실제 렌더링됨.
+- arXiv HTML 없는 논문은 project page og:image/teaser + GitHub README 그림으로 폴백 →
+  **8편**(human3r·v-dpm·artsplat·structsplat·c3po·sparse-vggt·vipe·eps3d).
+  `tools/fetch_figures_fallback.py`. 로고·아이콘 오답 배제(human3r는 og:image가 로고라
+  실제 `fig_pipe.png`로, sparse-vggt는 성능차트 대신 아키텍처로 교정).
+- 못 찾은 **5편**(page-4d·vggt-omega·lexi-sg·e3d-bench·survey-dust3r-to-vggt): 대부분
+  2026 arXiv라 HTML 미생성 + project page에 접근 가능한 그림 없음. HTML 생기면 자동 처리.
+- 전부 핫링크(리포에 바이너리 저장 안 함). markdownlint 0 / 구조 264편 정합.
+
+**"안 보인다" 오진 정정.** 사용자가 GitHub에서 그림이 안 보인다고 보고 → 원인은 (1) 처음엔
+삽입 후 커밋·push 누락, (2) push 후엔 브라우저 캐시. camo URL 직접 검증(200·image/png·전량)으로
+렌더링 정상 확인. 교훈: 삽입=완료 아님. 커밋·push까지 확인하고 보고할 것.
+
+**backlog 갱신 (위 2026-07-21 항목의 미해결 목록 supersede):**
+- ✅ **Mino Universe 편입** — 2026-07-22 완료. `galaxies/dust3r-paper-collection/`으로
+  등록되고 obsidian-export까지 반영·푸시됨.
+- ⏳ 여전히 열림: 그림 5편(위), `must3r.md` 37열 표 재구성, UNKNOWN venue 색인 대기,
+  벤치마크 검증 CI 미실행(PDF gitignore).
+
+**세션 연속성 정비.** 새 세션이 낡은 상태(55편·편입 미착수)로 출발하던 문제를 잡음:
+내 메모리 파일·MEMORY.md 인덱스·galaxy.yaml notes를 264편/편입완료/그림 상태로 최신화.
