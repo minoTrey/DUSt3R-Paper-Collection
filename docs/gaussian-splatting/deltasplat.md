@@ -6,59 +6,59 @@
 - **Institution**: Sungkyunkwan University, Yonsei University
 - **Venue**: arXiv preprint (2026-10)
 - **Links**: [Paper](https://arxiv.org/abs/2610.09853)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2610.09853v1 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: YoNoSplat 초기 Gaussian을 context view에 다시 render하고 residual·ray·depth로 고정 weight의 update를 반복 예측한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2610.09853v1 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Re-render YoNoSplat's initial Gaussians into context views and repeatedly predict fixed-weight updates from residuals, rays and depth.
 
 ## 🎯 Key Contributions
 
-1. Pose-free Gaussian refinement를 학습한다.
-2. 2D residual에 Plücker ray·rendered depth를 더해 3D update를 안내한다.
-3. 빠른 dual-branch mixer와 attribute별 update head를 구성한다.
+1. Learn pose-free Gaussian refinement.
+2. Add Plücker rays and rendered depth to 2D residuals to guide 3D updates.
+3. Use a fast dual-branch mixer and attribute-specific update heads.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: Sparse RGB context views와 backbone이 예측한 camera·Gaussian; intrinsics는 선택적으로 제공한다.
-- **Output**: 정제한 Gaussian의 위치·opacity·color와 novel-view rendering.
-- **Problem**: 2D rendering residual만으로는 어떤 3D primitive를 어느 방향으로 고칠지 결정하기 어렵다.
+- **Input**: Sparse RGB context views and backbone-predicted cameras/Gaussians; intrinsics are optional inputs.
+- **Output**: Refined Gaussian positions, opacity and color, plus novel-view rendering.
+- **Problem**: A 2D rendering residual alone does not determine which 3D primitive to change or in which direction.
 
 ### Method
 
-1. π3에서 사전학습한 YoNoSplat으로 초기 scene을 만든다.
-2. Context camera로 render한 residual과 같은 camera의 ray·depth를 인코딩한다.
-3. Coarse·detail convolution branch로 넓은 구조와 세부 오차를 읽는다.
-4. Projected Gaussian feature를 blending weight로 모아 attribute별 delta를 적용한다.
+1. Initialize a scene with YoNoSplat pretrained from π3.
+2. Encode context-camera rendering residuals together with rays and depth from the same cameras.
+3. Read broad structure and fine errors through coarse/detail convolution branches.
+4. Aggregate projected Gaussian features with blending weights and apply attribute-specific deltas.
 
-Backbone과 unrolled refiner를 end-to-end 학습한다. Inference update에는 gradient optimization을 쓰지 않지만 평가 target camera는 photometric optimization으로 맞춘다.
+Train backbone and unrolled refiner end to end. Inference updates avoid gradient optimization, but evaluation target cameras are aligned through photometric optimization.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2610.09853v1), Table 2, PDF p.7.
+**Source**: [Source PDF](https://arxiv.org/pdf/2610.09853v1), Table 2, PDF p.7.
 
-DL3DV-trained model의 ScanNet++ 전이, 32 context views 224×224, known intrinsics. Pose-free 평가 target camera alignment가 포함된다.
+ScanNet++ transfer from a DL3DV-trained model, 32 context views at 224×224, known intrinsics. Pose-free evaluation includes target-camera alignment.
 
 | Method     | PSNR ↑ | SSIM ↑ | LPIPS ↓ |
 | ---------- | ------ | ------ | ------- |
 | YoNoSplat  | 17.94  | 0.659  | 0.380   |
 | DeltaSplat | 18.62  | 0.670  | 0.371   |
 
-Refinement 자체가 feed-forward라는 것과 전체 평가에 최적화가 없다는 것은 다르다. 반복 횟수·추가 rendering 비용을 함께 보아야 한다.
+Feed-forward refinement does not make the whole evaluation optimization-free. Include iteration counts and additional rendering costs.
 
 ## 💡 Insights & Impact
 
-현재 예측의 ray·depth와 residual을 같은 좌표계에 두어 pose 오차가 있어도 일관된 refinement 입력을 만든다.
+Express predicted rays, depth and residuals in a shared frame to make refinement inputs consistent despite pose errors.
 
-- Backbone camera·geometry가 크게 틀리면 residual의 3D 귀속도 불안정하다.
-- 추가 반복은 시간·memory를 쓰며 원래 관측되지 않은 내용을 확정하지 못한다.
+- Large backbone-camera or geometry errors destabilize attribution of residuals to 3D primitives.
+- Extra iterations consume time/memory and cannot establish unobserved content as fact.
 
 ## 🔗 Related Work
 
-- [YoNoSplat](yonosplat.md): 실제 backbone.
-- [VoxelTTO](voxeltto.md): gradient TTO와 학습 update의 차이.
+- [YoNoSplat](yonosplat.md): the actual backbone.
+- [VoxelTTO](voxeltto.md): distinguishes gradient TTO from learned updates.
 
 ## 📚 Key Takeaways
 
-1. 반복은 학습한 delta 예측이다.
-2. Residual만이 아니라 ray·depth를 함께 쓴다.
-3. Refinement와 평가 camera 최적화를 구분한다.
+1. Iterations predict learned deltas.
+2. Use rays and depth alongside residuals.
+3. Distinguish refinement from evaluation-camera optimization.

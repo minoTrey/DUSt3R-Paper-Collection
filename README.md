@@ -22,7 +22,7 @@ Start with the inputs and outputs, then follow the method and its evidence.
 </div>
 
 > A source-linked collection of **337 papers** on DUSt3R and related feed-forward 3D research.
-> This homepage is in English. Detailed notes include Korean explanations; **Notes (KO)** identifies those links.
+> Paper notes are primarily English. Some legacy passages remain in Korean; see the [language audit](raw/language_correction_2026-10-15.json).
 > Document counts are not counts of fully verified papers. Read each result with its source, protocol and limitations.
 
 ## Start reading
@@ -30,12 +30,12 @@ Start with the inputs and outputs, then follow the method and its evidence.
 Compare the same question across four representative methods: **what goes in, what comes out, and what connects them?**
 This is a reading guide, not a performance ranking or a claim of direct lineage.
 
-| Paper      | Input → Output                       | Key idea                                     | Links                                                                                                                                    |
-| ---------- | ------------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **DUSt3R** | Image pair → pointmaps               | Predict both views in a shared frame.        | [Notes (KO)](docs/foundation/dust3r.md) · [Paper](https://arxiv.org/abs/2312.14132) · [Code](https://github.com/naver/dust3r)            |
-| **MASt3R** | Image pair → geometry + matches      | Add local descriptors for matching.          | [Notes (KO)](docs/foundation/mast3r.md) · [Paper](https://arxiv.org/abs/2406.09756) · [Code](https://github.com/naver/mast3r)            |
-| **VGGT**   | Image set → cameras + dense geometry | Alternate attention within and across views. | [Notes (KO)](docs/reconstruction/vggt.md) · [Paper](https://arxiv.org/abs/2503.11651) · [Code](https://github.com/facebookresearch/vggt) |
-| **MUSt3R** | Images + memory → shared pointmaps   | Reuse features stored at decoder layers.     | [Notes (KO)](docs/reconstruction/must3r.md) · [Paper](https://arxiv.org/abs/2503.01661) · [Code](https://github.com/naver/must3r)        |
+| Paper      | Input → Output                       | Key idea                                     | Links                                                                                                                               |
+| ---------- | ------------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **DUSt3R** | Image pair → pointmaps               | Predict both views in a shared frame.        | [Notes](docs/foundation/dust3r.md) · [Paper](https://arxiv.org/abs/2312.14132) · [Code](https://github.com/naver/dust3r)            |
+| **MASt3R** | Image pair → geometry + matches      | Add local descriptors for matching.          | [Notes](docs/foundation/mast3r.md) · [Paper](https://arxiv.org/abs/2406.09756) · [Code](https://github.com/naver/mast3r)            |
+| **VGGT**   | Image set → cameras + dense geometry | Alternate attention within and across views. | [Notes](docs/reconstruction/vggt.md) · [Paper](https://arxiv.org/abs/2503.11651) · [Code](https://github.com/facebookresearch/vggt) |
+| **MUSt3R** | Images + memory → shared pointmaps   | Reuse features stored at decoder layers.     | [Notes](docs/reconstruction/must3r.md) · [Paper](https://arxiv.org/abs/2503.01661) · [Code](https://github.com/naver/must3r)        |
 
 <details>
 <summary>Images to 3D: the common vocabulary</summary>
@@ -58,11 +58,11 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 ![Static reconstruction maps overlapping RGB views to a shared 3D scene. Dynamic reconstruction additionally represents changing geometry and motion across frames.](assets/task-geometry.svg)
 
-| Task / main folder                                            | Input → typical output                  | Reading tags / example                                                             |
-| ------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------- |
-| Learn reusable geometry · [Foundation](docs/foundation/)      | Views → geometric features or pointmaps | `cross-view` · `matching` · [DUSt3R notes (KO)](docs/foundation/dust3r.md)         |
-| Recover static shape · [Reconstruction](docs/reconstruction/) | Views → aligned scene geometry          | `streaming` · `mixed cameras` · [Slot3R notes (KO)](docs/reconstruction/slot3r.md) |
-| Recover changing scenes · [Dynamic](docs/dynamic/)            | Frames → geometry over time             | `motion` · `persistent state` · [CUT3R notes (KO)](docs/dynamic/cut3r.md)          |
+| Task / main folder                                            | Input → typical output                  | Reading tags / example                                                        |
+| ------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
+| Learn reusable geometry · [Foundation](docs/foundation/)      | Views → geometric features or pointmaps | `cross-view` · `matching` · [DUSt3R notes](docs/foundation/dust3r.md)         |
+| Recover static shape · [Reconstruction](docs/reconstruction/) | Views → aligned scene geometry          | `streaming` · `mixed cameras` · [Slot3R notes](docs/reconstruction/slot3r.md) |
+| Recover changing scenes · [Dynamic](docs/dynamic/)            | Frames → geometry over time             | `motion` · `persistent state` · [CUT3R notes](docs/dynamic/cut3r.md)          |
 
 ### Render and interpret
 
@@ -70,11 +70,11 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 ![Three different targets: Gaussian scene representations rendered from a new camera, semantic labels attached to observed geometry, and inferred structure behind an occluder. Hidden geometry is drawn dashed to mark inference.](assets/task-render-interpret.svg)
 
-| Task / main folder                                                    | Input → typical output                           | Reading tags / example                                                      |
-| --------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------- |
-| Synthesize new views · [Gaussian Splatting](docs/gaussian-splatting/) | Views → Gaussians → rendered image               | `novel view` · [Splatt3R notes (KO)](docs/gaussian-splatting/splatt3r.md)   |
-| Label the scene · [Understanding](docs/understanding/)                | Views / geometry → labels, objects or properties | `semantic geometry` · [IGGT notes (KO)](docs/understanding/iggt.md)         |
-| Infer unseen structure · [Reasoning](docs/reasoning/)                 | Partial observations → inferred geometry         | `amodal` · `completion` · [Amodal3R notes (KO)](docs/reasoning/amodal3r.md) |
+| Task / main folder                                                    | Input → typical output                           | Reading tags / example                                                 |
+| --------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
+| Synthesize new views · [Gaussian Splatting](docs/gaussian-splatting/) | Views → Gaussians → rendered image               | `novel view` · [Splatt3R notes](docs/gaussian-splatting/splatt3r.md)   |
+| Label the scene · [Understanding](docs/understanding/)                | Views / geometry → labels, objects or properties | `semantic geometry` · [IGGT notes](docs/understanding/iggt.md)         |
+| Infer unseen structure · [Reasoning](docs/reasoning/)                 | Partial observations → inferred geometry         | `amodal` · `completion` · [Amodal3R notes](docs/reasoning/amodal3r.md) |
 
 ### Localize and act
 
@@ -82,12 +82,12 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 ![Pose estimation recovers camera position and orientation in a reference frame. A robot application combines geometry with a persistent map and goals to select actions; a map alone is not a navigation policy.](assets/task-pose-action.svg)
 
-| Task / main folder                                      | Input → typical output                                | Reading tags / example                                                          |
-| ------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Estimate pose · [Pose Estimation](docs/pose/)           | Images / references → camera or object pose           | `localization` · [FFVO notes (KO)](docs/pose/ffvo.md)                           |
-| Map and interact · [Robotics](docs/robotics/)           | Observations + task → map, calibration or actions     | `SLAM` · `navigation` · [LG-VLN notes (KO)](docs/robotics/lg-vln.md)            |
-| Adapt to specialized imagery · [Medical](docs/medical/) | Medical imagery → task-specific geometry              | `endoscopy` · [Endo3R notes (KO)](docs/medical/endo3r.md)                       |
-| Test what works · [Surveys & Analysis](docs/surveys/)   | Models + protocols → comparisons and failure analysis | `reliability` · [Confidence Audit notes (KO)](docs/surveys/confidence-audit.md) |
+| Task / main folder                                      | Input → typical output                                | Reading tags / example                                                     |
+| ------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| Estimate pose · [Pose Estimation](docs/pose/)           | Images / references → camera or object pose           | `localization` · [FFVO notes](docs/pose/ffvo.md)                           |
+| Map and interact · [Robotics](docs/robotics/)           | Observations + task → map, calibration or actions     | `SLAM` · `navigation` · [LG-VLN notes](docs/robotics/lg-vln.md)            |
+| Adapt to specialized imagery · [Medical](docs/medical/) | Medical imagery → task-specific geometry              | `endoscopy` · [Endo3R notes](docs/medical/endo3r.md)                       |
+| Test what works · [Surveys & Analysis](docs/surveys/)   | Models + protocols → comparisons and failure analysis | `reliability` · [Confidence Audit notes](docs/surveys/confidence-audit.md) |
 
 **Folders and tags serve different purposes.** Each paper has one primary filing location in the complete index.
 The task groups above are reading routes; the tags are cross-cutting cues, not extra folders or duplicate counts.
@@ -100,12 +100,12 @@ The diagrams show task families, not architectures shared by every paper. [Figur
 **Source-review batch: 2026-10-15** — selected entry points, not publication-date rankings.
 See the [candidate decisions (KO)](candidates/review-2026-10-15.md) and [change log (KO)](log.md) for the full scope.
 
-| Paper                                                | Input → Output                                      | What to inspect                                                     |
-| ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
-| [Slot3R · Notes (KO)](docs/reconstruction/slot3r.md) | Frames → streaming geometry                         | How state carries information between frames.                       |
-| [GeoCond · Notes (KO)](docs/foundation/geocond.md)   | Images + geometric conditions → adapted predictions | Which conditions the model accepts and how reliability is tested.   |
-| [MEOW · Notes (KO)](docs/reconstruction/meow.md)     | Mixed-camera views → scene geometry                 | How different camera models enter the reconstruction.               |
-| [LG-VLN · Notes (KO)](docs/robotics/lg-vln.md)       | RGB + instruction + camera height → map and actions | Correspondence filtering, scale initialization and pose evaluation. |
+| Paper                                           | Input → Output                                      | What to inspect                                                     |
+| ----------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| [Slot3R · Notes](docs/reconstruction/slot3r.md) | Frames → streaming geometry                         | How state carries information between frames.                       |
+| [GeoCond · Notes](docs/foundation/geocond.md)   | Images + geometric conditions → adapted predictions | Which conditions the model accepts and how reliability is tested.   |
+| [MEOW · Notes](docs/reconstruction/meow.md)     | Mixed-camera views → scene geometry                 | How different camera models enter the reconstruction.               |
+| [LG-VLN · Notes](docs/robotics/lg-vln.md)       | RGB + instruction + camera height → map and actions | Correspondence filtering, scale initialization and pose evaluation. |
 
 <details>
 <summary>All primary folders and generated document counts</summary>
@@ -228,7 +228,8 @@ New papers are welcome. The bar is source-traceability, not volume:
 2. Put the arXiv URL in `Links`. Run `python3 tools/verify_metadata.py --only <slug> --out raw/metadata_<slug>.json`.
    Keep the source verdict. If it is `PREPRINT?` because a source failed, use `UNKNOWN`
    in the document and state the missing evidence. Do not infer a conference from a title.
-3. Write the body. **Every number must exist in the source paper.** If the paper reports a
+3. Write the paper note in **English**, preserving the seven-section format. Keep existing legacy-language exceptions unless explicitly revising them.
+   **Every number must exist in the source paper.** If the paper reports a
    result only as a plot, say so rather than reading values off the figure.
 4. Run `python3 tools/build_papers_list.py`, `python3 tools/update_stats.py`, and
    `python3 tools/build_fact_cards.py`. Reconcile candidate status with

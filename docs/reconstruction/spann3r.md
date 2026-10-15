@@ -9,7 +9,7 @@ _Spann3R achieves real-time 3D reconstruction using dual spatial memory for glob
 - **Institution**: University College London
 - **Venue**: 3DV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2408.16061) | [Code](https://github.com/HengyiWang/spann3r) | [Project Page](https://hengyiwang.github.io/projects/spanner)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/3dim/WangA25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/3dim/WangA25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Real-time (50+ FPS) 3D reconstruction using external spatial memory to generate globally aligned pointmaps without camera information or post-optimization.
 
 ## 🎯 Key Contributions

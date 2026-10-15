@@ -9,7 +9,7 @@ _MASt3R-SfM replaces the entire traditional SfM pipeline with an end-to-end foun
 - **Institution**: NAVER LABS Europe
 - **Venue**: 3DV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2409.19152) | [Code](https://github.com/naver/mast3r)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/3dim/DuisterhofZWLCR25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/3dim/DuisterhofZWLCR25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Complete end-to-end SfM pipeline using MASt3R, replacing traditional multi-stage approaches with a unified framework that handles unconstrained image collections.
 
 ## 🎯 Key Contributions

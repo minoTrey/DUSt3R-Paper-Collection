@@ -9,26 +9,26 @@ _MASt3R grounds image matching in 3D space, unifying dense correspondence with g
 - **Institution**: NAVER LABS Europe
 - **Venue**: ECCV 2024
 - **Links**: [Paper](https://arxiv.org/abs/2406.09756) | [Code](https://github.com/naver/mast3r) | [Project Page](https://dust3r.europe.naverlabs.com/)
-- **Verification**: CONFIRMED (cached DBLP verdict 2026-07-20; 방법·결과 PDF 재검토 2026-10-15)
+- **Verification**: CONFIRMED (cached DBLP verdict 2026-07-20; methods/results PDF re-reviewed 2026-10-15)
 - **TL;DR**: Extends DUSt3R with 3D-aware dense feature matching, treating correspondence as an inherently 3D problem rather than 2D.
 
 ## 🎯 Key Contributions
 
-1. **3D-Aware Matching**: 3D pointmap 예측과 local descriptor 학습을 결합해 대응점 탐색을 개선한다
+1. **3D-Aware Matching**: Combine 3D pointmap prediction with local descriptor learning to improve correspondence search.
 2. **Unified Framework**: Combines accurate feature matching with robust 3D reconstruction in a single model
-3. **Fast Reciprocal Matching**: descriptor 공간에서 상호 최근접 이웃 탐색을 반복한다. 속도 비교는 원문의 대응점 수와 해상도 조건에 한정한다
+3. **Fast Reciprocal Matching**: Iterate mutual-nearest-neighbor search in descriptor space. Speed comparisons apply to the source's correspondence counts and resolutions.
 4. **Dense Local Features**: Adds descriptor head to DUSt3R architecture for precise correspondences
-5. **Metric Outputs**: 정답의 metric scale을 학습하며 dense descriptor와 pointmap을 함께 출력한다. 모든 장면의 절대 축척이 정확하다는 보장은 아니다
+5. **Metric Outputs**: Learn GT metric scale while outputting dense descriptors and pointmaps. This does not guarantee accurate absolute scale in every scene.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-입력은 겹치는 두 RGB 이미지다. 출력은 첫 카메라 좌표계의 두 pointmap, confidence, 픽셀별 local descriptor다.
-문제는 DUSt3R의 3D 좌표만으로 구한 대응이 정밀한 image matching에 충분하지 않을 수 있다는 것이다.
-MASt3R는 같은 3D 위치를 관측한 픽셀의 descriptor를 가깝게 학습한다 (§3.1–3.2).
-추론 시 fast reciprocal matching이 descriptor의 상호 최근접 이웃을 찾는다 (§3.3).
-대응점에서 pose를 구하는 기하 단계나 다중 시점 정렬은 별도로 필요하다.
+Inputs are two overlapping RGB images. Outputs are both pointmaps in the first camera frame, confidence and per-pixel local descriptors.
+Correspondences derived only from DUSt3R's 3D coordinates may be insufficient for precise image matching.
+MASt3R learns similar descriptors for pixels observing the same 3D location (§3.1–3.2).
+Fast reciprocal matching finds mutual descriptor nearest neighbors during inference (§3.3).
+Pose recovery from correspondences and multi-view alignment still require separate geometric stages.
 
 ### Architecture
 
@@ -66,8 +66,8 @@ MASt3R는 같은 3D 위치를 관측한 픽셀의 descriptor를 가깝게 학습
 ## 📊 Results
 
 **Source**: [arXiv 2406.09756v1 PDF](https://arxiv.org/pdf/2406.09756v1).
-아래 표의 데이터셋·Table 번호별 조건을 유지한다. DTU의 거리 단위는 mm다.
-정답 카메라를 쓰는 DTU MVS 결과와 pose 추정 결과를 동일한 무보정 조건으로 합치지 않는다.
+Preserve each dataset's table-specific conditions below. DTU distances are in mm.
+Do not combine DTU MVS using GT cameras with pose-estimation results as if both were uncalibrated.
 
 ### Quantitative Performance
 
@@ -176,7 +176,7 @@ MASt3R represents a fundamental advance in visual correspondence by:
 
 1. **Unifying** 3D reconstruction and feature matching in a single framework
 2. **Demonstrating** that matching is inherently a 3D problem
-3. **Evaluating** reconstruction과 matching을 각 데이터셋의 프로토콜로 평가한다
-4. **Using descriptors**: 실제 적용 시 대응점 품질, pose 계산 비용, 학습 분포를 함께 확인한다
+3. **Evaluating** reconstruction and matching under each dataset's protocol.
+4. **Using descriptors**: Check correspondence quality, pose-computation costs and training distribution in applications.
 
 The progression from DUSt3R's "3D made easy" to MASt3R's "matching grounded in 3D" shows the natural evolution toward more complete and accurate 3D understanding from images.

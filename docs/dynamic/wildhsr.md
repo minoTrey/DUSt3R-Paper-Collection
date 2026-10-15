@@ -6,59 +6,59 @@
 - **Institution**: University of Waterloo
 - **Venue**: arXiv preprint (2026-09)
 - **Links**: [Paper](https://arxiv.org/abs/2609.29106)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2609.29106v1 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: VGGT-Ω의 up-to-scale geometry에 metric scale readout과 사람 identity readout을 더해 영상의 사람·scene·camera를 공통 metric frame으로 연결한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2609.29106v1 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Add metric-scale and person-identity readouts to VGGT-Ω's up-to-scale geometry, linking people, scenes and cameras in a shared metric frame.
 
 ## 🎯 Key Contributions
 
-1. 사람 body ruler로 web video의 scale pseudo-label을 만든다.
-2. 중간 query–key feature에서 person correspondence를 읽는다.
-3. Metric pelvis motion과 dustbin-aware association으로 identity를 연결한다.
+1. Generate web-video scale pseudo-labels using bodies as rulers.
+2. Read person correspondences from intermediate query–key features.
+3. Associate identities through metric pelvis motion and dustbin-aware matching.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: 움직이는 단안 RGB 영상.
-- **Output**: Metric camera·scene, persistent 사람 track·SMPL-X body.
-- **Problem**: Up-to-scale geometry에는 절대 scale과 여러 window를 잇는 사람 identity가 빠져 있다.
+- **Input**: Dynamic monocular RGB video.
+- **Output**: Metric cameras and scenes, persistent person tracks and SMPL-X bodies.
+- **Problem**: Up-to-scale geometry lacks absolute scale and person identity across windows.
 
 ### Method
 
-1. VGGT-Ω window feature에 작은 LoRA와 Scale Readout을 연결한다.
-2. Offline body·keypoint pseudo-label로 scale을 사전학습하고 실제 metric annotation으로 보정한다.
-3. Pelvis readout과 human token을 cross-attention으로 결합한다.
-4. 중간 correspondence·pelvis motion·confidence로 Sinkhorn association을 계산하고 window를 합친다.
+1. Add small LoRA modules and Scale Readout to VGGT-Ω window features.
+2. Pretrain scale with offline body/keypoint pseudo-labels, then refine with actual metric annotations.
+3. Combine pelvis readouts and human tokens through cross-attention.
+4. Compute Sinkhorn associations from intermediate correspondences, pelvis motion and confidence to merge windows.
 
-Web-video pseudo supervision 뒤 RICH·3DPW의 exact metric training split으로 fine-tuning한다. Body ruler·teacher를 inference 입력으로 다시 쓰는 방식과 다르다.
+After web-video pseudo-supervision, fine-tune on exact metric training splits of RICH and 3DPW. This differs from supplying body rulers or teachers again at inference.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2609.29106v1), Table 4, PDF p.8.
+**Source**: [Source PDF](https://arxiv.org/pdf/2609.29106v1), Table 4, PDF p.8.
 
-Held-out 3DPW, 14-joint camera-frame error와 mesh PVE, 단위 mm. PA-MPJPE는 사람별 similarity alignment를 제거한 값이다.
+Held-out 3DPW: camera-frame errors over 14 joints and mesh PVE, in mm. PA-MPJPE is measured after per-person similarity alignment.
 
 | Method  | PA-MPJPE ↓ | MPJPE ↓ | PVE ↓ |
 | ------- | ---------- | ------- | ----- |
 | SHOW    | 41.0       | 67.7    | 78.7  |
 | WildHSR | 38.7       | 65.2    | 74.4  |
 
-이 표는 world placement를 평가하지 않는다. EMDB·RICH의 global motion 표에서는 일부 optimization 방법보다 W error가 높고 RICH RTE도 항상 최고는 아니다.
+This table does not evaluate world placement. Global-motion tables on EMDB/RICH show higher W error than some optimization methods, and RICH RTE is not always best.
 
 ## 💡 Insights & Impact
 
-하나의 foundation feature에서 geometry의 scale과 사람의 correspondence를 서로 다른 readout으로 얻는다.
+Read geometry scale and person correspondence from one foundation representation through separate readouts.
 
-- 훈련에서 사용한 exact metric supervision을 숨기면 zero-shot metric 추정으로 오해할 수 있다.
-- 가림·다중 사람 association·window 연결의 오류가 남는다.
+- Omitting exact metric training supervision can misleadingly imply zero-shot metric estimation.
+- Occlusion, multi-person association and window-merging errors remain.
 
 ## 🔗 Related Work
 
-- [VGGT-Ω](../reconstruction/vggt-omega.md): 기반 representation.
-- [Human3R](human3r.md): human-scene reconstruction 비교.
+- [VGGT-Ω](../reconstruction/vggt-omega.md): the base representation.
+- [Human3R](human3r.md): human–scene reconstruction comparisons.
 
 ## 📚 Key Takeaways
 
-1. Scale과 identity가 별도 missing output이다.
-2. Pseudo-label 뒤 exact metric 학습이 있다.
-3. Local body와 global placement 점수를 구분한다.
+1. Scale and identity are separate missing outputs.
+2. Exact metric training follows pseudo-label training.
+3. Separate local-body scores from global-placement scores.

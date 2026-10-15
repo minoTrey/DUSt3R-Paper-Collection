@@ -1,7 +1,7 @@
 # Complete Papers List
 
 > Generated from individual paper notes by `tools/build_papers_list.py`.
-> Links open collection notes, which include Korean explanations; original papers are linked in each Overview.
+> Links open collection notes, primarily in English; some legacy passages are in Korean. Original papers are linked in each Overview.
 
 **Total: 337 papers**
 

@@ -1,7 +1,7 @@
 # VGGT: Visual Geometry Grounded Transformer (CVPR 2025)
 
 ![VGGT Architecture](https://vgg-t.github.io/resources/architecture_v4.png)
-_이미지별 attention과 프레임 간 attention을 번갈아 수행한 특징에서 카메라·깊이·pointmap·추적 정보를 예측한다._
+_Predict cameras, depth, pointmaps and tracking information from features alternating within-image and cross-frame attention._
 
 ## 📋 Overview
 
@@ -10,51 +10,51 @@ _이미지별 attention과 프레임 간 attention을 번갈아 수행한 특징
 - **Venue**: CVPR 2025
 - **Award**: Best Paper Award
 - **Links**: [Paper](https://arxiv.org/abs/2503.11651) | [Code](https://github.com/facebookresearch/vggt) | [Project Page](https://vgg-t.github.io/)
-- **Verification**: CONFIRMED (venue: existing verdict 2026-07-20; 방법·결과 PDF 재검토 2026-10-15)
-- **TL;DR**: 여러 RGB 이미지를 함께 처리해 카메라·깊이·3D pointmap과 추적용 특징을 예측한다. 정답 카메라 입력 없이 공통 좌표계의 기하를 추론하며 선택적으로 BA로 보정할 수 있다.
+- **Verification**: CONFIRMED (venue: existing verdict 2026-07-20; methods/results PDF re-reviewed 2026-10-15)
+- **TL;DR**: Jointly process RGB images to predict cameras, depth, 3D pointmaps and tracking features. Infer shared-frame geometry without GT cameras, with optional BA refinement.
 
 ## 🎯 Key Contributions
 
-1. **Joint Geometry**: 하나의 특징 백본에서 여러 기하 작업을 함께 학습한다.
-2. **Alternating-Attention**: 이미지 안의 관계와 이미지 사이의 관계를 번갈아 처리한다.
-3. **Direct Multi-View Prediction**: 쌍별 pointmap을 별도로 정렬하는 과정을 기본 추론에서 줄인다.
-4. **Reusable Features**: 별도 tracking module과 downstream task에 특징을 제공한다.
+1. **Joint Geometry**: Learn multiple geometric tasks through one feature backbone.
+2. **Alternating-Attention**: Alternate within-image and cross-image relationships.
+3. **Direct Multi-View Prediction**: Reduce separate pairwise-pointmap alignment in default inference.
+4. **Reusable Features**: Supply features to separate tracking modules and downstream tasks.
 
 ## 🔧 Technical Details
 
 ### Input and Output
 
-- **Input**: 하나 이상의 RGB 이미지. 기본 추론은 함께 받은 이미지 집합을 처리한다.
-- **Output**: 카메라 회전·이동·시야각, 깊이 맵, pointmap, 추적용 특징과 query point의 2D 궤적.
-- **Coordinates**: 첫 카메라를 기준으로 한다. Principal point는 이미지 중심으로 가정한다 (§3.1).
+- **Input**: One or more RGB images; default inference jointly processes the provided set.
+- **Output**: Camera rotation, translation and FoV; depth, pointmaps, tracking features and query-point 2D trajectories.
+- **Coordinates**: Relative to the first camera; assume a centered principal point (§3.1).
 
 ### Architecture
 
 ```text
-RGB 이미지 → DINOv2 초기화 토큰
-           → 이미지별 self-attention ↔ 전체 프레임 self-attention
+RGB images → DINOv2-initialized tokens
+           → within-image self-attention ↔ all-frame self-attention
            → camera head / DPT dense heads / query-based tracking module
 ```
 
-카메라 헤드는 회전·이동·시야각을 예측한다.
-DPT 헤드는 깊이·pointmap과 dense tracking feature를 출력한다.
-CoTracker2 기반 tracking module은 query point와 이 특징으로 프레임별 대응 위치를 구한다 (§3.2).
-따라서 DPT가 query 없이 모든 point track을 직접 출력한다고 설명하면 부정확하다.
+Camera heads predict rotation, translation and FoV.
+DPT heads output depth, pointmaps and dense tracking features.
+A CoTracker2-based module combines query points with these features to find framewise correspondences (§3.2).
+DPT therefore does not directly output all tracks without queries.
 
 ### Inference Scope
 
-기본 결과는 feed-forward 추론이다. 논문은 선택적으로 bundle adjustment(BA)를 추가한 결과도 보고한다.
-BA는 카메라와 대응점의 재투영 오차를 줄이는 최적화다.
-프레임 간 전역 attention의 비용은 이미지 수에 따라 증가하므로 긴 영상에는 chunking·streaming 등의 후속 방법이 필요하다.
-"DUSt3R 최대 32장"이나 "모든 도메인에서 일반화"라는 고정 한계·보장은 원문 근거가 없어 제거했다.
+Default results use feed-forward inference; the paper also reports optional bundle adjustment (BA).
+BA optimizes cameras/correspondences to reduce reprojection errors.
+Global cross-frame attention costs grow with image count, motivating chunking/streaming extensions for long videos.
+Remove unsupported fixed limits such as DUSt3R maximum 32 images and guarantees of generalization to every domain.
 
 ## 📊 Results
 
 ### Point Map Estimation on ETH3D
 
 [arXiv 2503.11651v1 PDF](https://arxiv.org/pdf/2503.11651v1), Table 3, PDF p.7.
-지표는 Acc / Comp / Overall이다. DUSt3R·MASt3R는 global alignment를 사용한다.
-VGGT는 point head 직접 출력과 depth+camera 역투영을 구분한다. 이 표는 DTU가 아니다.
+Metrics are Acc / Comp / Overall. DUSt3R and MASt3R use global alignment.
+Distinguish direct VGGT point-head outputs from depth/camera unprojection. This table is not DTU.
 
 | Method                 | Acc. ↓    | Comp. ↓   | Overall ↓ | Time      |
 | ---------------------- | --------- | --------- | --------- | --------- |
@@ -66,7 +66,7 @@ VGGT는 point head 직접 출력과 depth+camera 역투영을 구분한다. 이 
 ### Camera Pose Estimation
 
 원논문 Table 1. 10프레임 무작위 샘플, 두 지표 모두 높을수록 좋다.
-Re10K로 학습한 방법은 없다. 시간은 단일 H100에서 이 프로토콜로 측정한 값이다.
+No compared method trains on Re10K. Runtime is measured under this protocol on one H100.
 
 | Method                  | Re10K (unseen) AUC@30 ↑ | CO3Dv2 AUC@30 ↑ | Time      |
 | ----------------------- | ----------------------- | --------------- | --------- |
@@ -85,7 +85,7 @@ Re10K로 학습한 방법은 없다. 시간은 단일 H100에서 이 프로토�
 
 ### 추론 시간
 
-원논문 Table 1·3이 보고하는 값. 프레임 수와 처리 경로가 다른 임의의 실행 시간으로 일반화하지 않는다. 배속은 원논문이 명시하지 않은 파생값이라 적지 않는다.
+Source Tables 1 and 3. Do not generalize timings to arbitrary frame counts/pipelines; unreported derived speedups are omitted.
 
 | Method   | Time      |
 | -------- | --------- |
@@ -95,8 +95,8 @@ Re10K로 학습한 방법은 없다. 시간은 단일 H100에서 이 프로토�
 
 ### Dense MVS Estimation on DTU
 
-원논문 Table 2, PDF p.7. 단위는 mm다. 위 ETH3D 결과와 별개다.
-MASt3R 행은 정답 카메라를 사용하고 DUSt3R·VGGT 행은 사용하지 않는다.
+Source Table 2, PDF p.7, in mm; separate from the ETH3D results above.
+MASt3R uses GT cameras; DUSt3R and VGGT do not in these rows.
 
 | Method | GT Cameras | Acc. ↓ | Comp. ↓ | Overall ↓ |
 | ------ | ---------- | ------ | ------- | --------- |
@@ -106,7 +106,7 @@ MASt3R 행은 정답 카메라를 사용하고 DUSt3R·VGGT 행은 사용하지 
 
 ### Ablation: Attention 구조 (ETH3D)
 
-원논문 Table 5, PDF p.8. Alternating-Attention이 VGGT가 채택한 설계다.
+Source Table 5, PDF p.8. Alternating-Attention is VGGT's chosen design.
 
 | Attention                  | Acc. ↓    | Comp. ↓   | Overall ↓ |
 | -------------------------- | --------- | --------- | --------- |
@@ -116,12 +116,12 @@ MASt3R 행은 정답 카메라를 사용하고 DUSt3R·VGGT 행은 사용하지 
 
 ## 💡 Insights & Impact
 
-이 논문은 카메라와 깊이를 따로 추정한 뒤 맞추는 부담을 공동 학습으로 줄인다.
-Depth+camera를 역투영한 점군이 point head의 직접 출력보다 좋은 경우도 있어 출력 경로를 구분해야 한다.
-빠른 초기 예측은 BA의 초기값으로도 사용할 수 있다. 선택적 최적화가 무의미해졌다는 뜻은 아니다.
+Joint learning reduces the burden of separately estimating and reconciling cameras and depth.
+Depth/camera-unprojected clouds can outperform direct point-head outputs, so distinguish output paths.
+Fast initial predictions can initialize BA; optional optimization is not made pointless.
 
-정답 카메라 사용 여부, 정렬 방법, 이미지 수가 다른 결과는 직접 순위로 비교하지 않는다.
-시각 예시는 다양한 입력의 가능성을 보여주지만 모든 그림·센서·동적 장면의 정확성을 보장하지 않는다.
+Do not directly rank results with different GT-camera inputs, alignments or image counts.
+Visual examples show varied-input possibilities, not guaranteed accuracy for all images, sensors or dynamic scenes.
 
 ## 🔗 Related Work
 
@@ -143,7 +143,7 @@ Depth+camera를 역투영한 점군이 point head의 직접 출력보다 좋은 
 
 ## 📚 Key Takeaways
 
-1. 공통 백본이 카메라·깊이·pointmap·추적에 필요한 정보를 함께 학습한다.
-2. 기본 feed-forward 경로와 BA를 추가한 경로를 구분한다.
-3. ETH3D의 pointmap 평가와 DTU의 MVS 평가는 다른 표다.
-4. 긴 영상의 비용과 첫 프레임 기준 좌표계를 고려해 후속 방법을 선택한다.
+1. A shared backbone learns information for cameras, depth, pointmaps and tracking.
+2. Separate default feed-forward and BA-augmented paths.
+3. ETH3D pointmap and DTU MVS evaluations use different tables.
+4. Consider long-video costs and first-frame coordinates when choosing extensions.

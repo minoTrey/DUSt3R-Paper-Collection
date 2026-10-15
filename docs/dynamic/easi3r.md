@@ -9,7 +9,7 @@ _Easi3R extracts motion information from DUSt3R's attention maps without any add
 - **Institution**: MPI-IS, University of Tübingen, ETH Zürich
 - **Venue**: ICCV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2503.24391) | [Code](https://github.com/Inception3D/Easi3R) | [Project Page](https://easi3r.github.io/)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/iccv/ChenCXGC25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/iccv/ChenCXGC25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Training-free method that extracts dynamic motion from DUSt3R's attention maps, enabling 4D reconstruction without any additional training.
 
 ## 🎯 Key Contributions

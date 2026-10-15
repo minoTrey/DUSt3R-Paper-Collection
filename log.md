@@ -724,3 +724,29 @@ Native English tables and image descriptions carry the same task meanings. GitHu
 The English scope and classification checks are recorded in raw/readme_english_validation_2026-10-15.json.
 
 Validation: all 12 offline checks and 16 regression tests passed. The final English README rendered through GitHub GFM with HTTP 200, six tables, three collapsible regions and four matching ASCII heading targets. This does not verify actual browser clicks or mobile table layout.
+
+## [2026-10-15] Restore the English-led paper-note format
+
+The earlier curation incorrectly wrote all 73 new summaries and substantive corrections to DUSt3R, MASt3R, VGGT and MUSt3R in Korean.
+It also added Korean text in restored Verification fields on 33 legacy notes. A later homepage revision incorrectly generalized that language choice to the collection and applied Notes (KO) labels to English-led notes.
+The original collection was English-led; character presence alone did not establish a note's primary language.
+
+Compared all 264 base notes at d94397750e29eb3beb436a61b8657efce642b668 with the pre-correction head 7e3e304abcac365340923ad9db5283609145b780.
+The base has 261 TL;DR first lines without Hangul, mixed English/Korean TL;DR text in MoGe and VGGT, and a Korean TL;DR in InstantSplat.
+Many older notes also have Korean source/verification annotations. Those legacy passages were not blanket-translated.
+CUT3R, IGGT and Endo3R were not converted to Korean in this PR; their Notes (KO) labels were inaccurate.
+
+Translated only the Korean text introduced by this work: all 73 new notes, newly written passages in the four substantive corrections, and the 33 added Verification lines.
+The source-reviewed facts, protocols, caveats, seven sections, numeric values and link destinations are retained.
+All remaining Korean lines in edited legacy notes were checked against the exact base lines; 227 legacy notes remain unchanged from base.
+Replaced main-page summary language labels with neutral Notes and clarified that some legacy passages remain in Korean.
+The audit records 2,007 unique translated lines and 2,074 checked table rows, preserving numeric cells in their original order.
+
+This language correction does not expand the PDF-review claim to the full legacy collection.
+The same 77 source-reviewed documents retain their source versions, numeric evidence and manual extraction exceptions.
+See raw/language_correction_2026-10-15.json for scope, original exceptions and preservation checks.
+
+Post-format checks confirm 227 legacy notes are identical to base and no Korean text newly introduced by this work remains in legacy notes. All 73 new notes are English.
+All 12 offline checks and 16 regression tests passed. PDF token checks cover the same 77 documents: 819/827 automatic matches, with the unchanged eight previously visually confirmed extraction exceptions explicitly carried forward.
+JUSt3R remains automated REVIEW for its five extraction misses; this status was not overwritten. The other missing values are DUSt3R (two) and MUSt3R (one).
+GitHub GFM returned HTTP 200 with six tables, three collapsible regions and four heading targets. Actual browser theme/mobile layout remains unverified because the existing runtime cannot initialize.

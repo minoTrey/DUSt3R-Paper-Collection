@@ -10,7 +10,7 @@ _Pow3R conditions on any combination of camera intrinsics, poses, and depth for 
 - **Institution**: UCL, Naver Labs Europe
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2503.17316) | [Code](https://github.com/naver/pow3r) | [Project Page](https://europe.naverlabs.com/research/publications/pow3r-empowering-unconstrained-3d-reconstruction-with-camera-and-scene-priors/)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/JangW0AR25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/JangW0AR25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: First 3D reconstruction model to flexibly leverage any combination of auxiliary inputs (camera intrinsics, poses, depth) while maintaining SOTA performance when no priors are available.
 
 ## 🎯 Key Contributions

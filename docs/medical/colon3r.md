@@ -3,40 +3,40 @@
 ## 📋 Overview
 
 - **Authors**: Zhihao Xing, Yingyu Wang, Liang Zhao, Shoudong Huang
-- **Institution**: 원문에 기관명 미기재; 저자 소속은 별도 확인 필요
+- **Institution**: Not stated in the source; author affiliations require separate confirmation.
 - **Venue**: arXiv preprint (2026-09)
 - **Links**: [Paper](https://arxiv.org/abs/2609.23961)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2609.23961v3 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: Phantom·simulation으로 학습한 VGGT를 unlabeled 실제 대장내시경 영상에 teacher–student 방식으로 적응시키면서 source geometry 손실을 억제한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2609.23961v3 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Adapt phantom/simulation-trained VGGT to unlabeled in-vivo colonoscopy through teacher–student learning while limiting loss of source geometry.
 
 ## 🎯 Key Contributions
 
-1. Source geometry supervision을 적응 중에도 유지한다.
-2. Scale stability·support gate로 EMA teacher 갱신을 제한한다.
-3. Sequence·pair·pixel 수준 reliability로 cross-view supervision을 조절한다.
+1. Retain source-geometry supervision during adaptation.
+2. Gate EMA-teacher updates by scale stability and support.
+3. Weight cross-view supervision with sequence-, pair- and pixel-level reliability.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: 단안 colonoscopy RGB sequence. 학습에는 labeled phantom·simulation과 unlabeled in-vivo 영상.
-- **Output**: Camera·depth·pointmap과 multi-view reconstruction.
-- **Problem**: 실제 조직 변형·specularity·적은 overlap 때문에 source-only 모델과 무제한 pseudo-label 적응이 모두 실패할 수 있다.
+- **Input**: Monocular colonoscopy RGB sequences; training uses labeled phantom/simulation and unlabeled in-vivo video.
+- **Output**: Cameras, depth, pointmaps and multi-view reconstructions.
+- **Problem**: Tissue deformation, specularity and limited overlap can defeat both source-only models and unrestricted pseudo-label adaptation.
 
 ### Method
 
-1. VGGT에서 source-supervised camera·depth·pointmap prior를 학습한다.
-2. Frozen backbone의 late attention LoRA와 head를 source/target별로 다른 범위에서 갱신한다.
-3. Teacher의 cross-view pseudo supervision에 계층적 reliability를 적용한다.
-4. 신뢰할 support와 scale 안정성을 만족할 때만 EMA teacher를 갱신한다.
+1. Learn source-supervised camera/depth/pointmap priors from VGGT.
+2. Update late-attention LoRA and heads on a frozen backbone with different source/target scopes.
+3. Apply hierarchical reliability to teacher cross-view pseudo-supervision.
+4. Update the EMA teacher only with reliable support and stable scale.
 
-In-vivo target의 geometric GT를 사용하지 않는 semi-supervised domain adaptation이다. 모든 supervision이 없는 방법은 아니다.
+This is semi-supervised domain adaptation without geometric GT from the in-vivo target; it is not entirely unsupervised.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2609.23961v3), Table II, PDF p.7.
+**Source**: [Source PDF](https://arxiv.org/pdf/2609.23961v3), Table II, PDF p.7.
 
-Adaptation ablation. In-vivo CV는 unweighted cross-view consistency residual로 실제 GT error가 아니다. C3VD depth Rel은 source-domain retention을 측정한다.
+Adaptation ablation. In-vivo CV is an unweighted cross-view consistency residual, not actual GT error. C3VD depth Rel measures source-domain retention.
 
 | Variant         | In-vivo CV ↓ | C3VD depth Rel ↓ |
 | --------------- | ------------ | ---------------- |
@@ -44,22 +44,22 @@ Adaptation ablation. In-vivo CV는 unweighted cross-view consistency residual로
 | Uniform EMA     | 0.0435       | 0.0862           |
 | Colon3R         | 0.0479       | 0.0675           |
 
-Uniform EMA가 CV만 보면 더 낮고 source fine-tuned 모델이 C3VD depth만 보면 더 낮다. 제안법은 두 목표의 balance이며 in-vivo absolute geometry 정확성을 입증한 값은 아니다.
+Uniform EMA has lower CV alone; source fine-tuning has lower C3VD depth error alone. The proposed method balances these objectives, without proving in-vivo absolute geometry accuracy.
 
 ## 💡 Insights & Impact
 
-Target 일관성 하나를 최소화하면 geometry prior를 망가뜨릴 수 있어 adaptation과 retention을 함께 본다.
+Minimizing target consistency alone can damage geometry priors; evaluate adaptation and retention together.
 
-- In-vivo dense GT가 없어 실제 geometry 정확성을 직접 정량 검증하지 못한다.
-- Quasi-rigid reliability가 큰 조직 변형을 완전히 모델링하지 않는다.
+- Without in-vivo dense GT, actual geometry accuracy cannot be directly quantified.
+- Quasi-rigid reliability does not fully model large tissue deformations.
 
 ## 🔗 Related Work
 
 - [VGGT](../reconstruction/vggt.md): source backbone.
-- [Endo3R](endo3r.md): endoscopic geometry 비교.
+- [Endo3R](endo3r.md): endoscopic geometry comparisons.
 
 ## 📚 Key Takeaways
 
-1. Source label과 unlabeled target을 함께 쓴다.
-2. Teacher update 자체를 gate한다.
-3. Consistency residual과 실제 GT error를 혼동하지 않는다.
+1. Combine source labels with unlabeled targets.
+2. Gate teacher updates themselves.
+3. Do not confuse consistency residuals with GT errors.

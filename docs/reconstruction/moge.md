@@ -9,7 +9,7 @@ _MoGe enables accurate monocular geometry estimation on diverse open-domain imag
 - **Institution**: Microsoft Research
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2410.19115) | [Project Page](https://wangrc.site/MoGePage/) | [Code](https://github.com/microsoft/MoGe)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/WangXDX00Y25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/WangXDX00Y25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Foundation model for monocular geometry estimation using affine-invariant point maps, achieving SOTA performance across diverse domains (원논문 초록 기준 point map 35% 이상, MDE 20~30%, camera FOV 20% 이상 오차 감소).
 
 ## 🎯 Key Contributions

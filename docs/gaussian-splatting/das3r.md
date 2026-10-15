@@ -16,7 +16,7 @@ _Left: DAVIS dataset results showing dynamic object removal. Right: Sintel datas
 - **Institution**: National University of Singapore, dConstruct Robotics
 - **Venue**: arXiv preprint (2024-12)
 - **Links**: [Paper](https://arxiv.org/abs/2412.19584) | [Code](https://github.com/kai422/das3r) | [Project Page](https://kai422.github.io/DAS3R/)
-- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (연도 미확정); 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (year unconfirmed); 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Reconstructs clean static scenes from videos with moving objects by predicting dynamic masks and incorporating staticness as a Gaussian attribute, achieving 2+ dB PSNR improvement.
 
 ## 🎯 Key Contributions

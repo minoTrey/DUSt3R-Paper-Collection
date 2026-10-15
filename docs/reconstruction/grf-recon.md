@@ -6,37 +6,37 @@
 - **Institution**: Northeastern University, China
 - **Venue**: arXiv preprint (2026-09)
 - **Links**: [Paper](https://arxiv.org/abs/2609.20012)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2609.20012v1 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: DA3에 단안 geometry prior를 증류하고, chunk의 pose뿐 아니라 ray와 depth의 일관성을 전역 최적화한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2609.20012v1 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Distill monocular geometry priors into DA3, then globally optimize ray/depth consistency as well as chunk poses.
 
 ## 🎯 Key Contributions
 
-1. MoGe teacher의 geometry를 LoRA로 주입한다.
-2. Ray·gradient·photometric 신호를 함께 써 sparse 대응점을 만든다.
-3. Chunk 안팎의 geometry 제약을 trajectory stitching과 함께 최적화한다.
+1. Inject MoGe-teacher geometry through LoRA.
+2. Build sparse correspondences from ray, gradient and photometric signals.
+3. Optimize within-/cross-chunk geometry constraints alongside trajectory stitching.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: 긴 단안 RGB 영상; camera intrinsics를 미리 주지 않는 구성.
-- **Output**: 긴 카메라 궤적과 정렬된 point cloud.
-- **Problem**: Chunk pose만 맞추면 각 chunk 내부의 geometry 오류와 ray 불일치가 남는다.
+- **Input**: Long monocular RGB video without supplied camera intrinsics in this configuration.
+- **Output**: Long camera trajectories and aligned point clouds.
+- **Problem**: Aligning chunk poses alone leaves internal geometry errors and inconsistent rays.
 
 ### Method
 
-1. MoGe 단안 teacher를 사용해 DA3를 LoRA로 보정한다.
-2. 예측 pose·depth로 대응 후보의 검색 범위를 제한한다.
-3. Ray distance, gradient similarity, patch photometric error로 matching하고 양방향 검증한다.
-4. DINOv2 descriptor로 keyframe·loop를 고른 뒤 ray 제약과 pose를 함께 최적화한다.
+1. Adapt DA3 with LoRA using a monocular MoGe teacher.
+2. Restrict correspondence searches with predicted poses/depth.
+3. Match using ray distances, gradient similarities and patch photometric errors, then verify bidirectionally.
+4. Select keyframes/loops with DINOv2 descriptors and jointly optimize ray constraints and poses.
 
-LoRA adaptation은 학습 단계이며 ray-field·graph refinement는 추론 단계의 최적화다.
+LoRA adaptation is training; ray-field and graph refinement are inference-time optimization.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2609.20012v1), Table 2, PDF p.10.
+**Source**: [Source PDF](https://arxiv.org/pdf/2609.20012v1), Table 2, PDF p.10.
 
-KITTI monocular, Sim(3) 정렬 ATE RMSE(m). 평균에서 고속 sequence 01을 제외한다. 아래 행은 모두 uncalibrated 조건이다.
+KITTI monocular Sim(3)-aligned ATE RMSE (m). Means exclude high-speed sequence 01. All rows are uncalibrated.
 
 | Method        | Mean ATE excluding seq.01 (m) ↓ |
 | ------------- | ------------------------------- |
@@ -45,22 +45,22 @@ KITTI monocular, Sim(3) 정렬 ATE RMSE(m). 평균에서 고속 sequence 01을 �
 | DA3-Streaming | 12.72                           |
 | GRF-Recon     | 7.18                            |
 
-제외한 sequence 01의 GRF-Recon ATE는 76.52m다. 평균 7.18m만으로 모든 KITTI sequence에서 낮은 오차라고 해석하면 안 된다.
+Excluded sequence 01 has GRF-Recon ATE of 76.52m. The 7.18m mean does not establish low error on all KITTI sequences.
 
 ## 💡 Insights & Impact
 
-학습 prior를 개선하는 단계와 여러 view의 물리적 일관성을 강제하는 단계를 함께 사용한다.
+Combine improved learned priors with enforced physical consistency across views.
 
-- Teacher 오류가 증류될 수 있다.
-- Loop·matching·global optimization에 의존하며 평균에서 제외한 어려운 sequence가 있다.
+- Teacher errors can be distilled.
+- Depend on loop matching and global optimization; the mean excludes a difficult sequence.
 
 ## 🔗 Related Work
 
-- [Depth Anything 3](depth-anything-3.md): 보정하는 backbone.
-- [VGGT](vggt.md): long-sequence 비교 계열.
+- [Depth Anything 3](depth-anything-3.md): the adapted backbone.
+- [VGGT](vggt.md): long-sequence comparisons.
 
 ## 📚 Key Takeaways
 
-1. DA3의 prior 개선과 ray 최적화는 다른 단계다.
-2. Pose뿐 아니라 geometry를 함께 묶는다.
-3. KITTI 평균의 sequence 제외 조건을 보존한다.
+1. DA3-prior adaptation and ray optimization are separate stages.
+2. Connect geometry as well as poses.
+3. Preserve the KITTI mean's sequence-exclusion condition.

@@ -6,59 +6,59 @@
 - **Institution**: University of Central Florida
 - **Venue**: arXiv preprint (2026-08)
 - **Links**: [Paper](https://arxiv.org/abs/2608.28891)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2608.28891v1 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: Drone–satellite pair의 3D geometry·camera를 예측해 query pixel을 georeferenced reference로 warp하고 pixel별 GPS를 얻는다.
+- **Verification**: UNKNOWN (2026-10-15; source 2608.28891v1 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Predict drone–satellite 3D geometry and cameras, warp query pixels to georeferenced references and obtain per-pixel GPS.
 
 ## 🎯 Key Contributions
 
-1. Camera center localization과 dense pixel geo-registration을 구분한다.
-2. 평면 homography 대신 3D lift·reprojection을 사용한다.
-3. LiDAR·SfM 기반 dense geodetic supervision과 held-out geographic split을 제공한다.
+1. Distinguish camera-center localization from dense pixel georegistration.
+2. Use 3D lifting/reprojection rather than planar homographies.
+3. Provide LiDAR/SfM dense geodetic supervision and geographically held-out splits.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: Metadata 없는 drone query RGB와 georeferenced reference image·camera·geodetic map; 선택적 DEM.
-- **Output**: Query pixel별 GPS coordinate와 reference-frame warp.
-- **Problem**: 기울어진 drone view의 건물·지형 parallax는 한 개 homography나 camera-center retrieval로 설명하기 어렵다.
+- **Input**: Metadata-free drone-query RGB, georeferenced reference images/cameras/geodetic maps, and optional DEM.
+- **Output**: Per-query-pixel GPS coordinates and reference-frame warps.
+- **Problem**: Building/terrain parallax in oblique drone views is poorly described by one homography or camera-center retrieval.
 
 ### Method
 
-1. Feed-forward geometry backbone으로 pointmap·intrinsics·relative camera를 예측한다.
-2. Query pixel을 3D로 lift한다.
-3. Reference camera로 재투영한 위치에서 geodetic map을 보간한다.
-4. Valid pixel의 지리 좌표와 image-level median GPS를 별도로 계산한다.
+1. Predict pointmaps, intrinsics and relative cameras with a feed-forward geometry backbone.
+2. Lift query pixels into 3D.
+3. Reproject into the reference camera and interpolate its geodetic map.
+4. Compute valid-pixel geographic coordinates separately from image-level median GPS.
 
-SkyReg-Train의 dense depth·pose·GPS supervision으로 학습한다. 실제 drone raw footage만의 benchmark가 아니라 Google Earth 기반 query·SfM/LiDAR supervision을 포함한다.
+Train with SkyReg-Train dense depth, pose and GPS supervision. The benchmark includes Google-Earth-based queries and SfM/LiDAR supervision, not only raw real-drone footage.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2608.28891v1), Table 2, PDF p.13.
+**Source**: [Source PDF](https://arxiv.org/pdf/2608.28891v1), Table 2, PDF p.13.
 
-Held-out Urban/Suburban pixel-wise georegistration. 각 image의 pixel GPS error median을 구한 뒤 mean GE(m)를 보고한다. Camera-center error와 다르다.
+Held-out Urban/Suburban pixel georegistration. Compute median pixel GPS error per image, then report mean GE (m). This differs from camera-center error.
 
 | Method | Urban GE (m) ↓ | Suburban GE (m) ↓ |
 | ------ | -------------- | ----------------- |
 | RoMa   | 133.06         | 112.10            |
 | SkyReg | 44.88          | 21.34             |
 
-Reference image의 위치·camera 정보는 제공된다. Query RGB만으로 지구 전체에서 위치를 찾는 방법은 아니다.
+Reference-image location and camera information are supplied. This is not global localization from query RGB alone.
 
 ## 💡 Insights & Impact
 
-Reference의 geodetic frame을 3D warp로 query 전체에 전달해 location을 pixel 단위로 확장한다.
+Transfer a reference's geodetic frame through a 3D warp to localize the entire query pixelwise.
 
-- Reference 선택·GPS map·depth와 camera 예측 품질에 의존한다.
-- 큰 error tail과 실제 센서 domain gap이 남아 benchmark 평균만으로 정밀 측량을 보장하지 않는다.
+- Depend on reference selection, GPS maps, depth and camera-prediction quality.
+- Error tails and real-sensor domain gaps remain; benchmark means do not guarantee precision surveying.
 
 ## 🔗 Related Work
 
-- [DUSt3R](../foundation/dust3r.md): pairwise pointmap formulation의 배경.
-- [GeoRay](../reconstruction/georay.md): satellite absolute height와 다른 task.
+- [DUSt3R](../foundation/dust3r.md): pairwise-pointmap background.
+- [GeoRay](../reconstruction/georay.md): a different satellite absolute-height task.
 
 ## 📚 Key Takeaways
 
-1. 출력은 camera 한 점이 아니라 dense GPS다.
-2. Georeferenced reference가 입력이다.
-3. Pixel GE와 image-level localization을 구분한다.
+1. Output dense GPS, not one camera location.
+2. A georeferenced reference is an input.
+3. Distinguish pixel GE from image-level localization.

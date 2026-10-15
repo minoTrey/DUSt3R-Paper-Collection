@@ -6,59 +6,59 @@
 - **Institution**: National Taiwan University, National Taiwan University of Science and Technology, NTU AI-CoRE, VinUniversity
 - **Venue**: arXiv preprint (2026-09)
 - **Links**: [Paper](https://arxiv.org/abs/2609.23182)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2609.23182v1 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: VGGT 기반 point-wise atlas를 bounded sparse voxel로 압축하고 voxel당 Gaussian을 decode해 view 수가 늘어도 primitive 수 증가를 제한한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2609.23182v1 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Compress VGGT pointwise atlases into bounded sparse voxels and decode Gaussians per voxel, limiting primitive growth as view counts increase.
 
 ## 🎯 Key Contributions
 
-1. Geometry·appearance feature를 예측 3D 위치에 anchor한다.
-2. PEACH-Vox의 가역 companding으로 넓은 scene을 grid에 넣는다.
-3. Sparse convolution으로 multi-view feature를 융합한다.
+1. Anchor geometry and appearance features at predicted 3D positions.
+2. Fit broad scenes into a grid using PEACH-Vox's invertible companding.
+3. Fuse multi-view features with sparse convolution.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
 - **Input**: Unposed·uncalibrated RGB images.
-- **Output**: Camera와 renderable Gaussian scene.
-- **Problem**: Pixel-aligned primitive 수는 해상도·view 수에 따라 늘고 global structure는 약해질 수 있다.
+- **Output**: Cameras and a renderable Gaussian scene.
+- **Problem**: Pixel-aligned primitive counts grow with resolution/views and can weaken global structure.
 
 ### Method
 
-1. Adapted VGGT aggregator가 camera·depth·feature를 예측한다.
-2. Pixel unprojection으로 geometry·appearance atlas를 만든다.
-3. Scene-centered companding으로 unbounded point를 bounded sparse grid에 배치한다.
-4. Sparse U-Net이 occupied voxel을 정제하고 Gaussian을 decode한 뒤 inverse mapping한다.
+1. Predict cameras, depth and features with an adapted VGGT aggregator.
+2. Build geometry/appearance atlases through pixel unprojection.
+3. Map unbounded points into a bounded sparse grid with scene-centered companding.
+4. Refine occupied voxels with a sparse U-Net, decode Gaussians and invert the mapping.
 
-2D rendering과 3D supervision으로 학습한다. Metric scale을 RGB만으로 확정한 것이 아니라 canonical gauge를 사용한다.
+Train with 2D rendering and 3D supervision. Use a canonical gauge; metric scale is not established from RGB alone.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2609.23182v1), Table 1, PDF p.6.
+**Source**: [Source PDF](https://arxiv.org/pdf/2609.23182v1), Table 1, PDF p.6.
 
-ScanNet++, context 16 views, target NVS. LPIPS는 낮을수록 좋고 rendered-depth δ1은 높을수록 좋다. Depth는 per-scene median scale alignment다.
+ScanNet++, 16 context views, target NVS. Lower LPIPS and higher rendered-depth δ1 are better. Depth uses per-scene median-scale alignment.
 
 | Method     | LPIPS ↓ | Depth δ1 ↑ | Pose AUC@30 ↑ |
 | ---------- | ------- | ---------- | ------------- |
 | AnySplat   | 0.499   | 0.703      | 0.766         |
 | GrapeSplat | 0.380   | 0.933      | 0.939         |
 
-Target camera는 rendering에만 사용하며 context camera로 정한 similarity transform을 적용한다. 7-Scenes LPIPS 등 모든 조건의 최고 결과는 아니다.
+Target cameras are used only for rendering, with a similarity transform determined by context cameras. Not every setting is best, including 7-Scenes LPIPS.
 
 ## 💡 Insights & Impact
 
-Gaussian budget이 입력 pixel 수보다 occupied scene cells를 따르게 만든다.
+Make Gaussian budgets follow occupied scene cells rather than input pixels.
 
-- Companding·grid resolution이 가는 구조와 distant geometry에 영향을 준다.
-- Reconstruction latency는 rasterization을 제외한 시간이다.
+- Companding and grid resolution affect thin structures and distant geometry.
+- Reconstruction latency excludes rasterization.
 
 ## 🔗 Related Work
 
 - [VGGT](../reconstruction/vggt.md): atlas backbone.
-- [VoxelTTO](voxeltto.md): voxel Gaussian의 다른 구성과 TTO 차이.
+- [VoxelTTO](voxeltto.md): another voxel-Gaussian design, with different TTO requirements.
 
 ## 📚 Key Takeaways
 
-1. 예측 geometry에 feature를 anchor한다.
-2. Voxel occupancy가 Gaussian budget을 결정한다.
-3. Canonical scale과 rendering camera 정렬을 보존한다.
+1. Anchor features to predicted geometry.
+2. Let voxel occupancy determine Gaussian budgets.
+3. Preserve canonical-scale and rendering-camera alignment conditions.

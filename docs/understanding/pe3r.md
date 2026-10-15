@@ -10,7 +10,7 @@ _PE3R achieves 9× speedup by integrating semantic understanding into 3D reconst
 - **Institution**: xML Lab, National University of Singapore
 - **Venue**: arXiv preprint (2025-03)
 - **Links**: [Paper](https://arxiv.org/abs/2503.07507) | [Code](https://github.com/hujiecpp/PE3R) | Project Page (Coming Soon)
-- **Verification**: LIKELY (2026-07-20 cached verdict; arXiv comment: Accepted to CVPR 2026; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: LIKELY (2026-07-20 cached verdict; arXiv comment: Accepted to CVPR 2026; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Extends DUSt3R with semantic understanding, achieving 9× speedup while enabling text-based 3D scene exploration from just 2-3 photos.
 
 ## 🎯 Key Contributions

@@ -6,59 +6,59 @@
 - **Institution**: Yonsei University, NVIDIA
 - **Venue**: arXiv preprint (2026-10)
 - **Links**: [Paper](https://arxiv.org/abs/2610.00970)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2610.00970v2 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: Subject mask와 관계 문장을 받아 여러 이미지에서 그 관계에 해당하는 target을 찾으며 Pi3 geometry token과 DINOv2 semantics를 결합한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2610.00970v2 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Find relation-specified targets across images from subject masks and relational text, combining Pi3 geometry tokens with DINOv2 semantics.
 
 ## 🎯 Key Contributions
 
-1. Target category 없이 spatial relation segmentation을 정의한다.
-2. Subject-conditioned cross-view relation transformer를 학습한다.
-3. VLM·LLM annotation pipeline으로 relation label을 만든다.
+1. Define spatial-relation segmentation without target categories.
+2. Train subject-conditioned cross-view relation Transformers.
+3. Produce relation labels through VLM/LLM annotation pipelines.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: Unposed RGB views, reference subject mask, relational text query. Target category 이름은 주지 않는다.
-- **Output**: View별 target segmentation mask와 3D visualization.
-- **Problem**: Object category 검색만으로는 특정 물체의 위·옆·아래에 있는 대상을 구분하기 어렵다.
+- **Input**: Unposed RGB views, reference-subject masks and relational text queries, without target-category names.
+- **Output**: Per-view target masks and 3D visualizations.
+- **Problem**: Category retrieval alone cannot identify objects above, beside or below a specific subject.
 
 ### Method
 
-1. Frozen DINOv2와 Pi3 encoder token을 추출한다. 이름과 달리 실제 geometry feature는 Pi3다.
-2. Input mixer로 semantic·geometry feature를 결합한다.
-3. Subject mask 조건의 relation transformer가 target별 relation embedding을 만든다.
-4. BERT query와 dense feature의 similarity로 mask를 얻는다.
+1. Extract frozen DINOv2 and Pi3 encoder tokens. Despite the name, Pi3 supplies the actual geometry features.
+2. Combine semantic/geometric features with input mixers.
+3. Produce target-specific relation embeddings with subject-mask-conditioned Transformers.
+4. Obtain masks through similarity between BERT queries and dense features.
 
-ScanNet++ 기반 자동 relation annotation으로 학습한다. Per-scene NeRF·Gaussian 최적화 없이 mask를 예측한다.
+Train on automatic ScanNet++ relation annotations. Predict masks without per-scene NeRF/Gaussian optimization.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2610.00970v2), Table 1, PDF p.8.
+**Source**: [Source PDF](https://arxiv.org/pdf/2610.00970v2), Table 1, PDF p.8.
 
-Replica·LERF·ScanNet++ relation segmentation mIoU. RelationField는 target category retrieval 정보가 있고 † variant는 relation-only다.
+Replica/LERF/ScanNet++ relation-segmentation mIoU. RelationField receives target-category retrieval information; its † variant uses relations only.
 
 | Method        | Replica ↑ | LERF ↑ | ScanNet++ ↑ |
 | ------------- | --------- | ------ | ----------- |
 | RelationField | 0.326     | 0.276  | 0.307       |
 | RelationVGGT  | 0.446     | 0.254  | 0.445       |
 
-LERF에서는 RelationField보다 낮다. Subject mask와 relational query를 제공하는 조건이며 무조건적인 scene 이해 정확도를 뜻하지 않는다.
+Performance is below RelationField on LERF. Supplied subject masks and relational queries do not imply unconditional scene-understanding accuracy.
 
 ## 💡 Insights & Impact
 
-3D foundation feature는 explicit scene representation을 최적화하지 않고도 관계에 따른 view-consistent mask를 만드는 prior가 된다.
+3D-foundation features provide priors for view-consistent relation masks without explicit scene-representation optimization.
 
-- 자동 relation annotation과 language ambiguity의 영향을 받는다.
-- 가까이 붙은 작은 object가 많은 장면에서 성능이 낮다.
+- Automatic relation annotations and language ambiguity affect performance.
+- Performance decreases in scenes crowded with small nearby objects.
 
 ## 🔗 Related Work
 
-- [π3](../reconstruction/pi3.md): 실제 geometry encoder.
-- [GroupForward](groupforward.md): instance scene graph를 사용하는 다른 관계 접근.
+- [π3](../reconstruction/pi3.md): the actual geometry encoder.
+- [GroupForward](groupforward.md): another relation approach using instance scene graphs.
 
 ## 📚 Key Takeaways
 
-1. 이름보다 실제 backbone을 확인한다.
-2. Category 대신 subject·relation으로 target을 지정한다.
-3. Target 정보가 다른 baseline 조건을 명시한다.
+1. Check the actual backbone rather than inferring it from the name.
+2. Specify targets with subjects/relations rather than categories.
+3. Disclose different target information supplied to baselines.

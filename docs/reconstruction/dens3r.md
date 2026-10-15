@@ -9,7 +9,7 @@ _Dens3R provides unified geometric dense prediction for high-quality 3D reconstr
 - **Institution**: Alibaba Group, Shanghai Jiao Tong University
 - **Venue**: arXiv preprint (2025-07)
 - **Links**: [Paper](https://arxiv.org/abs/2507.16290) | [Project Page](https://g-1nonly.github.io/Dens3R/) | [Code](https://github.com/G-1nOnly/Dens3R)
-- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (연도 미확정); 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (year unconfirmed); 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Foundation model for unified 3D geometry prediction that jointly models depth, surface normals, and point maps with explicit structural coupling.
 
 ## 🎯 Key Contributions

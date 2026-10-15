@@ -6,59 +6,59 @@
 - **Institution**: Yonsei University, Sungkyunkwan University
 - **Venue**: arXiv preprint (2026-03)
 - **Links**: [Paper](https://arxiv.org/abs/2603.21064)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2603.21064v3 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: Geometry expert가 camera를 추정하고 별도 appearance expert가 그 camera를 받아 Gaussian을 생성하도록 작업을 분리한다.
+- **Verification**: UNKNOWN (2026-10-15; source 2603.21064v3 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Separate geometry and appearance: a geometry expert estimates cameras, then an appearance expert uses them to generate Gaussians.
 
 ## 🎯 Key Contributions
 
-1. 한 backbone에 geometry·appearance를 모두 얹는 설계와 비교한다.
-2. Pose expert와 posed Gaussian expert를 end-to-end 연결한다.
-3. GT camera가 있으면 pose expert를 우회하는 구성을 지원한다.
+1. Compare with shared backbones handling both geometry and appearance.
+2. Connect pose and posed-Gaussian experts end to end.
+3. Support bypassing the pose expert when GT cameras are available.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: Unposed RGB view; 선택적으로 GT camera.
-- **Output**: Camera와 pixel-aligned Gaussian scene.
-- **Problem**: 공유 representation 안에서 pose 추정과 세밀한 appearance 생성이 얽히면 각 작업의 특화가 어렵다.
+- **Input**: Unposed RGB views, optionally GT cameras.
+- **Output**: Cameras and a pixel-aligned Gaussian scene.
+- **Problem**: Entangling pose and detailed appearance in a shared representation limits task specialization.
 
 ### Method
 
-1. Geometry expert가 view별 camera를 예측한다.
-2. Appearance expert가 이미지와 camera 조건으로 Gaussian을 만든다.
-3. 두 expert를 joint fine-tuning해 pose 오차에 대한 appearance branch의 적응을 유도한다.
-4. GT camera가 제공되면 geometry prediction을 건너뛰어 posed 조건으로 실행한다.
+1. Predict per-view cameras with the geometry expert.
+2. Generate Gaussians from images and camera conditions with the appearance expert.
+3. Jointly fine-tune both experts so appearance adapts to pose errors.
+4. Bypass geometry prediction and use the posed setting when GT cameras are supplied.
 
-사전학습 expert를 연결해 학습한다. vdo는 view-dependent opacity·regularization을 추가한 별도 variant이고 EPA는 추가 평가 정렬 절차다.
+Connect and train pretrained experts. vdo is a separate variant adding view-dependent opacity/regularization; EPA is an additional evaluation-alignment procedure.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2603.21064v3), Table 1, PDF p.5.
+**Source**: [Source PDF](https://arxiv.org/pdf/2603.21064v3), Table 1, PDF p.5.
 
-DL3DV 12 input views, 224×224. 아래는 GT pose·intrinsics를 입력하지 않고 EPA도 적용하지 않은 기본 행이다.
+DL3DV, 12 input views, 224×224. These default rows use neither GT poses/intrinsics nor EPA.
 
 | Method    | PSNR ↑ | SSIM ↑ | LPIPS ↓ |
 | --------- | ------ | ------ | ------- |
 | YoNoSplat | 20.383 | 0.602  | 0.229   |
 | 2Xplat    | 23.851 | 0.778  | 0.182   |
 
-GT camera·EPA·vdo를 사용하는 행은 다른 조건이다. Camera 오류와 rendering 품질이 함께 영향을 주는 pose-free NVS 결과다.
+GT-camera, EPA and vdo rows use different conditions. Pose-free NVS depends jointly on camera errors and rendering quality.
 
 ## 💡 Insights & Impact
 
-Geometry와 appearance를 분리해도 joint 학습으로 연결할 수 있으며, posed 모델의 발전을 재사용하기 쉽다.
+Separate geometry and appearance can remain jointly trainable while reusing advances in posed models.
 
-- 두 expert의 연속 실행과 interface 비용을 고려해야 한다.
-- Camera 추정이 실패하면 appearance expert도 잘못된 좌표계에서 예측한다.
+- Account for sequential expert execution and interface costs.
+- Failed camera estimation also puts appearance predictions in an incorrect frame.
 
 ## 🔗 Related Work
 
-- [YoNoSplat](yonosplat.md): pose-free NVS 비교 방법.
-- [VGGT](../reconstruction/vggt.md): geometry expert 설계의 배경.
+- [YoNoSplat](yonosplat.md): a pose-free NVS comparison.
+- [VGGT](../reconstruction/vggt.md): background for the geometry expert.
 
 ## 📚 Key Takeaways
 
-1. Pose 추정과 Gaussian 생성을 별도 expert로 둔다.
-2. 분리 설계지만 end-to-end 학습한다.
-3. GT camera·EPA·vdo 행을 섞지 않는다.
+1. Use separate pose-estimation and Gaussian-generation experts.
+2. Train the separated design end to end.
+3. Do not mix GT-camera, EPA and vdo rows.

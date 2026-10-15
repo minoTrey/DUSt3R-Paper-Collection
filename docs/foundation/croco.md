@@ -18,7 +18,7 @@ _Figure 3: CroCo architecture_
 - **Institution**: NAVER LABS Europe
 - **Venue**: NeurIPS 2022
 - **Links**: [Paper](https://arxiv.org/abs/2210.10716) | [Code](https://github.com/naver/croco)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/nips/Weinzaepfel0LBC22; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/nips/Weinzaepfel0LBC22; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Self-supervised pre-training method that learns 3D-aware representations by reconstructing masked image regions using cross-view information.
 
 ## 🎯 Key Contributions

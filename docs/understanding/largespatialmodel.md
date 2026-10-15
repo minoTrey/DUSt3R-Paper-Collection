@@ -9,7 +9,7 @@ _LargeSpatialModel creates semantic 3D representations directly from unposed ima
 - **Institution**: UT Austin, NVIDIA Research, XMU, TAMU, UCLA, GaTech, Stanford University, USC
 - **Venue**: NeurIPS 2024
 - **Links**: [Paper](https://arxiv.org/abs/2410.18956) | [Project Page](https://largespatialmodel.github.io/) | [Code](https://github.com/NVlabs/LSM)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/nips/FanZCWLW0KWXI024; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/nips/FanZCWLW0KWXI024; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: End-to-end framework that transforms unposed images directly into semantic 3D scene representations without requiring camera poses or traditional SfM pipelines.
 
 ## 🎯 Key Contributions

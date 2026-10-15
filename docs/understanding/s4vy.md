@@ -6,59 +6,59 @@
 - **Institution**: Texas A&M University, NVIDIA
 - **Venue**: arXiv preprint (2026-09)
 - **Links**: [Paper](https://arxiv.org/abs/2609.36875)
-- **Verification**: UNKNOWN (2026-10-15; 원문 2609.36875v2 내용 검토, 게재 venue 독립 확인 전)
-- **TL;DR**: VGGT-Ω visual geometry 위의 persistent object query가 모든 관측의 instance mask를 묶고, 별도 language grounder·critic이 원하는 instance를 고른다.
+- **Verification**: UNKNOWN (2026-10-15; source 2609.36875v2 content reviewed; publication venue not independently confirmed)
+- **TL;DR**: Persistent object queries over VGGT-Ω geometry associate instance masks across observations; separate language grounders/critics select requested instances.
 
 ## 🎯 Key Contributions
 
-1. Prompt 없이 class-agnostic instance를 먼저 분리한다.
-2. Space-time query로 시간·view의 identity를 묶는다.
-3. Active tree search·dual-stream grounder·critic으로 language selection을 구성한다.
+1. Discover class-agnostic instances before prompting.
+2. Link identities across time/views through space-time queries.
+3. Select language targets through active tree search, dual-stream grounders and critics.
 
 ## 🔧 Technical Details
 
 ### Input, Output, and Problem
 
-- **Input**: RGB observations; 선택적으로 point·box 또는 natural-language query.
-- **Output**: 관측 전체의 persistent instance mask와 선택한 target mask.
-- **Problem**: 순차 memory 기반 mask propagation만으로 큰 view 변화와 긴 4D 관측 공간을 다루기 어렵다.
+- **Input**: RGB observations, optionally points, boxes or natural-language queries.
+- **Output**: Persistent instance masks across observations and selected target masks.
+- **Problem**: Sequential memory-based propagation struggles with large view changes and long 4D observation spaces.
 
 ### Method
 
-1. VGGT-Ω feature에 space-time query decoder를 붙인다.
-2. 각 object query가 관측 전체의 동일 entity mask를 출력한다.
-3. Point·box encoder가 발견된 query를 선택한다.
-4. Language harness가 relevant frame을 탐색하고 두 후보 stream을 독립 critic으로 비교한다.
+1. Attach space-time query decoders to VGGT-Ω features.
+2. Let each object query predict the same entity's masks across observations.
+3. Select discovered queries through point/box encoders.
+4. Search relevant frames with a language harness and compare candidate streams using independent critics.
 
-Segmenter·prompt encoder·language grounder·critic을 분리 학습한다. 단일 geometry network만으로 모든 language inference를 끝내는 것은 아니다.
+Train segmenters, prompt encoders, language grounders and critics separately. A single geometry network does not perform every language-inference step.
 
 ## 📊 Results
 
-**Source**: [원문 PDF](https://arxiv.org/pdf/2609.36875v2), Table 2, PDF p.10.
+**Source**: [Source PDF](https://arxiv.org/pdf/2609.36875v2), Table 2, PDF p.10.
 
-Target prompt·first-frame GT 없는 class-agnostic segmentation. DAVIS의 4D metric은 GT·prediction을 같은 추정 depth·camera로 lift한 결과이며 실제 3D GT와 다르다.
+Class-agnostic segmentation without target prompts or first-frame GT. DAVIS 4D metrics lift GT/predictions using the same estimated depth/cameras, not actual 3D GT.
 
 | Method | DAVIS 4D-IoU ↑ | DAVIS 4D-SR ↑ | DAVIS J&F ↑ |
 | ------ | -------------- | ------------- | ----------- |
 | IGGT4D | 0.543          | 0.667         | 0.604       |
 | S4VY   | 0.715          | 0.914         | 0.803       |
 
-표의 latency는 A100에서 지정 관측 수의 clip 처리 시간이다. Language harness의 모든 호출 비용과 동일하지 않다.
+Table latency is clip processing for specified observation counts on A100, not all language-harness calls.
 
 ## 💡 Insights & Impact
 
-일관된 instance discovery와 prompt에 의한 선택을 분리하면 관측 순서에 덜 의존하는 segmentation을 구성할 수 있다.
+Separating consistent instance discovery from prompt selection reduces dependence on observation order.
 
-- Estimated geometry로 만든 4D metric은 geometry 오류를 직접 검증하지 못한다.
-- Agentic language 선택은 VLM 판단·frame 탐색 실패의 영향을 받는다.
+- Estimated-geometry 4D metrics do not directly validate geometric errors.
+- Agentic language selection depends on VLM judgments and frame-search failures.
 
 ## 🔗 Related Work
 
 - [VGGT-Ω](../reconstruction/vggt-omega.md): geometry backbone.
-- [IGGT4D](iggt4d.md): streaming geometry-instance 비교 모델.
+- [IGGT4D](iggt4d.md): streaming geometry/instance comparisons.
 
 ## 📚 Key Takeaways
 
-1. 먼저 instance를 찾고 prompt로 고른다.
-2. Persistent query가 view와 시간을 연결한다.
-3. Pseudo-3D 평가와 실제 geometry GT를 구분한다.
+1. Discover instances first, then select through prompts.
+2. Persistent queries connect views and time.
+3. Distinguish pseudo-3D evaluation from actual geometry GT.

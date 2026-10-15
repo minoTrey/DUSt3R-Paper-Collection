@@ -1,5 +1,8 @@
 # [Paper Title] ([Venue Year])
 
+Write the paper note in English. Preserve the seven sections and source-traceable facts.
+Do not infer a note's language from isolated legacy source annotations.
+
 ## 📋 Overview
 
 - **Authors**: [Name1, Name2, ...]

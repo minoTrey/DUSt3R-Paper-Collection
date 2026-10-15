@@ -9,7 +9,7 @@ _D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspo
 - **Institution**: KAIST AI, Sony AI, Korea University
 - **Venue**: arXiv preprint (2025-04)
 - **Links**: [Paper](https://arxiv.org/abs/2504.06264) | [Code](https://github.com/cvlab-kaist/DDUSt3R) | [Project Page](https://cvlab-kaist.github.io/DDUSt3R/)
-- **Verification**: LIKELY (2026-07-20 cached verdict; arXiv comment: NeurIPS 2025; project page: <https://cvlab-kaist.github.io/DDUSt3R/>; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
+- **Verification**: LIKELY (2026-07-20 cached verdict; arXiv comment: NeurIPS 2025; project page: <https://cvlab-kaist.github.io/DDUSt3R/>; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Extends DUSt3R from 3D to 4D pointmaps, enabling accurate reconstruction of dynamic scenes through spatio-temporal correspondence.
 
 ## 🎯 Key Contributions
