@@ -674,3 +674,30 @@ GitHub 공개 Markdown API 결과와 확인 범위는 `raw/readme_render_validat
 
 디자인 변경 뒤 기본 오프라인 검사 12개가 모두 통과했고 GitHub Markdown API는 HTTP 200을 반환했다.
 표 4개·접힌 영역 3개·탐색 대상 4개를 확인했다. 실제 브라우저 클릭 검사는 포함하지 않는다.
+
+## [2026-10-15] P3 범위 검토와 LG-VLN 포함 정정
+
+기존 LG-VLN 제외 설명은 navigation이 핵심 응용이라는 이유로 기하 방법·평가를 과소평가했다.
+원문 §3.4·Appendix A.3의 CleanDIFT 대응 필터·robust Sim(3) 정합,
+§4.3.2의 depth/pose 입력 ablation, §4.6–4.7의 깊이·ATE/RTE 평가를 다시 대조했다.
+Topometric localization과 PhysVGGT처럼 기존 geometry backbone의 직접 응용도 포함한다는 P3 기준에 맞아 포함으로 정정했다.
+새 백본 학습은 필수 조건이 아니다. 기하·특징을 구체적 방법으로 연결하고 그 출력·기여를 평가하는지를 기준으로 명시했다.
+이전 제외 이유는 후보 JSON의 decision_history에 보존하며 단순 모델 언급만으로 포함하지 않는다.
+
+LG-VLN은 일곱 섹션으로 추가했고 초기 카메라 높이·panoramic scale 관측, 평가 예산 제외,
+GT 사후 depth 정렬과 배포 scale의 차이, 지역 RTE 개선 대비 작은 ATE 변화, 모듈 시간과 전체 FPS의 구분을 적었다.
+원문 v1 해시와 Tables 3·4·6·7의 위치를 기록하고 PDF p.15·17·19를 시각 대조했다.
+표 수치 토큰 23개가 모두 자동 일치했다. 실험은 재현하지 않았고 게재 venue는 확인하지 못했다.
+
+총 337편(신규 73편), 후속 후보 포함·작성 완료 70편 / 제외 6편 / 대기 0편이다.
+전체 큐는 added 206 / rejected 33이며 초기 160건의 triage는 보존했다.
+이번 PR의 선택 표 수치 검토는 77문서·827토큰(자동 819, 기존 추출 예외 시각 확인 8)이다.
+후보 대조·카테고리·인덱스·사실 카드를 생성기로 갱신했다. 변경 보고서는 raw/lg_vln_scope_revision_2026-10-15.json에 있다.
+
+검사 결과: 오프라인 12개·회귀 16개 통과. 생성 후보 보고서의 실제 Prettier round-trip도 76행·본문·판정 근거를 보존했다.
+README는 최종 337편 기준으로 GitHub Markdown API HTTP 200을 확인했다.
+
+LG-VLN metadata 조회는 arXiv 제목·저자를 확인했지만 S2 429와 DBLP 인증서 검증 오류가 있었다.
+자동 Crossref LIKELY 후보 DOI 10.3390/math14091485는 공식 DOI metadata의 제목·저자 전원이 달라 배제했다.
+자동 결과를 지우지 않고 manual_review에 UNKNOWN 판정과 근거를 남겼다. 해당 venue를 문서에 전파하지 않았다.
+이 사례는 Crossref 검색 후보 자체가 게재 확인이 아니라는 한계를 보여준다.

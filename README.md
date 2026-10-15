@@ -7,7 +7,7 @@
 DUSt3R에서 시작해 feed-forward 3D 연구로 이어지는 한국어 논문 노트.<br>
 입력과 출력, 해결할 문제, 핵심 방법을 같은 형식으로 읽습니다.
 
-[![Papers](https://img.shields.io/badge/Papers-336-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-337-green.svg)](docs/papers-list.md)
 
 </div>
 
@@ -21,7 +21,7 @@ DUSt3R에서 시작해 feed-forward 3D 연구로 이어지는 한국어 논문 �
 
 </div>
 
-> A source-linked collection of **336 papers** on DUSt3R and related feed-forward 3D research.
+> A source-linked collection of **337 papers** on DUSt3R and related feed-forward 3D research.
 > 문서 수는 원문 검증 완료 수와 다릅니다. 수치는 각 요약의 출처·실험 조건·한계와 함께 읽어 주세요.
 
 ## Start reading
@@ -107,7 +107,7 @@ Geometry connected to segmentation, objects, and semantic features.
 
 Occluded structure, amodal geometry, and spatial reasoning.
 
-### 🤖 [Robotics](docs/robotics/) (21 papers)
+### 🤖 [Robotics](docs/robotics/) (22 papers)
 
 Calibration, odometry, mapping, and robotic applications of geometry models.
 
@@ -224,7 +224,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 336 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 337 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 License status needs maintainer confirmation: this repository's earlier README referred

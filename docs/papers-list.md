@@ -3,7 +3,7 @@
 > 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
 > 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
 
-**Total: 336 papers**
+**Total: 337 papers**
 
 ## Foundation Models (30)
 
@@ -315,7 +315,7 @@
 - [**SPOON**](reasoning/spoon.md) (arXiv preprint (2026-09)) — Towards Coherent Compositional 3D Scene Generation from Uncalibrated Multi-view Images
 - [**Zero-Shot Novel Depth Synthesis Using 3D Foundation Models Scene Representations (arXiv 2026)**](reasoning/z3d.md) (arXiv preprint (2026-09))
 
-## Robotics (21)
+## Robotics (22)
 
 - [**AIM-SLAM**](robotics/aim-slam.md) (arXiv preprint (2026-03)) — Dense Monocular SLAM via Adaptive and Informative Multi-View Keyframe Prioritization with Foundation Model
 - [**AquaFlow**](robotics/aquaflow.md) (arXiv preprint (2026-08)) — A Monocular Gaussian Splatting SLAM for Underwater Streaming Reconstruction
@@ -327,6 +327,7 @@
 - [**GraphSeg**](robotics/graphseg.md) (arXiv preprint (2025-04)) — Segmented 3D Representations via Graph Edge Addition and Contraction
 - [**GRS-SLAM3R**](robotics/grs-slam3r.md) (arXiv preprint (2025-09)) — Real-Time Dense SLAM with Gated Recurrent State
 - [**LEXI-SG**](robotics/lexi-sg.md) (arXiv preprint (2026-05)) — Monocular 3D Scene Graph Mapping with Room-Guided Feed-Forward Reconstruction
+- [**LG-VLN**](robotics/lg-vln.md) (arXiv preprint (2026-09)) — A Zero-Shot Vision-and-Language Navigation Framework with LangGraph State Orchestration
 - [**MASt3R-Fusion**](robotics/mast3r-fusion.md) (arXiv preprint (2025-09)) — Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM
 - [**MIRAGE**](robotics/mirage.md) (arXiv preprint (2026-10)) — Metric Inference and Reliability-Aware Gaussian Estimation from Feed-Forward Vision
 - [**Noctif3R**](robotics/noctif3r.md) (arXiv preprint (2026-09)) — Feed-Forward Monocular Real-Time SLAM for Photon-Limited Scenes on Embedded Hardware
