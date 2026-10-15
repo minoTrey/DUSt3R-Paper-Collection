@@ -56,8 +56,8 @@ Geometry backbone의 일반 표현을 그대로 두고 시간적 pose 추정 부
 
 ## 🔗 Related Work
 
-- [π3](../foundation/pi3.md): 고정 feature backbone.
-- [VGGT](../foundation/vggt.md): 장기 trajectory 처리 계열의 배경.
+- [π3](../reconstruction/pi3.md): 고정 feature backbone.
+- [VGGT](../reconstruction/vggt.md): 장기 trajectory 처리 계열의 배경.
 
 ## 📚 Key Takeaways
 

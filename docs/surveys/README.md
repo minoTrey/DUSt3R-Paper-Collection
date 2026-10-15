@@ -21,7 +21,7 @@ benchmark produces a misleading document.
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (7)
+## 📄 All Papers in This Category (8)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -30,6 +30,7 @@ benchmark produces a misleading document.
 - [**E3D-Bench**](e3d-bench.md) (arXiv preprint (2025-06)) — A Benchmark for End-to-End 3D Geometric Foundation Models
 - [**FF3D-Survey**](ff3d-survey.md) (arXiv preprint (2026-04)) — Feed-Forward 3D Scene Modeling — A Problem-Driven Perspective
 - [**GeomUnderstanding**](geometric-understanding.md) (arXiv preprint (2025-12)) — On Geometric Understanding and Learned Priors in Feed-forward 3D Reconstruction Models
+- [**Generating Multi-view Adversarial Examples for Visual Geometry Grounded Transformer (arXiv 2026)**](mvap-g.md) (arXiv preprint (2026-08))
 - [**Survey-DUSt3R-to-VGGT**](survey-dust3r-to-vggt.md) (JAICS 2025) — Review of Feed-forward 3D Reconstruction
 - [**When Wider Views Fail**](wider-views-fail.md) (arXiv preprint (2026-09)) — Stress-Testing Feed-Forward 3D Reconstruction
 

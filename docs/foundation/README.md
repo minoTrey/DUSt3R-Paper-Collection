@@ -23,7 +23,7 @@ The Foundation Models category represents the seminal works that established the
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (26)
+## 📄 All Papers in This Category (30)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -35,7 +35,9 @@ The Foundation Models category represents the seminal works that established the
 - [**DUSt3R**](dust3r.md) (CVPR 2024) — Geometric 3D Vision Made Easy
 - [**FGQ**](fisher-quant.md) (arXiv preprint (2026-05)) — Fisher-Guided Quantization for Visual Geometry Transformer
 - [**FlashVGGT**](flashvggt.md) (arXiv preprint (2025-12)) — Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention
+- [**G-ray**](g-ray.md) (arXiv preprint (2026-09)) — Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity
 - [**G3T**](g3t.md) (arXiv preprint (2026-05)) — Gravity Aligned Coordinate Frames Simplify Pointmap Processing
+- [**Revisiting Cross-View Completion**](gekko.md) (arXiv preprint (2026-09)) — Self-Supervised Pre-Training via Reconstruction Error Comparison
 - [**GeoCond**](geocond.md) (arXiv preprint (2026-09)) — A Conditioning-Aware Reliability Adapter for Feed-Forward 3D Reconstruction
 - [**GoToHunt**](good-token-hunting.md) (arXiv preprint (2026-05)) — Good Token Hunting for Visual Geometry Transformers
 - [**HD-VGGT**](hd-vggt.md) (arXiv preprint (2026-03)) — High-Resolution Visual Geometry Transformer
@@ -43,6 +45,7 @@ The Foundation Models category represents the seminal works that established the
 - [**MASt3R**](mast3r.md) (ECCV 2024) — Grounding Image Matching in 3D
 - [**MASt3R-SfM**](mast3r-sfm.md) (3DV 2025) — A Fully-Integrated Solution for Unconstrained Structure-from-Motion
 - [**Muskie**](muskie.md) (arXiv preprint (2025-11)) — Multi-view Masked Image Modeling for 3D Vision Pre-training
+- [**OTT3R**](ott3r.md) (arXiv preprint (2026-09)) — Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute
 - [**PaceVGGT**](pacevggt.md) (arXiv preprint (2026-05)) — Pre-Alternating-Attention Token Pruning for Visual Geometry Transformers
 - [**QVGGT**](qvggt.md) (CVPR 2026) — Post-Training Quantized Visual Geometry Grounded Transformer
 - [**RayTun3R**](raytun3r.md) (arXiv preprint (2026-07)) — Online Camera Adaptation in 3D Foundation Models
@@ -52,6 +55,7 @@ The Foundation Models category represents the seminal works that established the
 - [**StreamCacheVGGT**](streamcachevggt.md) (arXiv preprint (2026-04)) — Streaming Visual Geometry Transformers with Robust Scoring and Hybrid Cache Compression
 - [**Trust3R**](trust3r.md) (ICML 2026) — Evidential Uncertainty for Feed-Forward 3D Reconstruction
 - [**UAVFF3D**](uavff3d.md) (arXiv preprint (2026-05)) — A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction
+- [**VGGT-Prime**](vggt-prime.md) (arXiv preprint (2026-09)) — Compute-Adaptive Mixture-of-Heads for Efficient Visual Geometry Transformers
 - [**VLRC**](vlrc.md) (arXiv preprint (2026-07)) — Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining
 
 <!-- /GENERATED -->

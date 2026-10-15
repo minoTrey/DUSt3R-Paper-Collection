@@ -24,6 +24,7 @@ CHECKS = [
     ("후보 분류 보고서", ["python3", "tools/build_candidate_review.py", "--check"], False, False),
     ("README 카운트", ["python3", "tools/update_stats.py", "--check"], False, False),
     ("papers-list·카테고리 목록", ["python3", "tools/build_papers_list.py", "--check"], False, False),
+    ("내부 Markdown 링크", ["python3", "tools/verify_internal_links.py"], False, False),
     ("색인 수치 추적", ["python3", "tools/verify_index_numbers.py", "--check"], False, False),
     ("사실 카드 정합", ["python3", "tools/build_fact_cards.py", "--check"], False, False),
     ("문서 간 참조(A1)", ["python3", "tools/verify_crossref.py", "--check"], False, False),

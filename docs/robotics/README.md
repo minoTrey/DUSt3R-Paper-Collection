@@ -17,7 +17,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (16)
+## 📄 All Papers in This Category (17)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -36,6 +36,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 - [**ScaRF-SLAM**](scarf-slam.md) (arXiv preprint (2026-05)) — Scale-Consistent Reconstruction with Feed-Forward Models and Classical Visual SLAM
 - [**Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models (RA-L 2024)**](unifying-scene-representation.md) (RA-L 2024)
 - [**UniSim-SLAM**](unisim-slam.md) (arXiv preprint (2026-08)) — Feed-Forward SLAM with Unified Sim(3) Optimization
+- [**VGGT-GS SLAM**](vggt-gs-slam.md) (arXiv preprint (2026-09)) — Uncalibrated Monocular Gaussian Splatting SLAM with Feed-Forward Priors
 - [**ViPE**](vipe.md) (arXiv preprint (2025-08)) — Video Pose Engine for 3D Geometric Perception
 
 <!-- /GENERATED -->

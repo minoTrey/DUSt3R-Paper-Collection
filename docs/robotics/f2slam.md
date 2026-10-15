@@ -57,7 +57,7 @@
 ## 🔗 Related Work
 
 - [DROID 계열과 연결되는 MASt3R](../foundation/mast3r.md): 학습 matching·geometry 배경.
-- [VGGT](../foundation/vggt.md): geometry 모델을 SLAM에 연결하는 비교 맥락.
+- [VGGT](../reconstruction/vggt.md): geometry 모델을 SLAM에 연결하는 비교 맥락.
 
 ## 📚 Key Takeaways
 

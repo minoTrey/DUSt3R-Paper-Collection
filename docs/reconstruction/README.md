@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (117)
+## 📄 All Papers in This Category (123)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -57,7 +57,9 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**Fus3D**](fus3d.md) (arXiv preprint (2026-03)) — Decoding Consolidated 3D Geometry from Feed-forward Geometry Transformer Latents
 - [**G-CUT3R**](g-cut3r.md) (ICLR 2026) — Guided 3D Reconstruction with Camera and Depth Prior Integration
 - [**GARD**](gard.md) (arXiv preprint (2026-05)) — Geometry-Aware Representation Denoising for Robust Multi-view 3D Reconstruction
+- [**GeoFF3D**](geoff3d.md) (arXiv preprint (2026-08)) — Coordinate-Anchored Feed-Forward Reconstruction for Large-Scale UAV Mapping
 - [**GGPT**](ggpt.md) (CVPR 2026) — Geometry-Grounded Point Transformer
+- [**GRF-Recon**](grf-recon.md) (arXiv preprint (2026-09)) — Global Ray-Field Optimization for Long-Sequence Feed-forward Reconstruction
 - [**HGGT**](hggt.md) (arXiv preprint (2026-03)) — Robust and Flexible 3D Hand Mesh Reconstruction from Uncalibrated Images
 - [**HorizonStream**](horizonstream.md) (arXiv preprint (2026-05)) — Long-Horizon Attention for Streaming 3D Reconstruction
 - [**IDT**](idt.md) (arXiv preprint (2025-12)) — A Physically Grounded Transformer for Feed-Forward Multi-View Intrinsic Decomposition
@@ -66,6 +68,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**Info3R**](info3r.md) (arXiv preprint (2026-09)) — Information-Adaptive Test-Time Training for 3D Reconstruction
 - [**IVGT**](ivgt.md) (arXiv preprint (2026-05)) — Implicit Visual Geometry Transformer for Neural Scene Representation
 - [**JointEdit3D**](jointedit3d.md) (arXiv preprint (2026-06)) — Feed-Forward 3D Scene Editing in a Unified Latent Space
+- [**From Feed-Forward to Flow**](just3r.md) (arXiv preprint (2026-09)) — Unifying Reconstruction and Generation Is Easier Than You Think
 - [**Light3R-SfM**](light3r-sfm.md) (CVPR 2025) — Towards Feed-forward Structure-from-Motion
 - [**LingBot-Map**](lingbot-map.md) (arXiv preprint (2026-04)) — Geometric Context Transformer for Streaming 3D Reconstruction
 - [**LIST3R**](list3r.md) (arXiv preprint (2026-07)) — Long-sequence Instance-aware 3D Reconstruction
@@ -78,6 +81,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**MapAnything**](mapanything.md) (3DV 2026) — Universal Feed-Forward Metric 3D Reconstruction
 - [**MASt3R-SLAM**](mast3r-slam.md) (CVPR 2025) — Real-Time Dense SLAM with 3D Reconstruction Priors
 - [**Mem3R**](mem3r.md) (arXiv preprint (2026-04)) — Streaming 3D Reconstruction with Hybrid Memory via Test-Time Training
+- [**Many Eyes, One World**](meow.md) (arXiv preprint (2026-09)) — Feed-Forward 3D Reconstruction from Mixed Cameras
 - [**MERG3R**](merg3r.md) (CVPR 2026) — A Divide-and-Conquer Approach to Large-Scale Neural Visual Geometry
 - [**Mix3R**](mix3r.md) (arXiv preprint (2026-05)) — Mixing Feed-forward Reconstruction and Generative 3D Priors for Joint Multi-view Aligned 3D Reconstruction and Pose Estimation
 - [**MoGe**](moge.md) (CVPR 2025) — Unlocking Accurate Monocular Geometry Estimation for Open-Domain Images
@@ -87,6 +91,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**MV-DUSt3R+**](mv-dust3r-plus.md) (CVPR 2025) — Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds
 - [**NoDrift3R**](nodrift3r.md) (arXiv preprint (2026-07)) — Raymap-Guided Coupling for Drift-Robust Unposed Feed-Forward 3D Reconstruction
 - [**OmniVGGT**](omnivggt.md) (CVPR 2026) — Omni-Modality Driven Visual Geometry Grounded Transformer
+- [**On-the-Fly3R**](on-the-fly3r.md) (arXiv preprint (2026-09)) — Towards Robust Online 3D Reconstruction with Feed-Forward 3R Models for Large-Scale UAV Scenarios
 - [**Online3R**](online3r.md) (arXiv preprint (2026-04)) — Online Learning for Consistent Sequential Reconstruction Based on Geometry Foundation Model
 - [**OVGGT**](ovggt.md) (arXiv preprint (2026-03)) — O(1) Constant-Cost Streaming Visual Geometry Transformer
 - [**PanoVGGT**](panovggt.md) (CVPR 2026) — Feed-Forward 3D Reconstruction from Panoramic Imagery
@@ -106,6 +111,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**SAIL-Recon**](sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization
 - [**Sat3R**](sat3r.md) (arXiv preprint (2026-05)) — Satellite DSM Reconstruction via RPC-Aware Depth Fine-tuning
 - [**Scal3R**](scal3r.md) (CVPR 2026) — Scalable Test-Time Training for Large-Scale 3D Reconstruction
+- [**Scal3R**](scal3r-query.md) (arXiv preprint (2026-09)) — Learning Efficient Multi-Relative Pose Query for Scalable Online 3D Reconstruction
 - [**Self-Geometry**](self-geometry.md) (arXiv preprint (2026-08)) — GT-Free and Plug-and-Play Test-Time Adaptation for Geometrically Consistent 3D Vision Foundation Models
 - [**SHOW**](show.md) (arXiv preprint (2026-06)) — Scene and Human in One World — Reconstruction in a Feedforward Pass
 - [**SING3R-SLAM**](sing3r-slam.md) (arXiv preprint (2025-11)) — Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors

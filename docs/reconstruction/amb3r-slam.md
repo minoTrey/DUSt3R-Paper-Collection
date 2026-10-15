@@ -56,8 +56,8 @@ KITTI 평균 ATE(m). 아래 행은 모두 단안 조건이며 offline과 online 
 
 ## 🔗 Related Work
 
-- [VGGT](../foundation/vggt.md): feed-forward geometry 계열.
-- [Depth Anything 3](../foundation/depth-anything-3.md): 기본 geometry 모델 계열.
+- [VGGT](vggt.md): feed-forward geometry 계열.
+- [Depth Anything 3](depth-anything-3.md): 기본 geometry 모델 계열.
 
 ## 📚 Key Takeaways
 

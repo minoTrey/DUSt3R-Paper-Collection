@@ -23,7 +23,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (38)
+## 📄 All Papers in This Category (39)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -35,6 +35,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**AVAT3R**](avat3r.md) (ICCV 2025) — Large Animatable Gaussian Reconstruction Model for High-fidelity 3D Head Avatars
 - [**Cross-View Splatter**](cross-view-splatter.md) (CVPR 2026) — Feed-Forward View Synthesis with Georeferenced Images
 - [**DAS3R**](das3r.md) (arXiv preprint (2024-12)) — Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction
+- [**DensiTok**](densitok.md) (arXiv preprint (2026-10)) — Making Feed-Forward 3D Gaussian Splatting See More Views Than It Is Given
 - [**Dense Point Clouds Matter**](dust-gs.md) (ICASSP 2025) — Dust-GS for Scene Reconstruction from Sparse Viewpoints
 - [**Dust to Tower**](dust-to-tower.md) (arXiv preprint (2024-12)) — Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images
 - [**FF-ProCams**](ff-procams.md) (arXiv preprint (2026-07)) — Feed-Forward Gaussian Splatting for Projector-Camera System

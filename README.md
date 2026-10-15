@@ -1,54 +1,108 @@
 # DUSt3R Paper Collection
 
-[![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
-[![Papers](https://img.shields.io/badge/Papers-279-green.svg)](docs/papers-list.md)
-[![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--10-orange.svg)](log.md)
+**이미지가 어떻게 3D 기하로 바뀌는지, 논문마다 무엇이 다른지 읽는 컬렉션.**
 
-> A curated survey of **279 papers** on DUSt3R and feed-forward 3D reconstruction, from
-> CroCo (2022) through the verified October 2026 curation batch.
+DUSt3R와 관련 feed-forward 3D 연구의 원문을 연결하고, 입력·출력·핵심 방법·실험 조건을 한국어로 설명합니다.
+각 논문은 같은 일곱 섹션을 사용합니다. 영어 제목과 원문 링크로 다시 찾아갈 수 있습니다.
 
-Every paper uses the same seven sections. Earlier verification sweeps and the current
-batch compare reported values with source PDFs, but they do not certify every claim.
-The [curation audit](candidates/README.md) states what was reviewed and what remains open.
-See Verification below for the checks and their limits.
+[전체 논문](docs/papers-list.md) · [입문 읽기](#start-reading) · [질문별 탐색](#explore-by-question) · [최근 추가](#selected-additions) · [검증 범위](#-verification)
 
-## 🌟 What this field is
+[![Papers](https://img.shields.io/badge/Papers-292-green.svg)](docs/papers-list.md)
 
-[DUSt3R](docs/foundation/dust3r.md) (CVPR 2024) replaced the classical SfM + MVS pipeline
-with a network that regresses 3D pointmaps from uncalibrated image pairs.
-The pair network needs no input intrinsics. Multi-image reconstruction uses a separate
-global-alignment optimization, and downstream localization can use matching and known focal lengths.
+> A source-linked collection of **292 papers** on DUSt3R and related feed-forward 3D research.
+> 문서 수는 원문 검증 완료 수와 다릅니다. 결과를 사용할 때는 각 문서의 출처·평가 조건·한계를 확인하세요.
 
-What followed is unusual in its speed. Two years later the descendants number in the
-hundreds and the design space has visibly converged:
+## Images to 3D
 
-- **Pairwise → sequential → global.** DUSt3R aligned pairs; [Spann3R](docs/reconstruction/spann3r.md)
-  and [CUT3R](docs/dynamic/cut3r.md) added memory; [VGGT](docs/reconstruction/vggt.md)
-  processed all views jointly.
-- **Multi-task heads → a single target.** [Depth Anything 3](docs/reconstruction/depth-anything-3.md)
-  (ICLR 2026 Oral) argues a plain transformer with one depth-ray objective beats VGGT's
-  specialized heads.
-- **Offline → streaming.** [TTT3R](docs/reconstruction/ttt3r.md),
-  [STream3R](docs/reconstruction/stream3r.md), [StreamVGGT](docs/reconstruction/streamvggt.md)
-  turned reconstruction into causal inference over a frame stream.
-- **Static → 4D.** [D4RT](docs/dynamic/d4rt.md) (**CVPR 2026 Best Paper**) and
-  [V-DPM](docs/dynamic/v-dpm.md) extended the paradigm to deforming scenes.
+![RGB images enter learned geometry prediction and produce 3D information. This is a conceptual diagram, not a measured reconstruction.](assets/images-to-3d.svg)
 
-## 🚀 Start here
+위 그림은 개념도입니다. 모델은 이미지에서 pointmap, depth, camera pose 등을 예측하지만 출력과 후처리는 방법마다 다릅니다.
+[DUSt3R](docs/foundation/dust3r.md)는 두 이미지의 pointmap을 예측하며, 다중 이미지 재구성에는 별도 global alignment 최적화를 사용합니다.
+입력 calibration, 학습 supervision, 추론 시 최적화의 유무를 구분해서 읽으면 방법의 차이가 보입니다.
 
-| If you are…                  | Read                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| New to the field             | [DUSt3R](docs/foundation/dust3r.md) → [MASt3R](docs/foundation/mast3r.md) → [VGGT](docs/reconstruction/vggt.md)                            |
-| Comparing current methods    | [VGGT-Ω](docs/reconstruction/vggt-omega.md), [Depth Anything 3](docs/reconstruction/depth-anything-3.md), [π³](docs/reconstruction/pi3.md) |
-| Building something real-time | [Streaming & SLAM](#️-research-categories) papers below                                                                                     |
-| Surveying the field          | [Surveys & Analysis](docs/surveys/) — benchmarks that compare models under one protocol                                                    |
-| Browsing everything          | [Complete list](docs/papers-list.md)                                                                                                       |
+## Start reading
+
+이 경로는 개념을 익히기 위한 읽기 순서이며 성능 순위나 직접적인 계보를 뜻하지 않습니다.
+
+| 읽을 논문                               | 먼저 볼 질문                                               |
+| --------------------------------------- | ---------------------------------------------------------- |
+| [DUSt3R](docs/foundation/dust3r.md)     | 두 RGB 이미지에서 pointmap을 어떻게 예측하는가?            |
+| [MASt3R](docs/foundation/mast3r.md)     | 3D 예측에 dense matching feature를 더하면 무엇이 가능한가? |
+| [VGGT](docs/reconstruction/vggt.md)     | 여러 view를 함께 처리하고 pose·depth를 어떻게 출력하는가?  |
+| [MUSt3R](docs/reconstruction/must3r.md) | 여러 이미지와 메모리를 어떻게 효율적으로 연결하는가?       |
+
+## Explore by question
+
+| 궁금한 점                                | 분야                                                                | 읽기 예시                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 이미지를 3D로 바꾸는 표현은?             | [Foundation](docs/foundation/)                                      | [CroCo](docs/foundation/croco.md), [DUSt3R](docs/foundation/dust3r.md)                               |
+| 긴 영상과 큰 장면을 어떻게 다룰까?       | [Reconstruction](docs/reconstruction/)                              | [TTT3R](docs/reconstruction/ttt3r.md), [Slot3R](docs/reconstruction/slot3r.md)                       |
+| 움직이는 장면도 복원할 수 있을까?        | [Dynamic](docs/dynamic/)                                            | [MonST3R](docs/dynamic/monst3r.md), [CUT3R](docs/dynamic/cut3r.md)                                   |
+| 새로운 시점의 이미지는 어떻게 만들까?    | [Gaussian Splatting](docs/gaussian-splatting/)                      | [Splatt3R](docs/gaussian-splatting/splatt3r.md)                                                      |
+| 기하와 의미를 함께 알 수 있을까?         | [Understanding](docs/understanding/) · [Reasoning](docs/reasoning/) | [IGGT](docs/understanding/iggt.md), [Amodal3R](docs/reasoning/amodal3r.md)                           |
+| 추적·지도·보정에 어떻게 연결할까?        | [Robotics](docs/robotics/) · [Pose](docs/pose/)                     | [UniSim-SLAM](docs/robotics/unisim-slam.md), [FFVO](docs/pose/ffvo.md)                               |
+| 모델은 언제 틀리고 무엇을 비교해야 할까? | [Surveys & Analysis](docs/surveys/)                                 | [Confidence Audit](docs/surveys/confidence-audit.md), [Wide Views](docs/surveys/wider-views-fail.md) |
+| 의료 영상의 조건은 무엇이 다를까?        | [Medical](docs/medical/)                                            | [Endo3R](docs/medical/endo3r.md)                                                                     |
+
+## Selected additions
+
+**2026-10-15 정비 묶음**
+
+이번 원문 대조 묶음에서 고른 문서입니다. 전체 변경 범위와 후보별 포함·제외 근거는 [후보 검토표](candidates/review-2026-10-15.md),
+수정 이력은 [log](log.md)에서 확인할 수 있습니다. 아래 날짜는 컬렉션 정비일입니다.
+
+| 읽을 주제                              | 새 요약                                                                                                                             |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Streaming state와 geometry reliability | [Slot3R](docs/reconstruction/slot3r.md), [Info3R](docs/reconstruction/info3r.md), [GeoCond](docs/foundation/geocond.md)             |
+| Geometry를 SLAM에 연결하기             | [UniSim-SLAM](docs/robotics/unisim-slam.md), [BLASt3R](docs/reconstruction/blast3r.md), [F2SLAM](docs/robotics/f2slam.md)           |
+| UAV·긴 영상·혼합 camera                | [GeoFF3D](docs/reconstruction/geoff3d.md), [On-the-Fly3R](docs/reconstruction/on-the-fly3r.md), [MEOW](docs/reconstruction/meow.md) |
+| 직접 예측과 geometry 생성              | [JUSt3R](docs/reconstruction/just3r.md)                                                                                             |
+
+## 🏷️ Research categories
+
+분류는 탐색을 위한 기본 위치입니다. 한 논문은 여러 연구 질문과 연결될 수 있습니다.
+각 분야 링크에서 전체 목록을 볼 수 있습니다.
+
+### 🔬 [Foundation Models](docs/foundation/) (30 papers)
+
+Cross-view learning, pointmap regression, matching, and shared geometry representations.
+
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (123 papers)
+
+Static geometry, mixed cameras, large scenes, streaming memory, alignment, and SLAM.
+
+### 🎬 [Dynamic Scenes](docs/dynamic/) (43 papers)
+
+Geometry and motion when objects or the camera move.
+
+### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (39 papers)
+
+Learned geometry connected to explicit scene representations and novel-view rendering.
+
+### 🧠 [Scene Understanding](docs/understanding/) (17 papers)
+
+Geometry connected to segmentation, objects, and semantic features.
+
+### 🔍 [Scene Reasoning](docs/reasoning/) (4 papers)
+
+Occluded structure, amodal geometry, and spatial reasoning.
+
+### 🤖 [Robotics](docs/robotics/) (17 papers)
+
+Calibration, odometry, mapping, and robotic applications of geometry models.
+
+### 📚 [Surveys & Analysis](docs/surveys/) (8 papers)
+
+Evaluation protocols, reliability, failure analysis, and surveys.
+
+### 📍 [Pose Estimation](docs/pose/) (10 papers) · 🏥 [Medical](docs/medical/) (1 paper)
+
+Camera localization and geometry methods for medical imagery.
 
 ## 📈 Research landscape
 
-Venue year from each paper's current Overview, for `CONFIRMED` venue records only.
-`LIKELY`, `UNKNOWN`, and arXiv submission dates are excluded. These counts reflect stored
-metadata evidence, not a fresh publication audit of every paper.
+각 문서의 현재 Overview에서 **CONFIRMED venue의 연도만** 집계합니다.
+LIKELY·UNKNOWN·arXiv 제출 연도는 제외하며, 모든 문서의 출판 정보를 이번에 다시 검증했다는 뜻은 아닙니다.
 
 <!-- GENERATED:histogram -->
 
@@ -62,148 +116,25 @@ metadata evidence, not a fresh publication audit of every paper.
 
 <!-- /GENERATED -->
 
-The collection also includes preprints and unconfirmed venue claims outside this histogram.
+Preprint와 venue 미확인 문서도 컬렉션에 포함됩니다.
 
-## 🏷️ Research categories
+## Reading results responsibly
 
-### 🔬 [Foundation Models](docs/foundation/) (26 papers)
-
-The lineage that established the paradigm.
-
-| Paper                                       | Venue        | Contribution                                       |
-| ------------------------------------------- | ------------ | -------------------------------------------------- |
-| [CroCo](docs/foundation/croco.md)           | NeurIPS 2022 | Cross-view completion pretraining                  |
-| [CroCo v2](docs/foundation/croco-v2.md)     | ICCV 2023    | Scaled pretraining to stereo and flow              |
-| **[DUSt3R](docs/foundation/dust3r.md)** ⭐  | CVPR 2024    | Direct pointmap regression from uncalibrated pairs |
-| [MASt3R](docs/foundation/mast3r.md)         | ECCV 2024    | Added a dense local-feature matching head          |
-| [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 3DV 2025     | Full SfM pipeline on the MASt3R backbone           |
-
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (117 papers)
-
-The main line: static scenes, scale, speed, and the backbones everything else builds on.
-
-<details>
-<summary>View by theme</summary>
-
-- **Backbones** — [VGGT](docs/reconstruction/vggt.md) (CVPR 2025 Best Paper),
-  [VGGT-Ω](docs/reconstruction/vggt-omega.md) (CVPR 2026 Oral),
-  [Depth Anything 3](docs/reconstruction/depth-anything-3.md) (ICLR 2026 Oral),
-  [π³](docs/reconstruction/pi3.md), [MapAnything](docs/reconstruction/mapanything.md) (3DV 2026),
-  [AMB3R](docs/reconstruction/amb3r.md) (CVPR 2026 Highlight),
-  [WorldMirror](docs/reconstruction/worldmirror.md) (ICML 2026)
-- **Streaming / long sequences** — [TTT3R](docs/reconstruction/ttt3r.md),
-  [STream3R](docs/reconstruction/stream3r.md), [StreamVGGT](docs/reconstruction/streamvggt.md),
-  [Point3R](docs/reconstruction/point3r.md), [Spann3R](docs/reconstruction/spann3r.md),
-  [MUSt3R](docs/reconstruction/must3r.md), [LONG3R](docs/reconstruction/long3r.md),
-  [HorizonStream](docs/reconstruction/horizonstream.md), [Anchor3R](docs/reconstruction/anchor3r.md)
-- **Efficiency** — [FastVGGT](docs/reconstruction/fastvggt.md),
-  [LiteVGGT](docs/reconstruction/litevggt.md), [QuantVGGT](docs/reconstruction/quantvggt.md),
-  [Sparse-VGGT](docs/reconstruction/sparse-vggt.md), [Co-Me](docs/reconstruction/co-me.md),
-  [ZipMap](docs/reconstruction/zipmap.md), [Speed3R](docs/reconstruction/speed3r.md)
-- **Scale** — [Scal3R](docs/reconstruction/scal3r.md) (CVPR 2026 Highlight),
-  [MERG3R](docs/reconstruction/merg3r.md), [VGG-T3](docs/reconstruction/vgg-t3.md),
-  [SAIL-Recon](docs/reconstruction/sail-recon.md) (3DV 2026 Oral),
-  [VGGT-Long](docs/reconstruction/vggt-long.md), [S-MUSt3R](docs/reconstruction/s-must3r.md)
-- **SLAM** — [MASt3R-SLAM](docs/reconstruction/mast3r-slam.md),
-  [VGGT-SLAM](docs/reconstruction/vggt-slam.md), [SLAM3R](docs/reconstruction/slam3r.md),
-  [SLAM-Former](docs/reconstruction/slam-former.md) (ECCV 2026),
-  [SING3R-SLAM](docs/reconstruction/sing3r-slam.md)
-- **Monocular geometry** — [MoGe](docs/reconstruction/moge.md),
-  [MoGe-2](docs/reconstruction/moge-2.md), [Mono3R](docs/reconstruction/mono3r.md)
-- **Conditioning & adaptation** — [Pow3R](docs/reconstruction/pow3r.md),
-  [G-CUT3R](docs/reconstruction/g-cut3r.md), [LoRA3D](docs/reconstruction/lora3d.md),
-  [Test3R](docs/reconstruction/test3r.md), [Fin3R](docs/reconstruction/fin3r.md)
-
-</details>
-
-### 🎬 [Dynamic Scenes](docs/dynamic/) (43 papers)
-
-Reconstruction when the scene itself moves.
-
-<details>
-<summary>View by theme</summary>
-
-- **4D pointmaps** — [D4RT](docs/dynamic/d4rt.md) (**CVPR 2026 Best Paper**),
-  [V-DPM](docs/dynamic/v-dpm.md), [Dynamic Point Maps](docs/dynamic/dynamic-point-maps.md),
-  [Any4D](docs/dynamic/any4d.md), [PAGE-4D](docs/dynamic/page-4d.md)
-- **Video depth & pose** — [MonST3R](docs/dynamic/monst3r.md), [CUT3R](docs/dynamic/cut3r.md),
-  [Easi3R](docs/dynamic/easi3r.md), [Geo4D](docs/dynamic/geo4d.md), [C4D](docs/dynamic/c4d.md),
-  [VGGT4D](docs/dynamic/vggt4d.md)
-- **Humans** — [Human3R](docs/dynamic/human3r.md), [ODHSR](docs/dynamic/odhsr.md)
-- **Driving** — [DGGT](docs/dynamic/dggt.md), [DynamicVGGT](docs/dynamic/dynamicvggt.md)
-
-</details>
-
-### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (38 papers)
-
-Feed-forward models that emit 3D Gaussians instead of, or alongside, pointmaps.
-[Splatt3R](docs/gaussian-splatting/splatt3r.md), [YoNoSplat](docs/gaussian-splatting/yonosplat.md),
-[TokenSplat](docs/gaussian-splatting/tokensplat.md), [ARTDECO](docs/gaussian-splatting/artdeco.md),
-[InstantSplat](docs/gaussian-splatting/instantsplat.md), [PreF3R](docs/gaussian-splatting/pref3r.md).
-
-### 🧠 [Scene Understanding](docs/understanding/) (17 papers)
-
-Geometry plus semantics in one pass. [IGGT](docs/understanding/iggt.md),
-[PanSt3R](docs/understanding/panst3r.md), [EPS3D](docs/understanding/eps3d.md),
-[SegVGGT](docs/understanding/segvggt.md), [FF3R](docs/understanding/ff3r.md),
-[HAMSt3R](docs/understanding/hamst3r.md), [LargeSpatialModel](docs/understanding/largespatialmodel.md).
-
-### 🔍 [Scene Reasoning](docs/reasoning/) (4 papers)
-
-Inferring geometry that was never observed — amodal and occluded structure.
-[Amodal3R](docs/reasoning/amodal3r.md), [NOVA3R](docs/reasoning/nova3r.md),
-[LaRI](docs/reasoning/lari.md), [RaySt3R](docs/reasoning/rayst3r.md).
-
-### 🤖 [Robotics](docs/robotics/) (16 papers)
-
-Calibration, odometry, and manipulation built on 3D foundation models.
-[Rig3R](docs/robotics/rig3r.md), [Calib3R](docs/robotics/calib3r.md),
-[MASt3R-Fusion](docs/robotics/mast3r-fusion.md), [ViPE](docs/robotics/vipe.md),
-[FVO](docs/robotics/fvo.md), [GraphSeg](docs/robotics/graphseg.md).
-
-### 📚 [Surveys & Analysis](docs/surveys/) (7 papers)
-
-Benchmarks and analyses that evaluate many models under one protocol, rather than
-proposing another. [E3D-Bench](docs/surveys/e3d-bench.md),
-[CARVE](docs/surveys/carve.md),
-[Geometric Understanding](docs/surveys/geometric-understanding.md),
-[Survey: DUSt3R→VGGT](docs/surveys/survey-dust3r-to-vggt.md).
-
-### 📍 [Pose Estimation](docs/pose/) (10 papers) · 🏥 [Medical](docs/medical/) (1 paper)
-
-[Reloc3r](docs/pose/reloc3r.md), [Pos3R](docs/pose/pos3r.md), [Endo3R](docs/medical/endo3r.md).
-
-## 📊 On cross-paper comparison
-
-**This README deliberately contains no leaderboard.**
-
-That is not an oversight. An earlier version of this file carried a headline table
-comparing DUSt3R, MASt3R, VGGT and π³ on "DTU Accuracy / Completeness / F-Score". Every
-row was wrong: the values came from a different benchmark under different metrics, the
-column headers were invented, and one model appeared to lose a comparison it actually
-wins. The table looked authoritative and was reproduced across several paper documents
-before verification caught it.
-
-The underlying problem is real and not specific to this repo. These papers evaluate on
-overlapping but non-identical protocols — with or without ground-truth cameras, aligned
-or metric scale, per-scene or averaged — and a number lifted out of its table loses the
-qualifiers that make it meaningful.
-
-So: **per-paper tables live in each paper's document, cited to the source table.** For
-comparisons across models under a single protocol, use the
-[benchmark papers](docs/surveys/) instead, which is what they exist for.
+수치는 각 논문 문서에서 원문 표·데이터셋·camera 조건·정렬 방식과 함께 읽으세요.
+GT pose 사용 여부, metric scale과 정렬 scale, 완료 시퀀스 수가 다르면 같은 지표 이름도 직접 비교할 수 없습니다.
+여러 모델을 하나의 protocol로 비교하려면 [평가·분석 논문](docs/surveys/)에서 시작하세요.
 
 ## ✅ Verification
 
 Metadata and results in this collection are checked by scripts in [`tools/`](tools/):
 
-| Check                     | What it does                                                                |
-| ------------------------- | --------------------------------------------------------------------------- |
-| `verify_metadata.py`      | Venue, authors, arXiv ID against arXiv + DBLP + Semantic Scholar + Crossref |
-| `verify_benchmarks.py`    | Every decimal in every table against the source paper's PDF text            |
-| `verify_index_numbers.py` | Every number in this README traced back to a paper document                 |
-| `check_structure.py`      | Seven-section structure and Overview field schema                           |
-| `update_stats.py`         | Counts, badges, and the histogram above — all generated, never hand-edited  |
+| Check                     | What it does                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `verify_metadata.py`      | Venue, authors, arXiv ID against arXiv + DBLP + Semantic Scholar + Crossref           |
+| `verify_benchmarks.py`    | Selected numeric tokens in tables against source PDF text; labels need source review  |
+| `verify_index_numbers.py` | Every number in this README traced back to a paper document                           |
+| `check_structure.py`      | Seven-section structure and Overview field schema                                     |
+| `update_stats.py`         | Document/category counts and the confirmed-venue histogram — generated from documents |
 
 Each paper's Overview carries a `Verification` field:
 
@@ -255,7 +186,7 @@ match its source, that is a bug worth filing.
 
 ```bibtex
 @misc{dust3r_paper_collection,
-  title  = {DUSt3R Paper Collection: A Verified Survey of Feed-Forward 3D Reconstruction},
+  title  = {DUSt3R Paper Collection: Source-linked Notes on Feed-Forward 3D Reconstruction},
   author = {minoTrey},
   year   = {2026},
   url    = {https://github.com/minoTrey/DUSt3R-Paper-Collection}
@@ -266,7 +197,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 279 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 292 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 License status needs maintainer confirmation: this repository's earlier README referred

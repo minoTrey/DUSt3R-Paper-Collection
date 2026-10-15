@@ -54,7 +54,7 @@ GT intrinsics가 없는 조건의 평균 ATE(m). Evo와 Umeyama Sim(3) 정렬을
 
 ## 🔗 Related Work
 
-- [VGGT](../foundation/vggt.md): 다중 시점 geometry 예측 배경.
+- [VGGT](../reconstruction/vggt.md): 다중 시점 geometry 예측 배경.
 - [MASt3R](../foundation/mast3r.md): 두 시점 geometry와 matching 계열.
 
 ## 📚 Key Takeaways
