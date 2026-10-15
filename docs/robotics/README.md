@@ -17,7 +17,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (18)
+## 📄 All Papers in This Category (19)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -31,6 +31,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 - [**GRS-SLAM3R**](grs-slam3r.md) (arXiv preprint (2025-09)) — Real-Time Dense SLAM with Gated Recurrent State
 - [**LEXI-SG**](lexi-sg.md) (arXiv preprint (2026-05)) — Monocular 3D Scene Graph Mapping with Room-Guided Feed-Forward Reconstruction
 - [**MASt3R-Fusion**](mast3r-fusion.md) (arXiv preprint (2025-09)) — Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM
+- [**Noctif3R**](noctif3r.md) (arXiv preprint (2026-09)) — Feed-Forward Monocular Real-Time SLAM for Photon-Limited Scenes on Embedded Hardware
 - [**Pow3R-SLAM**](pow3r-slam.md) (arXiv preprint (2026-09)) — Real-Time RGB-D SLAM with 3D Reconstruction Priors
 - [**Rig3R**](rig3r.md) (arXiv preprint (2025-06)) — Rig-Aware Conditioning for Learned 3D Reconstruction
 - [**Robo3R**](robo3r.md) (RSS 2026) — Enhancing Robotic Manipulation with Accurate Feed-Forward 3D Reconstruction

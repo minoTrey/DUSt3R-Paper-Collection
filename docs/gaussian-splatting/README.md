@@ -23,7 +23,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (44)
+## 📄 All Papers in This Category (46)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -34,6 +34,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**ARTDECO**](artdeco.md) (ICLR 2026) — Towards Efficient and High-Fidelity On-the-Fly 3D Reconstruction with Structured Scene Representation
 - [**ArtSplat**](artsplat.md) (arXiv preprint (2026-05)) — Feed-Forward Articulated 3D Gaussian Splatting from Sparse Multi-State Uncalibrated Views
 - [**AVAT3R**](avat3r.md) (ICCV 2025) — Large Animatable Gaussian Reconstruction Model for High-fidelity 3D Head Avatars
+- [**AVSplat**](avsplat.md) (arXiv preprint (2026-09)) — Dense-View Feed-Forward 3D Gaussian Splatting with Assist-View Preconditioning
 - [**Cross-View Splatter**](cross-view-splatter.md) (CVPR 2026) — Feed-Forward View Synthesis with Georeferenced Images
 - [**DAS3R**](das3r.md) (arXiv preprint (2024-12)) — Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction
 - [**DensiTok**](densitok.md) (arXiv preprint (2026-10)) — Making Feed-Forward 3D Gaussian Splatting See More Views Than It Is Given
@@ -67,6 +68,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**Swimm3R**](swimm3r.md) (arXiv preprint (2026-08)) — Splatting with Medium-aware SfM for Underwater 3D Reconstruction
 - [**TokenSplat**](tokensplat.md) (CVPR 2026) — Token-aligned 3D Gaussian Splatting for Feed-forward Pose-free Reconstruction
 - [**TriSplat**](trisplat.md) (arXiv preprint (2026-05)) — Simulation-Ready Feed-Forward 3D Scene Reconstruction
+- [**VoxelTTO**](voxeltto.md) (arXiv preprint (2026-09)) — Voxel-Aligned Feed-Forward 3D Gaussian Splatting with Test-Time Optimization
 - [**Wild3R**](wild3r.md) (arXiv preprint (2026-06)) — Feed-Forward 3D Gaussian Splatting from Unconstrained Sparse Photo Collections
 - [**WildSplat**](wildsplat.md) (ECCV 2026) — Feedforward Gaussian Splatting from Unposed In-the-Wild Images
 - [**WildSplatter**](wildsplatter.md) (arXiv preprint (2026-04)) — Feed-forward 3D Gaussian Splatting with Appearance Control from Unconstrained Images

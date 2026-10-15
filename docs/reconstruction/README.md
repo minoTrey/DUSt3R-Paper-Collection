@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (125)
+## 📄 All Papers in This Category (126)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -51,6 +51,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**FastVGGT**](fastvggt.md) (ICLR 2026) — Training-Free Acceleration of Visual Geometry Transformer
 - [**FILT3R**](filt3r.md) (arXiv preprint (2026-03)) — Latent State Adaptive Kalman Filter for Streaming 3D Reconstruction
 - [**Fin3R**](fin3r.md) (NeurIPS 2025) — Fine-tuning Feed-forward 3D Reconstruction Models via Monocular Knowledge Distillation
+- [**FIRE3D**](fire3d.md) (arXiv preprint (2026-09)) — Feed-forward Interactive 3D Scene Reconstruction Within A Minute
 - [**Fisheye3R**](fisheye3r.md) (arXiv preprint (2026-03)) — Adapting Unified 3D Feed-Forward Foundation Models to Fisheye Lenses
 - [**FrameVGGT**](framevggt.md) (arXiv preprint (2026-03)) — Coherence-Preserving Memory for Bounded Streaming Geometry
 - [**Free Geometry**](free-geometry.md) (arXiv preprint (2026-04)) — Refining 3D Reconstruction from Longer Versions of Itself
