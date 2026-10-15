@@ -19,7 +19,7 @@ The Pose Estimation category specializes in determining camera poses and object 
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (10)
+## 📄 All Papers in This Category (11)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -33,5 +33,6 @@ The Pose Estimation category specializes in determining camera poses and object 
 - [**Keyframe-Based Feed-Forward VO**](keyframe-based.md) (arXiv preprint (2026-01)) — RL-Driven Keyframe Selection for VGGT
 - [**Pos3R**](pos3r.md) (CVPR 2025) — 6D Pose Estimation for Unseen Objects Made Easy
 - [**Reloc3r**](reloc3r.md) (CVPR 2025) — Large-Scale Training of Relative Camera Pose Regression for Generalizable, Fast, and Accurate Visual Localization
+- [**Topometric Autonomous Vehicle Localization by Combining Visual Embeddings and Feed-Forward 3D Models (arXiv 2026)**](topometric-ff3d.md) (arXiv preprint (2026-08))
 
 <!-- /GENERATED -->

@@ -23,7 +23,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (21)
+## 📄 All Papers in This Category (25)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -38,12 +38,16 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - [**IGGT4D**](iggt4d.md) (arXiv preprint (2026-07)) — Streaming 4D Instance-Grounded Geometry Transformer
 - [**LangFlash**](langflash.md) (arXiv preprint (2026-05)) — Feed-forward 3D Language Gaussian Splatting from Sparse Unposed Images
 - [**LargeSpatialModel**](largespatialmodel.md) (NeurIPS 2024) — End-to-end Unposed Images to Semantic 3D
+- [**Map-Det3D**](map-det3d.md) (arXiv preprint (2026-08)) — Metric Feed-Forward 3D Reconstruction Prior for Multi-view 3D Object Detection from Streaming Inputs
 - [**MEt3R**](met3r.md) (CVPR 2025) — Measuring Multi-View Consistency in Generated Images
 - [**MoonSeg3R**](moonseg3r.md) (CVPR 2026) — Monocular Online Zero-Shot Segment Anything in 3D with Reconstructive Foundation Priors
 - [**MV-SAM**](mv-sam.md) (arXiv preprint (2026-01)) — Multi-view Promptable Segmentation using Pointmap Guidance
+- [**MV2GF**](mv2gf.md) (arXiv preprint (2026-08)) — Multi-view Pedestrian Detection with a Visual Geometric Foundation Model
 - [**PanSt3R**](panst3r.md) (ICCV 2025) — Multi-view Consistent Panoptic Segmentation
 - [**PE3R**](pe3r.md) (arXiv preprint (2025-03)) — Perception-Efficient 3D Reconstruction
 - [**PhysVGGT**](physvggt.md) (arXiv preprint (2026-09)) — Feed-Forward Dense Physical Property Estimation from A Single Image
+- [**RelationVGGT**](relationvggt.md) (arXiv preprint (2026-10)) — Visual Geometry Transformers for 3D Spatial Relation Segmentation
+- [**S4VY**](s4vy.md) (arXiv preprint (2026-09)) — Segment Anything in Feed-Forward 4D Visual Geometry
 - [**SAMV-DUSt3R**](samv-dust3r.md) (arXiv preprint (2026-09)) — Instance-Centric 3D Scene Decoupling from Sparse Multi-Views
 - [**SegVGGT**](segvggt.md) (ECCV 2026) — Joint 3D Reconstruction and Instance Segmentation from Multi-View Images
 - [**Spa3R**](spa3r.md) (arXiv preprint (2026-02)) — Predictive Spatial Field Modeling for 3D Visual Reasoning

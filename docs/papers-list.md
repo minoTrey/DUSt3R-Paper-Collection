@@ -3,7 +3,7 @@
 > 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
 > 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
 
-**Total: 316 papers**
+**Total: 323 papers**
 
 ## Foundation Models (30)
 
@@ -168,7 +168,7 @@
 - [**WorldMirror**](reconstruction/worldmirror.md) (ICML 2026) — Universal 3D World Reconstruction with Any-Prior Prompting
 - [**ZipMap**](reconstruction/zipmap.md) (CVPR 2026) — Linear-Time Stateful 3D Reconstruction via Test-Time Training
 
-## Dynamic Scenes (46)
+## Dynamic Scenes (47)
 
 - [**4DVGGT-D**](dynamic/4dvggt-d.md) (arXiv preprint (2026-05)) — 4D Visual Geometry Transformer with Improved Dynamic Depth Estimation
 - [**Adapt3R**](dynamic/adapt3r.md) (arXiv preprint (2025-03)) — Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning
@@ -185,6 +185,7 @@
 - [**DynamicVGGT**](dynamic/dynamicvggt.md) (arXiv preprint (2026-03)) — Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving
 - [**EAG3R**](dynamic/eag3r.md) (NeurIPS 2025) — Event-Augmented 3D Geometry Estimation for Dynamic and Extreme-Lighting Scenes
 - [**Easi3R**](dynamic/easi3r.md) (ICCV 2025) — Estimating Disentangled Motion from DUSt3R Without Training
+- [**EgoFound3R**](dynamic/egofound3r.md) (arXiv preprint (2026-10)) — End-to-End Egocentric Hand Reconstruction in World Space with Point-Wise Interaction Attributes
 - [**Envision4D**](dynamic/envision4d.md) (arXiv preprint (2026-06)) — Envisioning Visual Futures via Feed-forward 4D Gaussian Splatting for Autonomous Driving
 - [**Flow3r**](dynamic/flow3r.md) (CVPR 2026) — Factored Flow Prediction for Scalable Visual Geometry Learning
 - [**Geo4D**](dynamic/geo4d.md) (ICCV 2025) — Leveraging Video Generators for Geometric 4D Scene Reconstruction
@@ -217,7 +218,7 @@
 - [**WildHSR**](dynamic/wildhsr.md) (arXiv preprint (2026-09)) — Metric Feed-Forward 4D People-Scene Reconstruction from a 3D Foundation Model
 - [**WorldReel**](dynamic/worldreel.md) (arXiv preprint (2025-12)) — 4D Video Generation with Consistent Geometry and Motion Modeling
 
-## Gaussian Splatting (47)
+## Gaussian Splatting (48)
 
 - [**2Xplat**](gaussian-splatting/2xplat.md) (arXiv preprint (2026-03)) — Decoupling Geometry and Appearance Modeling for Feed-Forward 3D Gaussian Splatting
 - [**AdaptiveSplat**](gaussian-splatting/adaptivesplat.md) (ECCV 2026) — Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction
@@ -241,6 +242,7 @@
 - [**ForeSplat**](gaussian-splatting/foresplat.md) (arXiv preprint (2026-05)) — Optimization-Aware Foresight for Feed-Forward 3D Gaussian Splatting
 - [**GIFSplat**](gaussian-splatting/gifsplat.md) (arXiv preprint (2026-02)) — Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views
 - [**GlobalSplat**](gaussian-splatting/globalsplat.md) (arXiv preprint (2026-04)) — Efficient Feed-Forward 3D Gaussian Splatting via Global Scene Tokens
+- [**GrapeSplat**](gaussian-splatting/grapesplat.md) (arXiv preprint (2026-09)) — Geometry-Grounded Reconstruction via Amalgamated Pose-Free Encoding for Feed-Forward 3D Gaussian Splatting
 - [**HiReFF**](gaussian-splatting/hireff.md) (arXiv preprint (2026-06)) — High-Resolution Feedforward Human Reconstruction from Uncalibrated Sparse-View Video
 - [**Instant NuRec**](gaussian-splatting/instant-nurec.md) (arXiv preprint (2026-07)) — Feed-Forward 3D Gaussian Reconstruction for Driving Scene Simulation
 - [**InstantSplat**](gaussian-splatting/instantsplat.md) (arXiv preprint (2024-03)) — Sparse-view Gaussian Splatting in Seconds
@@ -267,7 +269,7 @@
 - [**WildSplatter**](gaussian-splatting/wildsplatter.md) (arXiv preprint (2026-04)) — Feed-forward 3D Gaussian Splatting with Appearance Control from Unconstrained Images
 - [**YoNoSplat**](gaussian-splatting/yonosplat.md) (ICLR 2026) — You Only Need One Model for Feedforward 3D Gaussian Splatting
 
-## Scene Understanding (21)
+## Scene Understanding (25)
 
 - [**4DLangVGGT**](understanding/4dlangvggt.md) (arXiv preprint (2025-12)) — 4D Language-Visual Geometry Grounded Transformer
 - [**EPS3D**](understanding/eps3d.md) (ICML 2026) — End-to-End Feed-Forward 3D Panoptic Segmentation
@@ -280,12 +282,16 @@
 - [**IGGT4D**](understanding/iggt4d.md) (arXiv preprint (2026-07)) — Streaming 4D Instance-Grounded Geometry Transformer
 - [**LangFlash**](understanding/langflash.md) (arXiv preprint (2026-05)) — Feed-forward 3D Language Gaussian Splatting from Sparse Unposed Images
 - [**LargeSpatialModel**](understanding/largespatialmodel.md) (NeurIPS 2024) — End-to-end Unposed Images to Semantic 3D
+- [**Map-Det3D**](understanding/map-det3d.md) (arXiv preprint (2026-08)) — Metric Feed-Forward 3D Reconstruction Prior for Multi-view 3D Object Detection from Streaming Inputs
 - [**MEt3R**](understanding/met3r.md) (CVPR 2025) — Measuring Multi-View Consistency in Generated Images
 - [**MoonSeg3R**](understanding/moonseg3r.md) (CVPR 2026) — Monocular Online Zero-Shot Segment Anything in 3D with Reconstructive Foundation Priors
 - [**MV-SAM**](understanding/mv-sam.md) (arXiv preprint (2026-01)) — Multi-view Promptable Segmentation using Pointmap Guidance
+- [**MV2GF**](understanding/mv2gf.md) (arXiv preprint (2026-08)) — Multi-view Pedestrian Detection with a Visual Geometric Foundation Model
 - [**PanSt3R**](understanding/panst3r.md) (ICCV 2025) — Multi-view Consistent Panoptic Segmentation
 - [**PE3R**](understanding/pe3r.md) (arXiv preprint (2025-03)) — Perception-Efficient 3D Reconstruction
 - [**PhysVGGT**](understanding/physvggt.md) (arXiv preprint (2026-09)) — Feed-Forward Dense Physical Property Estimation from A Single Image
+- [**RelationVGGT**](understanding/relationvggt.md) (arXiv preprint (2026-10)) — Visual Geometry Transformers for 3D Spatial Relation Segmentation
+- [**S4VY**](understanding/s4vy.md) (arXiv preprint (2026-09)) — Segment Anything in Feed-Forward 4D Visual Geometry
 - [**SAMV-DUSt3R**](understanding/samv-dust3r.md) (arXiv preprint (2026-09)) — Instance-Centric 3D Scene Decoupling from Sparse Multi-Views
 - [**SegVGGT**](understanding/segvggt.md) (ECCV 2026) — Joint 3D Reconstruction and Instance Segmentation from Multi-View Images
 - [**Spa3R**](understanding/spa3r.md) (arXiv preprint (2026-02)) — Predictive Spatial Field Modeling for 3D Visual Reasoning
@@ -332,7 +338,7 @@
 - [**Survey-DUSt3R-to-VGGT**](surveys/survey-dust3r-to-vggt.md) (JAICS 2025) — Review of Feed-forward 3D Reconstruction
 - [**When Wider Views Fail**](surveys/wider-views-fail.md) (arXiv preprint (2026-09)) — Stress-Testing Feed-Forward 3D Reconstruction
 
-## Pose Estimation (10)
+## Pose Estimation (11)
 
 - [**FFVO**](pose/ffvo.md) (arXiv preprint (2026-09)) — A Feedforward Pose Decoder for Long-Horizon Visual Odometry
 - [**FUSER**](pose/fuser.md) (CVPR 2026) — Feed-Forward Multiview 3D Registration Transformer and SE(3)N Diffusion Refinement
@@ -344,6 +350,7 @@
 - [**Keyframe-Based Feed-Forward VO**](pose/keyframe-based.md) (arXiv preprint (2026-01)) — RL-Driven Keyframe Selection for VGGT
 - [**Pos3R**](pose/pos3r.md) (CVPR 2025) — 6D Pose Estimation for Unseen Objects Made Easy
 - [**Reloc3r**](pose/reloc3r.md) (CVPR 2025) — Large-Scale Training of Relative Camera Pose Regression for Generalizable, Fast, and Accurate Visual Localization
+- [**Topometric Autonomous Vehicle Localization by Combining Visual Embeddings and Feed-Forward 3D Models (arXiv 2026)**](pose/topometric-ff3d.md) (arXiv preprint (2026-08))
 
 ## Medical (3)
 

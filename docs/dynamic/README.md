@@ -23,7 +23,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (46)
+## 📄 All Papers in This Category (47)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -42,6 +42,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 - [**DynamicVGGT**](dynamicvggt.md) (arXiv preprint (2026-03)) — Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving
 - [**EAG3R**](eag3r.md) (NeurIPS 2025) — Event-Augmented 3D Geometry Estimation for Dynamic and Extreme-Lighting Scenes
 - [**Easi3R**](easi3r.md) (ICCV 2025) — Estimating Disentangled Motion from DUSt3R Without Training
+- [**EgoFound3R**](egofound3r.md) (arXiv preprint (2026-10)) — End-to-End Egocentric Hand Reconstruction in World Space with Point-Wise Interaction Attributes
 - [**Envision4D**](envision4d.md) (arXiv preprint (2026-06)) — Envisioning Visual Futures via Feed-forward 4D Gaussian Splatting for Autonomous Driving
 - [**Flow3r**](flow3r.md) (CVPR 2026) — Factored Flow Prediction for Scalable Visual Geometry Learning
 - [**Geo4D**](geo4d.md) (ICCV 2025) — Leveraging Video Generators for Geometric 4D Scene Reconstruction

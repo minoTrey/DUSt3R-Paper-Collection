@@ -23,7 +23,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (47)
+## 📄 All Papers in This Category (48)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -49,6 +49,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**ForeSplat**](foresplat.md) (arXiv preprint (2026-05)) — Optimization-Aware Foresight for Feed-Forward 3D Gaussian Splatting
 - [**GIFSplat**](gifsplat.md) (arXiv preprint (2026-02)) — Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views
 - [**GlobalSplat**](globalsplat.md) (arXiv preprint (2026-04)) — Efficient Feed-Forward 3D Gaussian Splatting via Global Scene Tokens
+- [**GrapeSplat**](grapesplat.md) (arXiv preprint (2026-09)) — Geometry-Grounded Reconstruction via Amalgamated Pose-Free Encoding for Feed-Forward 3D Gaussian Splatting
 - [**HiReFF**](hireff.md) (arXiv preprint (2026-06)) — High-Resolution Feedforward Human Reconstruction from Uncalibrated Sparse-View Video
 - [**Instant NuRec**](instant-nurec.md) (arXiv preprint (2026-07)) — Feed-Forward 3D Gaussian Reconstruction for Driving Scene Simulation
 - [**InstantSplat**](instantsplat.md) (arXiv preprint (2024-03)) — Sparse-view Gaussian Splatting in Seconds
