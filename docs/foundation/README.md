@@ -23,7 +23,7 @@ The Foundation Models category represents the seminal works that established the
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (24)
+## 📄 All Papers in This Category (26)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -36,6 +36,7 @@ The Foundation Models category represents the seminal works that established the
 - [**FGQ**](fisher-quant.md) (arXiv preprint (2026-05)) — Fisher-Guided Quantization for Visual Geometry Transformer
 - [**FlashVGGT**](flashvggt.md) (arXiv preprint (2025-12)) — Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention
 - [**G3T**](g3t.md) (arXiv preprint (2026-05)) — Gravity Aligned Coordinate Frames Simplify Pointmap Processing
+- [**GeoCond**](geocond.md) (arXiv preprint (2026-09)) — A Conditioning-Aware Reliability Adapter for Feed-Forward 3D Reconstruction
 - [**GoToHunt**](good-token-hunting.md) (arXiv preprint (2026-05)) — Good Token Hunting for Visual Geometry Transformers
 - [**HD-VGGT**](hd-vggt.md) (arXiv preprint (2026-03)) — High-Resolution Visual Geometry Transformer
 - [**Lite3R**](lite3r.md) (arXiv preprint (2026-05)) — A Model-Agnostic Framework for Efficient Feed-Forward 3D Reconstruction
@@ -45,6 +46,7 @@ The Foundation Models category represents the seminal works that established the
 - [**PaceVGGT**](pacevggt.md) (arXiv preprint (2026-05)) — Pre-Alternating-Attention Token Pruning for Visual Geometry Transformers
 - [**QVGGT**](qvggt.md) (CVPR 2026) — Post-Training Quantized Visual Geometry Grounded Transformer
 - [**RayTun3R**](raytun3r.md) (arXiv preprint (2026-07)) — Online Camera Adaptation in 3D Foundation Models
+- [**RoMa-Ω**](roma-omega.md) (arXiv preprint (2026-09)) — What Feed-Forward 3D Models Know About Image Matching
 - [**SAF3R**](saf3r.md) (ECCV 2026) — Dynamic Sparse Attention for Feed-Forward 3D Reconstruction Transformers
 - [**Spark3R**](spark3r.md) (arXiv preprint (2026-05)) — Asymmetric Token Reduction Makes Fast Feed-Forward 3D Reconstruction
 - [**StreamCacheVGGT**](streamcachevggt.md) (arXiv preprint (2026-04)) — Streaming Visual Geometry Transformers with Robust Scoring and Hybrid Cache Compression

@@ -533,3 +533,23 @@ S2는 HTTP 429를 반환했다. 검증기는 앞의 두 편에 `PREPRINT?`를 �
 기존 260편 요약 전체의 의미·수치를 재검증하지 않았다. 실험을 재현하지 않았다.
 주간 discovery와 소수 후보의 원문 검토·PR을 연결하는 운영안은 `candidates/README.md`에 제안만 남겼다.
 Workflow·일정·자격 증명·권한·배포·main은 변경하지 않았다.
+
+## [2026-10-15] 후속 후보 원문 분류와 추가 묶음 1
+
+사용자 후속 승인에 따라 76개 후보 전부의 원문 PDF를 확보하고 문제·방법·평가를 읽어 관련성을 분류했다.
+결과는 포함 69 / 제외 7 / 접근 불가 0이다. 동일 arXiv ID의 기존 문서 중복은 없었다.
+WAT3R/Wat3R와 두 Scal3R는 저자·방법이 다른 별도 논문이다.
+버전·SHA-256·분류 근거·처리 상태는 `candidates/review-2026-10-15.json`과 생성 Markdown에 남긴다.
+정량 결과 검증은 분류와 별도 단계다. 범위 밖 7편은 삭제하지 않고 이유를 보존해 rejected로 정리했다.
+
+첫 묶음으로 Self-Geometry, Info3R, GeoCond, Confidence Audit, When Wider Views Fail, RoMa-Ω를 추가했다.
+실제 원문 버전은 각각 v2, v1, v1, v3, v1, v1이다.
+입력·출력·방법·학습/추론 조건·원문 표·실패 사례를 기존 일곱 섹션에 기록했다.
+특히 Self-Geometry의 데이터셋별 악화, GeoCond gate의 FF baseline 대비 OOD 손실,
+Confidence Audit의 calibration 한계와 Wide Views 평가의 pseudo-reference 편향을 명시했다.
+
+PDF 표 수치 `--int` 검사는 6편 74개 모두 일치했다. 후보 상태 안전성 테스트 9개를 통과했다.
+`raw/curation_expansion_2026-10-15.json`과 `raw/curation_expansion_batch1_benchmarks.json`이 근거다.
+현재 컬렉션 273편, 큐 added 142 / rejected 34 / reviewed 63이다. 작성 대기는 실제로 63편이다.
+이 묶음도 인덱스·카테고리·사실 카드를 생성하고 오프라인 suite를 실행한 뒤 push한다.
+기존 후보 수집 GitHub Actions·main·권한·배포는 변경하지 않는다.

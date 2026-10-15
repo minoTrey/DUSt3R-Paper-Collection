@@ -40,11 +40,25 @@ def reconcile() -> tuple[str, str, collections.Counter]:
     if set(triage) - set(ids):
         raise ValueError("Historical triage IDs are missing from the queue.")
 
+    review_path = ROOT / "candidates/review-2026-10-15.json"
+    decisions = {}
+    if review_path.exists():
+        review = json.loads(review_path.read_text(encoding="utf-8"))
+        for rec in review["records"]:
+            aid = rec["arxiv_id"]
+            if aid in decisions or aid not in ids or rec["decision"] not in {"include", "exclude", "defer"}:
+                raise ValueError(f"Invalid candidate review: {aid}")
+            decisions[aid] = rec
+
     evidence_path = ROOT / "raw/curation_evidence_2026-10-15.json"
     reviewed = set()
     if evidence_path.exists():
         evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
         reviewed = {r["arxiv_id"] for r in evidence["papers"] if r.get("pdf_reviewed")}
+    expansion_path = ROOT / "raw/curation_expansion_2026-10-15.json"
+    if expansion_path.exists():
+        expansion = json.loads(expansion_path.read_text(encoding="utf-8"))
+        reviewed.update(r["arxiv_id"] for r in expansion["papers"])
 
     by_id, by_name = collections.defaultdict(list), collections.defaultdict(list)
     for rec in (parse(p) for p in papers()):
@@ -68,7 +82,12 @@ def reconcile() -> tuple[str, str, collections.Counter]:
             raise ValueError(f"Historical IN has no matching document: {aid}")
         # Keep deliberate future review decisions. Discovery's stale 'new' cannot
         # override a document or a historical exclusion.
-        status = "added" if matches else "rejected" if historical == "OUT" else row["status"]
+        decision = decisions.get(aid, {})
+        if decision.get("decision") == "exclude" and matches:
+            raise ValueError(f"Excluded review now has a document: {aid}. Review manually.")
+        status = ("added" if matches else "rejected" if historical == "OUT"
+                  or decision.get("decision") == "exclude" else "reviewed"
+                  if decision.get("decision") == "include" else row["status"])
         if status == "added" and not matches:
             raise ValueError(f"Added candidate has no document: {aid}")
         row["status"] = status
@@ -76,8 +95,10 @@ def reconcile() -> tuple[str, str, collections.Counter]:
                       if r["arxiv_id"] != aid]
         review = ("historical inclusion; not revalidated in this batch" if historical == "IN"
                   else "historical exclusion; reason not recorded; not re-evaluated" if historical == "OUT"
-                  else "PDF reviewed 2026-10-15; see summary and raw/curation_evidence_2026-10-15.json" if aid in reviewed
+                  else "PDF summary reviewed 2026-10-15; see raw/curation_evidence or curation_expansion source manifest" if aid in reviewed
                   else "existing document; PDF review not recorded in this batch" if matches
+                  else "source-screened exclusion: " + decision["reason"] if decision.get("decision") == "exclude"
+                  else "source screened for relevance; summary pending: " + decision["reason"] if decision
                   else "UNVERIFIED: full text and relevance pending")
         writer.writerow([aid, status, historical, ";".join(matches), ";".join(collisions), review])
         counts[status] += 1

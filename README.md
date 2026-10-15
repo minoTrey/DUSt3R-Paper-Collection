@@ -1,10 +1,10 @@
 # DUSt3R Paper Collection
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
-[![Papers](https://img.shields.io/badge/Papers-267-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-273-green.svg)](docs/papers-list.md)
 [![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--10-orange.svg)](log.md)
 
-> A curated survey of **267 papers** on DUSt3R and feed-forward 3D reconstruction, from
+> A curated survey of **273 papers** on DUSt3R and feed-forward 3D reconstruction, from
 > CroCo (2022) through the verified October 2026 curation batch.
 
 Every paper uses the same seven sections. Earlier verification sweeps and the current
@@ -66,7 +66,7 @@ The collection also includes preprints and unconfirmed venue claims outside this
 
 ## 🏷️ Research categories
 
-### 🔬 [Foundation Models](docs/foundation/) (24 papers)
+### 🔬 [Foundation Models](docs/foundation/) (26 papers)
 
 The lineage that established the paradigm.
 
@@ -78,7 +78,7 @@ The lineage that established the paradigm.
 | [MASt3R](docs/foundation/mast3r.md)         | ECCV 2024    | Added a dense local-feature matching head          |
 | [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 3DV 2025     | Full SfM pipeline on the MASt3R backbone           |
 
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (113 papers)
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (115 papers)
 
 The main line: static scenes, scale, speed, and the backbones everything else builds on.
 
@@ -161,7 +161,7 @@ Calibration, odometry, and manipulation built on 3D foundation models.
 [MASt3R-Fusion](docs/robotics/mast3r-fusion.md), [ViPE](docs/robotics/vipe.md),
 [FVO](docs/robotics/fvo.md), [GraphSeg](docs/robotics/graphseg.md).
 
-### 📚 [Surveys & Analysis](docs/surveys/) (5 papers)
+### 📚 [Surveys & Analysis](docs/surveys/) (7 papers)
 
 Benchmarks and analyses that evaluate many models under one protocol, rather than
 proposing another. [E3D-Bench](docs/surveys/e3d-bench.md),
@@ -266,7 +266,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 267 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 273 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 License status needs maintainer confirmation: this repository's earlier README referred

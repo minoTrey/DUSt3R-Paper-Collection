@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (113)
+## 📄 All Papers in This Category (115)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -61,6 +61,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**IDT**](idt.md) (arXiv preprint (2025-12)) — A Physically Grounded Transformer for Feed-Forward Multi-View Intrinsic Decomposition
 - [**iLRM**](ilrm.md) (CVPR 2026) — An Iterative Large 3D Reconstruction Model
 - [**InfiniteVGGT**](infinitevggt.md) (arXiv preprint (2026-01)) — Visual Geometry Grounded Transformer for Endless Streams
+- [**Info3R**](info3r.md) (arXiv preprint (2026-09)) — Information-Adaptive Test-Time Training for 3D Reconstruction
 - [**IVGT**](ivgt.md) (arXiv preprint (2026-05)) — Implicit Visual Geometry Transformer for Neural Scene Representation
 - [**JointEdit3D**](jointedit3d.md) (arXiv preprint (2026-06)) — Feed-Forward 3D Scene Editing in a Unified Latent Space
 - [**Light3R-SfM**](light3r-sfm.md) (CVPR 2025) — Towards Feed-forward Structure-from-Motion
@@ -103,6 +104,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**SAIL-Recon**](sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization
 - [**Sat3R**](sat3r.md) (arXiv preprint (2026-05)) — Satellite DSM Reconstruction via RPC-Aware Depth Fine-tuning
 - [**Scal3R**](scal3r.md) (CVPR 2026) — Scalable Test-Time Training for Large-Scale 3D Reconstruction
+- [**Self-Geometry**](self-geometry.md) (arXiv preprint (2026-08)) — GT-Free and Plug-and-Play Test-Time Adaptation for Geometrically Consistent 3D Vision Foundation Models
 - [**SHOW**](show.md) (arXiv preprint (2026-06)) — Scene and Human in One World — Reconstruction in a Feedforward Pass
 - [**SING3R-SLAM**](sing3r-slam.md) (arXiv preprint (2025-11)) — Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors
 - [**SLAM-Former**](slam-former.md) (ECCV 2026) — Putting SLAM into One Transformer

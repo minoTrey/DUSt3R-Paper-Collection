@@ -9,7 +9,7 @@ import reconcile_candidates as target
 
 
 class ReconciliationTests(unittest.TestCase):
-    def reconcile(self, queue, triage="", docs=()):
+    def reconcile(self, queue, triage="", docs=(), reviews=()):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             candidates = root / "candidates"
@@ -17,6 +17,10 @@ class ReconciliationTests(unittest.TestCase):
             source = candidates / "queue.jsonl"
             source.write_text("".join(json.dumps(r) + "\n" for r in queue), encoding="utf-8")
             (candidates / "triage.tsv").write_text(triage, encoding="utf-8")
+            if reviews:
+                (candidates / "review-2026-10-15.json").write_text(
+                    json.dumps({"records": list(reviews)}), encoding="utf-8"
+                )
             with patch.multiple(target, ROOT=root, QUEUE=source), patch.object(
                 target, "papers", return_value=docs
             ), patch.object(target, "parse", side_effect=lambda r: r):
@@ -66,6 +70,20 @@ class ReconciliationTests(unittest.TestCase):
         rows, audit, _ = self.reconcile([self.row()], docs=[self.doc()])
         self.assertEqual(rows[0]["status"], "added")
         self.assertIn("PDF review not recorded", audit)
+
+    def test_screened_inclusion_waits_for_summary(self):
+        rows, audit, _ = self.reconcile([self.row()], reviews=[
+            dict(arxiv_id="2601.00001", decision="include", reason="Direct method extension")
+        ])
+        self.assertEqual(rows[0]["status"], "reviewed")
+        self.assertIn("summary pending", audit)
+
+    def test_screened_exclusion_carries_reason(self):
+        rows, audit, _ = self.reconcile([self.row()], reviews=[
+            dict(arxiv_id="2601.00001", decision="exclude", reason="Out of collection scope")
+        ])
+        self.assertEqual(rows[0]["status"], "rejected")
+        self.assertIn("source-screened exclusion", audit)
 
 
 if __name__ == "__main__":

@@ -21,14 +21,16 @@ benchmark produces a misleading document.
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (5)
+## 📄 All Papers in This Category (7)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
 - [**CARVE**](carve.md) (CVPR 2026) — Unlocking the Power of Critical Factors for 3D Visual Geometry Estimation
+- [**A Calibration Audit of Confidence in Feed-Forward 3D Reconstruction Models (arXiv 2026)**](confidence-audit.md) (arXiv preprint (2026-08))
 - [**E3D-Bench**](e3d-bench.md) (arXiv preprint (2025-06)) — A Benchmark for End-to-End 3D Geometric Foundation Models
 - [**FF3D-Survey**](ff3d-survey.md) (arXiv preprint (2026-04)) — Feed-Forward 3D Scene Modeling — A Problem-Driven Perspective
 - [**GeomUnderstanding**](geometric-understanding.md) (arXiv preprint (2025-12)) — On Geometric Understanding and Learned Priors in Feed-forward 3D Reconstruction Models
 - [**Survey-DUSt3R-to-VGGT**](survey-dust3r-to-vggt.md) (JAICS 2025) — Review of Feed-forward 3D Reconstruction
+- [**When Wider Views Fail**](wider-views-fail.md) (arXiv preprint (2026-09)) — Stress-Testing Feed-Forward 3D Reconstruction
 
 <!-- /GENERATED -->

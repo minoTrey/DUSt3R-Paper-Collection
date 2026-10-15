@@ -21,6 +21,7 @@ CHECKS = [
     ("서식(prettier)", ["npx", "prettier", "--check", "**/*.md"], False, False),
     ("7섹션·Overview 스키마", ["python3", "tools/check_structure.py"], False, False),
     ("후보 상태 대조", ["python3", "tools/reconcile_candidates.py", "--check"], False, False),
+    ("후보 분류 보고서", ["python3", "tools/build_candidate_review.py", "--check"], False, False),
     ("README 카운트", ["python3", "tools/update_stats.py", "--check"], False, False),
     ("papers-list·카테고리 목록", ["python3", "tools/build_papers_list.py", "--check"], False, False),
     ("색인 수치 추적", ["python3", "tools/verify_index_numbers.py", "--check"], False, False),
