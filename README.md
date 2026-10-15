@@ -1,10 +1,10 @@
 # DUSt3R Paper Collection
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
-[![Papers](https://img.shields.io/badge/Papers-273-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-279-green.svg)](docs/papers-list.md)
 [![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--10-orange.svg)](log.md)
 
-> A curated survey of **273 papers** on DUSt3R and feed-forward 3D reconstruction, from
+> A curated survey of **279 papers** on DUSt3R and feed-forward 3D reconstruction, from
 > CroCo (2022) through the verified October 2026 curation batch.
 
 Every paper uses the same seven sections. Earlier verification sweeps and the current
@@ -78,7 +78,7 @@ The lineage that established the paradigm.
 | [MASt3R](docs/foundation/mast3r.md)         | ECCV 2024    | Added a dense local-feature matching head          |
 | [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 3DV 2025     | Full SfM pipeline on the MASt3R backbone           |
 
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (115 papers)
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (117 papers)
 
 The main line: static scenes, scale, speed, and the backbones everything else builds on.
 
@@ -154,7 +154,7 @@ Inferring geometry that was never observed — amodal and occluded structure.
 [Amodal3R](docs/reasoning/amodal3r.md), [NOVA3R](docs/reasoning/nova3r.md),
 [LaRI](docs/reasoning/lari.md), [RaySt3R](docs/reasoning/rayst3r.md).
 
-### 🤖 [Robotics](docs/robotics/) (13 papers)
+### 🤖 [Robotics](docs/robotics/) (16 papers)
 
 Calibration, odometry, and manipulation built on 3D foundation models.
 [Rig3R](docs/robotics/rig3r.md), [Calib3R](docs/robotics/calib3r.md),
@@ -169,7 +169,7 @@ proposing another. [E3D-Bench](docs/surveys/e3d-bench.md),
 [Geometric Understanding](docs/surveys/geometric-understanding.md),
 [Survey: DUSt3R→VGGT](docs/surveys/survey-dust3r-to-vggt.md).
 
-### 📍 [Pose Estimation](docs/pose/) (9 papers) · 🏥 [Medical](docs/medical/) (1 paper)
+### 📍 [Pose Estimation](docs/pose/) (10 papers) · 🏥 [Medical](docs/medical/) (1 paper)
 
 [Reloc3r](docs/pose/reloc3r.md), [Pos3R](docs/pose/pos3r.md), [Endo3R](docs/medical/endo3r.md).
 
@@ -266,7 +266,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 273 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 279 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 License status needs maintainer confirmation: this repository's earlier README referred

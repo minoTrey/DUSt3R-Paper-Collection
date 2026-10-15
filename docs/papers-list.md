@@ -3,7 +3,7 @@
 > 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
 > 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
 
-**Total: 273 papers**
+**Total: 279 papers**
 
 ## Foundation Models (26)
 
@@ -34,12 +34,14 @@
 - [**UAVFF3D**](foundation/uavff3d.md) (arXiv preprint (2026-05)) — A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction
 - [**VLRC**](foundation/vlrc.md) (arXiv preprint (2026-07)) — Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining
 
-## 3D Reconstruction (115)
+## 3D Reconstruction (117)
 
 - [**AMB3R**](reconstruction/amb3r.md) (CVPR 2026) — Accurate Feed-forward Metric-scale 3D Reconstruction with Backend
+- [**AMB3R-SLAM**](reconstruction/amb3r-slam.md) (arXiv preprint (2026-09)) — Kilometer-scale SLAM with Hierarchical Backend
 - [**Anchor3R**](reconstruction/anchor3r.md) (arXiv preprint (2026-06)) — Streaming 3D Reconstruction with Transient Anchors for Long-Horizon Visual Mapping
 - [**Argus**](reconstruction/argus.md) (arXiv preprint (2026-06)) — Metric Panoramic 3D Reconstruction for Indoor Scenes
 - [**BAT3R**](reconstruction/bat3r.md) (ECCV 2026) — Bootstrapping Articulated 3D Reconstruction from 2D Image Collections
+- [**BLASt3R**](reconstruction/blast3r.md) (arXiv preprint (2026-09)) — Bundle Adjustment of Any Image Set with Multi-View Matching and Monocular Priors
 - [**C3Po**](reconstruction/c3po.md) (NeurIPS 2025) — Cross-View Cross-Modality Correspondence by Pointmap Prediction
 - [**CAM3R**](reconstruction/cam3r.md) (arXiv preprint (2026-03)) — Camera-Agnostic Model for 3D Reconstruction
 - [**Co-Me**](reconstruction/co-me.md) (CVPR 2026) — Confidence Guided Token Merging for Visual Geometric Transformers
@@ -266,20 +268,23 @@
 - [**NOVA3R**](reasoning/nova3r.md) (ICLR 2026) — Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction
 - [**RaySt3R**](reasoning/rayst3r.md) (NeurIPS 2025) — Predicting Novel Depth Maps for Zero-Shot Object Completion
 
-## Robotics (13)
+## Robotics (16)
 
 - [**AIM-SLAM**](robotics/aim-slam.md) (arXiv preprint (2026-03)) — Dense Monocular SLAM via Adaptive and Informative Multi-View Keyframe Prioritization with Foundation Model
 - [**Calib3R**](robotics/calib3r.md) (arXiv preprint (2025-09)) — A 3D Foundation Model for Multi-Camera to Robot Calibration and 3D Metric-Scaled Scene Reconstruction
 - [**CoMo3R-SLAM**](robotics/como3r-slam.md) (arXiv preprint (2026-05)) — Collaborative Monocular Dense SLAM with Learned 3D Reconstruction Priors for Outdoor Multi-Agent Systems
+- [**F$^2$ SLAM**](robotics/f2slam.md) (arXiv preprint (2026-10)) — Turning Feed-Forward Geometry into Persistent Factors for SLAM
 - [**FVO**](robotics/fvo.md) (arXiv preprint (2025-10)) — Fast Visual Odometry with Transformers
 - [**GraphSeg**](robotics/graphseg.md) (arXiv preprint (2025-04)) — Segmented 3D Representations via Graph Edge Addition and Contraction
 - [**GRS-SLAM3R**](robotics/grs-slam3r.md) (arXiv preprint (2025-09)) — Real-Time Dense SLAM with Gated Recurrent State
 - [**LEXI-SG**](robotics/lexi-sg.md) (arXiv preprint (2026-05)) — Monocular 3D Scene Graph Mapping with Room-Guided Feed-Forward Reconstruction
 - [**MASt3R-Fusion**](robotics/mast3r-fusion.md) (arXiv preprint (2025-09)) — Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM
+- [**Pow3R-SLAM**](robotics/pow3r-slam.md) (arXiv preprint (2026-09)) — Real-Time RGB-D SLAM with 3D Reconstruction Priors
 - [**Rig3R**](robotics/rig3r.md) (arXiv preprint (2025-06)) — Rig-Aware Conditioning for Learned 3D Reconstruction
 - [**Robo3R**](robotics/robo3r.md) (RSS 2026) — Enhancing Robotic Manipulation with Accurate Feed-Forward 3D Reconstruction
 - [**ScaRF-SLAM**](robotics/scarf-slam.md) (arXiv preprint (2026-05)) — Scale-Consistent Reconstruction with Feed-Forward Models and Classical Visual SLAM
 - [**Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models (RA-L 2024)**](robotics/unifying-scene-representation.md) (RA-L 2024)
+- [**UniSim-SLAM**](robotics/unisim-slam.md) (arXiv preprint (2026-08)) — Feed-Forward SLAM with Unified Sim(3) Optimization
 - [**ViPE**](robotics/vipe.md) (arXiv preprint (2025-08)) — Video Pose Engine for 3D Geometric Perception
 
 ## Surveys & Analysis (7)
@@ -292,8 +297,9 @@
 - [**Survey-DUSt3R-to-VGGT**](surveys/survey-dust3r-to-vggt.md) (JAICS 2025) — Review of Feed-forward 3D Reconstruction
 - [**When Wider Views Fail**](surveys/wider-views-fail.md) (arXiv preprint (2026-09)) — Stress-Testing Feed-Forward 3D Reconstruction
 
-## Pose Estimation (9)
+## Pose Estimation (10)
 
+- [**FFVO**](pose/ffvo.md) (arXiv preprint (2026-09)) — A Feedforward Pose Decoder for Long-Horizon Visual Odometry
 - [**FUSER**](pose/fuser.md) (CVPR 2026) — Feed-Forward Multiview 3D Registration Transformer and SE(3)N Diffusion Refinement
 - [**G-MASt3R-SfM**](pose/g-mast3r-sfm.md) (arXiv preprint (2026-06)) — Graph-based View Pruning and Multi-Stage Optimization for Robust SfM
 - [**Glob3R**](pose/glob3r.md) (arXiv preprint (2026-07)) — Global Structure-from-Motion with 3D Foundation Models

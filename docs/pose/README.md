@@ -19,10 +19,11 @@ The Pose Estimation category specializes in determining camera poses and object 
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (9)
+## 📄 All Papers in This Category (10)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
+- [**FFVO**](ffvo.md) (arXiv preprint (2026-09)) — A Feedforward Pose Decoder for Long-Horizon Visual Odometry
 - [**FUSER**](fuser.md) (CVPR 2026) — Feed-Forward Multiview 3D Registration Transformer and SE(3)N Diffusion Refinement
 - [**G-MASt3R-SfM**](g-mast3r-sfm.md) (arXiv preprint (2026-06)) — Graph-based View Pruning and Multi-Stage Optimization for Robust SfM
 - [**Glob3R**](glob3r.md) (arXiv preprint (2026-07)) — Global Structure-from-Motion with 3D Foundation Models

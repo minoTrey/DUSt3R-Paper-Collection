@@ -23,14 +23,16 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (115)
+## 📄 All Papers in This Category (117)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
 - [**AMB3R**](amb3r.md) (CVPR 2026) — Accurate Feed-forward Metric-scale 3D Reconstruction with Backend
+- [**AMB3R-SLAM**](amb3r-slam.md) (arXiv preprint (2026-09)) — Kilometer-scale SLAM with Hierarchical Backend
 - [**Anchor3R**](anchor3r.md) (arXiv preprint (2026-06)) — Streaming 3D Reconstruction with Transient Anchors for Long-Horizon Visual Mapping
 - [**Argus**](argus.md) (arXiv preprint (2026-06)) — Metric Panoramic 3D Reconstruction for Indoor Scenes
 - [**BAT3R**](bat3r.md) (ECCV 2026) — Bootstrapping Articulated 3D Reconstruction from 2D Image Collections
+- [**BLASt3R**](blast3r.md) (arXiv preprint (2026-09)) — Bundle Adjustment of Any Image Set with Multi-View Matching and Monocular Priors
 - [**C3Po**](c3po.md) (NeurIPS 2025) — Cross-View Cross-Modality Correspondence by Pointmap Prediction
 - [**CAM3R**](cam3r.md) (arXiv preprint (2026-03)) — Camera-Agnostic Model for 3D Reconstruction
 - [**Co-Me**](co-me.md) (CVPR 2026) — Confidence Guided Token Merging for Visual Geometric Transformers
