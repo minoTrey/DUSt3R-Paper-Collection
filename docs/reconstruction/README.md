@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (127)
+## 📄 All Papers in This Category (128)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -109,6 +109,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**REGIST3R**](regist3r.md) (ACM MM 2025) — Incremental Registration with Stereo Foundation Model
 - [**Reliev3R**](reliev3r.md) (CVPR 2026) — Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations
 - [**ReVar3R**](revar3r.md) (arXiv preprint (2026-10)) — Gauge-Aware Perturbation Uncertainty for Feed-Forward 3D Reconstruction
+- [**RIGOR**](rigor.md) (arXiv preprint (2026-09)) — Rig-Informed Geometry for Omnidirectional Reconstruction
 - [**S-MUSt3R**](s-must3r.md) (arXiv preprint (2026-02)) — Sliding Multi-view 3D Reconstruction
 - [**S-VGGT**](s-vggt.md) (ICME 2026) — Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models
 - [**SAIL-Recon**](sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization

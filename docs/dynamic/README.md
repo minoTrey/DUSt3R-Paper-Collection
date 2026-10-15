@@ -23,7 +23,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (47)
+## 📄 All Papers in This Category (49)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -45,6 +45,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 - [**EgoFound3R**](egofound3r.md) (arXiv preprint (2026-10)) — End-to-End Egocentric Hand Reconstruction in World Space with Point-Wise Interaction Attributes
 - [**Envision4D**](envision4d.md) (arXiv preprint (2026-06)) — Envisioning Visual Futures via Feed-forward 4D Gaussian Splatting for Autonomous Driving
 - [**Flow3r**](flow3r.md) (CVPR 2026) — Factored Flow Prediction for Scalable Visual Geometry Learning
+- [**GAUGE**](gauge.md) (arXiv preprint (2026-09)) — Group-Wise View-Inconsistency Rectification for Feed-Forward 4D Tracking
 - [**Geo4D**](geo4d.md) (ICCV 2025) — Leveraging Video Generators for Geometric 4D Scene Reconstruction
 - [**Ground4D**](ground4d.md) (arXiv preprint (2026-05)) — Spatially-Grounded Feedforward 4D Reconstruction for Unstructured Off-Road Scenes
 - [**GUSH3R**](gush3r.md) (arXiv preprint (2026-07)) — Everyone Everywhere All at Once as Gaussians
@@ -63,6 +64,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 - [**POMATO**](pomato.md) (ICCV 2025) — Marrying Pointmap Matching with Temporal Motion for Dynamic 3D Reconstruction
 - [**RayMap3R**](raymap3r.md) (arXiv preprint (2026-03)) — Inference-Time RayMap for Dynamic 3D Reconstruction
 - [**Robust4D-VGT**](robust4d-vgt.md) (arXiv preprint (2026-04)) — Robust 4D Visual Geometry Transformer with Uncertainty-Aware Priors
+- [**RoGSW4RLD**](rogsw4rld.md) (arXiv preprint (2026-09)) — Feed-Forward 4D Gaussian Lifting for Robot World Model Rollouts
 - [**Stereo4D**](stereo4d.md) (CVPR 2025) — Learning How Things Move in 3D from Internet Stereo Videos
 - [**Track4World**](track4world.md) (arXiv preprint (2026-03)) — Feedforward World-centric Dense 3D Tracking of All Pixels
 - [**TrackCraft3R**](trackcraft3r.md) (arXiv preprint (2026-05)) — Repurposing Video Diffusion Transformers for Dense 3D Tracking

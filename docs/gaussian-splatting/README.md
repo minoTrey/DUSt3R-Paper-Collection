@@ -23,12 +23,13 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (48)
+## 📄 All Papers in This Category (49)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
 - [**2Xplat**](2xplat.md) (arXiv preprint (2026-03)) — Decoupling Geometry and Appearance Modeling for Feed-Forward 3D Gaussian Splatting
 - [**AdaptiveSplat**](adaptivesplat.md) (ECCV 2026) — Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction
+- [**AESplat**](aesplat.md) (arXiv preprint (2026-09)) — Advancing Pose-Free Feed-Forward 3D Gaussian Splatting via Decoupled Appearance Modeling
 - [**AirSplat**](airsplat.md) (arXiv preprint (2026-03)) — Alignment and Rating for Robust Feed-Forward 3D Gaussian Splatting
 - [**AnchorSplat**](anchorsplat.md) (CVPR 2026) — Feed-Forward 3D Gaussian Splatting with 3D Geometric Priors
 - [**ARTDECO**](artdeco.md) (ICLR 2026) — Towards Efficient and High-Fidelity On-the-Fly 3D Reconstruction with Structured Scene Representation

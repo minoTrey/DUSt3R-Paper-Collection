@@ -23,7 +23,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (25)
+## 📄 All Papers in This Category (26)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -43,6 +43,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - [**MoonSeg3R**](moonseg3r.md) (CVPR 2026) — Monocular Online Zero-Shot Segment Anything in 3D with Reconstructive Foundation Priors
 - [**MV-SAM**](mv-sam.md) (arXiv preprint (2026-01)) — Multi-view Promptable Segmentation using Pointmap Guidance
 - [**MV2GF**](mv2gf.md) (arXiv preprint (2026-08)) — Multi-view Pedestrian Detection with a Visual Geometric Foundation Model
+- [**PanoSeg3R**](panoseg3r.md) (arXiv preprint (2026-09)) — Feed-Forward 3D Semantic Segmentation for Panoramic Images with an Automatic Data Curation Pipeline
 - [**PanSt3R**](panst3r.md) (ICCV 2025) — Multi-view Consistent Panoptic Segmentation
 - [**PE3R**](pe3r.md) (arXiv preprint (2025-03)) — Perception-Efficient 3D Reconstruction
 - [**PhysVGGT**](physvggt.md) (arXiv preprint (2026-09)) — Feed-Forward Dense Physical Property Estimation from A Single Image

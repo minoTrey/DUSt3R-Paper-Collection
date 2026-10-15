@@ -18,7 +18,7 @@ The Scene Reasoning category explores advanced geometric reasoning capabilities 
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (4)
+## 📄 All Papers in This Category (5)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -26,5 +26,6 @@ The Scene Reasoning category explores advanced geometric reasoning capabilities 
 - [**LaRI**](lari.md) (arXiv preprint (2025-04)) — Layered Ray Intersections for Single-view 3D Geometric Reasoning
 - [**NOVA3R**](nova3r.md) (ICLR 2026) — Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction
 - [**RaySt3R**](rayst3r.md) (NeurIPS 2025) — Predicting Novel Depth Maps for Zero-Shot Object Completion
+- [**SPOON**](spoon.md) (arXiv preprint (2026-09)) — Towards Coherent Compositional 3D Scene Generation from Uncalibrated Multi-view Images
 
 <!-- /GENERATED -->

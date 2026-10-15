@@ -7,9 +7,9 @@ DUSt3R와 관련 feed-forward 3D 연구의 원문을 연결하고, 입력·출�
 
 [전체 논문](docs/papers-list.md) · [입문 읽기](#start-reading) · [질문별 탐색](#explore-by-question) · [최근 추가](#selected-additions) · [검증 범위](#-verification)
 
-[![Papers](https://img.shields.io/badge/Papers-323-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-330-green.svg)](docs/papers-list.md)
 
-> A source-linked collection of **323 papers** on DUSt3R and related feed-forward 3D research.
+> A source-linked collection of **330 papers** on DUSt3R and related feed-forward 3D research.
 > 문서 수는 원문 검증 완료 수와 다릅니다. 결과를 사용할 때는 각 문서의 출처·평가 조건·한계를 확인하세요.
 
 ## Images to 3D
@@ -67,23 +67,23 @@ DUSt3R와 관련 feed-forward 3D 연구의 원문을 연결하고, 입력·출�
 
 Cross-view learning, pointmap regression, matching, and shared geometry representations.
 
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (127 papers)
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (128 papers)
 
 Static geometry, mixed cameras, large scenes, streaming memory, alignment, and SLAM.
 
-### 🎬 [Dynamic Scenes](docs/dynamic/) (47 papers)
+### 🎬 [Dynamic Scenes](docs/dynamic/) (49 papers)
 
 Geometry and motion when objects or the camera move.
 
-### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (48 papers)
+### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (49 papers)
 
 Learned geometry connected to explicit scene representations and novel-view rendering.
 
-### 🧠 [Scene Understanding](docs/understanding/) (25 papers)
+### 🧠 [Scene Understanding](docs/understanding/) (26 papers)
 
 Geometry connected to segmentation, objects, and semantic features.
 
-### 🔍 [Scene Reasoning](docs/reasoning/) (4 papers)
+### 🔍 [Scene Reasoning](docs/reasoning/) (5 papers)
 
 Occluded structure, amodal geometry, and spatial reasoning.
 
@@ -95,7 +95,7 @@ Calibration, odometry, mapping, and robotic applications of geometry models.
 
 Evaluation protocols, reliability, failure analysis, and surveys.
 
-### 📍 [Pose Estimation](docs/pose/) (11 papers) · 🏥 [Medical](docs/medical/) (3 papers)
+### 📍 [Pose Estimation](docs/pose/) (12 papers) · 🏥 [Medical](docs/medical/) (3 papers)
 
 Camera localization and geometry methods for medical imagery.
 
@@ -197,7 +197,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 323 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 330 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 License status needs maintainer confirmation: this repository's earlier README referred
