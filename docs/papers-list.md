@@ -3,7 +3,7 @@
 > 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
 > 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
 
-**Total: 330 papers**
+**Total: 336 papers**
 
 ## Foundation Models (30)
 
@@ -169,8 +169,9 @@
 - [**WorldMirror**](reconstruction/worldmirror.md) (ICML 2026) — Universal 3D World Reconstruction with Any-Prior Prompting
 - [**ZipMap**](reconstruction/zipmap.md) (CVPR 2026) — Linear-Time Stateful 3D Reconstruction via Test-Time Training
 
-## Dynamic Scenes (49)
+## Dynamic Scenes (50)
 
+- [**4D-HOF**](dynamic/4d-hof.md) (arXiv preprint (2026-10)) — Hand-Object Flow Matching for Feed-Forward 4D Interaction Reconstruction
 - [**4DVGGT-D**](dynamic/4dvggt-d.md) (arXiv preprint (2026-05)) — 4D Visual Geometry Transformer with Improved Dynamic Depth Estimation
 - [**Adapt3R**](dynamic/adapt3r.md) (arXiv preprint (2025-03)) — Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning
 - [**Align3R**](dynamic/align3r.md) (CVPR 2025) — Aligned Monocular Depth Estimation for Dynamic Videos
@@ -221,7 +222,7 @@
 - [**WildHSR**](dynamic/wildhsr.md) (arXiv preprint (2026-09)) — Metric Feed-Forward 4D People-Scene Reconstruction from a 3D Foundation Model
 - [**WorldReel**](dynamic/worldreel.md) (arXiv preprint (2025-12)) — 4D Video Generation with Consistent Geometry and Motion Modeling
 
-## Gaussian Splatting (49)
+## Gaussian Splatting (51)
 
 - [**2Xplat**](gaussian-splatting/2xplat.md) (arXiv preprint (2026-03)) — Decoupling Geometry and Appearance Modeling for Feed-Forward 3D Gaussian Splatting
 - [**AdaptiveSplat**](gaussian-splatting/adaptivesplat.md) (ECCV 2026) — Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction
@@ -234,6 +235,7 @@
 - [**AVSplat**](gaussian-splatting/avsplat.md) (arXiv preprint (2026-09)) — Dense-View Feed-Forward 3D Gaussian Splatting with Assist-View Preconditioning
 - [**Cross-View Splatter**](gaussian-splatting/cross-view-splatter.md) (CVPR 2026) — Feed-Forward View Synthesis with Georeferenced Images
 - [**DAS3R**](gaussian-splatting/das3r.md) (arXiv preprint (2024-12)) — Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction
+- [**DeltaSplat**](gaussian-splatting/deltasplat.md) (arXiv preprint (2026-10)) — Iterative Gaussian Refinement for Pose-Free Feed-Forward 3D Gaussian Splatting
 - [**DensiTok**](gaussian-splatting/densitok.md) (arXiv preprint (2026-10)) — Making Feed-Forward 3D Gaussian Splatting See More Views Than It Is Given
 - [**Dense Point Clouds Matter**](gaussian-splatting/dust-gs.md) (ICASSP 2025) — Dust-GS for Scene Reconstruction from Sparse Viewpoints
 - [**Dust to Tower**](gaussian-splatting/dust-to-tower.md) (arXiv preprint (2024-12)) — Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images
@@ -244,6 +246,7 @@
 - [**FlexSplat**](gaussian-splatting/flexsplat.md) (arXiv preprint (2026-08)) — Flexible Feed-Forward 3D Gaussian Splatting without Point Cloud Correspondence
 - [**FlowR**](gaussian-splatting/flowr.md) (ICCV 2025) — Flowing from Sparse to Dense 3D Reconstructions
 - [**ForeSplat**](gaussian-splatting/foresplat.md) (arXiv preprint (2026-05)) — Optimization-Aware Foresight for Feed-Forward 3D Gaussian Splatting
+- [**Pose-Free Feed-Forward 3D Inpainting via Learnable Mask Attention and Support Token Refinement (arXiv 2026)**](gaussian-splatting/freeinpaint.md) (arXiv preprint (2026-10))
 - [**GIFSplat**](gaussian-splatting/gifsplat.md) (arXiv preprint (2026-02)) — Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views
 - [**GlobalSplat**](gaussian-splatting/globalsplat.md) (arXiv preprint (2026-04)) — Efficient Feed-Forward 3D Gaussian Splatting via Global Scene Tokens
 - [**GrapeSplat**](gaussian-splatting/grapesplat.md) (arXiv preprint (2026-09)) — Geometry-Grounded Reconstruction via Amalgamated Pose-Free Encoding for Feed-Forward 3D Gaussian Splatting
@@ -302,15 +305,17 @@
 - [**Spa3R**](understanding/spa3r.md) (arXiv preprint (2026-02)) — Predictive Spatial Field Modeling for 3D Visual Reasoning
 - [**UniScene3D**](understanding/uniscene3d.md) (ECCV 2026) — RGB-Pointmap Pretraining for Unified 3D Scene Understanding
 
-## Scene Reasoning (5)
+## Scene Reasoning (7)
 
 - [**Amodal3R**](reasoning/amodal3r.md) (ICCV 2025) — Amodal 3D Reconstruction from Occluded 2D Images
+- [**GATOR**](reasoning/gator.md) (arXiv preprint (2026-10)) — Generative and Agentic 3D Object Reconstruction From Casual Images
 - [**LaRI**](reasoning/lari.md) (arXiv preprint (2025-04)) — Layered Ray Intersections for Single-view 3D Geometric Reasoning
 - [**NOVA3R**](reasoning/nova3r.md) (ICLR 2026) — Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction
 - [**RaySt3R**](reasoning/rayst3r.md) (NeurIPS 2025) — Predicting Novel Depth Maps for Zero-Shot Object Completion
 - [**SPOON**](reasoning/spoon.md) (arXiv preprint (2026-09)) — Towards Coherent Compositional 3D Scene Generation from Uncalibrated Multi-view Images
+- [**Zero-Shot Novel Depth Synthesis Using 3D Foundation Models Scene Representations (arXiv 2026)**](reasoning/z3d.md) (arXiv preprint (2026-09))
 
-## Robotics (20)
+## Robotics (21)
 
 - [**AIM-SLAM**](robotics/aim-slam.md) (arXiv preprint (2026-03)) — Dense Monocular SLAM via Adaptive and Informative Multi-View Keyframe Prioritization with Foundation Model
 - [**AquaFlow**](robotics/aquaflow.md) (arXiv preprint (2026-08)) — A Monocular Gaussian Splatting SLAM for Underwater Streaming Reconstruction
@@ -323,6 +328,7 @@
 - [**GRS-SLAM3R**](robotics/grs-slam3r.md) (arXiv preprint (2025-09)) — Real-Time Dense SLAM with Gated Recurrent State
 - [**LEXI-SG**](robotics/lexi-sg.md) (arXiv preprint (2026-05)) — Monocular 3D Scene Graph Mapping with Room-Guided Feed-Forward Reconstruction
 - [**MASt3R-Fusion**](robotics/mast3r-fusion.md) (arXiv preprint (2025-09)) — Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM
+- [**MIRAGE**](robotics/mirage.md) (arXiv preprint (2026-10)) — Metric Inference and Reliability-Aware Gaussian Estimation from Feed-Forward Vision
 - [**Noctif3R**](robotics/noctif3r.md) (arXiv preprint (2026-09)) — Feed-Forward Monocular Real-Time SLAM for Photon-Limited Scenes on Embedded Hardware
 - [**Pow3R-SLAM**](robotics/pow3r-slam.md) (arXiv preprint (2026-09)) — Real-Time RGB-D SLAM with 3D Reconstruction Priors
 - [**Rig3R**](robotics/rig3r.md) (arXiv preprint (2025-06)) — Rig-Aware Conditioning for Learned 3D Reconstruction

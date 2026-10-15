@@ -23,7 +23,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (49)
+## 📄 All Papers in This Category (51)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -38,6 +38,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**AVSplat**](avsplat.md) (arXiv preprint (2026-09)) — Dense-View Feed-Forward 3D Gaussian Splatting with Assist-View Preconditioning
 - [**Cross-View Splatter**](cross-view-splatter.md) (CVPR 2026) — Feed-Forward View Synthesis with Georeferenced Images
 - [**DAS3R**](das3r.md) (arXiv preprint (2024-12)) — Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction
+- [**DeltaSplat**](deltasplat.md) (arXiv preprint (2026-10)) — Iterative Gaussian Refinement for Pose-Free Feed-Forward 3D Gaussian Splatting
 - [**DensiTok**](densitok.md) (arXiv preprint (2026-10)) — Making Feed-Forward 3D Gaussian Splatting See More Views Than It Is Given
 - [**Dense Point Clouds Matter**](dust-gs.md) (ICASSP 2025) — Dust-GS for Scene Reconstruction from Sparse Viewpoints
 - [**Dust to Tower**](dust-to-tower.md) (arXiv preprint (2024-12)) — Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images
@@ -48,6 +49,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**FlexSplat**](flexsplat.md) (arXiv preprint (2026-08)) — Flexible Feed-Forward 3D Gaussian Splatting without Point Cloud Correspondence
 - [**FlowR**](flowr.md) (ICCV 2025) — Flowing from Sparse to Dense 3D Reconstructions
 - [**ForeSplat**](foresplat.md) (arXiv preprint (2026-05)) — Optimization-Aware Foresight for Feed-Forward 3D Gaussian Splatting
+- [**Pose-Free Feed-Forward 3D Inpainting via Learnable Mask Attention and Support Token Refinement (arXiv 2026)**](freeinpaint.md) (arXiv preprint (2026-10))
 - [**GIFSplat**](gifsplat.md) (arXiv preprint (2026-02)) — Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views
 - [**GlobalSplat**](globalsplat.md) (arXiv preprint (2026-04)) — Efficient Feed-Forward 3D Gaussian Splatting via Global Scene Tokens
 - [**GrapeSplat**](grapesplat.md) (arXiv preprint (2026-09)) — Geometry-Grounded Reconstruction via Amalgamated Pose-Free Encoding for Feed-Forward 3D Gaussian Splatting

@@ -23,10 +23,11 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (49)
+## 📄 All Papers in This Category (50)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
+- [**4D-HOF**](4d-hof.md) (arXiv preprint (2026-10)) — Hand-Object Flow Matching for Feed-Forward 4D Interaction Reconstruction
 - [**4DVGGT-D**](4dvggt-d.md) (arXiv preprint (2026-05)) — 4D Visual Geometry Transformer with Improved Dynamic Depth Estimation
 - [**Adapt3R**](adapt3r.md) (arXiv preprint (2025-03)) — Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning
 - [**Align3R**](align3r.md) (CVPR 2025) — Aligned Monocular Depth Estimation for Dynamic Videos

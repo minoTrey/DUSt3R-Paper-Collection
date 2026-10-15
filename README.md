@@ -5,11 +5,11 @@
 DUSt3R와 관련 feed-forward 3D 연구의 원문을 연결하고, 입력·출력·핵심 방법·실험 조건을 한국어로 설명합니다.
 각 논문은 같은 일곱 섹션을 사용합니다. 영어 제목과 원문 링크로 다시 찾아갈 수 있습니다.
 
-[전체 논문](docs/papers-list.md) · [입문 읽기](#start-reading) · [질문별 탐색](#explore-by-question) · [최근 추가](#selected-additions) · [검증 범위](#-verification)
+[전체 논문](docs/papers-list.md) · [입문 읽기](#start-reading) · [질문별 탐색](#explore-by-question) · [최근 추가](#selected-additions) · [검증 범위](#verification)
 
-[![Papers](https://img.shields.io/badge/Papers-330-green.svg)](docs/papers-list.md)
+[![Papers](https://img.shields.io/badge/Papers-336-green.svg)](docs/papers-list.md)
 
-> A source-linked collection of **330 papers** on DUSt3R and related feed-forward 3D research.
+> A source-linked collection of **336 papers** on DUSt3R and related feed-forward 3D research.
 > 문서 수는 원문 검증 완료 수와 다릅니다. 결과를 사용할 때는 각 문서의 출처·평가 조건·한계를 확인하세요.
 
 ## Images to 3D
@@ -71,11 +71,11 @@ Cross-view learning, pointmap regression, matching, and shared geometry represen
 
 Static geometry, mixed cameras, large scenes, streaming memory, alignment, and SLAM.
 
-### 🎬 [Dynamic Scenes](docs/dynamic/) (49 papers)
+### 🎬 [Dynamic Scenes](docs/dynamic/) (50 papers)
 
 Geometry and motion when objects or the camera move.
 
-### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (49 papers)
+### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (51 papers)
 
 Learned geometry connected to explicit scene representations and novel-view rendering.
 
@@ -83,11 +83,11 @@ Learned geometry connected to explicit scene representations and novel-view rend
 
 Geometry connected to segmentation, objects, and semantic features.
 
-### 🔍 [Scene Reasoning](docs/reasoning/) (5 papers)
+### 🔍 [Scene Reasoning](docs/reasoning/) (7 papers)
 
 Occluded structure, amodal geometry, and spatial reasoning.
 
-### 🤖 [Robotics](docs/robotics/) (20 papers)
+### 🤖 [Robotics](docs/robotics/) (21 papers)
 
 Calibration, odometry, mapping, and robotic applications of geometry models.
 
@@ -124,7 +124,7 @@ Preprint와 venue 미확인 문서도 컬렉션에 포함됩니다.
 GT pose 사용 여부, metric scale과 정렬 scale, 완료 시퀀스 수가 다르면 같은 지표 이름도 직접 비교할 수 없습니다.
 여러 모델을 하나의 protocol로 비교하려면 [평가·분석 논문](docs/surveys/)에서 시작하세요.
 
-## ✅ Verification
+## Verification
 
 Metadata and results in this collection are checked by scripts in [`tools/`](tools/):
 
@@ -197,7 +197,7 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 330 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 336 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
 License status needs maintainer confirmation: this repository's earlier README referred
