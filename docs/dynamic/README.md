@@ -23,7 +23,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (44)
+## 📄 All Papers in This Category (45)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -47,6 +47,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 - [**Geo4D**](geo4d.md) (ICCV 2025) — Leveraging Video Generators for Geometric 4D Scene Reconstruction
 - [**Ground4D**](ground4d.md) (arXiv preprint (2026-05)) — Spatially-Grounded Feedforward 4D Reconstruction for Unstructured Off-Road Scenes
 - [**GUSH3R**](gush3r.md) (arXiv preprint (2026-07)) — Everyone Everywhere All at Once as Gaussians
+- [**Feed-Forward Multi-view Multi-person Reconstruction with Contrastive Human-Aware 3D Representation (arXiv 2026)**](human-aware-multiview.md) (arXiv preprint (2026-09))
 - [**Human3R**](human3r.md) (ICLR 2026) — Everyone Everywhere All at Once
 - [**Interp3R**](interp3r.md) (arXiv preprint (2026-03)) — Continuous-time 3D Geometry Estimation with Frames and Events
 - [**MonST3R**](monst3r.md) (ICLR 2025) — A Simple Approach for Estimating Geometry in the Presence of Motion

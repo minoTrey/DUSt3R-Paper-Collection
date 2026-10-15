@@ -23,10 +23,11 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (42)
+## 📄 All Papers in This Category (44)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
+- [**2Xplat**](2xplat.md) (arXiv preprint (2026-03)) — Decoupling Geometry and Appearance Modeling for Feed-Forward 3D Gaussian Splatting
 - [**AdaptiveSplat**](adaptivesplat.md) (ECCV 2026) — Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction
 - [**AirSplat**](airsplat.md) (arXiv preprint (2026-03)) — Alignment and Rating for Robust Feed-Forward 3D Gaussian Splatting
 - [**AnchorSplat**](anchorsplat.md) (CVPR 2026) — Feed-Forward 3D Gaussian Splatting with 3D Geometric Priors
@@ -55,6 +56,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**Leveling3D**](leveling3d.md) (arXiv preprint (2026-03)) — Leveling Up 3D Reconstruction with Feed-Forward 3D Gaussian Splatting and Geometry-Aware Generation
 - [**LGTM**](lgtm.md) (ICLR 2026) — Less Gaussians, Texture More — 4K Feed-Forward Textured Splatting
 - [**LM-Gaussian**](lm-gaussian.md) (arXiv preprint (2024-09)) — Boost Sparse-view 3D Gaussian Splatting with Large Model Priors
+- [**NemoSplat**](nemosplat.md) (arXiv preprint (2026-08)) — Feed-Forward 4D Gaussian Splatting for Media-Aware Underwater Reconstruction
 - [**Off The Grid**](off-the-grid.md) (CVPR 2026) — Detection of Primitives for Feed-Forward 3D Gaussian Splatting
 - [**PreF3R**](pref3r.md) (arXiv preprint (2024-11)) — Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence
 - [**ReCoSplat**](recosplat.md) (arXiv preprint (2026-03)) — Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare

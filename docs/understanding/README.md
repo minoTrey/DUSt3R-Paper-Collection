@@ -23,7 +23,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (18)
+## 📄 All Papers in This Category (19)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -32,6 +32,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - [**FAST3DIS**](fast3dis.md) (arXiv preprint (2026-03)) — Feed-forward Anchored Scene Transformer for 3D Instance Segmentation
 - [**FF3R**](ff3r.md) (CVPR 2026) — Feedforward Feature 3D Reconstruction from Unconstrained views
 - [**G2TAM**](g2tam.md) (ICML 2026) — Geometry Grounded Track Anything Model
+- [**GroupForward**](groupforward.md) (arXiv preprint (2026-08)) — Building Referable 3D Scenes via Instance-Grouped Feed-Forward Gaussian Splatting
 - [**HAMSt3R**](hamst3r.md) (ICCV 2025) — Human-Aware Multi-view Stereo 3D Reconstruction
 - [**IGGT**](iggt.md) (ICLR 2026) — Instance-Grounded Geometry Transformer for Semantic 3D Reconstruction
 - [**IGGT4D**](iggt4d.md) (arXiv preprint (2026-07)) — Streaming 4D Instance-Grounded Geometry Transformer

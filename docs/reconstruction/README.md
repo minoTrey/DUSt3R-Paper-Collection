@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (124)
+## 📄 All Papers in This Category (125)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -58,6 +58,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**G-CUT3R**](g-cut3r.md) (ICLR 2026) — Guided 3D Reconstruction with Camera and Depth Prior Integration
 - [**GARD**](gard.md) (arXiv preprint (2026-05)) — Geometry-Aware Representation Denoising for Robust Multi-view 3D Reconstruction
 - [**GeoFF3D**](geoff3d.md) (arXiv preprint (2026-08)) — Coordinate-Anchored Feed-Forward Reconstruction for Large-Scale UAV Mapping
+- [**GeoRay**](georay.md) (arXiv preprint (2026-08)) — Gauge-Aware Feed-Forward Satellite 3D Reconstruction in the Geodetic Frame
 - [**GGPT**](ggpt.md) (CVPR 2026) — Geometry-Grounded Point Transformer
 - [**GRF-Recon**](grf-recon.md) (arXiv preprint (2026-09)) — Global Ray-Field Optimization for Long-Sequence Feed-forward Reconstruction
 - [**HGGT**](hggt.md) (arXiv preprint (2026-03)) — Robust and Flexible 3D Hand Mesh Reconstruction from Uncalibrated Images

@@ -3,7 +3,7 @@
 > 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
 > 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
 
-**Total: 298 papers**
+**Total: 304 papers**
 
 ## Foundation Models (30)
 
@@ -38,7 +38,7 @@
 - [**VGGT-Prime**](foundation/vggt-prime.md) (arXiv preprint (2026-09)) — Compute-Adaptive Mixture-of-Heads for Efficient Visual Geometry Transformers
 - [**VLRC**](foundation/vlrc.md) (arXiv preprint (2026-07)) — Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining
 
-## 3D Reconstruction (124)
+## 3D Reconstruction (125)
 
 - [**AMB3R**](reconstruction/amb3r.md) (CVPR 2026) — Accurate Feed-forward Metric-scale 3D Reconstruction with Backend
 - [**AMB3R-SLAM**](reconstruction/amb3r-slam.md) (arXiv preprint (2026-09)) — Kilometer-scale SLAM with Hierarchical Backend
@@ -71,6 +71,7 @@
 - [**G-CUT3R**](reconstruction/g-cut3r.md) (ICLR 2026) — Guided 3D Reconstruction with Camera and Depth Prior Integration
 - [**GARD**](reconstruction/gard.md) (arXiv preprint (2026-05)) — Geometry-Aware Representation Denoising for Robust Multi-view 3D Reconstruction
 - [**GeoFF3D**](reconstruction/geoff3d.md) (arXiv preprint (2026-08)) — Coordinate-Anchored Feed-Forward Reconstruction for Large-Scale UAV Mapping
+- [**GeoRay**](reconstruction/georay.md) (arXiv preprint (2026-08)) — Gauge-Aware Feed-Forward Satellite 3D Reconstruction in the Geodetic Frame
 - [**GGPT**](reconstruction/ggpt.md) (CVPR 2026) — Geometry-Grounded Point Transformer
 - [**GRF-Recon**](reconstruction/grf-recon.md) (arXiv preprint (2026-09)) — Global Ray-Field Optimization for Long-Sequence Feed-forward Reconstruction
 - [**HGGT**](reconstruction/hggt.md) (arXiv preprint (2026-03)) — Robust and Flexible 3D Hand Mesh Reconstruction from Uncalibrated Images
@@ -165,7 +166,7 @@
 - [**WorldMirror**](reconstruction/worldmirror.md) (ICML 2026) — Universal 3D World Reconstruction with Any-Prior Prompting
 - [**ZipMap**](reconstruction/zipmap.md) (CVPR 2026) — Linear-Time Stateful 3D Reconstruction via Test-Time Training
 
-## Dynamic Scenes (44)
+## Dynamic Scenes (45)
 
 - [**4DVGGT-D**](dynamic/4dvggt-d.md) (arXiv preprint (2026-05)) — 4D Visual Geometry Transformer with Improved Dynamic Depth Estimation
 - [**Adapt3R**](dynamic/adapt3r.md) (arXiv preprint (2025-03)) — Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning
@@ -187,6 +188,7 @@
 - [**Geo4D**](dynamic/geo4d.md) (ICCV 2025) — Leveraging Video Generators for Geometric 4D Scene Reconstruction
 - [**Ground4D**](dynamic/ground4d.md) (arXiv preprint (2026-05)) — Spatially-Grounded Feedforward 4D Reconstruction for Unstructured Off-Road Scenes
 - [**GUSH3R**](dynamic/gush3r.md) (arXiv preprint (2026-07)) — Everyone Everywhere All at Once as Gaussians
+- [**Feed-Forward Multi-view Multi-person Reconstruction with Contrastive Human-Aware 3D Representation (arXiv 2026)**](dynamic/human-aware-multiview.md) (arXiv preprint (2026-09))
 - [**Human3R**](dynamic/human3r.md) (ICLR 2026) — Everyone Everywhere All at Once
 - [**Interp3R**](dynamic/interp3r.md) (arXiv preprint (2026-03)) — Continuous-time 3D Geometry Estimation with Frames and Events
 - [**MonST3R**](dynamic/monst3r.md) (ICLR 2025) — A Simple Approach for Estimating Geometry in the Presence of Motion
@@ -212,8 +214,9 @@
 - [**VGGT4D**](dynamic/vggt4d.md) (CVPR 2026) — Mining Motion Cues in Visual Geometry Transformers for 4D Scene Reconstruction
 - [**WorldReel**](dynamic/worldreel.md) (arXiv preprint (2025-12)) — 4D Video Generation with Consistent Geometry and Motion Modeling
 
-## Gaussian Splatting (42)
+## Gaussian Splatting (44)
 
+- [**2Xplat**](gaussian-splatting/2xplat.md) (arXiv preprint (2026-03)) — Decoupling Geometry and Appearance Modeling for Feed-Forward 3D Gaussian Splatting
 - [**AdaptiveSplat**](gaussian-splatting/adaptivesplat.md) (ECCV 2026) — Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction
 - [**AirSplat**](gaussian-splatting/airsplat.md) (arXiv preprint (2026-03)) — Alignment and Rating for Robust Feed-Forward 3D Gaussian Splatting
 - [**AnchorSplat**](gaussian-splatting/anchorsplat.md) (CVPR 2026) — Feed-Forward 3D Gaussian Splatting with 3D Geometric Priors
@@ -242,6 +245,7 @@
 - [**Leveling3D**](gaussian-splatting/leveling3d.md) (arXiv preprint (2026-03)) — Leveling Up 3D Reconstruction with Feed-Forward 3D Gaussian Splatting and Geometry-Aware Generation
 - [**LGTM**](gaussian-splatting/lgtm.md) (ICLR 2026) — Less Gaussians, Texture More — 4K Feed-Forward Textured Splatting
 - [**LM-Gaussian**](gaussian-splatting/lm-gaussian.md) (arXiv preprint (2024-09)) — Boost Sparse-view 3D Gaussian Splatting with Large Model Priors
+- [**NemoSplat**](gaussian-splatting/nemosplat.md) (arXiv preprint (2026-08)) — Feed-Forward 4D Gaussian Splatting for Media-Aware Underwater Reconstruction
 - [**Off The Grid**](gaussian-splatting/off-the-grid.md) (CVPR 2026) — Detection of Primitives for Feed-Forward 3D Gaussian Splatting
 - [**PreF3R**](gaussian-splatting/pref3r.md) (arXiv preprint (2024-11)) — Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence
 - [**ReCoSplat**](gaussian-splatting/recosplat.md) (arXiv preprint (2026-03)) — Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare
@@ -257,13 +261,14 @@
 - [**WildSplatter**](gaussian-splatting/wildsplatter.md) (arXiv preprint (2026-04)) — Feed-forward 3D Gaussian Splatting with Appearance Control from Unconstrained Images
 - [**YoNoSplat**](gaussian-splatting/yonosplat.md) (ICLR 2026) — You Only Need One Model for Feedforward 3D Gaussian Splatting
 
-## Scene Understanding (18)
+## Scene Understanding (19)
 
 - [**4DLangVGGT**](understanding/4dlangvggt.md) (arXiv preprint (2025-12)) — 4D Language-Visual Geometry Grounded Transformer
 - [**EPS3D**](understanding/eps3d.md) (ICML 2026) — End-to-End Feed-Forward 3D Panoptic Segmentation
 - [**FAST3DIS**](understanding/fast3dis.md) (arXiv preprint (2026-03)) — Feed-forward Anchored Scene Transformer for 3D Instance Segmentation
 - [**FF3R**](understanding/ff3r.md) (CVPR 2026) — Feedforward Feature 3D Reconstruction from Unconstrained views
 - [**G2TAM**](understanding/g2tam.md) (ICML 2026) — Geometry Grounded Track Anything Model
+- [**GroupForward**](understanding/groupforward.md) (arXiv preprint (2026-08)) — Building Referable 3D Scenes via Instance-Grouped Feed-Forward Gaussian Splatting
 - [**HAMSt3R**](understanding/hamst3r.md) (ICCV 2025) — Human-Aware Multi-view Stereo 3D Reconstruction
 - [**IGGT**](understanding/iggt.md) (ICLR 2026) — Instance-Grounded Geometry Transformer for Semantic 3D Reconstruction
 - [**IGGT4D**](understanding/iggt4d.md) (arXiv preprint (2026-07)) — Streaming 4D Instance-Grounded Geometry Transformer
@@ -285,9 +290,10 @@
 - [**NOVA3R**](reasoning/nova3r.md) (ICLR 2026) — Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction
 - [**RaySt3R**](reasoning/rayst3r.md) (NeurIPS 2025) — Predicting Novel Depth Maps for Zero-Shot Object Completion
 
-## Robotics (17)
+## Robotics (18)
 
 - [**AIM-SLAM**](robotics/aim-slam.md) (arXiv preprint (2026-03)) — Dense Monocular SLAM via Adaptive and Informative Multi-View Keyframe Prioritization with Foundation Model
+- [**AquaFlow**](robotics/aquaflow.md) (arXiv preprint (2026-08)) — A Monocular Gaussian Splatting SLAM for Underwater Streaming Reconstruction
 - [**Calib3R**](robotics/calib3r.md) (arXiv preprint (2025-09)) — A 3D Foundation Model for Multi-Camera to Robot Calibration and 3D Metric-Scaled Scene Reconstruction
 - [**CoMo3R-SLAM**](robotics/como3r-slam.md) (arXiv preprint (2026-05)) — Collaborative Monocular Dense SLAM with Learned 3D Reconstruction Priors for Outdoor Multi-Agent Systems
 - [**F$^2$ SLAM**](robotics/f2slam.md) (arXiv preprint (2026-10)) — Turning Feed-Forward Geometry into Persistent Factors for SLAM
