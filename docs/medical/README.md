@@ -16,10 +16,11 @@ The Medical and Specialized Applications category showcases adaptations of DUSt3
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (2)
+## 📄 All Papers in This Category (3)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
+- [**Colon3R**](colon3r.md) (arXiv preprint (2026-09)) — Cross-Domain 3D Reconstruction from Monocular Colonoscopic Video
 - [**Endo3R**](endo3r.md) (MICCAI 2025) — Unified Online Reconstruction from Dynamic Monocular Endoscopic Video
 - [**XPos3R**](xpos3r.md) (arXiv preprint (2026-09)) — Cross-Modal Transformer for Intraoperative 2D/3D Registration
 

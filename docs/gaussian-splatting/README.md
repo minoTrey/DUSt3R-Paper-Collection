@@ -23,7 +23,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (46)
+## 📄 All Papers in This Category (47)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -66,6 +66,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**StructSplat**](structsplat.md) (arXiv preprint (2026-06)) — Generalizable 3D Gaussian Splatting from Uncalibrated Sparse Views
 - [**Styl3R**](styl3r.md) (NeurIPS 2025) — Instant 3D Stylized Reconstruction for Arbitrary Scenes and Styles
 - [**Swimm3R**](swimm3r.md) (arXiv preprint (2026-08)) — Splatting with Medium-aware SfM for Underwater 3D Reconstruction
+- [**Tele360**](tele360.md) (arXiv preprint (2026-09)) — Real-Time Feed-Forward Human Reconstruction from Sparse Unposed Cameras
 - [**TokenSplat**](tokensplat.md) (CVPR 2026) — Token-aligned 3D Gaussian Splatting for Feed-forward Pose-free Reconstruction
 - [**TriSplat**](trisplat.md) (arXiv preprint (2026-05)) — Simulation-Ready Feed-Forward 3D Scene Reconstruction
 - [**VoxelTTO**](voxeltto.md) (arXiv preprint (2026-09)) — Voxel-Aligned Feed-Forward 3D Gaussian Splatting with Test-Time Optimization

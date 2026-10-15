@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (126)
+## 📄 All Papers in This Category (127)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -35,6 +35,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**BLASt3R**](blast3r.md) (arXiv preprint (2026-09)) — Bundle Adjustment of Any Image Set with Multi-View Matching and Monocular Priors
 - [**C3Po**](c3po.md) (NeurIPS 2025) — Cross-View Cross-Modality Correspondence by Pointmap Prediction
 - [**CAM3R**](cam3r.md) (arXiv preprint (2026-03)) — Camera-Agnostic Model for 3D Reconstruction
+- [**CGGT**](cggt.md) (arXiv preprint (2026-09)) — Curve-Grounded Geometry Transformer for 3D Parametric Curve Reconstruction
 - [**Co-Me**](co-me.md) (CVPR 2026) — Confidence Guided Token Merging for Visual Geometric Transformers
 - [**Cross3R**](cross3r.md) (arXiv preprint (2026-05)) — Feedforward 3D Reconstruction from Satellite, Drone, and Ground Images
 - [**DAGE**](dage.md) (CVPR 2026) — Dual-Stream Architecture for Efficient and Fine-Grained Geometry Estimation

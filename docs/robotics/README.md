@@ -17,7 +17,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (19)
+## 📄 All Papers in This Category (20)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -25,6 +25,7 @@ The Robotics category showcases practical applications of DUSt3R and 3D foundati
 - [**AquaFlow**](aquaflow.md) (arXiv preprint (2026-08)) — A Monocular Gaussian Splatting SLAM for Underwater Streaming Reconstruction
 - [**Calib3R**](calib3r.md) (arXiv preprint (2025-09)) — A 3D Foundation Model for Multi-Camera to Robot Calibration and 3D Metric-Scaled Scene Reconstruction
 - [**CoMo3R-SLAM**](como3r-slam.md) (arXiv preprint (2026-05)) — Collaborative Monocular Dense SLAM with Learned 3D Reconstruction Priors for Outdoor Multi-Agent Systems
+- [**DAVIO**](davio.md) (arXiv preprint (2026-09)) — Dense Monocular-Inertial SLAM with Feed-Forward Initialization and Pose-Conditioned Mapping
 - [**F$^2$ SLAM**](f2slam.md) (arXiv preprint (2026-10)) — Turning Feed-Forward Geometry into Persistent Factors for SLAM
 - [**FVO**](fvo.md) (arXiv preprint (2025-10)) — Fast Visual Odometry with Transformers
 - [**GraphSeg**](graphseg.md) (arXiv preprint (2025-04)) — Segmented 3D Representations via Graph Edge Addition and Contraction

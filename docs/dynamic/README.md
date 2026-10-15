@@ -23,7 +23,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (45)
+## 📄 All Papers in This Category (46)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -71,6 +71,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 - [**UniCon3R**](unicon3r.md) (arXiv preprint (2026-04)) — Unified Contact-aware 4D Human-Scene Reconstruction from Monocular Video
 - [**V-DPM**](v-dpm.md) (CVPR 2026) — 4D Video Reconstruction with Dynamic Point Maps
 - [**VGGT4D**](vggt4d.md) (CVPR 2026) — Mining Motion Cues in Visual Geometry Transformers for 4D Scene Reconstruction
+- [**WildHSR**](wildhsr.md) (arXiv preprint (2026-09)) — Metric Feed-Forward 4D People-Scene Reconstruction from a 3D Foundation Model
 - [**WorldReel**](worldreel.md) (arXiv preprint (2025-12)) — 4D Video Generation with Consistent Geometry and Motion Modeling
 
 <!-- /GENERATED -->
