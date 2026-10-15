@@ -2,132 +2,164 @@
 
 <div align="center">
 
-**이미지에서 3D로, 논문을 이해하는 읽기 지도.**
+**From images to geometry. A reading map for feed-forward 3D vision.**
 
-DUSt3R에서 시작해 feed-forward 3D 연구로 이어지는 한국어 논문 노트.<br>
-입력과 출력, 해결할 문제, 핵심 방법을 같은 형식으로 읽습니다.
+Source-linked paper notes, organized by the problem each method solves.<br>
+Start with the inputs and outputs, then follow the method and its evidence.
 
 [![Papers](https://img.shields.io/badge/Papers-337-green.svg)](docs/papers-list.md)
 
 </div>
 
-![From pixels to shared space. Original geometric illustration of overlapping image views and a shared 3D scene; schematic, not a reconstruction result.](assets/collection-cover.svg)
+![Overlapping image views connect to a shared 3D scene. Original conceptual illustration, not a reconstruction result.](assets/collection-cover.svg)
 
 <div align="center">
 
-**[전체 논문 찾아보기 →](docs/papers-list.md)**　 · 　**[대표 논문부터 읽기](#start-reading)**　 · 　**[질문으로 분야 찾기](#explore-by-question)**
+**[Browse all papers →](docs/papers-list.md)** · **[Start reading](#start-reading)** · **[Explore by task](#explore-by-question)**
 
-[최근 추가](#selected-additions) · [검증 범위](#verification) · [변경 기록](log.md)
+[Selected additions](#selected-additions) · [Verification](#verification) · [Change log (KO)](log.md)
 
 </div>
 
 > A source-linked collection of **337 papers** on DUSt3R and related feed-forward 3D research.
-> 문서 수는 원문 검증 완료 수와 다릅니다. 수치는 각 요약의 출처·실험 조건·한계와 함께 읽어 주세요.
+> This homepage is in English. Detailed notes include Korean explanations; **Notes (KO)** identifies those links.
+> Document counts are not counts of fully verified papers. Read each result with its source, protocol and limitations.
 
 ## Start reading
 
-**같은 이미지, 다른 질문.** 먼저 대표 논문의 입력·출력을 비교한 뒤 관심 분야로 이동하세요.
-아래 배치는 읽기 안내이며, 성능 순위나 직접적인 계보를 뜻하지 않습니다.
+Compare the same question across four representative methods: **what goes in, what comes out, and what connects them?**
+This is a reading guide, not a performance ranking or a claim of direct lineage.
 
-| Pointmaps · 두 이미지의 공통 공간                                                                                                                                                                                                                     | Matching · 같은 지점을 찾는 특징                                                                                                                                                                                                                |
-| :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[DUSt3R](docs/foundation/dust3r.md)**<br>두 RGB 이미지에서 픽셀별 3D 좌표와 confidence를 예측합니다.<br><br>[한국어 요약](docs/foundation/dust3r.md) · [논문](https://arxiv.org/abs/2312.14132) · [코드](https://github.com/naver/dust3r)           | **[MASt3R](docs/foundation/mast3r.md)**<br>Pointmap에 local descriptor를 더해 이미지 대응점을 찾습니다.<br><br>[한국어 요약](docs/foundation/mast3r.md) · [논문](https://arxiv.org/abs/2406.09756) · [코드](https://github.com/naver/mast3r)    |
-| **Multi-view · 여러 시점의 공동 예측**                                                                                                                                                                                                                | **Memory · 과거 시점의 특징 재사용**                                                                                                                                                                                                            |
-| **[VGGT](docs/reconstruction/vggt.md)**<br>여러 이미지를 함께 보고 카메라·깊이·pointmap을 예측합니다.<br><br>[한국어 요약](docs/reconstruction/vggt.md) · [논문](https://arxiv.org/abs/2503.11651) · [코드](https://github.com/facebookresearch/vggt) | **[MUSt3R](docs/reconstruction/must3r.md)**<br>층별 메모리를 읽어 공통 좌표계의 pointmap을 예측합니다.<br><br>[한국어 요약](docs/reconstruction/must3r.md) · [논문](https://arxiv.org/abs/2503.01661) · [코드](https://github.com/naver/must3r) |
+| Paper      | Input → Output                       | Key idea                                     | Links                                                                                                                                    |
+| ---------- | ------------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **DUSt3R** | Image pair → pointmaps               | Predict both views in a shared frame.        | [Notes (KO)](docs/foundation/dust3r.md) · [Paper](https://arxiv.org/abs/2312.14132) · [Code](https://github.com/naver/dust3r)            |
+| **MASt3R** | Image pair → geometry + matches      | Add local descriptors for matching.          | [Notes (KO)](docs/foundation/mast3r.md) · [Paper](https://arxiv.org/abs/2406.09756) · [Code](https://github.com/naver/mast3r)            |
+| **VGGT**   | Image set → cameras + dense geometry | Alternate attention within and across views. | [Notes (KO)](docs/reconstruction/vggt.md) · [Paper](https://arxiv.org/abs/2503.11651) · [Code](https://github.com/facebookresearch/vggt) |
+| **MUSt3R** | Images + memory → shared pointmaps   | Reuse features stored at decoder layers.     | [Notes (KO)](docs/reconstruction/must3r.md) · [Paper](https://arxiv.org/abs/2503.01661) · [Code](https://github.com/naver/must3r)        |
 
 <details>
-<summary>Images to 3D · 입력에서 출력까지 한눈에 보기</summary>
+<summary>Images to 3D: the common vocabulary</summary>
 
 ## Images to 3D
 
-![RGB images enter learned geometry prediction and produce 3D information. This is a conceptual diagram, not a measured reconstruction.](assets/images-to-3d.svg)
+![RGB observations enter learned geometry prediction. Depending on the method, outputs include pointmaps, depth and cameras; post-processing varies.](assets/images-to-3d.svg)
 
-이 그림은 개요도입니다. 실제 이미지 수, pointmap·depth·camera pose 등의 출력과 후처리는 논문마다 다릅니다.
-[DUSt3R](docs/foundation/dust3r.md)는 두 이미지의 pointmap을 예측하며, 여러 이미지 재구성에는 별도 global alignment 최적화를 사용합니다.
-입력 calibration, 학습 supervision, 추론 뒤 최적화를 구분해서 읽으면 방법의 차이가 보입니다.
+A **pointmap** stores a 3D coordinate for each image pixel. Depth, camera parameters and confidence are related outputs, but their availability depends on the method.
+Separate input calibration, training supervision and inference-time optimization when comparing papers.
+For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds global alignment optimization.
 
 </details>
 
 ## Explore by question
 
-| 궁금한 점                                | 분야                                                                | 읽기 예시                                                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 이미지를 3D로 바꾸는 표현은?             | [Foundation](docs/foundation/)                                      | [CroCo](docs/foundation/croco.md), [DUSt3R](docs/foundation/dust3r.md)                               |
-| 긴 영상과 큰 장면을 어떻게 다룰까?       | [Reconstruction](docs/reconstruction/)                              | [TTT3R](docs/reconstruction/ttt3r.md), [Slot3R](docs/reconstruction/slot3r.md)                       |
-| 움직이는 장면도 복원할 수 있을까?        | [Dynamic](docs/dynamic/)                                            | [MonST3R](docs/dynamic/monst3r.md), [CUT3R](docs/dynamic/cut3r.md)                                   |
-| 새로운 시점의 이미지는 어떻게 만들까?    | [Gaussian Splatting](docs/gaussian-splatting/)                      | [Splatt3R](docs/gaussian-splatting/splatt3r.md)                                                      |
-| 기하와 의미를 함께 알 수 있을까?         | [Understanding](docs/understanding/) · [Reasoning](docs/reasoning/) | [IGGT](docs/understanding/iggt.md), [Amodal3R](docs/reasoning/amodal3r.md)                           |
-| 추적·지도·보정에 어떻게 연결할까?        | [Robotics](docs/robotics/) · [Pose](docs/pose/)                     | [UniSim-SLAM](docs/robotics/unisim-slam.md), [FFVO](docs/pose/ffvo.md)                               |
-| 모델은 언제 틀리고 무엇을 비교해야 할까? | [Surveys & Analysis](docs/surveys/)                                 | [Confidence Audit](docs/surveys/confidence-audit.md), [Wide Views](docs/surveys/wider-views-fail.md) |
-| 의료 영상의 조건은 무엇이 다를까?        | [Medical](docs/medical/)                                            | [Endo3R](docs/medical/endo3r.md)                                                                     |
+### Recover geometry
+
+**Learn a representation, reconstruct a scene, or follow it through time.**
+
+![Static reconstruction maps overlapping RGB views to a shared 3D scene. Dynamic reconstruction additionally represents changing geometry and motion across frames.](assets/task-geometry.svg)
+
+| Task / main folder                                            | Input → typical output                  | Reading tags / example                                                             |
+| ------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------- |
+| Learn reusable geometry · [Foundation](docs/foundation/)      | Views → geometric features or pointmaps | `cross-view` · `matching` · [DUSt3R notes (KO)](docs/foundation/dust3r.md)         |
+| Recover static shape · [Reconstruction](docs/reconstruction/) | Views → aligned scene geometry          | `streaming` · `mixed cameras` · [Slot3R notes (KO)](docs/reconstruction/slot3r.md) |
+| Recover changing scenes · [Dynamic](docs/dynamic/)            | Frames → geometry over time             | `motion` · `persistent state` · [CUT3R notes (KO)](docs/dynamic/cut3r.md)          |
+
+### Render and interpret
+
+**Predict a new image, attach meaning to geometry, or infer what is hidden.**
+
+![Three different targets: Gaussian scene representations rendered from a new camera, semantic labels attached to observed geometry, and inferred structure behind an occluder. Hidden geometry is drawn dashed to mark inference.](assets/task-render-interpret.svg)
+
+| Task / main folder                                                    | Input → typical output                           | Reading tags / example                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------- |
+| Synthesize new views · [Gaussian Splatting](docs/gaussian-splatting/) | Views → Gaussians → rendered image               | `novel view` · [Splatt3R notes (KO)](docs/gaussian-splatting/splatt3r.md)   |
+| Label the scene · [Understanding](docs/understanding/)                | Views / geometry → labels, objects or properties | `semantic geometry` · [IGGT notes (KO)](docs/understanding/iggt.md)         |
+| Infer unseen structure · [Reasoning](docs/reasoning/)                 | Partial observations → inferred geometry         | `amodal` · `completion` · [Amodal3R notes (KO)](docs/reasoning/amodal3r.md) |
+
+### Localize and act
+
+**Estimate where the camera is, then use geometry for mapping or decisions.**
+
+![Pose estimation recovers camera position and orientation in a reference frame. A robot application combines geometry with a persistent map and goals to select actions; a map alone is not a navigation policy.](assets/task-pose-action.svg)
+
+| Task / main folder                                      | Input → typical output                                | Reading tags / example                                                          |
+| ------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Estimate pose · [Pose Estimation](docs/pose/)           | Images / references → camera or object pose           | `localization` · [FFVO notes (KO)](docs/pose/ffvo.md)                           |
+| Map and interact · [Robotics](docs/robotics/)           | Observations + task → map, calibration or actions     | `SLAM` · `navigation` · [LG-VLN notes (KO)](docs/robotics/lg-vln.md)            |
+| Adapt to specialized imagery · [Medical](docs/medical/) | Medical imagery → task-specific geometry              | `endoscopy` · [Endo3R notes (KO)](docs/medical/endo3r.md)                       |
+| Test what works · [Surveys & Analysis](docs/surveys/)   | Models + protocols → comparisons and failure analysis | `reliability` · [Confidence Audit notes (KO)](docs/surveys/confidence-audit.md) |
+
+**Folders and tags serve different purposes.** Each paper has one primary filing location in the complete index.
+The task groups above are reading routes; the tags are cross-cutting cues, not extra folders or duplicate counts.
+For example, `SLAM` spans reconstruction, pose and robotics, while `semantic geometry` spans understanding and reasoning.
+Medical is an application-domain folder; its papers can also address motion or reconstruction.
+The diagrams show task families, not architectures shared by every paper. [Figure provenance](assets/README.md).
 
 ## Selected additions
 
-**2026-10-15 정비 묶음**
+**Source-review batch: 2026-10-15** — selected entry points, not publication-date rankings.
+See the [candidate decisions (KO)](candidates/review-2026-10-15.md) and [change log (KO)](log.md) for the full scope.
 
-이번 원문 대조 묶음에서 고른 문서입니다. 전체 변경 범위와 후보별 포함·제외 근거는 [후보 검토표](candidates/review-2026-10-15.md),
-수정 이력은 [log](log.md)에서 확인할 수 있습니다. 아래 날짜는 컬렉션 정비일입니다.
-
-| 최근 정비한 요약                                                       | 읽을 때 볼 지점                                                   |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **[Slot3R](docs/reconstruction/slot3r.md)** · Streaming reconstruction | 영상의 과거 정보를 어떤 상태로 저장하고 다음 프레임에 전달하는가? |
-| **[GeoCond](docs/foundation/geocond.md)** · Geometry conditioning      | 기하 정보를 조건으로 줄 때 입력과 예측 대상이 어떻게 달라지는가?  |
-| **[UniSim-SLAM](docs/robotics/unisim-slam.md)** · Geometry + SLAM      | 학습한 기하를 추적·정렬·지도 최적화에 어떻게 연결하는가?          |
-| **[MEOW](docs/reconstruction/meow.md)** · Mixed cameras                | 서로 다른 카메라 모델을 하나의 복원 과정에서 어떻게 다루는가?     |
+| Paper                                                | Input → Output                                      | What to inspect                                                     |
+| ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| [Slot3R · Notes (KO)](docs/reconstruction/slot3r.md) | Frames → streaming geometry                         | How state carries information between frames.                       |
+| [GeoCond · Notes (KO)](docs/foundation/geocond.md)   | Images + geometric conditions → adapted predictions | Which conditions the model accepts and how reliability is tested.   |
+| [MEOW · Notes (KO)](docs/reconstruction/meow.md)     | Mixed-camera views → scene geometry                 | How different camera models enter the reconstruction.               |
+| [LG-VLN · Notes (KO)](docs/robotics/lg-vln.md)       | RGB + instruction + camera height → map and actions | Correspondence filtering, scale initialization and pose evaluation. |
 
 <details>
-<summary>전체 분야와 문서 수 보기</summary>
+<summary>All primary folders and generated document counts</summary>
 
 ## Research categories
 
-분류는 탐색을 위한 기본 위치입니다. 한 논문은 여러 연구 질문과 연결될 수 있습니다.
-각 분야 링크에서 전체 목록을 볼 수 있습니다.
+These are the existing filing locations. No papers are moved or counted twice by the reading routes above.
+Each link opens a category index; detailed notes may contain Korean.
 
 ### 🔬 [Foundation Models](docs/foundation/) (30 papers)
 
-Cross-view learning, pointmap regression, matching, and shared geometry representations.
+Reusable geometric representations, matching and backbone methods.
 
 ### 🏗️ [3D Reconstruction](docs/reconstruction/) (128 papers)
 
-Static geometry, mixed cameras, large scenes, streaming memory, alignment, and SLAM.
+Scene geometry, alignment, streaming, mixed cameras and reconstruction systems.
 
 ### 🎬 [Dynamic Scenes](docs/dynamic/) (50 papers)
 
-Geometry and motion when objects or the camera move.
+Geometry and motion in changing scenes.
 
 ### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (51 papers)
 
-Learned geometry connected to explicit scene representations and novel-view rendering.
+Explicit scene representations and novel-view rendering.
 
 ### 🧠 [Scene Understanding](docs/understanding/) (26 papers)
 
-Geometry connected to segmentation, objects, and semantic features.
+Semantic labels, objects and features attached to geometry.
 
 ### 🔍 [Scene Reasoning](docs/reasoning/) (7 papers)
 
-Occluded structure, amodal geometry, and spatial reasoning.
+Hidden structure, completion and spatial inference.
 
 ### 🤖 [Robotics](docs/robotics/) (22 papers)
 
-Calibration, odometry, mapping, and robotic applications of geometry models.
+Calibration, mapping, navigation and robot-facing applications.
 
 ### 📚 [Surveys & Analysis](docs/surveys/) (8 papers)
 
-Evaluation protocols, reliability, failure analysis, and surveys.
+Evaluation protocols, reliability, comparisons and failure analysis.
 
 ### 📍 [Pose Estimation](docs/pose/) (12 papers) · 🏥 [Medical](docs/medical/) (3 papers)
 
-Camera localization and geometry methods for medical imagery.
+Camera/object localization, and geometry for specialized medical imagery.
 
 </details>
 
 <details>
-<summary>출판 연도 분포 · CONFIRMED venue만 집계</summary>
+<summary>Publication-year distribution: CONFIRMED venues only</summary>
 
 ## Research landscape
 
-각 문서의 현재 Overview에서 **CONFIRMED venue의 연도만** 집계합니다.
-LIKELY·UNKNOWN·arXiv 제출 연도는 제외하며, 모든 문서의 출판 정보를 이번에 다시 검증했다는 뜻은 아닙니다.
+Only the venue years marked **CONFIRMED** in the current paper Overviews are counted.
+LIKELY, UNKNOWN and arXiv submission years are excluded. This is not a fresh publication audit of every document.
 
 <!-- GENERATED:histogram -->
 
@@ -141,15 +173,15 @@ LIKELY·UNKNOWN·arXiv 제출 연도는 제외하며, 모든 문서의 출판 �
 
 <!-- /GENERATED -->
 
-Preprint와 venue 미확인 문서도 컬렉션에 포함됩니다.
+Preprints and papers with unconfirmed venues remain part of the collection.
 
 </details>
 
 ## Reading results responsibly
 
-수치는 각 논문 문서에서 원문 표·데이터셋·camera 조건·정렬 방식과 함께 읽으세요.
-GT pose 사용 여부, metric scale과 정렬 scale, 완료 시퀀스 수가 다르면 같은 지표 이름도 직접 비교할 수 없습니다.
-여러 모델을 하나의 protocol로 비교하려면 [평가·분석 논문](docs/surveys/)에서 시작하세요.
+Keep each number beside its source table, dataset, camera inputs, units and alignment protocol.
+The same metric name does not make results comparable when GT poses, scale treatment or completed sequences differ.
+Start with [Surveys & Analysis](docs/surveys/) for comparisons under a shared protocol.
 
 ## Verification
 
@@ -159,7 +191,7 @@ Metadata and results in this collection are checked by scripts in [`tools/`](too
 | ------------------------- | ------------------------------------------------------------------------------------- |
 | `verify_metadata.py`      | Venue, authors, arXiv ID against arXiv + DBLP + Semantic Scholar + Crossref           |
 | `verify_benchmarks.py`    | Selected numeric tokens in tables against source PDF text; labels need source review  |
-| `verify_index_numbers.py` | Every number in this README traced back to a paper document                           |
+| `verify_index_numbers.py` | Checks README numeric claims against paper documents                                  |
 | `check_structure.py`      | Seven-section structure and Overview field schema                                     |
 | `update_stats.py`         | Document/category counts and the confirmed-venue histogram — generated from documents |
 
@@ -167,7 +199,7 @@ Each paper's Overview carries a `Verification` field:
 
 - **CONFIRMED** — venue proven by DBLP, a publisher DOI, OpenReview, CVF openaccess, or an
   author-maintained badge
-- **LIKELY** — an author claim exists but no independent corroboration
+- **LIKELY** — a publication candidate or author claim needs corroboration and identity checks
 - **PREPRINT** — stored metadata checks found no publication record; indexing delays remain possible
 - **UNKNOWN** — publication venue remains unverified, even if the arXiv paper is available.
   The venue says `arXiv preprint`, and the Verification field or a Note states what is missing.

@@ -1,7 +1,7 @@
 # Complete Papers List
 
-> 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
-> 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
+> Generated from individual paper notes by `tools/build_papers_list.py`.
+> Links open collection notes, which include Korean explanations; original papers are linked in each Overview.
 
 **Total: 337 papers**
 

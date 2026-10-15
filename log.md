@@ -701,3 +701,26 @@ LG-VLN metadata 조회는 arXiv 제목·저자를 확인했지만 S2 429와 DBLP
 자동 Crossref LIKELY 후보 DOI 10.3390/math14091485는 공식 DOI metadata의 제목·저자 전원이 달라 배제했다.
 자동 결과를 지우지 않고 manual_review에 UNKNOWN 판정과 근거를 남겼다. 해당 venue를 문서에 전파하지 않았다.
 이 사례는 Crossref 검색 후보 자체가 게재 확인이 아니라는 한계를 보여준다.
+
+## [2026-10-15] English homepage, task navigation and explanatory diagrams
+
+Rewrote the homepage description, navigation, reading tables and category explanations in English.
+The complete index and all ten category indexes now emit English generated guidance with a note about Korean explanations.
+Direct links to Korean summaries in the homepage are labeled Notes (KO). The 337 individual paper documents are unchanged.
+
+The task atlas groups reading routes into Recover geometry, Render and interpret, and Localize and act.
+Existing primary folders and generated counts are preserved. Reading tags such as streaming, SLAM and semantic geometry are cross-cutting cues;
+they do not create duplicate entries, new primary folders or per-paper tag metadata.
+Category introductions now describe tasks, typical outputs and comparison caveats instead of broad promotional claims.
+
+Created three original code-authored SVGs for static/dynamic geometry, rendering/semantics/hidden structure, and pose/robot action.
+Together with the original cover and vocabulary diagram, the homepage has five conceptual illustrations.
+No third-party paper or project figure was copied; assets/README.md records provenance and the limits of this revision.
+Existing third-party figures in individual notes were not audited for reuse. Repository license terms were not assigned or changed.
+
+New diagrams were rendered at 1000/600/360px. A draft overlap between the dynamic-scene label, motion annotation and divider was corrected.
+Explicit dashed segments distinguish inferred structure in rasterizers that ignore SVG dash arrays.
+Native English tables and image descriptions carry the same task meanings. GitHub table wrapping and theme appearance still require a working browser runtime.
+The English scope and classification checks are recorded in raw/readme_english_validation_2026-10-15.json.
+
+Validation: all 12 offline checks and 16 regression tests passed. The final English README rendered through GitHub GFM with HTTP 200, six tables, three collapsible regions and four matching ASCII heading targets. This does not verify actual browser clicks or mobile table layout.
