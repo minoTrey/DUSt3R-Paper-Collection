@@ -1,35 +1,52 @@
 # DUSt3R Paper Collection
 
-**이미지가 어떻게 3D 기하로 바뀌는지, 논문마다 무엇이 다른지 읽는 컬렉션.**
+<div align="center">
 
-DUSt3R와 관련 feed-forward 3D 연구의 원문을 연결하고, 입력·출력·핵심 방법·실험 조건을 한국어로 설명합니다.
-각 논문은 같은 일곱 섹션을 사용합니다. 영어 제목과 원문 링크로 다시 찾아갈 수 있습니다.
+**이미지에서 3D로, 논문을 이해하는 읽기 지도.**
 
-[전체 논문](docs/papers-list.md) · [입문 읽기](#start-reading) · [질문별 탐색](#explore-by-question) · [최근 추가](#selected-additions) · [검증 범위](#verification)
+DUSt3R에서 시작해 feed-forward 3D 연구로 이어지는 한국어 논문 노트.<br>
+입력과 출력, 해결할 문제, 핵심 방법을 같은 형식으로 읽습니다.
 
 [![Papers](https://img.shields.io/badge/Papers-336-green.svg)](docs/papers-list.md)
 
+</div>
+
+![From pixels to shared space. Original geometric illustration of overlapping image views and a shared 3D scene; schematic, not a reconstruction result.](assets/collection-cover.svg)
+
+<div align="center">
+
+**[전체 논문 찾아보기 →](docs/papers-list.md)**　 · 　**[대표 논문부터 읽기](#start-reading)**　 · 　**[질문으로 분야 찾기](#explore-by-question)**
+
+[최근 추가](#selected-additions) · [검증 범위](#verification) · [변경 기록](log.md)
+
+</div>
+
 > A source-linked collection of **336 papers** on DUSt3R and related feed-forward 3D research.
-> 문서 수는 원문 검증 완료 수와 다릅니다. 결과를 사용할 때는 각 문서의 출처·평가 조건·한계를 확인하세요.
+> 문서 수는 원문 검증 완료 수와 다릅니다. 수치는 각 요약의 출처·실험 조건·한계와 함께 읽어 주세요.
+
+## Start reading
+
+**같은 이미지, 다른 질문.** 먼저 대표 논문의 입력·출력을 비교한 뒤 관심 분야로 이동하세요.
+아래 배치는 읽기 안내이며, 성능 순위나 직접적인 계보를 뜻하지 않습니다.
+
+| Pointmaps · 두 이미지의 공통 공간                                                                                                                                                                                                                     | Matching · 같은 지점을 찾는 특징                                                                                                                                                                                                                |
+| :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[DUSt3R](docs/foundation/dust3r.md)**<br>두 RGB 이미지에서 픽셀별 3D 좌표와 confidence를 예측합니다.<br><br>[한국어 요약](docs/foundation/dust3r.md) · [논문](https://arxiv.org/abs/2312.14132) · [코드](https://github.com/naver/dust3r)           | **[MASt3R](docs/foundation/mast3r.md)**<br>Pointmap에 local descriptor를 더해 이미지 대응점을 찾습니다.<br><br>[한국어 요약](docs/foundation/mast3r.md) · [논문](https://arxiv.org/abs/2406.09756) · [코드](https://github.com/naver/mast3r)    |
+| **Multi-view · 여러 시점의 공동 예측**                                                                                                                                                                                                                | **Memory · 과거 시점의 특징 재사용**                                                                                                                                                                                                            |
+| **[VGGT](docs/reconstruction/vggt.md)**<br>여러 이미지를 함께 보고 카메라·깊이·pointmap을 예측합니다.<br><br>[한국어 요약](docs/reconstruction/vggt.md) · [논문](https://arxiv.org/abs/2503.11651) · [코드](https://github.com/facebookresearch/vggt) | **[MUSt3R](docs/reconstruction/must3r.md)**<br>층별 메모리를 읽어 공통 좌표계의 pointmap을 예측합니다.<br><br>[한국어 요약](docs/reconstruction/must3r.md) · [논문](https://arxiv.org/abs/2503.01661) · [코드](https://github.com/naver/must3r) |
+
+<details>
+<summary>Images to 3D · 입력에서 출력까지 한눈에 보기</summary>
 
 ## Images to 3D
 
 ![RGB images enter learned geometry prediction and produce 3D information. This is a conceptual diagram, not a measured reconstruction.](assets/images-to-3d.svg)
 
-위 그림은 개념도입니다. 모델은 이미지에서 pointmap, depth, camera pose 등을 예측하지만 출력과 후처리는 방법마다 다릅니다.
-[DUSt3R](docs/foundation/dust3r.md)는 두 이미지의 pointmap을 예측하며, 다중 이미지 재구성에는 별도 global alignment 최적화를 사용합니다.
-입력 calibration, 학습 supervision, 추론 시 최적화의 유무를 구분해서 읽으면 방법의 차이가 보입니다.
+이 그림은 개요도입니다. 실제 이미지 수, pointmap·depth·camera pose 등의 출력과 후처리는 논문마다 다릅니다.
+[DUSt3R](docs/foundation/dust3r.md)는 두 이미지의 pointmap을 예측하며, 여러 이미지 재구성에는 별도 global alignment 최적화를 사용합니다.
+입력 calibration, 학습 supervision, 추론 뒤 최적화를 구분해서 읽으면 방법의 차이가 보입니다.
 
-## Start reading
-
-이 경로는 개념을 익히기 위한 읽기 순서이며 성능 순위나 직접적인 계보를 뜻하지 않습니다.
-
-| 읽을 논문                               | 먼저 볼 질문                                               |
-| --------------------------------------- | ---------------------------------------------------------- |
-| [DUSt3R](docs/foundation/dust3r.md)     | 두 RGB 이미지에서 pointmap을 어떻게 예측하는가?            |
-| [MASt3R](docs/foundation/mast3r.md)     | 3D 예측에 dense matching feature를 더하면 무엇이 가능한가? |
-| [VGGT](docs/reconstruction/vggt.md)     | 여러 view를 함께 처리하고 pose·depth를 어떻게 출력하는가?  |
-| [MUSt3R](docs/reconstruction/must3r.md) | 여러 이미지와 메모리를 어떻게 효율적으로 연결하는가?       |
+</details>
 
 ## Explore by question
 
@@ -51,14 +68,17 @@ DUSt3R와 관련 feed-forward 3D 연구의 원문을 연결하고, 입력·출�
 이번 원문 대조 묶음에서 고른 문서입니다. 전체 변경 범위와 후보별 포함·제외 근거는 [후보 검토표](candidates/review-2026-10-15.md),
 수정 이력은 [log](log.md)에서 확인할 수 있습니다. 아래 날짜는 컬렉션 정비일입니다.
 
-| 읽을 주제                              | 새 요약                                                                                                                             |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Streaming state와 geometry reliability | [Slot3R](docs/reconstruction/slot3r.md), [Info3R](docs/reconstruction/info3r.md), [GeoCond](docs/foundation/geocond.md)             |
-| Geometry를 SLAM에 연결하기             | [UniSim-SLAM](docs/robotics/unisim-slam.md), [BLASt3R](docs/reconstruction/blast3r.md), [F2SLAM](docs/robotics/f2slam.md)           |
-| UAV·긴 영상·혼합 camera                | [GeoFF3D](docs/reconstruction/geoff3d.md), [On-the-Fly3R](docs/reconstruction/on-the-fly3r.md), [MEOW](docs/reconstruction/meow.md) |
-| 직접 예측과 geometry 생성              | [JUSt3R](docs/reconstruction/just3r.md)                                                                                             |
+| 최근 정비한 요약                                                       | 읽을 때 볼 지점                                                   |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **[Slot3R](docs/reconstruction/slot3r.md)** · Streaming reconstruction | 영상의 과거 정보를 어떤 상태로 저장하고 다음 프레임에 전달하는가? |
+| **[GeoCond](docs/foundation/geocond.md)** · Geometry conditioning      | 기하 정보를 조건으로 줄 때 입력과 예측 대상이 어떻게 달라지는가?  |
+| **[UniSim-SLAM](docs/robotics/unisim-slam.md)** · Geometry + SLAM      | 학습한 기하를 추적·정렬·지도 최적화에 어떻게 연결하는가?          |
+| **[MEOW](docs/reconstruction/meow.md)** · Mixed cameras                | 서로 다른 카메라 모델을 하나의 복원 과정에서 어떻게 다루는가?     |
 
-## 🏷️ Research categories
+<details>
+<summary>전체 분야와 문서 수 보기</summary>
+
+## Research categories
 
 분류는 탐색을 위한 기본 위치입니다. 한 논문은 여러 연구 질문과 연결될 수 있습니다.
 각 분야 링크에서 전체 목록을 볼 수 있습니다.
@@ -99,7 +119,12 @@ Evaluation protocols, reliability, failure analysis, and surveys.
 
 Camera localization and geometry methods for medical imagery.
 
-## 📈 Research landscape
+</details>
+
+<details>
+<summary>출판 연도 분포 · CONFIRMED venue만 집계</summary>
+
+## Research landscape
 
 각 문서의 현재 Overview에서 **CONFIRMED venue의 연도만** 집계합니다.
 LIKELY·UNKNOWN·arXiv 제출 연도는 제외하며, 모든 문서의 출판 정보를 이번에 다시 검증했다는 뜻은 아닙니다.
@@ -117,6 +142,8 @@ LIKELY·UNKNOWN·arXiv 제출 연도는 제외하며, 모든 문서의 출판 �
 <!-- /GENERATED -->
 
 Preprint와 venue 미확인 문서도 컬렉션에 포함됩니다.
+
+</details>
 
 ## Reading results responsibly
 
