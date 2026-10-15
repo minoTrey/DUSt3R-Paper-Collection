@@ -23,7 +23,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (17)
+## 📄 All Papers in This Category (18)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -34,6 +34,7 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - [**G2TAM**](g2tam.md) (ICML 2026) — Geometry Grounded Track Anything Model
 - [**HAMSt3R**](hamst3r.md) (ICCV 2025) — Human-Aware Multi-view Stereo 3D Reconstruction
 - [**IGGT**](iggt.md) (ICLR 2026) — Instance-Grounded Geometry Transformer for Semantic 3D Reconstruction
+- [**IGGT4D**](iggt4d.md) (arXiv preprint (2026-07)) — Streaming 4D Instance-Grounded Geometry Transformer
 - [**LangFlash**](langflash.md) (arXiv preprint (2026-05)) — Feed-forward 3D Language Gaussian Splatting from Sparse Unposed Images
 - [**LargeSpatialModel**](largespatialmodel.md) (NeurIPS 2024) — End-to-end Unposed Images to Semantic 3D
 - [**MEt3R**](met3r.md) (CVPR 2025) — Measuring Multi-View Consistency in Generated Images

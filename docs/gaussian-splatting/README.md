@@ -23,7 +23,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (39)
+## 📄 All Papers in This Category (42)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -42,6 +42,7 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**FFAvatar**](ffavatar.md) (ECCV 2026) — Feed-Forward 4D Head Avatar Reconstruction from Sparse Portrait Images
 - [**Flash-Mono**](flash-mono.md) (arXiv preprint (2026-04)) — Feed-Forward Accelerated Gaussian Splatting Monocular SLAM
 - [**FLAT**](flat.md) (arXiv preprint (2026-06)) — Feedforward Latent Triangle Splatting for Geometrically Accurate Scene Generation
+- [**FlexSplat**](flexsplat.md) (arXiv preprint (2026-08)) — Flexible Feed-Forward 3D Gaussian Splatting without Point Cloud Correspondence
 - [**FlowR**](flowr.md) (ICCV 2025) — Flowing from Sparse to Dense 3D Reconstructions
 - [**ForeSplat**](foresplat.md) (arXiv preprint (2026-05)) — Optimization-Aware Foresight for Feed-Forward 3D Gaussian Splatting
 - [**GIFSplat**](gifsplat.md) (arXiv preprint (2026-02)) — Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views
@@ -57,9 +58,11 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**Off The Grid**](off-the-grid.md) (CVPR 2026) — Detection of Primitives for Feed-Forward 3D Gaussian Splatting
 - [**PreF3R**](pref3r.md) (arXiv preprint (2024-11)) — Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence
 - [**ReCoSplat**](recosplat.md) (arXiv preprint (2026-03)) — Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare
+- [**RoadVGGT**](roadvggt.md) (arXiv preprint (2026-07)) — Road-Structure-Aware Feed-Forward Road Surface Reconstruction
 - [**Splatt3R**](splatt3r.md) (arXiv preprint (2024-08)) — Zero-shot Gaussian Splatting from Uncalibrated Image Pairs
 - [**StructSplat**](structsplat.md) (arXiv preprint (2026-06)) — Generalizable 3D Gaussian Splatting from Uncalibrated Sparse Views
 - [**Styl3R**](styl3r.md) (NeurIPS 2025) — Instant 3D Stylized Reconstruction for Arbitrary Scenes and Styles
+- [**Swimm3R**](swimm3r.md) (arXiv preprint (2026-08)) — Splatting with Medium-aware SfM for Underwater 3D Reconstruction
 - [**TokenSplat**](tokensplat.md) (CVPR 2026) — Token-aligned 3D Gaussian Splatting for Feed-forward Pose-free Reconstruction
 - [**TriSplat**](trisplat.md) (arXiv preprint (2026-05)) — Simulation-Ready Feed-Forward 3D Scene Reconstruction
 - [**Wild3R**](wild3r.md) (arXiv preprint (2026-06)) — Feed-Forward 3D Gaussian Splatting from Unconstrained Sparse Photo Collections

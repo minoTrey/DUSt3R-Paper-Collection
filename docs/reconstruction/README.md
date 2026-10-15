@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (123)
+## 📄 All Papers in This Category (124)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -146,6 +146,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**ViGT**](vigt.md) (arXiv preprint (2026-02)) — Visual Implicit Geometry Transformer for Autonomous Driving
 - [**VIST3A**](vist3a.md) (ICLR 2026) — Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator
 - [**Wat3R**](wat3r.md) (ECCV 2026) — Underwater 3D Geometry Learning without Annotations
+- [**WAT3R**](wat3r-feedforward.md) (arXiv preprint (2026-07)) — Feedforward Underwater 3D Reconstruction
 - [**Wid3R**](wid3r.md) (arXiv preprint (2026-02)) — Wide Field-of-View 3D Reconstruction via Camera Model Conditioning
 - [**WinT3R**](wint3r.md) (arXiv preprint (2025-09)) — Window-based Streaming Reconstruction with Camera Token Pool
 - [**WorldMirror**](worldmirror.md) (ICML 2026) — Universal 3D World Reconstruction with Any-Prior Prompting

@@ -23,7 +23,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (43)
+## 📄 All Papers in This Category (44)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -66,6 +66,7 @@ The Dynamic Scene Reconstruction category extends DUSt3R's capabilities from sta
 - [**TrackCraft3R**](trackcraft3r.md) (arXiv preprint (2026-05)) — Repurposing Video Diffusion Transformers for Dense 3D Tracking
 - [**TrajVG**](trajvg.md) (arXiv preprint (2026-02)) — 3D Trajectory-Coupled Visual Geometry Learning
 - [**UFO**](ufo.md) (arXiv preprint (2026-02)) — Unifying Feed-Forward and Optimization-based Methods for Large Driving Scene Modeling
+- [**Marrying Optimal Transport and ODEs for Unified Continuous-Time 4D Reconstruction and Tracking (arXiv 2026)**](uni4r.md) (arXiv preprint (2026-08))
 - [**UniCon3R**](unicon3r.md) (arXiv preprint (2026-04)) — Unified Contact-aware 4D Human-Scene Reconstruction from Monocular Video
 - [**V-DPM**](v-dpm.md) (CVPR 2026) — 4D Video Reconstruction with Dynamic Point Maps
 - [**VGGT4D**](vggt4d.md) (CVPR 2026) — Mining Motion Cues in Visual Geometry Transformers for 4D Scene Reconstruction
