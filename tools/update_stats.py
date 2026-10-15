@@ -45,9 +45,17 @@ def load() -> list[dict]:
 
 
 def venue_year(rec: dict, verdicts: dict) -> str | None:
-    """연도는 검증된 venue에서 뽑는다. 없으면 문서의 Venue 문자열에서."""
-    v = verdicts.get(rec["slug"], {}).get("venue")
-    src = v or rec["fields"].get("Venue") or ""
+    """Use the current Overview, and count CONFIRMED venue years only.
+
+    The historical verdict cache can be older than the document. An arXiv
+    submission date is not a conference year.
+    """
+    fields = rec["fields"]
+    if not fields.get("Verification", "").startswith("CONFIRMED"):
+        return None
+    src = fields.get("Venue") or ""
+    if "arxiv" in src.lower() or "preprint" in src.lower():
+        return None
     m = re.search(r"\b(20\d{2})\b", src)
     return m.group(1) if m else None
 
@@ -73,7 +81,7 @@ def compute() -> dict:
         "categories": dict(sorted(cats.items())),
         "years": dict(sorted(years.items())),
         "year_unknown": unknown,
-        "verified": len(verdicts),
+        "verified": sum(r["fields"].get("Verification", "").startswith("CONFIRMED") for r in recs),
     }
 
 

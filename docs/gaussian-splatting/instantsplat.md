@@ -12,6 +12,7 @@ _InstantSplat combines MASt3R/DUSt3R 기반 초기화와 빠른 Gaussian 최적�
   in 40 Seconds"였으나 현재 정본 제목은 위와 같다. "40초"·"30배"는 현재 원문에 없다 —
   논문이 보고하는 최적화 시간은 **~7.5초**(Ours-S, Table 2)다.
 - **Links**: [Paper](https://arxiv.org/abs/2403.20309) | [Code](https://github.com/NVlabs/InstantSplat) | [Project Page](https://instantsplat.github.io/)
+- **Verification**: PREPRINT (2026-07-20 cached verdict; DBLP CoRR only + no S2 venue + no arXiv venue comment; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: DUSt3R/MASt3R 초기화와 빠른 Gaussian 최적화를 결합해 포즈 없이 희소 뷰에서
   3D를 재구성한다. 최적화 시간 ~7.5초(Ours-S).
 

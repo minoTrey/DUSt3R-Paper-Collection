@@ -1,7 +1,7 @@
 # DUSt3R: Geometric 3D Vision Made Easy (CVPR 2024)
 
 ![DUSt3R Architecture](https://github.com/naver/dust3r/raw/main/assets/dust3r_archi.jpg)
-_DUSt3R revolutionizes 3D reconstruction with end-to-end pointmap regression from uncalibrated image pairs_
+_Predict both images' pointmaps in the first camera frame; combining multiple pairs requires separate global alignment._
 
 ## 📋 Overview
 
@@ -9,49 +9,53 @@ _DUSt3R revolutionizes 3D reconstruction with end-to-end pointmap regression fro
 - **Institution**: Aalto University, NAVER LABS Europe
 - **Venue**: CVPR 2024
 - **Links**: [Paper](https://arxiv.org/abs/2312.14132) | [Code](https://github.com/naver/dust3r) | [Project Page](https://dust3r.europe.naverlabs.com/)
-- **TL;DR**: End-to-end 3D reconstruction from uncalibrated images using a transformer that directly regresses 3D pointmaps with confidence scores.
+- **Verification**: CONFIRMED (venue: cached DBLP verdict 2026-07-20; methods/results PDF re-reviewed 2026-10-15)
+- **TL;DR**: Predict per-pixel 3D coordinates and confidence from two uncalibrated RGB images. Full reconstruction from multiple images aligns pairwise predictions through optimization.
 
 ## 🎯 Key Contributions
 
-1. **Paradigm Shift**: Replaces traditional multi-stage pipelines (SfM + MVS) with a single feed-forward network
-2. **Uncalibrated Reconstruction**: Works without camera intrinsics or calibration information
-3. **Confidence-Aware Predictions**: Outputs confidence maps for robust self-training and filtering
-4. **Versatile Framework**: Single model handles multiple tasks - 3D reconstruction, pose estimation, pixel matching
-5. **Accessible 3D Vision**: Makes geometric 3D reconstruction as simple as running a neural network
+1. **Shared-Frame Pointmaps**: Predict per-pixel 3D coordinates for both images in a shared camera frame.
+2. **Uncalibrated Pair Input**: The pairwise network requires neither camera intrinsics nor relative pose as input.
+3. **Confidence-Weighted Supervision**: Jointly learn GT 3D-coordinate regression and confidence.
+4. **Global Alignment**: Align predictions from different pairs into a shared scene through iterative optimization.
 
 ## 🔧 Technical Details
 
-### Architecture
+### Input and Output
 
-- **Input**: Multi-view image pairs (no calibration required)
-- **Output**:
-  - 3D pointmaps (X, Y, Z coordinates per pixel)
-  - Confidence maps for geometric reliability
-- **Core Components**:
-  - Encoder: Shared ViT-based encoder (from CroCo)
-  - Decoder: Asymmetric design for efficiency
-  - Confidence Head: Predicts reliability of 3D predictions
+- **Input**: Two RGB images showing an overlapping scene.
+- **Output**: Two pointmaps and confidence maps. A pointmap stores a 3D coordinate for each image pixel.
+- **Coordinates**: Both pointmaps use the first camera frame. Absolute scale is generally undetermined.
 
-### Key Innovations
+### Architecture and Training
 
-1. **Direct 3D Regression**: Predicts 3D coordinates instead of depth/disparity
-2. **Self-Supervised Training**: Uses pseudo-labels from confidence filtering
-3. **Global Alignment**: Optimizes all pairwise predictions jointly
-4. **Robustness**: Handles arbitrary camera configurations
+A shared ViT encoder converts images into tokens. Two decoders exchange information through cross-attention.
+Regression heads output both images' pointmaps and confidence (§3.1).
 
-### Training Strategy
+Distinguish CroCo's self-supervised pretraining from DUSt3R's supervised 3D training.
+DUSt3R learns from GT pointmaps constructed with depth and camera information (§3.2, Appendix B).
+The confidence loss modulates regression errors in difficult regions. This is not self-supervised learning using only confidence-derived pseudo-labels.
 
-- **Dataset**: 8.5M image pairs from 8 diverse datasets
-- **Pretraining**: Uses CroCo pretraining
-- **Resolution**: 224×224 initially, then 512×512
-- **Loss Function**: 3D regression loss with confidence weighting
-- **Training Objective**: Direct 3D pointmap regression
+### From a Pair to a Scene
+
+```text
+Two RGB images → pairwise pointmaps and confidence
+Multiple images → selected pair predictions → global-alignment optimization → shared scene
+```
+
+§3.3 aligns pairwise rotations, translations and scales with global pointmaps.
+Extract focal lengths, poses or pixel correspondences from pointmaps as required by the task.
+Describing the entire multi-view pipeline as always a single forward pass or optimization-free is therefore inaccurate.
 
 ## 📊 Results
 
-**Model Details**: All results use DUSt3R-512 (ViT-Large encoder, Base decoder, 512×512 resolution) with global alignment (GA) where noted.
+**Source**: [arXiv 2312.14132v3 PDF](https://arxiv.org/pdf/2312.14132v3).
+DUSt3R-512 uses a long-edge resolution of 512 and multiple aspect ratios; inputs are not necessarily square.
 
 ### DTU Dataset (3D Reconstruction)
+
+Source Table 4, PDF p.9, in mm. DUSt3R reconstructs without GT cameras, whereas the other rows use GT cameras.
+This protocol differs from the depth evaluation in Table 3.
 
 | Method         | Type              | Accuracy ↓ | Completeness ↓ | Overall ↓ |
 | -------------- | ----------------- | ---------- | -------------- | --------- |
@@ -64,6 +68,8 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Multi-view Pose Estimation (CO3Dv2)
 
+Table 2 right and Table 5: sample 10 random frames and evaluate relative pose after global alignment.
+
 | Metric    | DUSt3R-512 (w/ GA) | Description                   |
 | --------- | ------------------ | ----------------------------- |
 | RRA@15 ↑  | 96.2%              | Relative Rotation Accuracy    |
@@ -71,6 +77,9 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 | mAA(30) ↑ | 76.7%              | Mean Average Accuracy         |
 
 ### Visual Localization (7-Scenes)
+
+Table 1 and Appendix Table 6: median translation/rotation errors from the 2D-matching pipeline with GT focal lengths.
+These are therefore not pose-regression results obtained without any camera information.
 
 | Scene   | Trans. Error (cm) ↓ | Rot. Error (°) ↓ | Model      |
 | ------- | ------------------- | ---------------- | ---------- |
@@ -84,6 +93,8 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Visual Localization (Cambridge Landmarks)
 
+The same 2D-matching pipeline from Table 1 and Appendix Table 6; median errors are reported.
+
 | Scene          | Trans. Error (cm) ↓ | Rot. Error (°) ↓ | Model      |
 | -------------- | ------------------- | ---------------- | ---------- |
 | St. Facade     | 6                   | 0.26             | DUSt3R-512 |
@@ -94,46 +105,33 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Multi-view Depth Estimation
 
-| Dataset         | Rel. Error ↓ | Inlier τ@1.25 ↑ | Model          |
-| --------------- | ------------ | --------------- | -------------- |
-| KITTI           | 9.11         | 39.49           | DUSt3R-512     |
-| ScanNet         | 4.93         | 60.20           | DUSt3R-512     |
-| ETH3D           | 2.91         | 76.91           | DUSt3R-512     |
-| DTU             | 3.52         | 69.33           | DUSt3R-512     |
-| Tanks & Temples | 3.17         | 76.68           | DUSt3R-512     |
-| **Average**     | **4.73**     | **64.52**       | **DUSt3R-512** |
+Table 3, PDF p.9, condition (d). No GT poses or depth ranges are inputs; predictions are median-scale-aligned to GT depth.
+Rel and inlier ratio follow the source's percentage notation. The inlier threshold is **1.03**.
+ScanNet uses same-domain training data and is parenthesized in the source table.
+
+| Dataset         | Rel. Error (%) ↓ | Inlier τ@1.03 (%) ↑ | Model          |
+| --------------- | ---------------- | ------------------- | -------------- |
+| KITTI           | 9.11             | 39.49               | DUSt3R-512     |
+| ScanNet         | 4.93             | 60.20               | DUSt3R-512     |
+| ETH3D           | 2.91             | 76.91               | DUSt3R-512     |
+| DTU             | 3.52             | 69.33               | DUSt3R-512     |
+| Tanks & Temples | 3.17             | 76.68               | DUSt3R-512     |
+| **Average**     | **4.73**         | **64.52**           | **DUSt3R-512** |
 
 ### Qualitative Results
 
-- Handles diverse scenes: indoor, outdoor, close-up, wide baseline
-- Robust to challenging conditions: textureless regions, reflections, repetitive patterns
-- Produces complete 3D models from as few as 2 images
+Source Figs. 1 and 7 show examples from varied imagery.
+Predicting a point cloud from two images does not guarantee complete occluded surfaces or accuracy on every reflective or low-texture scene.
 
 ## 💡 Insights & Impact
 
-### Revolutionary Aspects
+The central contribution is using learned 3D priors to reduce calibration and correspondence-search demands.
+Pairwise network inference, global alignment and localization geometry are separate stages.
+Combining their timings and input assumptions can misrepresent practical costs.
 
-1. **Simplicity**: Removes need for feature matching, bundle adjustment, calibration
-2. **Speed**: ~40ms per image pair on H100 GPU, seconds for global alignment
-3. **Robustness**: Works where traditional methods fail (low texture, wide baselines)
-4. **Accessibility**: Makes 3D vision tasks easier with unified approach
-
-### Paradigm Comparison
-
-| Aspect        | Traditional (SfM+MVS)      | DUSt3R              |
-| ------------- | -------------------------- | ------------------- |
-| Pipeline      | Multi-stage, sequential    | Single forward pass |
-| Requirements  | Calibration, good features | Just images         |
-| Failure modes | Low texture, lighting      | Extreme viewpoints  |
-| Speed         | Minutes to hours           | Seconds             |
-| Ease of use   | Expert knowledge needed    | "Plug and play"     |
-
-### Limitations
-
-1. **Memory**: GPU memory limits number of views
-2. **Scale Ambiguity**: Requires known camera or object for metric scale
-3. **Large Scenes**: Not designed for city-scale reconstruction
-4. **Training Data**: Requires diverse 3D training data
+MVS with GT cameras and DUSt3R's uncalibrated reconstruction are not evaluated under identical inputs.
+Occlusions, out-of-distribution scenes and scale ambiguity remain limitations.
+This note removes an untraceable H100 40 ms claim and generic completion-time comparisons.
 
 ## 🔗 Related Work
 
@@ -153,11 +151,7 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ## 📚 Key Takeaways
 
-DUSt3R fundamentally changed 3D reconstruction by:
-
-1. **Making it accessible**: No expertise in multi-view geometry required
-2. **Unifying tasks**: Single model for reconstruction, pose, matching
-3. **Enabling research**: Inspired numerous follow-up works
-4. **Proving feasibility**: Feed-forward 3D reconstruction is not only possible but practical
-
-The paper's title "Geometric 3D Vision Made Easy" perfectly captures its contribution - transforming a complex, brittle pipeline into a simple neural network inference for broader accessibility.
+1. Inputs are image pairs; direct outputs are two pointmaps and confidence.
+2. CroCo pretraining differs from DUSt3R's supervised 3D training.
+3. Combining multiple pairs into a full scene requires global alignment.
+4. Check calibration inputs, scale alignment and dataset conditions before comparing numbers.

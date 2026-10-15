@@ -9,17 +9,26 @@ _MASt3R grounds image matching in 3D space, unifying dense correspondence with g
 - **Institution**: NAVER LABS Europe
 - **Venue**: ECCV 2024
 - **Links**: [Paper](https://arxiv.org/abs/2406.09756) | [Code](https://github.com/naver/mast3r) | [Project Page](https://dust3r.europe.naverlabs.com/)
+- **Verification**: CONFIRMED (cached DBLP verdict 2026-07-20; methods/results PDF re-reviewed 2026-10-15)
 - **TL;DR**: Extends DUSt3R with 3D-aware dense feature matching, treating correspondence as an inherently 3D problem rather than 2D.
 
 ## 🎯 Key Contributions
 
-1. **3D-Aware Matching**: First method to treat image matching as a 3D problem, directly linked to camera pose and scene geometry
+1. **3D-Aware Matching**: Combine 3D pointmap prediction with local descriptor learning to improve correspondence search.
 2. **Unified Framework**: Combines accurate feature matching with robust 3D reconstruction in a single model
-3. **Fast Reciprocal Matching**: Novel matching scheme that's orders of magnitude faster with theoretical guarantees
+3. **Fast Reciprocal Matching**: Iterate mutual-nearest-neighbor search in descriptor space. Speed comparisons apply to the source's correspondence counts and resolutions.
 4. **Dense Local Features**: Adds descriptor head to DUSt3R architecture for precise correspondences
-5. **Metric Outputs**: Natively produces metric 3D reconstructions while establishing pixel correspondences
+5. **Metric Outputs**: Learn GT metric scale while outputting dense descriptors and pointmaps. This does not guarantee accurate absolute scale in every scene.
 
 ## 🔧 Technical Details
+
+### Input, Output, and Problem
+
+Inputs are two overlapping RGB images. Outputs are both pointmaps in the first camera frame, confidence and per-pixel local descriptors.
+Correspondences derived only from DUSt3R's 3D coordinates may be insufficient for precise image matching.
+MASt3R learns similar descriptors for pixels observing the same 3D location (§3.1–3.2).
+Fast reciprocal matching finds mutual descriptor nearest neighbors during inference (§3.3).
+Pose recovery from correspondences and multi-view alignment still require separate geometric stages.
 
 ### Architecture
 
@@ -55,6 +64,10 @@ _MASt3R grounds image matching in 3D space, unifying dense correspondence with g
 - **Initialization**: DUSt3R checkpoint
 
 ## 📊 Results
+
+**Source**: [arXiv 2406.09756v1 PDF](https://arxiv.org/pdf/2406.09756v1).
+Preserve each dataset's table-specific conditions below. DTU distances are in mm.
+Do not combine DTU MVS using GT cameras with pose-estimation results as if both were uncalibrated.
 
 ### Quantitative Performance
 
@@ -163,7 +176,7 @@ MASt3R represents a fundamental advance in visual correspondence by:
 
 1. **Unifying** 3D reconstruction and feature matching in a single framework
 2. **Demonstrating** that matching is inherently a 3D problem
-3. **Achieving** state-of-the-art results on both tasks simultaneously
-4. **Enabling** practical applications requiring both accuracy and robustness
+3. **Evaluating** reconstruction and matching under each dataset's protocol.
+4. **Using descriptors**: Check correspondence quality, pose-computation costs and training distribution in applications.
 
 The progression from DUSt3R's "3D made easy" to MASt3R's "matching grounded in 3D" shows the natural evolution toward more complete and accurate 3D understanding from images.

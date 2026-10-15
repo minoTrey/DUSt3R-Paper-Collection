@@ -1,11 +1,15 @@
 # [Paper Title] ([Venue Year])
 
+Write the paper note in English. Preserve the seven sections and source-traceable facts.
+Do not infer a note's language from isolated legacy source annotations.
+
 ## 📋 Overview
 
 - **Authors**: [Name1, Name2, ...]
-- **Institutions**: [Institution1, Institution2, ...]
+- **Institution**: [Institution1, Institution2, ...]
 - **Venue**: [Conference/Journal Year]
 - **Links**: [Paper](arxiv_link) | [Code](github_link) | [Project Page](project_link)
+- **Verification**: UNKNOWN ([check date]; [venue evidence and remaining uncertainty])
 - **TL;DR**: [One-line summary of the paper's main contribution]
 
 ## 🎯 Key Contributions
@@ -27,6 +31,9 @@ Traditional: [Previous approach]
 
 ### Architecture/Method
 
+- **Input**: [Required images, calibration, and priors]
+- **Output**: [Predicted quantities and coordinate frame]
+- **Problem**: [Previous failure and how the method addresses it]
 - **[Component 1]**: [Description]
 - **[Component 2]**: [Description]
 - **[Component 3]**: [Description]
@@ -48,6 +55,11 @@ Traditional: [Previous approach]
 ## 📊 Results
 
 ### Quantitative Performance
+
+Source: [Versioned source PDF and table/page]. State the dataset, evaluation split,
+alignment, units, model variant, and hardware when relevant. Use only values that
+the source reports. Distinguish training, inference, and post-processing.
+Keep failure cases and limitations. Remove unused placeholders and unsupported rows.
 
 #### [Benchmark 1]
 

@@ -9,6 +9,7 @@ _ODHSR achieves unified online reconstruction of humans and scenes from monocula
 - **Institution**: ETH Zürich, HKUST(GZ), HKUST, University of Amsterdam
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2504.13167) | [Project Page](https://eth-ait.github.io/ODHSR/)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/ZhangKX0O25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: First unified online framework for simultaneous dense reconstruction of humans and scenes from monocular RGB video, achieving 75× speedup with real-time capability.
 
 ## 🎯 Key Contributions

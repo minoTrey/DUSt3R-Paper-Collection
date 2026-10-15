@@ -9,6 +9,7 @@ _PreF3R enables feed-forward 3D Gaussian Splatting using spatial memory networks
 - **Institution**: Harvard University, Computational Robotics Lab
 - **Venue**: arXiv preprint (2024-11)
 - **Links**: [Paper](https://arxiv.org/abs/2411.16877) | [Project Page](https://computationalrobotics.seas.harvard.edu/PreF3R/)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (year unconfirmed); 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Feed-forward 3D Gaussian Splatting from unposed images using spatial memory network, achieving 20 FPS reconstruction without SfM or optimization.
 
 ## 🎯 Key Contributions

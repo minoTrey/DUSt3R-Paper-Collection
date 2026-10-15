@@ -9,6 +9,7 @@ _π³ achieves true permutation equivariance in visual geometry through symmetri
 - **Institution**: Shanghai AI Lab, ZJU, SII
 - **Venue**: arXiv preprint (2025-07)
 - **Links**: [Paper](https://arxiv.org/abs/2507.13347) | [Project Page](https://yyfz.github.io/pi3/) | [Code](https://github.com/yyfz/Pi3) | [Demo](https://huggingface.co/spaces/yyfz233/Pi3)
+- **Verification**: PREPRINT (2026-07-20 cached verdict; DBLP CoRR only + no S2 venue + no arXiv venue comment; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: First visual geometry model achieving true permutation equivariance by eliminating all order-dependent components, surpassing VGGT across all benchmarks.
 
 ## 🎯 Key Contributions

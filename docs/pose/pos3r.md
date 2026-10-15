@@ -9,6 +9,7 @@ _Pos3R leverages 3D foundation models for zero-shot 6D pose estimation without a
 - **Institution**: Australian National University
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://openaccess.thecvf.com/content/CVPR2025/html/Deng_Pos3R_6D_Pose_Estimation_for_Unseen_Objects_Made_Easy_CVPR_2025_paper.html) | [Video](https://www.youtube.com/watch?v=_a9q_O8yN4E)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/DengCSZKSG25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Zero-shot 6D pose estimation using 3D foundation models, achieving competitive BOP benchmark results without any additional training on target objects.
 
 ## 🎯 Key Contributions

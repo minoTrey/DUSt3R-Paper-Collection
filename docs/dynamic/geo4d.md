@@ -9,6 +9,7 @@ _Geo4D leverages video diffusion models to achieve state-of-the-art 4D reconstru
 - **Institution**: Visual Geometry Group (Oxford), Naver Labs Europe
 - **Venue**: ICCV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2504.07961) | [Code](https://github.com/jzr99/Geo4D) | [Project Page](https://geo4d.github.io/)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/iccv/JiangZLLV25; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Repurposes video diffusion models for 4D scene reconstruction, achieving state-of-the-art results by predicting and fusing multiple geometric modalities.
 
 ## 🎯 Key Contributions

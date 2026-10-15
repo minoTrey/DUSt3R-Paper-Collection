@@ -1,7 +1,7 @@
 # VGGT: Visual Geometry Grounded Transformer (CVPR 2025)
 
 ![VGGT Architecture](https://vgg-t.github.io/resources/architecture_v4.png)
-_VGGT unifies all geometric tasks in a single transformer: ~0.2s inference vs DUSt3R ~7s, MASt3R ~9s (원논문 Table 1·2)_
+_Predict cameras, depth, pointmaps and tracking information from features alternating within-image and cross-frame attention._
 
 ## 📋 Overview
 
@@ -10,61 +10,51 @@ _VGGT unifies all geometric tasks in a single transformer: ~0.2s inference vs DU
 - **Venue**: CVPR 2025
 - **Award**: Best Paper Award
 - **Links**: [Paper](https://arxiv.org/abs/2503.11651) | [Code](https://github.com/facebookresearch/vggt) | [Project Page](https://vgg-t.github.io/)
-- **Verification**: CONFIRMED (2026-07-20)
-- **TL;DR**: Unified transformer that jointly estimates camera parameters, depth, 3D pointmaps, and point tracks in one forward pass. ~0.2s 추론 (DUSt3R ~7s, MASt3R ~9s).
+- **Verification**: CONFIRMED (venue: existing verdict 2026-07-20; methods/results PDF re-reviewed 2026-10-15)
+- **TL;DR**: Jointly process RGB images to predict cameras, depth, 3D pointmaps and tracking features. Infer shared-frame geometry without GT cameras, with optional BA refinement.
 
 ## 🎯 Key Contributions
 
-1. **Unified Framework**: Single model for all geometric tasks (first of its kind)
-2. **End-to-End Learning**: No post-processing or optimization needed
-3. **Extreme Speed**: ~0.2s 추론 (원논문 Table 1·2). DUSt3R ~7s, MASt3R ~9s 대비.
-4. **Scalability**: Handles 1-200+ views (vs DUSt3R's ~32 limit)
-5. **Generalization**: Works on paintings, drawings, even single images
+1. **Joint Geometry**: Learn multiple geometric tasks through one feature backbone.
+2. **Alternating-Attention**: Alternate within-image and cross-image relationships.
+3. **Direct Multi-View Prediction**: Reduce separate pairwise-pointmap alignment in default inference.
+4. **Reusable Features**: Supply features to separate tracking modules and downstream tasks.
 
 ## 🔧 Technical Details
 
-### Core Innovation: True Unified 3D Vision
+### Input and Output
+
+- **Input**: One or more RGB images; default inference jointly processes the provided set.
+- **Output**: Camera rotation, translation and FoV; depth, pointmaps, tracking features and query-point 2D trajectories.
+- **Coordinates**: Relative to the first camera; assume a centered principal point (§3.1).
+
+### Architecture
 
 ```text
-Traditional: Task1 → Task2 → Task3 → Optimization
-VGGT: Images → Transformer → All outputs simultaneously
+RGB images → DINOv2-initialized tokens
+           → within-image self-attention ↔ all-frame self-attention
+           → camera head / DPT dense heads / query-based tracking module
 ```
 
-### Architecture (1.2B Parameters)
+Camera heads predict rotation, translation and FoV.
+DPT heads output depth, pointmaps and dense tracking features.
+A CoTracker2-based module combines query points with these features to find framewise correspondences (§3.2).
+DPT therefore does not directly output all tracks without queries.
 
-- **Image Tokenization**: DINOv2 backbone
-- **Camera Tokens**: Appended for parameter prediction
-- **Alternating-Attention (AA)**:
-  - Frame-wise self-attention
-  - Global cross-frame attention
-  - Efficient multi-view processing
-- **Dual Heads**:
-  - Camera head: Intrinsics + Extrinsics
-  - DPT head: Depth + Pointmaps + Tracks
+### Inference Scope
 
-### Joint Estimation Outputs
-
-1. **Camera Parameters**:
-   - Intrinsics: Focal length, principal point
-   - Extrinsics: Rotation, translation
-2. **Dense Geometry**:
-   - Depth maps
-   - 3D pointmaps
-3. **Correspondences**:
-   - Point tracks across frames
-
-### Training Strategy
-
-- **Multi-task Loss**: Carefully balanced weights
-- **Scale**: 160K iterations on 64 A100 GPUs
-- **Datasets**: Diverse 3D-annotated data
-- **Key**: No geometry optimization during inference
+Default results use feed-forward inference; the paper also reports optional bundle adjustment (BA).
+BA optimizes cameras/correspondences to reduce reprojection errors.
+Global cross-frame attention costs grow with image count, motivating chunking/streaming extensions for long videos.
+Remove unsupported fixed limits such as DUSt3R maximum 32 images and guarantees of generalization to every domain.
 
 ## 📊 Results
 
-### Dense MVS Estimation on DTU
+### Point Map Estimation on ETH3D
 
-원논문 Table 2. 지표는 Accuracy / Completeness / 그 평균인 Overall(Chamfer distance).
+[arXiv 2503.11651v1 PDF](https://arxiv.org/pdf/2503.11651v1), Table 3, PDF p.7.
+Metrics are Acc / Comp / Overall. DUSt3R and MASt3R use global alignment.
+Distinguish direct VGGT point-head outputs from depth/camera unprojection. This table is not DTU.
 
 | Method                 | Acc. ↓    | Comp. ↓   | Overall ↓ | Time      |
 | ---------------------- | --------- | --------- | --------- | --------- |
@@ -76,7 +66,7 @@ VGGT: Images → Transformer → All outputs simultaneously
 ### Camera Pose Estimation
 
 원논문 Table 1. 10프레임 무작위 샘플, 두 지표 모두 높을수록 좋다.
-Re10K로 학습한 방법은 없다.
+No compared method trains on Re10K. Runtime is measured under this protocol on one H100.
 
 | Method                  | Re10K (unseen) AUC@30 ↑ | CO3Dv2 AUC@30 ↑ | Time      |
 | ----------------------- | ----------------------- | --------------- | --------- |
@@ -95,7 +85,7 @@ Re10K로 학습한 방법은 없다.
 
 ### 추론 시간
 
-원논문 Table 1·2가 보고하는 값. 배속은 원논문이 명시하지 않은 파생값이라 적지 않는다.
+Source Tables 1 and 3. Do not generalize timings to arbitrary frame counts/pipelines; unreported derived speedups are omitted.
 
 | Method   | Time      |
 | -------- | --------- |
@@ -103,15 +93,20 @@ Re10K로 학습한 방법은 없다.
 | MASt3R   | ~9s       |
 | **VGGT** | **~0.2s** |
 
-### Point Map Estimation on ETH3D
+### Dense MVS Estimation on DTU
 
-원논문 Table 3. 본문 서술 기준으로 VGGT는 Overall 점수를 DUSt3R의 **1.741에서
-0.382로** 낮춘다. 전체 표는 PDF 2단 레이아웃에서 깨끗이 추출되지 않아 옮기지
-않았다 — 필요하면 원논문 Table 3을 직접 확인할 것.
+Source Table 2, PDF p.7, in mm; separate from the ETH3D results above.
+MASt3R uses GT cameras; DUSt3R and VGGT do not in these rows.
+
+| Method | GT Cameras | Acc. ↓ | Comp. ↓ | Overall ↓ |
+| ------ | ---------- | ------ | ------- | --------- |
+| DUSt3R | No         | 2.677  | 0.805   | 1.741     |
+| MASt3R | Yes        | 0.403  | 0.344   | 0.374     |
+| VGGT   | No         | 0.389  | 0.374   | 0.382     |
 
 ### Ablation: Attention 구조 (ETH3D)
 
-원논문 Table 6. Alternating-Attention이 VGGT가 채택한 설계다.
+Source Table 5, PDF p.8. Alternating-Attention is VGGT's chosen design.
 
 | Attention                  | Acc. ↓    | Comp. ↓   | Overall ↓ |
 | -------------------------- | --------- | --------- | --------- |
@@ -121,43 +116,12 @@ Re10K로 학습한 방법은 없다.
 
 ## 💡 Insights & Impact
 
-### Paradigm Shift in 3D Vision
+Joint learning reduces the burden of separately estimating and reconciling cameras and depth.
+Depth/camera-unprojected clouds can outperform direct point-head outputs, so distinguish output paths.
+Fast initial predictions can initialize BA; optional optimization is not made pointless.
 
-**Before VGGT**:
-
-- Separate models for each task
-- Complex pipelines
-- Iterative optimization
-- Limited scalability
-
-**With VGGT**:
-
-- Single unified model
-- Direct prediction
-- No optimization
-- Extreme scalability
-
-### Why VGGT Succeeds
-
-1. **Shared Representation**: Joint learning improves all tasks
-2. **Transformer Power**: Attention captures global relationships
-3. **End-to-End Training**: Holistic optimization
-4. **Minimal Bias**: Learns from data, not hand-crafted rules
-
-### Unique Capabilities
-
-- **Single Image**: Works where DUSt3R fails
-- **Non-overlapping Views**: Handles disjoint cameras
-- **Artistic Images**: Generalizes to paintings/drawings
-- **Extreme Efficiency**: Real-time applications possible
-
-### Applications
-
-- **Instant 3D Capture**: Consumer devices
-- **Robotics**: Real-time scene understanding
-- **AR/VR**: Live environment mapping
-- **Content Creation**: Quick 3D from images
-- **Cultural Heritage**: Artwork digitization
+Do not directly rank results with different GT-camera inputs, alignments or image counts.
+Visual examples show varied-input possibilities, not guaranteed accuracy for all images, sensors or dynamic scenes.
 
 ## 🔗 Related Work
 
@@ -179,11 +143,7 @@ Re10K로 학습한 방법은 없다.
 
 ## 📚 Key Takeaways
 
-VGGT represents a breakthrough by:
-
-1. **Unifying all geometric tasks**: Camera, depth, 3D, tracking
-2. **Achieving extreme speed**: ~0.2s vs DUSt3R ~7s / MASt3R ~9s
-3. **Scaling beyond limits**: 200+ views easily
-4. **Generalizing broadly**: Art, single images, any domain
-
-As the CVPR 2025 Best Paper, VGGT sets a new standard for 3D vision, showing that unified end-to-end learning can surpass specialized pipelines in both quality and efficiency. This marks the beginning of a new era in geometric computer vision.
+1. A shared backbone learns information for cameras, depth, pointmaps and tracking.
+2. Separate default feed-forward and BA-augmented paths.
+3. ETH3D pointmap and DTU MVS evaluations use different tables.
+4. Consider long-video costs and first-frame coordinates when choosing extensions.

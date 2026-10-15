@@ -9,6 +9,7 @@ _SPARS3R fuses DUSt3R priors with SfM calibration using semantic-aware alignment
 - **Institution**: Johns Hopkins University
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2411.12592) | [Code](https://github.com/snldmt/SPARS3R)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/TangGL025; 2026-10-15 field restored; venue not revalidated in this batch)
 - **TL;DR**: Fuses dense DUSt3R priors with accurate SfM calibration using semantic-aware alignment for high-quality sparse-view 3D Gaussian Splatting.
 
 ## 🎯 Key Contributions

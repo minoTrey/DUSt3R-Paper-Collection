@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """전체 검증 스위트를 한 번에 실행하고, 사각지대까지 명시한다.
 
---fast : 오프라인·결정론적 검사만 (CI에서 도는 것). 네트워크·PDF 불필요한 것 중심.
+기본: 오프라인·결정론적 검사만 (CI에서 도는 것). 네트워크·PDF 불필요한 것 중심.
 --full : PDF 대조(벤치·산문)와 링크 생존까지. 로컬에서 표를 건드렸을 때.
 
 핵심 설계: 마지막에 '검증되지 않는 것'을 항상 출력한다. 커버리지 100%가
@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 
@@ -19,8 +20,11 @@ CHECKS = [
     ("마크다운 구조/lint", ["npx", "markdownlint-cli2"], False, False),
     ("서식(prettier)", ["npx", "prettier", "--check", "**/*.md"], False, False),
     ("7섹션·Overview 스키마", ["python3", "tools/check_structure.py"], False, False),
+    ("후보 상태 대조", ["python3", "tools/reconcile_candidates.py", "--check"], False, False),
+    ("후보 분류 보고서", ["python3", "tools/build_candidate_review.py", "--check"], False, False),
     ("README 카운트", ["python3", "tools/update_stats.py", "--check"], False, False),
     ("papers-list·카테고리 목록", ["python3", "tools/build_papers_list.py", "--check"], False, False),
+    ("내부 Markdown 링크", ["python3", "tools/verify_internal_links.py"], False, False),
     ("색인 수치 추적", ["python3", "tools/verify_index_numbers.py", "--check"], False, False),
     ("사실 카드 정합", ["python3", "tools/build_fact_cards.py", "--check"], False, False),
     ("문서 간 참조(A1)", ["python3", "tools/verify_crossref.py", "--check"], False, False),
@@ -35,12 +39,17 @@ BLIND_SPOTS = [
     "정수 지표: `verify_benchmarks.py --int` 로 별도 실행해야 본다 (기본은 소수만).",
     "수치 귀속(A2): 문맥 오탐이 많아 경고만. 사람이 원문 대조해야 확정.",
     "의미 정합: TL;DR↔본문, 요약의 정확성은 기계 검증 밖 (LLM/사람 필요).",
-    "UNKNOWN venue: 1차 출처가 아직 없는 논문 — 학회 색인 대기 상태이지 검증 아님.",
+    "UNKNOWN venue: 논문 원문이 있어도 게재 venue를 확인하지 못한 상태일 수 있음.",
     "소속: PDF 1페이지 저자 블록 대조는 했으나, 저자 순서·표기 변형은 놓칠 수 있다.",
 ]
 
 
 def run(name, argv):
+    argv = list(argv)
+    if argv[0] == "python3":
+        argv[0] = sys.executable
+    elif argv[0] == "npx":
+        argv[0] = shutil.which("npx") or "npx"
     r = subprocess.run(argv, capture_output=True, text=True)
     ok = r.returncode == 0
     mark = "✅" if ok else "❌"
