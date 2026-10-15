@@ -10,6 +10,11 @@ The Foundation Models category represents the seminal works that established the
 
 > 수상·게재 확정을 기준으로 **자동 선정** (`tools/build_papers_list.py`). 전체 목록은 하단 “All Papers in This Category”.
 
+- [**MASt3R-SfM**](mast3r-sfm.md) (3DV 2025)
+- [**DUSt3R**](dust3r.md) (CVPR 2024)
+- [**MASt3R**](mast3r.md) (ECCV 2024)
+- [**CroCo v2**](croco-v2.md) (ICCV 2023)
+- [**CroCo**](croco.md) (NeurIPS 2022)
 - [**QVGGT**](qvggt.md) (CVPR 2026)
 - [**SAF3R**](saf3r.md) (ECCV 2026)
 - [**Trust3R**](trust3r.md) (ICML 2026)

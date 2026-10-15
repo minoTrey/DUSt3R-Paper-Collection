@@ -9,6 +9,7 @@ _LaRI models multiple surface layers along camera rays, enabling reasoning about
 - **Institution**: KAUST and affiliates
 - **Venue**: arXiv preprint (2025-04)
 - **Links**: [Paper](https://arxiv.org/abs/2504.18424) | [Code](https://github.com/ruili3/lari) | [Demo](https://huggingface.co/spaces/ruili3/LaRI)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (연도 미확정); 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Models multiple surface layers along camera rays from single images, enabling reasoning about occluded geometry with only 17% of parameters compared to large generative models.
 
 ## 🎯 Key Contributions

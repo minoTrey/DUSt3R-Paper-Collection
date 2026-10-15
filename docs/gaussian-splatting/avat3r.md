@@ -9,6 +9,7 @@ _AVAT3R creates animatable 3D head avatars from just 4 smartphone images using p
 - **Institution**: Technical University of Munich, Meta Reality Labs
 - **Venue**: ICCV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2502.20220) | [Project Page](https://tobias-kirschstein.github.io/avat3r/) | [Video](https://youtu.be/P3zNVx15gYs)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/iccv/KirschsteinRSNS25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Creates high-quality animatable 3D head avatars from just 4 smartphone images in a single forward pass, democratizing avatar creation.
 
 ## 🎯 Key Contributions

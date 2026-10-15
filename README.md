@@ -1,23 +1,23 @@
 # DUSt3R Paper Collection
 
 [![GitHub Stars](https://img.shields.io/github/stars/minoTrey/DUSt3R-Paper-Collection?style=social)](https://github.com/minoTrey/DUSt3R-Paper-Collection)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Papers](https://img.shields.io/badge/Papers-264-green.svg)](docs/papers-list.md)
-[![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--07-orange.svg)](log.md)
+[![Papers](https://img.shields.io/badge/Papers-267-green.svg)](docs/papers-list.md)
+[![Last Updated](https://img.shields.io/badge/Last%20Updated-2026--10-orange.svg)](log.md)
 
-> A curated survey of **264 papers** on DUSt3R and feed-forward 3D reconstruction, from
-> CroCo (2022) through the CVPR/ICLR 2026 generation.
+> A curated survey of **267 papers** on DUSt3R and feed-forward 3D reconstruction, from
+> CroCo (2022) through the verified October 2026 curation batch.
 
-Every paper has its own document with the same seven sections, and **every number in
-those documents was checked against the source PDF**. Where a value could not be found in
-the paper, it is not here. See [Verification](#-verification) for what that does and does
-not guarantee.
+Every paper uses the same seven sections. Earlier verification sweeps and the current
+batch compare reported values with source PDFs, but they do not certify every claim.
+The [curation audit](candidates/README.md) states what was reviewed and what remains open.
+See Verification below for the checks and their limits.
 
 ## 🌟 What this field is
 
 [DUSt3R](docs/foundation/dust3r.md) (CVPR 2024) replaced the classical SfM + MVS pipeline
-with a single feed-forward network that regresses 3D pointmaps directly from uncalibrated
-image pairs. No intrinsics, no iterative optimization, no correspondence search.
+with a network that regresses 3D pointmaps from uncalibrated image pairs.
+The pair network needs no input intrinsics. Multi-image reconstruction uses a separate
+global-alignment optimization, and downstream localization can use matching and known focal lengths.
 
 What followed is unusual in its speed. Two years later the descendants number in the
 hundreds and the design space has visibly converged:
@@ -39,29 +39,30 @@ hundreds and the design space has visibly converged:
 | If you are…                  | Read                                                                                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | New to the field             | [DUSt3R](docs/foundation/dust3r.md) → [MASt3R](docs/foundation/mast3r.md) → [VGGT](docs/reconstruction/vggt.md)                            |
-| Looking for current SOTA     | [VGGT-Ω](docs/reconstruction/vggt-omega.md), [Depth Anything 3](docs/reconstruction/depth-anything-3.md), [π³](docs/reconstruction/pi3.md) |
+| Comparing current methods    | [VGGT-Ω](docs/reconstruction/vggt-omega.md), [Depth Anything 3](docs/reconstruction/depth-anything-3.md), [π³](docs/reconstruction/pi3.md) |
 | Building something real-time | [Streaming & SLAM](#️-research-categories) papers below                                                                                     |
 | Surveying the field          | [Surveys & Analysis](docs/surveys/) — benchmarks that compare models under one protocol                                                    |
 | Browsing everything          | [Complete list](docs/papers-list.md)                                                                                                       |
 
 ## 📈 Research landscape
 
-Venue year, not arXiv submission year. Papers whose venue is still unconfirmed are
-excluded from the counts.
+Venue year from each paper's current Overview, for `CONFIRMED` venue records only.
+`LIKELY`, `UNKNOWN`, and arXiv submission dates are excluded. These counts reflect stored
+metadata evidence, not a fresh publication audit of every paper.
 
 <!-- GENERATED:histogram -->
 
 ```text
 2022 █ 1 paper
 2023 █ 1 paper
-2024 █ 4 papers
-2025 ██████████████████████████ 72 papers
-2026 ████████████████████████████████████████████████████████████████ 176 papers
+2024 ██████ 4 papers
+2025 ████████████████████████████████████████████████████████████ 43 papers
+2026 ████████████████████████████████████████████████████████████████ 46 papers
 ```
 
 <!-- /GENERATED -->
 
-The 2026 count is already comparable to all of 2025 with half the year remaining.
+The collection also includes preprints and unconfirmed venue claims outside this histogram.
 
 ## 🏷️ Research categories
 
@@ -77,7 +78,7 @@ The lineage that established the paradigm.
 | [MASt3R](docs/foundation/mast3r.md)         | ECCV 2024    | Added a dense local-feature matching head          |
 | [MASt3R-SfM](docs/foundation/mast3r-sfm.md) | 3DV 2025     | Full SfM pipeline on the MASt3R backbone           |
 
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (110 papers)
+### 🏗️ [3D Reconstruction](docs/reconstruction/) (113 papers)
 
 The main line: static scenes, scale, speed, and the backbones everything else builds on.
 
@@ -209,9 +210,9 @@ Each paper's Overview carries a `Verification` field:
 - **CONFIRMED** — venue proven by DBLP, a publisher DOI, OpenReview, CVF openaccess, or an
   author-maintained badge
 - **LIKELY** — an author claim exists but no independent corroboration
-- **PREPRINT** — positively confirmed unpublished
-- **UNKNOWN** — no primary source found. **The venue field then says `arXiv preprint` and
-  a Note says so.** Guessing is not permitted; an unknown venue stays unknown.
+- **PREPRINT** — stored metadata checks found no publication record; indexing delays remain possible
+- **UNKNOWN** — publication venue remains unverified, even if the arXiv paper is available.
+  The venue says `arXiv preprint`, and the Verification field or a Note states what is missing.
 
 ### What verification does not cover
 
@@ -219,9 +220,9 @@ Stated plainly, because a checkmark that overstates itself is worse than none:
 
 - **Benchmark verification does not run in CI.** Source PDFs are gitignored, so it is a
   local gate. CI checks structure, counts, links, and formatting only.
-- **Integer-valued claims are not machine-checked.** The checker extracts decimals; a
-  fabricated `N× faster` or an invented integer percentage column passes it. Several were
-  found by hand and removed; others may remain.
+- **Default benchmark checks extract decimals.** `--int` also checks selected integer
+  tokens, but cannot establish that the labels, units, or protocols are correct.
+  A matching value elsewhere in the PDF can still conceal a wrong table.
 - **Coverage is aggregate.** A paper can score above threshold while containing one wholly
   fabricated table. Seven papers were caught this way, after passing an earlier sweep.
 - **Prose is weaker than tables.** Derived claims in body text get less scrutiny than the
@@ -234,13 +235,18 @@ Stated plainly, because a checkmark that overstates itself is worse than none:
 New papers are welcome. The bar is source-traceability, not volume:
 
 1. Copy [`docs/paper-template.md`](docs/paper-template.md) into the right category.
-2. Put the arXiv URL in `Links`, then run `python3 tools/verify_metadata.py --only <slug>`
-   and take the venue and Verification grade from its verdict. Do not fill them in by hand.
+2. Put the arXiv URL in `Links`. Run `python3 tools/verify_metadata.py --only <slug> --out raw/metadata_<slug>.json`.
+   Keep the source verdict. If it is `PREPRINT?` because a source failed, use `UNKNOWN`
+   in the document and state the missing evidence. Do not infer a conference from a title.
 3. Write the body. **Every number must exist in the source paper.** If the paper reports a
    result only as a plot, say so rather than reading values off the figure.
-4. Run `npx markdownlint-cli2 --fix && npx prettier --write "**/*.md"`,
-   `python3 tools/check_structure.py`, and `python3 tools/update_stats.py`.
-5. Add a line to `log.md`.
+4. Run `python3 tools/build_papers_list.py`, `python3 tools/update_stats.py`, and
+   `python3 tools/build_fact_cards.py`. Reconcile candidate status with
+   `python3 tools/reconcile_candidates.py --write`.
+5. Format Markdown, run `python3 tools/verify_all.py` (offline checks by default), and
+   validate changed numerical tables with `verify_benchmarks.py --only <slugs> --int`.
+   Read the source tables as well: matching numeric tokens cannot verify their labels.
+6. Add the scope, source versions, results, and remaining limitations to `log.md`.
 
 Corrections to existing papers are especially welcome — if you find a number that does not
 match its source, that is a bug worth filing.
@@ -260,7 +266,9 @@ Please cite the individual papers, not this collection, for any result you use.
 
 ## 🙏 Acknowledgments
 
-To the authors of all 264 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
+To the authors of all 267 papers, and to NAVER LABS Europe for DUSt3R and MASt3R, which
 started this.
 
-Licensed [MIT](LICENSE). Paper content belongs to its respective authors.
+License status needs maintainer confirmation: this repository's earlier README referred
+to MIT, but no `LICENSE` file is tracked, while `package.json` declares ISC.
+This curation does not choose or change license terms. Paper content belongs to its respective authors.

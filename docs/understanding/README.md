@@ -15,9 +15,9 @@ The Scene Understanding category focuses on papers that go beyond pure geometric
 - [**IGGT**](iggt.md) (ICLR 2026)
 - [**SegVGGT**](segvggt.md) (ECCV 2026)
 - [**HAMSt3R**](hamst3r.md) (ICCV 2025)
+- [**MEt3R**](met3r.md) (CVPR 2025)
 - [**PanSt3R**](panst3r.md) (ICCV 2025)
-- [**G2TAM**](g2tam.md) (ICML 2026)
-- [**MoonSeg3R**](moonseg3r.md) (CVPR 2026)
+- [**LargeSpatialModel**](largespatialmodel.md) (NeurIPS 2024)
 
 <!-- /GENERATED:featured -->
 

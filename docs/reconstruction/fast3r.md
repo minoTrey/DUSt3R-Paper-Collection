@@ -9,6 +9,7 @@ _Fast3R enables efficient 3D reconstruction from 1000+ images in a single forwar
 - **Institution**: Meta FAIR, University of Michigan
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2501.13928) | [Code](https://github.com/facebookresearch/fast3r)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/YangSLHTCCMF25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Transformer-based model that processes 1000+ unordered, unposed images in one forward pass at 251.1 FPS through all-to-all attention and position interpolation.
 
 ## 🎯 Key Contributions

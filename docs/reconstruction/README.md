@@ -23,7 +23,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 
 <!-- GENERATED:paper-index -->
 
-## 📄 All Papers in This Category (110)
+## 📄 All Papers in This Category (113)
 
 > 자동 생성 (`tools/build_papers_list.py`). 손대지 말 것.
 
@@ -80,7 +80,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**MoGe**](moge.md) (CVPR 2025) — Unlocking Accurate Monocular Geometry Estimation for Open-Domain Images
 - [**MoGe-2**](moge-2.md) (arXiv preprint (2025-07)) — Accurate Monocular Geometry with Metric Scale and Sharp Details
 - [**Mono3R**](mono3r.md) (ACM MM 2025) — Exploiting Monocular Cues for Geometric 3D Reconstruction
-- [**MUSt3R**](must3r.md) (CVPR 2025) — Multi-view Stereo 3D Reconstruction
+- [**MUSt3R**](must3r.md) (CVPR 2025) — Multi-view Network for Stereo 3D Reconstruction
 - [**MV-DUSt3R+**](mv-dust3r-plus.md) (CVPR 2025) — Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds
 - [**NoDrift3R**](nodrift3r.md) (arXiv preprint (2026-07)) — Raymap-Guided Coupling for Drift-Robust Unposed Feed-Forward 3D Reconstruction
 - [**OmniVGGT**](omnivggt.md) (CVPR 2026) — Omni-Modality Driven Visual Geometry Grounded Transformer
@@ -97,6 +97,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**ReconX**](reconx.md) (IEEE TIP 2026) — Reconstruct Any Scene from Sparse Views with Video Diffusion Model
 - [**REGIST3R**](regist3r.md) (ACM MM 2025) — Incremental Registration with Stereo Foundation Model
 - [**Reliev3R**](reliev3r.md) (CVPR 2026) — Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations
+- [**ReVar3R**](revar3r.md) (arXiv preprint (2026-10)) — Gauge-Aware Perturbation Uncertainty for Feed-Forward 3D Reconstruction
 - [**S-MUSt3R**](s-must3r.md) (arXiv preprint (2026-02)) — Sliding Multi-view 3D Reconstruction
 - [**S-VGGT**](s-vggt.md) (ICME 2026) — Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models
 - [**SAIL-Recon**](sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization
@@ -106,6 +107,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**SING3R-SLAM**](sing3r-slam.md) (arXiv preprint (2025-11)) — Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors
 - [**SLAM-Former**](slam-former.md) (ECCV 2026) — Putting SLAM into One Transformer
 - [**SLAM3R**](slam3r.md) (CVPR 2025) — Real-Time Dense Scene Reconstruction from Monocular RGB Videos
+- [**Slot3R**](slot3r.md) (arXiv preprint (2026-10)) — Set-Associative Spatial Memory for Streaming 3D Reconstruction
 - [**Spann3R**](spann3r.md) (3DV 2025) — 3D Reconstruction with Spatial Memory
 - [**SPARS3R**](spars3r.md) (CVPR 2025) — Semantic Prior Alignment and Regularization for Sparse 3D Reconstruction
 - [**Sparse-VGGT**](sparse-vggt.md) (CVPR 2026) — Block-Sparse Global Attention for Efficient Multi-View Geometry Transformers
@@ -125,6 +127,7 @@ The 3D Reconstruction category represents the core extensions of DUSt3R that foc
 - [**UniSH**](unish.md) (arXiv preprint (2026-01)) — Unifying Scene and Human Reconstruction in a Feed-Forward Pass
 - [**VGG-T3**](vgg-t3.md) (CVPR 2026) — Offline Feed-Forward 3D Reconstruction at Scale
 - [**VGGT**](vggt.md) (CVPR 2025) — Visual Geometry Grounded Transformer
+- [**VGGT-Bridge**](vggt-bridge.md) (ACCV 2026) — Beyond Sequential Pose Graphs via Coarse-Stride Skip Edges
 - [**VGGT-Edit**](vggt-edit.md) (arXiv preprint (2026-05)) — Feed-forward Native 3D Scene Editing with Residual Field Prediction
 - [**VGGT-Long**](vggt-long.md) (ICRA 2026) — Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences
 - [**VGGT-Ω**](vggt-omega.md) (CVPR 2026) — Scaling Feed-Forward Reconstruction with Registers and Self-Supervision

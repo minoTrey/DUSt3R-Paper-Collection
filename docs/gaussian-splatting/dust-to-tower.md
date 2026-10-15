@@ -9,6 +9,7 @@ _Dust to Tower achieves photo-realistic scene reconstruction through a coarse-to
 - **Institution**: Renmin University of China, Beijing Key Laboratory of Traffic Data Analysis and Mining
 - **Venue**: arXiv preprint (2024-12)
 - **Links**: [Paper](https://arxiv.org/abs/2412.19518) | Project Page (not available) | Code (coming soon)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (연도 미확정); 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Coarse-to-fine reconstruction pipeline that transforms sparse uncalibrated images into photo-realistic 3D scenes using progressive refinement strategies.
 
 ## 🎯 Key Contributions

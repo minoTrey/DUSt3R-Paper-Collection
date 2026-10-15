@@ -445,6 +445,7 @@ reconstruction README의 "DUSt3R 2.677 / VGGT 1.338" 은 루트 README에서 이
 
 **핵심 그림 추가 (203편).** 논문 정리 페이지에 아키텍처·메소드 그림이 없어 글만 있는
 반쪽이었다. 기존 54편은 저자 그림을 핫링크했으나 신규 133편엔 빠져 있었다.
+
 - arXiv HTML(`arxiv.org/html/<id>`)에서 캡션 스코어링으로 메소드 그림 선택 → **195편**.
   `tools/fetch_figures.py`. 삽입된 고유 이미지 URL 207개 전수 렌더링 확인(HTTP 200,
   죽은 이미지 0). GitHub camo 프록시도 200 반환 확인 — 실제 렌더링됨.
@@ -461,6 +462,7 @@ reconstruction README의 "DUSt3R 2.677 / VGGT 1.338" 은 루트 README에서 이
 렌더링 정상 확인. 교훈: 삽입=완료 아님. 커밋·push까지 확인하고 보고할 것.
 
 **backlog 갱신 (위 2026-07-21 항목의 미해결 목록 supersede):**
+
 - ✅ **Mino Universe 편입** — 2026-07-22 완료. `galaxies/dust3r-paper-collection/`으로
   등록되고 obsidian-export까지 반영·푸시됨.
 - ⏳ 여전히 열림: 그림 5편(위), `must3r.md` 37열 표 재구성, UNKNOWN venue 색인 대기,
@@ -468,3 +470,66 @@ reconstruction README의 "DUSt3R 2.677 / VGGT 1.338" 은 루트 README에서 이
 
 **세션 연속성 정비.** 새 세션이 낡은 상태(55편·편입 미착수)로 출발하던 문제를 잡음:
 내 메모리 파일·MEMORY.md 인덱스·galaxy.yaml notes를 264편/편입완료/그림 상태로 최신화.
+
+## [2026-10-15] 후보 상태 대조와 원문 검토 첫 묶음
+
+기준 main은 `d94397750e29eb3beb436a61b8657efce642b668`이다.
+별도 clone의 `codex/verified-curation-2026-10-15` 브랜치에서 작업했다.
+기존 체크아웃과 사용자 변경은 건드리지 않았다.
+
+### 후보와 추가 논문
+
+초기 160건의 IN 133건·OUT 27건을 보존했다. `triage.tsv`·`worklist.tsv`는 그대로다.
+후속 79건은 시작 시 기존 문서와 정확한 arXiv ID 일치가 없었다.
+이번 3편을 포함해 **added 136 / rejected 27 / new 76**이다.
+WAT3R `2607.21023`·Scal3R `2609.04201`는 다른 ID의 동명 후보로 남겼다.
+제목만으로 중복 처리하지 않았다. 과거 제외 사유는 기록에 없고, 남은 76건의 본문·관련성은 미검증이다.
+
+- **Slot3R** (`2610.12282v1`): 공간 주소와 상태 병합을 분리하는 Point3R 메모리.
+  읽기 예산·전체 저장량·전체 시퀀스 선인코딩·metric depth 악화 조건을 구분했다.
+- **ReVar3R** (`2610.07883v1`): pointmap 정렬 후 불확실성을 계산한다.
+  정답 불필요 Core와 보류 정답이 필요한 Full, 실패 조건과 추가 추론 비용을 구분했다.
+- **VGGT-Bridge** (`2610.06594v1`): coarse skip edge·역순 anchoring·loop-aware 선택.
+  이동 ATE와 다른 지표를 구분하고 SwiftVGGT 대비 비용 증가를 기록했다.
+
+S2는 HTTP 429를 반환했다. 검증기는 앞의 두 편에 `PREPRINT?`를 반환했다.
+문서에는 venue `UNKNOWN`으로 기록했다. VGGT-Bridge는 arXiv의 ACCV 2026 채택 주장에 따른 `LIKELY`다.
+독립 proceedings 확인 전이다. 원본 응답은 `raw/curation_metadata_2026-10-15.json`에 있다.
+
+### 기존 요약과 관리 도구
+
+- **DUSt3R**: CroCo 자기지도 사전학습과 3D 지도 학습을 구분했다.
+  Global alignment를 복원하고 근거 불명 40 ms 주장을 제거했다.
+  Localization의 정답 focal, 깊이 평가의 median 정렬·1.03 threshold·단위를 명시했다.
+- **MASt3R**: 입력·출력·descriptor matching을 보완했다.
+  무조건적인 metric 정확도·최초·보장 표현을 줄이고 원문 평가 조건을 붙였다.
+- **VGGT**: DTU로 잘못 표기한 ETH3D Table 3을 정정하고 DTU Table 2를 별도로 복원했다.
+  Attention ablation을 Table 5로 정정했다. Tracking·principal point·선택적 BA·속도 조건을 설명했다.
+  arXiv와 CVPR 출판 PDF 모두에서 데이터셋 귀속을 확인했다.
+- **MUSt3R**: 47.9 cm ATE와 FPS 혼동을 정정했다. V100 VO와 A100 점군 속도를 분리했다.
+  중복·다단·33–37열 표를 좁은 표와 원문 보충 표 참조로 교체했다.
+  메모리 증가와 전체 계산량을 구분하고 공식 raw 그림 경로를 확인했다.
+- 템플릿 `Institutions`를 `Institution`으로 통일하고 `Verification`을 필수화했다.
+  핵심 세 편 외 누락 33편은 **2026-07-20 캐시 판정의 필드만 복원**했다. 새 venue 검증이 아니다.
+- 기존 생성기로 267편 목록·카테고리·통계·사실 카드를 재생성했다.
+  히스토그램은 현재 Overview의 CONFIRMED venue 연도만 센다. arXiv 제출 연도와 낡은 캐시의 덮어쓰기를 제외했다.
+- Windows의 경로 구분자·Markdown LF를 맞췄다. 없는 `.claude/AGENTS.md` 참조와 `--fast` 안내를 제거했다.
+  `verify_all.py`는 현재 Python을 사용한다. 후보 대조 스크립트와 안전성 검사를 추가했다.
+- 컬렉션의 MIT 참조 대상 `LICENSE`는 없고 `package.json`은 ISC를 선언한다.
+  충돌 사실만 기록했다. 라이선스 조건을 새로 지정하지 않았다.
+
+### 검증과 잔여 범위
+
+`raw/curation_evidence_2026-10-15.json`에 PDF 버전·SHA-256·검토 표·수동 예외를 기록했다.
+`raw/curation_validation_2026-10-15.json`에 검사 범위와 한계를 기록했다.
+
+- `verify_all.py` 오프라인 10개 검사 통과. 구조·lint·Prettier·후보·통계·목록·색인·사실 카드·교차 참조·캐시 링크.
+- 후보 대조 unittest 7개, 히스토그램 조건 4개, CI 플레이스홀더·내부 Markdown 링크 검사 통과.
+- 변경 7편의 PDF 수치 검사 `--int`: **329개 중 326개 자동 일치**.
+  DUSt3R `0.462`·`0.351`, MUSt3R `38.1G`는 추출/정규식 미검출이다. PDF 표에서 시각적으로 확인했다.
+- 산문 배속 패턴 검사는 통과했지만 인식한 주장은 0건이다. 산문 전체의 정확성 보장이 아니다.
+- 변경 논문·그림·공식 조건 문서 링크 19개가 HTTP 200을 반환했다. 전체 저장소 라이브 재검사는 아니다.
+
+기존 260편 요약 전체의 의미·수치를 재검증하지 않았다. 실험을 재현하지 않았다.
+주간 discovery와 소수 후보의 원문 검토·PR을 연결하는 운영안은 `candidates/README.md`에 제안만 남겼다.
+Workflow·일정·자격 증명·권한·배포·main은 변경하지 않았다.

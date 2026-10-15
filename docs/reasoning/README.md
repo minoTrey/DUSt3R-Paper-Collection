@@ -11,6 +11,7 @@ The Scene Reasoning category explores advanced geometric reasoning capabilities 
 > 수상·게재 확정을 기준으로 **자동 선정** (`tools/build_papers_list.py`). 전체 목록은 하단 “All Papers in This Category”.
 
 - [**NOVA3R**](nova3r.md) (ICLR 2026)
+- [**Amodal3R**](amodal3r.md) (ICCV 2025)
 - [**RaySt3R**](rayst3r.md) (NeurIPS 2025)
 
 <!-- /GENERATED:featured -->

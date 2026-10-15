@@ -10,6 +10,8 @@ The Pose Estimation category specializes in determining camera poses and object 
 
 > 수상·게재 확정을 기준으로 **자동 선정** (`tools/build_papers_list.py`). 전체 목록은 하단 “All Papers in This Category”.
 
+- [**Pos3R**](pos3r.md) (CVPR 2025)
+- [**Reloc3r**](reloc3r.md) (CVPR 2025)
 - [**FUSER**](fuser.md) (CVPR 2026)
 - [**GLUEMAP**](gluemap.md) (CVPR 2026)
 

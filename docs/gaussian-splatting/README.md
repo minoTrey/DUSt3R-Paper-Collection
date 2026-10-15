@@ -14,10 +14,10 @@ The Gaussian Splatting category represents the integration of DUSt3R's 3D recons
 - [**ARTDECO**](artdeco.md) (ICLR 2026)
 - [**TokenSplat**](tokensplat.md) (CVPR 2026)
 - [**YoNoSplat**](yonosplat.md) (ICLR 2026)
+- [**AVAT3R**](avat3r.md) (ICCV 2025)
 - [**Dense Point Clouds Matter**](dust-gs.md) (ICASSP 2025)
 - [**Styl3R**](styl3r.md) (NeurIPS 2025)
 - [**AdaptiveSplat**](adaptivesplat.md) (ECCV 2026)
-- [**AnchorSplat**](anchorsplat.md) (CVPR 2026)
 
 <!-- /GENERATED:featured -->
 

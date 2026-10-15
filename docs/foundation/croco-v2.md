@@ -15,6 +15,7 @@ _Figure 7: CroCo v2 results_
 - **Institution**: NAVER LABS Europe
 - **Venue**: ICCV 2023
 - **Links**: [Paper](https://arxiv.org/abs/2211.10408) | [Code](https://github.com/naver/croco)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/iccv/Weinzaepfel00CA23; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Enhanced CroCo with real-world data, relative position embeddings, and larger models, achieving SOTA on stereo and optical flow without task-specific components.
 
 ## 🎯 Key Contributions

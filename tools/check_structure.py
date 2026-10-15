@@ -24,7 +24,7 @@ STD = [
     "📚 Key Takeaways",
 ]
 # Overview 필수 키
-REQUIRED = ["Authors", "Institution", "Venue", "Links", "TL;DR"]
+REQUIRED = ["Authors", "Institution", "Venue", "Links", "Verification", "TL;DR"]
 
 
 def main() -> int:

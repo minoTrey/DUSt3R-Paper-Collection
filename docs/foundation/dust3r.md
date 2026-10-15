@@ -1,7 +1,7 @@
 # DUSt3R: Geometric 3D Vision Made Easy (CVPR 2024)
 
 ![DUSt3R Architecture](https://github.com/naver/dust3r/raw/main/assets/dust3r_archi.jpg)
-_DUSt3R revolutionizes 3D reconstruction with end-to-end pointmap regression from uncalibrated image pairs_
+_두 이미지의 pointmap을 첫 카메라 좌표계로 함께 예측한다. 여러 쌍을 합칠 때는 별도 global alignment를 수행한다._
 
 ## 📋 Overview
 
@@ -9,49 +9,53 @@ _DUSt3R revolutionizes 3D reconstruction with end-to-end pointmap regression fro
 - **Institution**: Aalto University, NAVER LABS Europe
 - **Venue**: CVPR 2024
 - **Links**: [Paper](https://arxiv.org/abs/2312.14132) | [Code](https://github.com/naver/dust3r) | [Project Page](https://dust3r.europe.naverlabs.com/)
-- **TL;DR**: End-to-end 3D reconstruction from uncalibrated images using a transformer that directly regresses 3D pointmaps with confidence scores.
+- **Verification**: CONFIRMED (venue: cached DBLP verdict 2026-07-20; 방법·결과 PDF 재검토 2026-10-15)
+- **TL;DR**: 보정 정보가 없는 두 RGB 이미지에서 픽셀별 3D 좌표와 confidence를 예측한다. 여러 이미지의 전체 복원은 쌍별 예측을 최적화로 정렬한다.
 
 ## 🎯 Key Contributions
 
-1. **Paradigm Shift**: Replaces traditional multi-stage pipelines (SfM + MVS) with a single feed-forward network
-2. **Uncalibrated Reconstruction**: Works without camera intrinsics or calibration information
-3. **Confidence-Aware Predictions**: Outputs confidence maps for robust self-training and filtering
-4. **Versatile Framework**: Single model handles multiple tasks - 3D reconstruction, pose estimation, pixel matching
-5. **Accessible 3D Vision**: Makes geometric 3D reconstruction as simple as running a neural network
+1. **Shared-Frame Pointmaps**: 두 이미지의 픽셀별 3D 좌표를 같은 카메라 좌표계로 예측한다.
+2. **Uncalibrated Pair Input**: 쌍별 네트워크는 카메라 내부 파라미터나 상대 pose를 입력으로 요구하지 않는다.
+3. **Confidence-Weighted Supervision**: 정답 3D 좌표에 대한 회귀와 confidence를 함께 학습한다.
+4. **Global Alignment**: 서로 다른 쌍의 예측을 공통 장면으로 정렬한다. 이 단계는 반복 최적화다.
 
 ## 🔧 Technical Details
 
-### Architecture
+### Input and Output
 
-- **Input**: Multi-view image pairs (no calibration required)
-- **Output**:
-  - 3D pointmaps (X, Y, Z coordinates per pixel)
-  - Confidence maps for geometric reliability
-- **Core Components**:
-  - Encoder: Shared ViT-based encoder (from CroCo)
-  - Decoder: Asymmetric design for efficiency
-  - Confidence Head: Predicts reliability of 3D predictions
+- **Input**: 겹치는 장면을 담은 두 RGB 이미지.
+- **Output**: 두 pointmap과 confidence map. Pointmap은 이미지의 각 픽셀에 대응하는 3D 좌표를 저장한다.
+- **Coordinates**: 두 pointmap 모두 첫 번째 카메라 좌표계에 놓인다. 절대 축척은 일반적으로 정해지지 않는다.
 
-### Key Innovations
+### Architecture and Training
 
-1. **Direct 3D Regression**: Predicts 3D coordinates instead of depth/disparity
-2. **Self-Supervised Training**: Uses pseudo-labels from confidence filtering
-3. **Global Alignment**: Optimizes all pairwise predictions jointly
-4. **Robustness**: Handles arbitrary camera configurations
+공유 ViT 인코더는 각 이미지를 토큰으로 바꾼다. 두 디코더는 cross-attention으로 서로의 정보를 교환한다.
+회귀 헤드는 두 이미지의 pointmap과 confidence를 출력한다 (§3.1).
 
-### Training Strategy
+CroCo의 자기지도 사전학습과 DUSt3R의 3D 지도 학습을 구분해야 한다.
+DUSt3R는 깊이·카메라 정보에서 구성한 정답 pointmap으로 학습한다 (§3.2, Appendix B).
+Confidence loss는 어려운 영역의 회귀 오차를 조절한다. Confidence로 만든 pseudo-label만 사용하는 자기지도 학습이 아니다.
 
-- **Dataset**: 8.5M image pairs from 8 diverse datasets
-- **Pretraining**: Uses CroCo pretraining
-- **Resolution**: 224×224 initially, then 512×512
-- **Loss Function**: 3D regression loss with confidence weighting
-- **Training Objective**: Direct 3D pointmap regression
+### From a Pair to a Scene
+
+```text
+두 RGB → 쌍별 pointmap·confidence
+여러 이미지 → 선택한 쌍마다 예측 → global alignment 최적화 → 공통 장면
+```
+
+§3.3은 쌍별 예측의 회전·이동·축척과 전역 pointmap을 맞춘다.
+필요한 작업에 따라 pointmap에서 focal·pose·픽셀 대응을 추출한다.
+따라서 전체 다중 시점 파이프라인을 항상 "단 한 번의 forward"나 "최적화 없음"으로 설명하면 부정확하다.
 
 ## 📊 Results
 
-**Model Details**: All results use DUSt3R-512 (ViT-Large encoder, Base decoder, 512×512 resolution) with global alignment (GA) where noted.
+**Source**: [arXiv 2312.14132v3 PDF](https://arxiv.org/pdf/2312.14132v3).
+DUSt3R-512는 긴 변 기준 512 해상도와 여러 종횡비를 사용한다. 모든 입력이 정사각형이라는 뜻은 아니다.
 
 ### DTU Dataset (3D Reconstruction)
+
+원논문 Table 4, PDF p.9. 단위는 mm다. DUSt3R는 정답 카메라 없이 복원하며, 다른 행은 정답 카메라를 사용한다.
+Table 3의 깊이 평가와 다른 프로토콜이다.
 
 | Method         | Type              | Accuracy ↓ | Completeness ↓ | Overall ↓ |
 | -------------- | ----------------- | ---------- | -------------- | --------- |
@@ -64,6 +68,8 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Multi-view Pose Estimation (CO3Dv2)
 
+Table 2 right 및 Table 5. 무작위 10프레임을 사용하고 global alignment 후 상대 자세를 평가한다.
+
 | Metric    | DUSt3R-512 (w/ GA) | Description                   |
 | --------- | ------------------ | ----------------------------- |
 | RRA@15 ↑  | 96.2%              | Relative Rotation Accuracy    |
@@ -71,6 +77,9 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 | mAA(30) ↑ | 76.7%              | Mean Average Accuracy         |
 
 ### Visual Localization (7-Scenes)
+
+Table 1 및 Appendix Table 6. 중앙 이동·회전 오차다. 2D matching 경로와 정답 focal을 사용한 결과다.
+따라서 이 표는 카메라 정보를 전혀 쓰지 않는 pose regression 결과가 아니다.
 
 | Scene   | Trans. Error (cm) ↓ | Rot. Error (°) ↓ | Model      |
 | ------- | ------------------- | ---------------- | ---------- |
@@ -84,6 +93,8 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Visual Localization (Cambridge Landmarks)
 
+Table 1 및 Appendix Table 6의 같은 2D matching 경로다. 중앙 오차를 보고한다.
+
 | Scene          | Trans. Error (cm) ↓ | Rot. Error (°) ↓ | Model      |
 | -------------- | ------------------- | ---------------- | ---------- |
 | St. Facade     | 6                   | 0.26             | DUSt3R-512 |
@@ -94,46 +105,33 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ### Multi-view Depth Estimation
 
-| Dataset         | Rel. Error ↓ | Inlier τ@1.25 ↑ | Model          |
-| --------------- | ------------ | --------------- | -------------- |
-| KITTI           | 9.11         | 39.49           | DUSt3R-512     |
-| ScanNet         | 4.93         | 60.20           | DUSt3R-512     |
-| ETH3D           | 2.91         | 76.91           | DUSt3R-512     |
-| DTU             | 3.52         | 69.33           | DUSt3R-512     |
-| Tanks & Temples | 3.17         | 76.68           | DUSt3R-512     |
-| **Average**     | **4.73**     | **64.52**       | **DUSt3R-512** |
+Table 3, PDF p.9의 (d) 조건. 정답 pose·깊이 범위를 입력하지 않고 정답 깊이와 median scale 정렬한다.
+Rel과 inlier ratio는 원문 백분율 표기다. Inlier threshold는 **1.03**이다.
+ScanNet은 같은 도메인의 학습 데이터를 사용한 행으로 원문에서 괄호로 표시된다.
+
+| Dataset         | Rel. Error (%) ↓ | Inlier τ@1.03 (%) ↑ | Model          |
+| --------------- | ---------------- | ------------------- | -------------- |
+| KITTI           | 9.11             | 39.49               | DUSt3R-512     |
+| ScanNet         | 4.93             | 60.20               | DUSt3R-512     |
+| ETH3D           | 2.91             | 76.91               | DUSt3R-512     |
+| DTU             | 3.52             | 69.33               | DUSt3R-512     |
+| Tanks & Temples | 3.17             | 76.68               | DUSt3R-512     |
+| **Average**     | **4.73**         | **64.52**           | **DUSt3R-512** |
 
 ### Qualitative Results
 
-- Handles diverse scenes: indoor, outdoor, close-up, wide baseline
-- Robust to challenging conditions: textureless regions, reflections, repetitive patterns
-- Produces complete 3D models from as few as 2 images
+원논문 Fig. 1·7 등은 다양한 영상의 예시를 보여준다.
+두 장에서 점군을 예측할 수 있지만, 가려진 표면까지 완전하거나 모든 반사·저텍스처 장면에서 정확하다는 보장은 아니다.
 
 ## 💡 Insights & Impact
 
-### Revolutionary Aspects
+학습한 3D 사전 지식으로 카메라 보정과 대응점 탐색의 부담을 줄인 것이 핵심이다.
+그러나 네트워크의 쌍별 추론, 전역 정렬, localization의 기하 계산은 다른 단계다.
+각 단계의 시간과 입력 조건을 합쳐 설명하면 실제 사용 비용을 오해할 수 있다.
 
-1. **Simplicity**: Removes need for feature matching, bundle adjustment, calibration
-2. **Speed**: ~40ms per image pair on H100 GPU, seconds for global alignment
-3. **Robustness**: Works where traditional methods fail (low texture, wide baselines)
-4. **Accessibility**: Makes 3D vision tasks easier with unified approach
-
-### Paradigm Comparison
-
-| Aspect        | Traditional (SfM+MVS)      | DUSt3R              |
-| ------------- | -------------------------- | ------------------- |
-| Pipeline      | Multi-stage, sequential    | Single forward pass |
-| Requirements  | Calibration, good features | Just images         |
-| Failure modes | Low texture, lighting      | Extreme viewpoints  |
-| Speed         | Minutes to hours           | Seconds             |
-| Ease of use   | Expert knowledge needed    | "Plug and play"     |
-
-### Limitations
-
-1. **Memory**: GPU memory limits number of views
-2. **Scale Ambiguity**: Requires known camera or object for metric scale
-3. **Large Scenes**: Not designed for city-scale reconstruction
-4. **Training Data**: Requires diverse 3D training data
+정답 카메라를 사용하는 MVS와 DUSt3R의 무보정 복원은 같은 조건의 순위표가 아니다.
+가려진 영역·학습 분포 밖 장면·축척의 모호성도 남는다.
+이 문서는 출처를 특정할 수 없던 H100의 40 ms 주장과 일반적인 완료 시간 비교를 제거했다.
 
 ## 🔗 Related Work
 
@@ -153,11 +151,7 @@ _Note: DUSt3R operates without calibration or GT depth, making direct comparison
 
 ## 📚 Key Takeaways
 
-DUSt3R fundamentally changed 3D reconstruction by:
-
-1. **Making it accessible**: No expertise in multi-view geometry required
-2. **Unifying tasks**: Single model for reconstruction, pose, matching
-3. **Enabling research**: Inspired numerous follow-up works
-4. **Proving feasibility**: Feed-forward 3D reconstruction is not only possible but practical
-
-The paper's title "Geometric 3D Vision Made Easy" perfectly captures its contribution - transforming a complex, brittle pipeline into a simple neural network inference for broader accessibility.
+1. 입력은 이미지 쌍이고 직접 출력은 두 pointmap과 confidence다.
+2. CroCo 사전학습과 DUSt3R의 3D 지도 학습은 다르다.
+3. 여러 쌍의 전체 장면 복원에는 global alignment가 필요하다.
+4. 보정 입력·축척 정렬·데이터셋 조건을 확인하고 수치를 비교한다.

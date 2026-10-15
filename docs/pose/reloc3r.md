@@ -9,6 +9,7 @@ _ReLoc3R achieves 40 FPS visual localization through simplified DUSt3R-based arc
 - **Institution**: University of Hong Kong, Aalto University, ETH Zurich, VIVO, University of Oulu
 - **Venue**: CVPR 2025
 - **Links**: [Paper](https://arxiv.org/abs/2412.08376) | [Code](https://github.com/ffrivera0/reloc3r)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/cvpr/DongWLCFK025; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Pose regression framework trained on 8M+ image pairs that achieves real-time (40 FPS) visual localization with strong generalization across diverse scenes.
 
 ## 🎯 Key Contributions

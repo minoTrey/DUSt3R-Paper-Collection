@@ -9,6 +9,7 @@ _Amodal3R reconstructs complete 3D objects from partially occluded views using c
 - **Institution**: S-Lab NTU, Visual Geometry Group Oxford, Singapore Institute of Technology
 - **Venue**: ICCV 2025
 - **Links**: [Paper](https://arxiv.org/abs/2503.13439) | [Project Page](https://sm0kywu.github.io/Amodal3R/) | [Code](https://github.com/Sm0kyWu/Amodal3R)
+- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/iccv/WuZGVC25; 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Novel approach for amodal 3D reconstruction that recovers complete 3D object shapes from partially occluded 2D images using advanced reasoning techniques.
 
 ## 🎯 Key Contributions

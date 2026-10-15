@@ -3,7 +3,7 @@
 > 이 목록은 `tools/build_papers_list.py` 가 개별 논문 문서에서 자동 생성한다.
 > 손으로 편집하지 말 것 — 개별 문서를 고치고 스크립트를 다시 돌린다.
 
-**Total: 264 papers**
+**Total: 267 papers**
 
 ## Foundation Models (24)
 
@@ -32,7 +32,7 @@
 - [**UAVFF3D**](foundation/uavff3d.md) (arXiv preprint (2026-05)) — A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction
 - [**VLRC**](foundation/vlrc.md) (arXiv preprint (2026-07)) — Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining
 
-## 3D Reconstruction (110)
+## 3D Reconstruction (113)
 
 - [**AMB3R**](reconstruction/amb3r.md) (CVPR 2026) — Accurate Feed-forward Metric-scale 3D Reconstruction with Backend
 - [**Anchor3R**](reconstruction/anchor3r.md) (arXiv preprint (2026-06)) — Streaming 3D Reconstruction with Transient Anchors for Long-Horizon Visual Mapping
@@ -87,7 +87,7 @@
 - [**MoGe**](reconstruction/moge.md) (CVPR 2025) — Unlocking Accurate Monocular Geometry Estimation for Open-Domain Images
 - [**MoGe-2**](reconstruction/moge-2.md) (arXiv preprint (2025-07)) — Accurate Monocular Geometry with Metric Scale and Sharp Details
 - [**Mono3R**](reconstruction/mono3r.md) (ACM MM 2025) — Exploiting Monocular Cues for Geometric 3D Reconstruction
-- [**MUSt3R**](reconstruction/must3r.md) (CVPR 2025) — Multi-view Stereo 3D Reconstruction
+- [**MUSt3R**](reconstruction/must3r.md) (CVPR 2025) — Multi-view Network for Stereo 3D Reconstruction
 - [**MV-DUSt3R+**](reconstruction/mv-dust3r-plus.md) (CVPR 2025) — Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds
 - [**NoDrift3R**](reconstruction/nodrift3r.md) (arXiv preprint (2026-07)) — Raymap-Guided Coupling for Drift-Robust Unposed Feed-Forward 3D Reconstruction
 - [**OmniVGGT**](reconstruction/omnivggt.md) (CVPR 2026) — Omni-Modality Driven Visual Geometry Grounded Transformer
@@ -104,6 +104,7 @@
 - [**ReconX**](reconstruction/reconx.md) (IEEE TIP 2026) — Reconstruct Any Scene from Sparse Views with Video Diffusion Model
 - [**REGIST3R**](reconstruction/regist3r.md) (ACM MM 2025) — Incremental Registration with Stereo Foundation Model
 - [**Reliev3R**](reconstruction/reliev3r.md) (CVPR 2026) — Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations
+- [**ReVar3R**](reconstruction/revar3r.md) (arXiv preprint (2026-10)) — Gauge-Aware Perturbation Uncertainty for Feed-Forward 3D Reconstruction
 - [**S-MUSt3R**](reconstruction/s-must3r.md) (arXiv preprint (2026-02)) — Sliding Multi-view 3D Reconstruction
 - [**S-VGGT**](reconstruction/s-vggt.md) (ICME 2026) — Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models
 - [**SAIL-Recon**](reconstruction/sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization
@@ -113,6 +114,7 @@
 - [**SING3R-SLAM**](reconstruction/sing3r-slam.md) (arXiv preprint (2025-11)) — Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors
 - [**SLAM-Former**](reconstruction/slam-former.md) (ECCV 2026) — Putting SLAM into One Transformer
 - [**SLAM3R**](reconstruction/slam3r.md) (CVPR 2025) — Real-Time Dense Scene Reconstruction from Monocular RGB Videos
+- [**Slot3R**](reconstruction/slot3r.md) (arXiv preprint (2026-10)) — Set-Associative Spatial Memory for Streaming 3D Reconstruction
 - [**Spann3R**](reconstruction/spann3r.md) (3DV 2025) — 3D Reconstruction with Spatial Memory
 - [**SPARS3R**](reconstruction/spars3r.md) (CVPR 2025) — Semantic Prior Alignment and Regularization for Sparse 3D Reconstruction
 - [**Sparse-VGGT**](reconstruction/sparse-vggt.md) (CVPR 2026) — Block-Sparse Global Attention for Efficient Multi-View Geometry Transformers
@@ -132,6 +134,7 @@
 - [**UniSH**](reconstruction/unish.md) (arXiv preprint (2026-01)) — Unifying Scene and Human Reconstruction in a Feed-Forward Pass
 - [**VGG-T3**](reconstruction/vgg-t3.md) (CVPR 2026) — Offline Feed-Forward 3D Reconstruction at Scale
 - [**VGGT**](reconstruction/vggt.md) (CVPR 2025) — Visual Geometry Grounded Transformer
+- [**VGGT-Bridge**](reconstruction/vggt-bridge.md) (ACCV 2026) — Beyond Sequential Pose Graphs via Coarse-Stride Skip Edges
 - [**VGGT-Edit**](reconstruction/vggt-edit.md) (arXiv preprint (2026-05)) — Feed-forward Native 3D Scene Editing with Residual Field Prediction
 - [**VGGT-Long**](reconstruction/vggt-long.md) (ICRA 2026) — Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences
 - [**VGGT-Ω**](reconstruction/vggt-omega.md) (CVPR 2026) — Scaling Feed-Forward Reconstruction with Registers and Self-Supervision

@@ -9,6 +9,7 @@ _LM-Gaussian leverages large model priors to enhance sparse-view 3D Gaussian spl
 - **Institution**: The Hong Kong University of Science and Technology
 - **Venue**: arXiv preprint (2024-09)
 - **Links**: [Paper](https://arxiv.org/abs/2409.03456) | [Project Page](https://hanyangyu1021.github.io/lm-gaussian.github.io/) | [Code](https://github.com/hanyangyu1021/LMGaussian)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (연도 미확정); 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Enhances sparse-view 3D Gaussian splatting by incorporating priors from large foundation models, achieving high-quality novel view synthesis from limited input views.
 
 ## 🎯 Key Contributions

@@ -14,7 +14,7 @@ def papers():
 
 def parse(p):
     txt = p.read_text(encoding='utf-8')
-    rec = {'file': str(p.relative_to(ROOT)), 'cat': p.parent.name, 'slug': p.stem}
+    rec = {'file': p.relative_to(ROOT).as_posix(), 'cat': p.parent.name, 'slug': p.stem}
     m = re.search(r'^#\s+(.+)$', txt, re.M)
     rec['h1'] = m.group(1).strip() if m else None
     # Overview 섹션만 잘라낸다

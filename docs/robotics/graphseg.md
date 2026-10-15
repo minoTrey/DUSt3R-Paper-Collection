@@ -10,6 +10,7 @@ _GraphSeg generates consistent 3D object segmentations from sparse 2D images via
 - **Institution**: Robotics Institute, Carnegie Mellon University
 - **Venue**: arXiv preprint (2025-04)
 - **Links**: [Paper](https://arxiv.org/abs/2504.03129) | [Code](https://github.com/tomtang502/graphseg)
+- **Verification**: LIKELY (2026-07-20 cached verdict; S2 venue (연도 미확정); 2026-10-15 필드 복원, 이번 묶음에서 venue 재검증 안 함)
 - **TL;DR**: Framework for generating consistent 3D object segmentations from sparse 2D images using graph operations, leveraging DUSt3R for 3D understanding.
 
 ## 🎯 Key Contributions
