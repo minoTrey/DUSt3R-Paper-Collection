@@ -20,3 +20,22 @@ The English labels and image descriptions are accompanied by native Markdown tex
 
 Existing third-party figures inside individual paper notes were outside this homepage-only revision and have not received a repository-wide reuse audit.
 This provenance record does not assign or change licensing terms. The repository's missing `LICENSE` file versus `package.json` metadata still needs maintainer confirmation.
+
+## Category thumbnails
+
+The category table uses ten original code-authored SVG thumbnails at **72 × 44 CSS pixels**. Each thumbnail links to the same category as its adjacent text link. The thumbnails are conceptual navigation cues, not paper results, model predictions, patient images or benchmark measurements.
+
+They reuse the geometric vocabulary and cream, forest-green and gold palette of the retained SVG illustrations. Components are recomposed for this small view; no labeled full-size panel is shrunk or raster image cropped. Medical and Surveys & Analysis use new vector compositions because the courtyard diagrams do not depict those subjects. Existing PNG illustrations and paper figures are unchanged.
+
+| Thumbnail                                                        | Concept and origin                                                                                                                                                     |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [foundation](category-thumbnails/foundation.svg)                 | Reuses the overlapping-view and correspondence vocabulary of collection-cover.svg and images-to-3d.svg; recomposed for the small view.                                 |
+| [reconstruction](category-thumbnails/reconstruction.svg)         | Reuses the central wireframe path from collection-cover.svg; adds the same camera and pointmap vocabulary.                                                             |
+| [dynamic](category-thumbnails/dynamic.svg)                       | Reuses the time-varying-geometry vocabulary from task-geometry.svg; simplified to three positions of a moving object.                                                  |
+| [gaussian-splatting](category-thumbnails/gaussian-splatting.svg) | Reuses ellipse primitives and camera imagery from task-render-interpret.svg, without shrinking its text or whole panel.                                                |
+| [understanding](category-thumbnails/understanding.svg)           | Reuses the semantic-color grouping vocabulary of task-render-interpret.svg and the tree/wall/bench concepts of task-render-interpret-v2.png; redrawn as vector shapes. |
+| [reasoning](category-thumbnails/reasoning.svg)                   | Reuses the occluder and dashed-completion vocabulary from task-render-interpret.svg, with one complete small composition.                                              |
+| [robotics](category-thumbnails/robotics.svg)                     | Reuses map walls, dashed route and goal vocabulary from task-pose-action.svg; adds a small schematic robot.                                                            |
+| [surveys](category-thumbnails/surveys.svg)                       | New original code-authored vector: paper sheets and crossing comparison curves without numeric data. Existing scene illustrations do not depict evaluation.            |
+| [pose](category-thumbnails/pose.svg)                             | Reuses the camera, reference-axis and rotation vocabulary from task-pose-action.svg; recomposed without labels.                                                        |
+| [medical](category-thumbnails/medical.svg)                       | New original code-authored vector: endoscope tip, field of view and abstract tissue lumen. Courtyard views are not reused to imply medical imagery.                    |
