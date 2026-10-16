@@ -14,6 +14,8 @@ Follow [Model Extensions](../extensions/) for efficiency/compression, adaptation
 
 These tags are reading cues; the generated list below records the primary folder. Notes may contain Korean.
 
+For previous paper locations and card-production IDs, see the [central path mapping](../../guides/paper-path-migrations.md).
+
 <!-- GENERATED:featured -->
 
 ## ⭐ Featured Papers
