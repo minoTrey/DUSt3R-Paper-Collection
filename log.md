@@ -760,3 +760,7 @@ Post-format checks confirm 227 legacy notes are identical to base and no Korean 
 All 12 offline checks and 16 regression tests passed. PDF token checks cover the same 77 documents: 819/827 automatic matches, with the unchanged eight previously visually confirmed extraction exceptions explicitly carried forward.
 JUSt3R remains automated REVIEW for its five extraction misses; this status was not overwritten. The other missing values are DUSt3R (two) and MUSt3R (one).
 GitHub GFM returned HTTP 200 with six tables, three collapsible regions and four heading targets. Actual browser theme/mobile layout remains unverified because the existing runtime cannot initialize.
+
+## [2026-10-16] Verify main publication of 28 cards
+
+PR #17 merged at `93c8db82562bd0a3d2aa715a379637f6a5b90282` after CI passed. Fetched all 28 exact PNGs and note sources at that main commit; all asset hashes, single card blocks, asset links and reviewed-paper links match. Their progress records now mark verified publication. Total: 31 published cards, 306 not started, 337 paper notes. This metadata update does not change classification or paper content.
