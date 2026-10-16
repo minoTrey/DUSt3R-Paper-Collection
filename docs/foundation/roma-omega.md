@@ -1,5 +1,12 @@
 # RoMa-Ω: What Feed-Forward 3D Models Know About Image Matching (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/roma-omega.png" width="720" alt="English summary card for RoMa-Ω: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/roma-omega.png)
+
+[Original paper](https://arxiv.org/abs/2609.09507v1) · [Full-size English card](../../assets/paper-cards/en/foundation/roma-omega.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: David Nordström, Xinyue Zhang, Thibaut Loiseau, Vincent Lepetit, Fredrik Kahl

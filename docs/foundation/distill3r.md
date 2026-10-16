@@ -1,5 +1,12 @@
 # Distill3R: A Pipeline for Democratizing 3D Foundation Models on Commodity Hardware (arXiv preprint (2026-01))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/distill3r.png" width="720" alt="English summary card for Distill3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/distill3r.png)
+
+[Original paper](https://arxiv.org/abs/2602.00865v2) · [Full-size English card](../../assets/paper-cards/en/foundation/distill3r.png)
+<!-- /PAPER-CARD -->
+
 ![distill3r — architecture](https://arxiv.org/html/2602.00865/figures/student_model.png)
 
 _Student Architecture (원논문 Fig. 2)_

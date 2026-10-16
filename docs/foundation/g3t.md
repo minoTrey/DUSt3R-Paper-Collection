@@ -1,5 +1,12 @@
 # G3T: Gravity Aligned Coordinate Frames Simplify Pointmap Processing (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/g3t.png" width="720" alt="English summary card for G3T: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/g3t.png)
+
+[Original paper](https://arxiv.org/abs/2605.27372v1) · [Full-size English card](../../assets/paper-cards/en/foundation/g3t.png)
+<!-- /PAPER-CARD -->
+
 ![g3t — architecture](https://arxiv.org/html/2605.27372v1/x3.png)
 
 _Model architecture (원논문 Fig. 3)_

@@ -129,7 +129,7 @@ def produce() -> tuple[dict, dict]:
         if row is None:
             invalid_progress.append({"record_id": rid, "issue": "record is absent from inventory"})
             continue
-        if item.get("production_status") == "complete":
+        if item.get("production_status") in {"ready", "complete"}:
             expected = ROOT / row["planned_card_path"]
             valid = (
                 item.get("status") in {"visual_reviewed", "published"}
@@ -140,7 +140,13 @@ def produce() -> tuple[dict, dict]:
                 and bool(item.get("review_evidence"))
             )
             if not valid:
-                invalid_progress.append({"record_id": rid, "issue": "complete state lacks matching source, asset or review evidence"})
+                invalid_progress.append({"record_id": rid, "issue": "ready/complete state lacks matching source, asset or review evidence"})
+        if item.get("production_status") == "complete" and not (
+            item.get("status") == "published"
+            and item.get("publication_status") == "published"
+            and item.get("published_commit")
+        ):
+            invalid_progress.append({"record_id": rid, "issue": "complete state requires verified main publication and a commit"})
         if item.get("publication_status") == "published" and not item.get("published_commit"):
             invalid_progress.append({"record_id": rid, "issue": "published state lacks a commit"})
     duplicate_progress = [rid for rid, n in Counter(x["record_id"] for x in progress_records).items() if n > 1]

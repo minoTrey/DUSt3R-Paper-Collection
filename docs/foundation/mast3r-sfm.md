@@ -1,5 +1,12 @@
 # MASt3R-SfM: A Fully-Integrated Solution for Unconstrained Structure-from-Motion (3DV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/mast3r-sfm.png" width="720" alt="English summary card for MASt3R-SfM: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/mast3r-sfm.png)
+
+[Original paper](https://arxiv.org/abs/2409.19152v1) · [Full-size English card](../../assets/paper-cards/en/foundation/mast3r-sfm.png)
+<!-- /PAPER-CARD -->
+
 ![MASt3R-SfM Architecture](https://arxiv.org/html/2409.19152v1/x2.png)
 _MASt3R-SfM replaces the entire traditional SfM pipeline with an end-to-end foundation model approach_
 

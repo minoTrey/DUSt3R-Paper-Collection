@@ -1,5 +1,12 @@
 # VGGT-Prime: Compute-Adaptive Mixture-of-Heads for Efficient Visual Geometry Transformers (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/vggt-prime.png" width="720" alt="English summary card for VGGT-Prime: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/vggt-prime.png)
+
+[Original paper](https://arxiv.org/abs/2609.23733v1) · [Full-size English card](../../assets/paper-cards/en/foundation/vggt-prime.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Abteen Arab, Guile Wu, Chengjie Huang, Dongfeng Bai

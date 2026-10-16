@@ -1,5 +1,12 @@
 # VLRC: Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining (arXiv preprint 2026-07)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/vlrc.png" width="720" alt="English summary card for VLRC: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/vlrc.png)
+
+[Original paper](https://arxiv.org/abs/2607.02707v3) · [Full-size English card](../../assets/paper-cards/en/foundation/vlrc.png)
+<!-- /PAPER-CARD -->
+
 ![vlrc — architecture](https://arxiv.org/html/2607.02707v3/images/vlrc_figure_2.png)
 
 _Reprojection of a point p∈ℝ3p\in\mathbb{R}^{3}: the head of a cyclist - The 3d point centered on the head of the cyclist is reprojected on the… (원논문 Fig. 2)_

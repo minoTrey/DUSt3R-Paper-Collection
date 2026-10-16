@@ -1,5 +1,12 @@
 # Argus: Metric Panoramic 3D Reconstruction for Indoor Scenes (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/argus.png" width="720" alt="English summary card for Argus: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/reconstruction/argus.png)
+
+[Original paper](https://arxiv.org/abs/2606.30047v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/argus.png)
+<!-- /PAPER-CARD -->
+
 ![argus — architecture](https://arxiv.org/html/2606.30047v3/x2.png)
 
 _Overview of Argus (원논문 Fig. 2)_

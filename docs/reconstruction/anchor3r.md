@@ -1,5 +1,12 @@
 # Anchor3R: Streaming 3D Reconstruction with Transient Anchors for Long-Horizon Visual Mapping (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/anchor3r.png" width="720" alt="English summary card for Anchor3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/reconstruction/anchor3r.png)
+
+[Original paper](https://arxiv.org/abs/2606.05035v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/anchor3r.png)
+<!-- /PAPER-CARD -->
+
 ![anchor3r — architecture](https://arxiv.org/html/2606.05035v1/x2.png)
 
 _Overview of Anchor3R (원논문 Fig. 2)_

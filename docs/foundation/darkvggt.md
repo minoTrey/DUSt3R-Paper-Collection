@@ -1,5 +1,12 @@
 # DarkVGGT: Seeing Through Darkness Using Thermal Geometry without Daylight Tax (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/darkvggt.png" width="720" alt="English summary card for DarkVGGT: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/darkvggt.png)
+
+[Original paper](https://arxiv.org/abs/2606.11326v3) · [Full-size English card](../../assets/paper-cards/en/foundation/darkvggt.png)
+<!-- /PAPER-CARD -->
+
 ![darkvggt — architecture](https://arxiv.org/html/2606.11326v2/x2.png)
 
 _Overview of the DarkVGGT framework (원논문 Fig. 2)_

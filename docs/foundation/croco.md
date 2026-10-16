@@ -1,5 +1,12 @@
 # CroCo: Self-Supervised Pre-training for 3D Vision Tasks by Cross-View Completion (NeurIPS 2022)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/croco.png" width="720" alt="English summary card for CroCo: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/croco.png)
+
+[Original paper](https://arxiv.org/abs/2210.10716v2) · [Full-size English card](../../assets/paper-cards/en/foundation/croco.png)
+<!-- /PAPER-CARD -->
+
 ![CroCo Overview](https://ar5iv.labs.arxiv.org/html/2210.10716/assets/x1.png)
 
 _Figure 1: CroCo cross-view completion task_

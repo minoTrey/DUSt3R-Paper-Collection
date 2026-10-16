@@ -1,5 +1,12 @@
 # FlashVGGT: Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention (arXiv preprint (2025-12))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/flashvggt.png" width="720" alt="English summary card for FlashVGGT: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/flashvggt.png)
+
+[Original paper](https://arxiv.org/abs/2512.01540v2) · [Full-size English card](../../assets/paper-cards/en/foundation/flashvggt.png)
+<!-- /PAPER-CARD -->
+
 ![flashvggt — architecture](https://arxiv.org/html/2512.01540v2/x4.png)
 
 _Architecture Overview (원논문 Fig. 3)_

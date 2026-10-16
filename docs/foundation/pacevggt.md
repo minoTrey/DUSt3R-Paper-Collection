@@ -1,4 +1,13 @@
-# PaceVGGT: Pre-Alternating-Attention Token Pruning for Visual Geometry Transformers (arXiv preprint 2026-05)
+# PrePARE: Pre-AA Token Pruning for Frozen Multi-View Geometry Transformers (arXiv preprint 2026-05)
+
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/pacevggt.png" width="720" alt="English summary card for PaceVGGT: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/pacevggt.png)
+
+[Original paper](https://arxiv.org/abs/2605.08371v2) · [Full-size English card](../../assets/paper-cards/en/foundation/pacevggt.png)
+
+_Title/version note: arXiv v2 renames PaceVGGT to **PrePARE** and updates its evaluation. The card uses v2; the detailed note and tables below retain the earlier PaceVGGT snapshot. Their protocols and results must not be mixed._
+<!-- /PAPER-CARD -->
 
 ![pacevggt — architecture](https://arxiv.org/html/2605.08371v1/x3.png)
 

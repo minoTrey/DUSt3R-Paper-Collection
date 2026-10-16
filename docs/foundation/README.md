@@ -41,7 +41,7 @@ These tags are reading cues; the generated list below records the primary folder
 - [**DarkVGGT**](darkvggt.md) (arXiv preprint (2026-06)) — Seeing Through Darkness Using Thermal Geometry without Daylight Tax
 - [**Distill3R**](distill3r.md) (arXiv preprint (2026-01)) — A Pipeline for Democratizing 3D Foundation Models on Commodity Hardware
 - [**DUSt3R**](dust3r.md) (CVPR 2024) — Geometric 3D Vision Made Easy
-- [**FGQ**](fisher-quant.md) (arXiv preprint (2026-05)) — Fisher-Guided Quantization for Visual Geometry Transformer
+- [**Not All Tasks Quantize Equally**](fisher-quant.md) (arXiv preprint (2026-05)) — Fisher-Guided Quantization for Visual Geometry Transformer
 - [**FlashVGGT**](flashvggt.md) (arXiv preprint (2025-12)) — Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention
 - [**G-ray**](g-ray.md) (arXiv preprint (2026-09)) — Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity
 - [**G3T**](g3t.md) (arXiv preprint (2026-05)) — Gravity Aligned Coordinate Frames Simplify Pointmap Processing
@@ -54,7 +54,7 @@ These tags are reading cues; the generated list below records the primary folder
 - [**MASt3R-SfM**](mast3r-sfm.md) (3DV 2025) — A Fully-Integrated Solution for Unconstrained Structure-from-Motion
 - [**Muskie**](muskie.md) (arXiv preprint (2025-11)) — Multi-view Masked Image Modeling for 3D Vision Pre-training
 - [**OTT3R**](ott3r.md) (arXiv preprint (2026-09)) — Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute
-- [**PaceVGGT**](pacevggt.md) (arXiv preprint (2026-05)) — Pre-Alternating-Attention Token Pruning for Visual Geometry Transformers
+- [**PrePARE**](pacevggt.md) (arXiv preprint (2026-05)) — Pre-AA Token Pruning for Frozen Multi-View Geometry Transformers
 - [**QVGGT**](qvggt.md) (CVPR 2026) — Post-Training Quantized Visual Geometry Grounded Transformer
 - [**RayTun3R**](raytun3r.md) (arXiv preprint (2026-07)) — Online Camera Adaptation in 3D Foundation Models
 - [**RoMa-Ω**](roma-omega.md) (arXiv preprint (2026-09)) — What Feed-Forward 3D Models Know About Image Matching

@@ -1,5 +1,12 @@
 # GoToHunt: Good Token Hunting for Visual Geometry Transformers (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/good-token-hunting.png" width="720" alt="English summary card for GoToHunt: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/good-token-hunting.png)
+
+[Original paper](https://arxiv.org/abs/2605.23892v1) · [Full-size English card](../../assets/paper-cards/en/foundation/good-token-hunting.png)
+<!-- /PAPER-CARD -->
+
 ![good-token-hunting — architecture](https://arxiv.org/html/2605.23892v1/x1.png)
 
 _We accelerate visual geometry transformers via a two-stage hierarchical token selection scheme: inter-frame selection followed by intra-frame… (원논문 Fig. 1)_
