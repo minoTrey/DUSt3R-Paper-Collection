@@ -834,3 +834,7 @@ Added supplied English cards to 60 existing dynamic, reconstruction, Gaussian-sp
 Before publication, 173 cards are complete, 60 are reviewed/ready, and 104 repository integrations remain unrecorded; external production state is unknown. Browser rendering is unverified. Main publication evidence will be recorded after validation.
 
 Batch 005 validation: all 33 unit tests and all 12 default offline checks passed, including Markdown lint/format, seven-section schema, candidate reconciliation, README/index/category counts, internal links and cached links. Inventory exports and diff whitespace checks passed. Reviewed the original matching-revision PDFs for all 60 changed cards; 211 selected numeric tokens were additionally located in those PDFs. These token checks do not prove semantic attribution. Repository-wide PDF/live-link checks and GitHub browser layout were not run.
+
+## 2026-10-16 — Verify the 60-card batch on main
+
+PR #29 merged at `d14ef79b255eb7108fa1d1475888ebb79ff9e502` after CI passed. Fetched all 60 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 233 complete/published cards and 104 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
