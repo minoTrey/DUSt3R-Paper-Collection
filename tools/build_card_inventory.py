@@ -30,6 +30,7 @@ CSV_FIELDS = [
     "note_path", "note_url", "raw_note_url", "paper_url", "arxiv_id",
     "paper_pdf_urls", "project_url", "project_link_status", "code_url",
     "verification_as_recorded", "note_sha256", "planned_card_path", "card_asset_present",
+    "card_production_status", "card_review_status", "card_publication_status",
 ]
 
 
@@ -54,10 +55,18 @@ def own_pdfs(text: str, arxiv_id: str | None) -> list[str]:
     return sorted({url.rstrip(".,;") for url in urls if pattern.fullmatch(url.rstrip(".,;"))})
 
 
+def note_content(text: str) -> str:
+    """Exclude only the marked card presentation block from source-content hashes."""
+    return re.sub(r"^<!-- PAPER-CARD:en -->\n.*?^<!-- /PAPER-CARD -->\n\n", "", text, flags=re.M | re.S)
+
+
 def produce() -> tuple[dict, dict]:
     recs = [parse(p) for p in papers()]
     category_names = dict(CATEGORY_ORDER)
     order = {name: i for i, (name, _) in enumerate(CATEGORY_ORDER)}
+    progress_path = DEST / "paper-card-progress.jsonl"
+    progress_records = [json.loads(line) for line in progress_path.read_text(encoding="utf-8").splitlines() if line.strip()] if progress_path.exists() else []
+    progress = {record["record_id"]: record for record in progress_records}
     rows = []
     for rec in recs:
         note = ROOT / rec["file"]
@@ -71,6 +80,7 @@ def produce() -> tuple[dict, dict]:
         paper_url = paper_links[0]["url"] if paper_links else None
         identity = "arxiv:" + rec["arxiv_id"] if rec["arxiv_id"] else ("url:" + paper_url if paper_url else None)
         planned = f"assets/paper-cards/en/{rec['cat']}/{rec['slug']}.png"
+        state = progress.get(f"{rec['cat']}/{rec['slug']}", {})
         rows.append({
             "record_id": f"{rec['cat']}/{rec['slug']}",
             "slug": rec["slug"], "title": title, "short_title": name,
@@ -86,8 +96,11 @@ def produce() -> tuple[dict, dict]:
             "overview_links": links, "overview_links_as_recorded": rec["fields"].get("Links", ""),
             "venue_as_recorded": venue,
             "verification_as_recorded": rec["fields"].get("Verification", ""),
-            "note_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "note_sha256": hashlib.sha256(note_content(text).encode("utf-8")).hexdigest(),
             "planned_card_path": planned, "card_asset_present": (ROOT / planned).is_file(),
+            "card_production_status": state.get("production_status", "not_started"),
+            "card_review_status": state.get("status", "not_started"),
+            "card_publication_status": state.get("publication_status", "not_published"),
         })
     rows.sort(key=lambda r: (0, CORE[r["slug"]]) if r["slug"] in CORE else (1, order.get(r["category"], 999), r["slug"]))
     paths = {r["note_path"] for r in rows}
@@ -108,11 +121,35 @@ def produce() -> tuple[dict, dict]:
     dup = {key: duplicates(rows, key, key in {"title", "short_title"}) for key in ["record_id", "slug", "note_path", "paper_source_identity", "title", "short_title"]}
     missing = {key: [r["record_id"] for r in rows if not r.get(key)] for key in ["title", "paper_url", "project_url", "code_url", "arxiv_id"]}
     snapshot = hashlib.sha256("\n".join(f"{r['note_path']} {r['note_sha256']}" for r in sorted(rows, key=lambda x: x["note_path"])).encode()).hexdigest()
+    invalid_progress = []
+    by_id = {r["record_id"]: r for r in rows}
+    for item in progress_records:
+        rid = item["record_id"]
+        row = by_id.get(rid)
+        if row is None:
+            invalid_progress.append({"record_id": rid, "issue": "record is absent from inventory"})
+            continue
+        if item.get("production_status") == "complete":
+            expected = ROOT / row["planned_card_path"]
+            valid = (
+                item.get("status") in {"visual_reviewed", "published"}
+                and item.get("source_note_sha256") == row["note_sha256"]
+                and item.get("asset_path") == row["planned_card_path"]
+                and expected.is_file()
+                and item.get("asset_sha256") == hashlib.sha256(expected.read_bytes()).hexdigest()
+                and bool(item.get("review_evidence"))
+            )
+            if not valid:
+                invalid_progress.append({"record_id": rid, "issue": "complete state lacks matching source, asset or review evidence"})
+        if item.get("publication_status") == "published" and not item.get("published_commit"):
+            invalid_progress.append({"record_id": rid, "issue": "published state lacks a commit"})
+    duplicate_progress = [rid for rid, n in Counter(x["record_id"] for x in progress_records).items() if n > 1]
     audit = {
         "source_snapshot_sha256": snapshot,
-        "counts": {"papers": len(rows), "detected_note_candidates": len(detected), "complete_index_entries": len(indexed), "category_index_entries": len(category_index_paths), "categories": dict(sorted(Counter(r["category"] for r in rows).items())), "arxiv_sources": sum(bool(r["arxiv_id"]) for r in rows), "project_links_recorded": sum(bool(r["project_url"]) for r in rows), "project_links_not_recorded": len(missing["project_url"]), "existing_card_assets_at_planned_paths": sum(r["card_asset_present"] for r in rows)},
+        "counts": {"papers": len(rows), "detected_note_candidates": len(detected), "complete_index_entries": len(indexed), "category_index_entries": len(category_index_paths), "categories": dict(sorted(Counter(r["category"] for r in rows).items())), "arxiv_sources": sum(bool(r["arxiv_id"]) for r in rows), "project_links_recorded": sum(bool(r["project_url"]) for r in rows), "project_links_not_recorded": len(missing["project_url"]), "existing_card_assets_at_planned_paths": sum(r["card_asset_present"] for r in rows), "card_production_statuses": dict(Counter(r["card_production_status"] for r in rows)), "cards_published": sum(r["card_publication_status"] == "published" for r in rows)},
         "coverage": {"unindexed_note_candidates": sorted(detected - paths), "records_without_detected_note": sorted(paths - detected), "missing_from_complete_index": sorted(paths - set(indexed)), "extra_in_complete_index": sorted(set(indexed) - paths), "missing_from_category_indexes": sorted(paths - set(category_index_paths)), "extra_in_category_indexes": sorted(set(category_index_paths) - paths), "duplicate_complete_index_paths": [x for x, n in Counter(indexed).items() if n > 1], "duplicate_category_index_paths": [x for x, n in Counter(category_index_paths).items() if n > 1]},
         "duplicates": dup, "missing_fields": missing,
+        "progress_findings": {"invalid_records": invalid_progress, "duplicate_record_ids": duplicate_progress},
         "non_arxiv_primary_sources": [{"record_id": r["record_id"], "paper_url": r["paper_url"]} for r in rows if not r["arxiv_id"]],
         "core_papers": [{k: r[k] for k in ["slug", "title", "note_path", "note_url", "paper_url", "paper_pdf_urls", "project_url", "code_url"]} for r in rows if r["slug"] in CORE],
         "notes": [
@@ -122,6 +159,7 @@ def produce() -> tuple[dict, dict]:
             "DUSt3R and MASt3R currently store the same Project Page URL. The inventory preserves that value; verify its destination before card attribution.",
             "This is an inventory audit, not a fresh source-content, venue, benchmark or live-link audit.",
             "No cards are generated or marked complete by this export.",
+            "Card production status is copied only from separately reviewed progress records; production completion is distinct from main publication.",
         ],
         "card_generation_performed": False,
     }
@@ -136,8 +174,10 @@ def produce() -> tuple[dict, dict]:
         errors.append("missing title or paper_url")
     if any(r["category"] not in category_names for r in rows):
         errors.append("unknown category")
+    if invalid_progress or duplicate_progress:
+        errors.append("invalid card progress records")
     audit["blocking_findings"] = errors
-    inventory = {"schema_version": 1, "source": "Existing paper-note Overviews and titles; generated by tools/build_card_inventory.py", "hash_normalization": "UTF-8 note text with LF line endings", "source_snapshot_sha256": snapshot, "audit_file": "paper-card-inventory-audit.json", "audit_passed": not errors, "total_papers": len(rows), "card_assets_generated_by_this_export": 0, "papers": rows}
+    inventory = {"schema_version": 1, "source": "Existing paper-note Overviews and titles; generated by tools/build_card_inventory.py", "hash_normalization": "UTF-8 note text with LF line endings; marked PAPER-CARD:en presentation block excluded", "source_snapshot_sha256": snapshot, "audit_file": "paper-card-inventory-audit.json", "progress_file": "paper-card-progress.jsonl", "audit_passed": not errors, "total_papers": len(rows), "card_assets_generated_by_this_export": 0, "papers": rows}
     return inventory, audit
 
 

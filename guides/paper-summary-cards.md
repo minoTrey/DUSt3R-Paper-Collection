@@ -17,7 +17,7 @@ python tools/build_card_inventory.py --check
 
 The exporter reads the current note titles and Overview links. It does not invent project links, extract another paper's citation from Related Work, or treat venue verification as a completed card review. A missing project link means **not recorded in the note**, not that no project exists. Explicit PDF links are included only when they refer to the same arXiv ID.
 
-Check `audit_passed` and the audit's `blocking_findings` before selecting a production batch. Note hashes use UTF-8 text with LF line endings so the same content has the same hash on Windows and Linux.
+Check `audit_passed` and the audit's `blocking_findings` before selecting a production batch. Note hashes use UTF-8 text with LF line endings and exclude only the marked summary-card presentation block. Select records whose `card_production_status` is `not_started` for new production work.
 
 Use the full title and `paper_source_identity` to resolve identity. Abbreviations can collide: the current collection contains separate Scal3R papers and separate Wat3R/WAT3R papers. Their different source IDs and slugs must remain separate card jobs.
 
@@ -53,7 +53,7 @@ The image should also open at a readable size. Keep card source/version informat
 
 ## Proposed progress tracking
 
-Maintain a separate `data/paper-card-progress.jsonl` when production starts. Do not store manually reviewed status in a generated inventory that will be overwritten. No progress file or completed-card entries are created by this preparation.
+Maintain the separate [progress records](../data/paper-card-progress.jsonl). Manually reviewed status belongs there; the generated inventory only copies it. The first three supplied cards (DUSt3R, MASt3R and VGGT) are production-complete and visually reviewed, with main publication pending. All other papers remain not started. Production completion and main publication are separate facts.
 
 Each progress record should contain:
 

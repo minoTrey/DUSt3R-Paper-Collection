@@ -1,5 +1,12 @@
 # VGGT: Visual Geometry Grounded Transformer (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt.png" width="720" alt="English summary card for VGGT; diagrams are illustrative, not measured outputs." />](../../assets/paper-cards/en/reconstruction/vggt.png)
+
+[Original paper](https://arxiv.org/abs/2503.11651) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt.png)
+<!-- /PAPER-CARD -->
+
 ![VGGT Architecture](https://vgg-t.github.io/resources/architecture_v4.png)
 _Predict cameras, depth, pointmaps and tracking information from features alternating within-image and cross-frame attention._
 
