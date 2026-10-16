@@ -1,5 +1,12 @@
 # StreamCacheVGGT: Streaming Visual Geometry Transformers with Robust Scoring and Hybrid Cache Compression (arXiv preprint 2026-04)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/streamcachevggt.png" width="720" alt="English summary card for StreamCacheVGGT: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/streamcachevggt.png)
+
+[Original paper](https://arxiv.org/abs/2604.15237v2) · [Full-size English card](../../assets/paper-cards/en/foundation/streamcachevggt.png)
+<!-- /PAPER-CARD -->
+
 ![streamcachevggt — architecture](https://arxiv.org/html/2604.15237v2/x1.png)
 
 _Overall architecture of our streaming 3D reconstruction framework (원논문 Fig. 1)_

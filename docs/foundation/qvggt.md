@@ -1,5 +1,12 @@
 # QVGGT: Post-Training Quantized Visual Geometry Grounded Transformer (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/qvggt.png" width="720" alt="English summary card for QVGGT: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/qvggt.png)
+
+[Original paper](https://arxiv.org/abs/2605.31124v1) · [Full-size English card](../../assets/paper-cards/en/foundation/qvggt.png)
+<!-- /PAPER-CARD -->
+
 ![qvggt — architecture](https://arxiv.org/html/2605.31124v1/x2.png)
 
 _Overview of QVGGT (원논문 Fig. 2)_

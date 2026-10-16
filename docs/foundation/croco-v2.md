@@ -1,5 +1,12 @@
 # CroCo v2: Improved Cross-view Completion Pre-training for Stereo Matching and Optical Flow (ICCV 2023)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/croco-v2.png" width="720" alt="English summary card for CroCo v2: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/croco-v2.png)
+
+[Original paper](https://arxiv.org/abs/2211.10408v3) · [Full-size English card](../../assets/paper-cards/en/foundation/croco-v2.png)
+<!-- /PAPER-CARD -->
+
 ![CroCo v2](https://ar5iv.labs.arxiv.org/html/2211.10408/assets/x1.png)
 _Figure 1: CroCo v2 overview_
 

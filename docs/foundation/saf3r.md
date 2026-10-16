@@ -1,5 +1,12 @@
 # SAF3R: Dynamic Sparse Attention for Feed-Forward 3D Reconstruction Transformers (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/saf3r.png" width="720" alt="English summary card for SAF3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/saf3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.03612v2) · [Full-size English card](../../assets/paper-cards/en/foundation/saf3r.png)
+<!-- /PAPER-CARD -->
+
 ![saf3r — architecture](https://arxiv.org/html/2607.03612v1/x1.png)
 
 _Left: SAF3R accelerates feed-forward 3D reconstruction (F3R) models while preserving reconstruction quality (원논문 Fig. 1)_

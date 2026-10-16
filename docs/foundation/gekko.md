@@ -1,5 +1,12 @@
 # Revisiting Cross-View Completion: Self-Supervised Pre-Training via Reconstruction Error Comparison (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/gekko.png" width="720" alt="English summary card for Revisiting Cross-View Completion: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/gekko.png)
+
+[Original paper](https://arxiv.org/abs/2609.01530v1) · [Full-size English card](../../assets/paper-cards/en/foundation/gekko.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Thibaut Loiseau, Guillaume Bourmaud, Vincent Lepetit

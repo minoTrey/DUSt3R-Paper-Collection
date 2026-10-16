@@ -1,5 +1,12 @@
 # Muskie: Multi-view Masked Image Modeling for 3D Vision Pre-training (arXiv preprint 2025-11)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/muskie.png" width="720" alt="English summary card for Muskie: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/muskie.png)
+
+[Original paper](https://arxiv.org/abs/2511.18115v1) · [Full-size English card](../../assets/paper-cards/en/foundation/muskie.png)
+<!-- /PAPER-CARD -->
+
 ![muskie — architecture](https://arxiv.org/html/2511.18115/x3.png)
 
 _Visualizations of the reconstructions from masked images (원논문 Fig. 3)_

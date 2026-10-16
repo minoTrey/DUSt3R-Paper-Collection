@@ -1,4 +1,13 @@
-# FGQ: Fisher-Guided Quantization for Visual Geometry Transformer (arXiv preprint (2026-05))
+# Not All Tasks Quantize Equally: Fisher-Guided Quantization for Visual Geometry Transformer (arXiv preprint (2026-05))
+
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/fisher-quant.png" width="720" alt="English summary card for FGQ: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/fisher-quant.png)
+
+[Original paper](https://arxiv.org/abs/2605.15828v3) · [Full-size English card](../../assets/paper-cards/en/foundation/fisher-quant.png)
+
+_Title/version note: FGQ is the method name in the revised paper **Not All Tasks Quantize Equally** (v3). The card uses v3; the detailed note below retains its earlier source snapshot._
+<!-- /PAPER-CARD -->
 
 ![fisher-quant — architecture](https://arxiv.org/html/2605.15828v2/x1.png)
 

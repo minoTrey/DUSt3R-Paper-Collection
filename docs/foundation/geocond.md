@@ -1,5 +1,12 @@
 # GeoCond: A Conditioning-Aware Reliability Adapter for Feed-Forward 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/geocond.png" width="720" alt="English summary card for GeoCond: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/geocond.png)
+
+[Original paper](https://arxiv.org/abs/2609.18465v1) · [Full-size English card](../../assets/paper-cards/en/foundation/geocond.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: David Ahmedt-Aristizabal, Mohammad Ali Armin, Russell Tsuchida, Lars Petersson

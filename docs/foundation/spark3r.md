@@ -1,5 +1,12 @@
 # Spark3R: Asymmetric Token Reduction Makes Fast Feed-Forward 3D Reconstruction (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/spark3r.png" width="720" alt="English summary card for Spark3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/spark3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.06270v2) · [Full-size English card](../../assets/paper-cards/en/foundation/spark3r.png)
+<!-- /PAPER-CARD -->
+
 ![spark3r — architecture](https://arxiv.org/html/2605.06270v2/x2.png)
 
 _Overview of Spark3R (원논문 Fig. 2)_

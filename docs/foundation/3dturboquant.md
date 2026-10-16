@@ -1,5 +1,12 @@
 # 3DTurboQuant: Training-Free Near-Optimal Quantization for 3D Reconstruction Models (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/3dturboquant.png" width="720" alt="English summary card for 3DTurboQuant: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/3dturboquant.png)
+
+[Original paper](https://arxiv.org/abs/2604.05366v1) · [Full-size English card](../../assets/paper-cards/en/foundation/3dturboquant.png)
+<!-- /PAPER-CARD -->
+
 ![3dturboquant — architecture](https://arxiv.org/html/2604.05366v1/figures/dust3r_input.png)
 
 _DUSt3R KV cache quantization: depth map visualization (원논문 Fig. 3)_

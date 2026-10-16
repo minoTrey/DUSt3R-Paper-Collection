@@ -1,5 +1,12 @@
 # HD-VGGT: High-Resolution Visual Geometry Transformer (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/hd-vggt.png" width="720" alt="English summary card for HD-VGGT: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/hd-vggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.27222v2) · [Full-size English card](../../assets/paper-cards/en/foundation/hd-vggt.png)
+<!-- /PAPER-CARD -->
+
 ![hd-vggt — architecture](https://arxiv.org/html/2603.27222v2/x1.png)
 
 _Overview of the HD-VGGT architecture (원논문 Fig. 1)_

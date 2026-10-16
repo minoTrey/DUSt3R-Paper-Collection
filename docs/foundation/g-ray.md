@@ -1,5 +1,12 @@
 # G-ray: Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/g-ray.png" width="720" alt="English summary card for G-ray: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/g-ray.png)
+
+[Original paper](https://arxiv.org/abs/2609.15018v2) · [Full-size English card](../../assets/paper-cards/en/foundation/g-ray.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Shuo Zhang, Xin Su, Wei Wang, Jun Liu, Xinrui Zeng, Yongsen Chen, Chenjie Wang, Guibo Zhu, Jinqiao Wang, Bin Luo, Liangpei Zhang

@@ -1,5 +1,12 @@
 # OTT3R: Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/ott3r.png" width="720" alt="English summary card for OTT3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/ott3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.36374v1) · [Full-size English card](../../assets/paper-cards/en/foundation/ott3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Brandon Leblanc, Charalambos Poullis

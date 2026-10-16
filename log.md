@@ -3,6 +3,16 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-16] Review and stage 28 English paper summary cards
+
+Added 28 supplied English cards to existing notes: 26 foundation-model notes and Argus/Anchor3R in reconstruction. Each card links to the reviewed arXiv revision and its full-size PNG. The original PNG bytes, architecture figures, seven-section notes and result tables are retained. FGQ and PaceVGGT H1 titles now follow the revised paper titles; version notices identify FGQ v3 and PrePARE v2 while preserving the legacy slugs and earlier detailed snapshots.
+
+Read the corresponding original-paper HTML and PDFs, checked method/evidence qualifications and opened all 28 card images. The batch audit records source versions, PDF hashes, numeric-token page locations, dataset/protocol/table attribution and visual review. Numeric token matching supplements manual attribution; it is not a semantic benchmark verifier. No new paper note or benchmark measurement is introduced. The unavailable browser runtime prevents a claim about rendered GitHub desktop/mobile layout.
+
+The three earlier cards are recorded as published after checking their exact bytes and note links at main commit `b38e6dac6d4475850ec4e1234c014e5057b40dca`. The 28 new cards remain `ready` until main publication is verified. The inventory validator now requires publication evidence before a card can be marked `complete`. Unproduced papers remain not started.
+
+Validation before publication: all 12 offline checks, the inventory export check and 21 regression tests passed. All 337 category assignments, record IDs, note paths and primary source identities match the baseline main commit; this card batch does not reclassify papers. Hash comparisons confirm all 28 detailed bodies are preserved below their headings and all supplied PNGs retain their original bytes.
+
 ## [2026-07-20] 신뢰성 전면 점검
 
 `tools/verify_metadata.py` 도입 후 55편 전량을 arXiv + DBLP + Semantic Scholar +

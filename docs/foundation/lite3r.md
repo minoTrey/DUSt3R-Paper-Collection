@@ -1,5 +1,12 @@
 # Lite3R: A Model-Agnostic Framework for Efficient Feed-Forward 3D Reconstruction (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/lite3r.png" width="720" alt="English summary card for Lite3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/lite3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.11354v1) · [Full-size English card](../../assets/paper-cards/en/foundation/lite3r.png)
+<!-- /PAPER-CARD -->
+
 ![lite3r — architecture](https://arxiv.org/html/2605.11354v1/headfig.png)
 
 _Overview of Lite3R (원논문 Fig. 1)_

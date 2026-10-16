@@ -53,7 +53,7 @@ The image should also open at a readable size. Keep card source/version informat
 
 ## Proposed progress tracking
 
-Maintain the separate [progress records](../data/paper-card-progress.jsonl). Manually reviewed status belongs there; the generated inventory only copies it. The first three supplied cards (DUSt3R, MASt3R and VGGT) are production-complete and visually reviewed, with main publication pending. All other papers remain not started. Production completion and main publication are separate facts.
+Maintain the separate [progress records](../data/paper-card-progress.jsonl). Manually reviewed status belongs there; the generated inventory only copies it. DUSt3R, MASt3R and VGGT are published on main. The next 28 supplied cards have source and image review records in the [batch audit](../data/paper-card-reviews/batch-2026-10-16.json). A reviewed card awaiting main publication has `production_status: ready`; only a card whose exact bytes and note link have been verified on main may have `production_status: complete` and `status: published`. Other papers remain not started.
 
 Each progress record should contain:
 
@@ -77,6 +77,8 @@ Use these states:
 | `published`       | The reviewed bytes and note link are verified on main, with a recorded commit.                                |
 
 Record issues separately and keep the last supported state. A generated file, successful image decode, category-banner approval or CI pass is not evidence that a paper card's claims were reviewed. If the note or paper revision changes, compare it with the recorded source snapshot and re-review affected card content.
+
+After a card PR merges, verify the asset hash and note link at the main merge commit, then update its publication record. A follow-up metadata change can record that verified commit without claiming that unpublished work is complete. The exporter rejects `ready`/`complete` records with stale source or asset hashes, and rejects `complete` records without a published state and commit. Remote main verification remains a separate review step.
 
 ## Card content and review
 
