@@ -792,3 +792,7 @@ The central guide and exact JSON mapping retain all previous-to-current identiti
 - The inventory tracks repository integration/publication. An unrecorded card does not imply that no externally produced card exists. All 42 reviewed additions remain ready/pending main until their exact published bytes and note links are verified. GitHub browser rendering is not verified in this environment.
 - Validation: 32 unit tests and all 12 default checks passed. Detailed content of all 337 notes, all 56 existing card/alias assets and all 42 supplied new PNGs passed preservation checks. No tracked file is deleted by this card batch.
 - After PR #21 merged, retained both log entries while updating this branch to main. Re-ran 33 unit tests and all 12 default checks successfully; the card diff against current main contains no tracked-file deletions.
+
+## 2026-10-16 — Verify the 42-card batch on main
+
+PR #22 merged at `c8367506df111a0466ea41c130fd6b98702ab5db` after CI passed. Fetched all 42 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 73 complete/published cards and 264 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
