@@ -1,5 +1,12 @@
 # SLAM-Former: Putting SLAM into One Transformer (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/slam-former.png" width="720" alt="English summary card for slam-former: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/slam-former.png)
+
+[Original paper](https://arxiv.org/abs/2509.16909v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/slam-former.png)
+<!-- /PAPER-CARD -->
+
 ![slam-former — architecture](https://arxiv.org/html/2509.16909/x2.png)
 
 _The working pipeline of SLAM-Former (원논문 Fig. 2)_

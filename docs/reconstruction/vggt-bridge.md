@@ -1,5 +1,12 @@
 # VGGT-Bridge: Beyond Sequential Pose Graphs via Coarse-Stride Skip Edges (ACCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt-bridge.png" width="720" alt="English summary card for vggt-bridge: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vggt-bridge.png)
+
+[Original paper](https://arxiv.org/abs/2610.06594v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt-bridge.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Sungjae Choi, Hanna Bae, Sunghyun Baek, Junmo Kim

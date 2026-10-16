@@ -1,5 +1,12 @@
 # MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/moge-2.png" width="720" alt="English summary card for moge-2: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/moge-2.png)
+
+[Original paper](https://arxiv.org/abs/2507.02546v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/moge-2.png)
+<!-- /PAPER-CARD -->
+
 ![moge-2 — architecture](https://arxiv.org/html/2507.02546/x1.png)
 
 _Rankings in comprehensive evaluations (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # InfiniteVGGT: Visual Geometry Grounded Transformer for Endless Streams (arXiv preprint (2026-01))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/infinitevggt.png" width="720" alt="English summary card for infinitevggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/infinitevggt.png)
+
+[Original paper](https://arxiv.org/abs/2601.02281v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/infinitevggt.png)
+<!-- /PAPER-CARD -->
+
 ![infinitevggt — architecture](https://arxiv.org/html/2601.02281v1/x3.png)
 
 _Overview of the InfiniteVGGT, illustrating a rolling memory paradigm that prunes KV cache contents to prevent VRAM accumulation over time, employing… (원논문 Fig. 3)_

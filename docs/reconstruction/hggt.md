@@ -1,5 +1,12 @@
 # HGGT: Robust and Flexible 3D Hand Mesh Reconstruction from Uncalibrated Images (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/hggt.png" width="720" alt="English summary card for hggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/hggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.23997v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/hggt.png)
+<!-- /PAPER-CARD -->
+
 ![hggt — architecture](https://arxiv.org/html/2603.23997v2/images/pipeline_new.png)
 
 _The pipeline of HGGT (원논문 Fig. 2)_

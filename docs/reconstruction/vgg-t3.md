@@ -1,5 +1,14 @@
 # VGG-T3: Offline Feed-Forward 3D Reconstruction at Scale (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vgg-t3.png" width="720" alt="English summary card for vgg-t3: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vgg-t3.png)
+
+[Original paper](https://arxiv.org/abs/2602.23361v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vgg-t3.png)
+Source locator: the runtime plot is Figure 3 in the arXiv HTML and Figure 4 in the same-revision PDF; Section 4.2 reports 58 seconds for 1,000 images.
+
+<!-- /PAPER-CARD -->
+
 ![vgg-t3 — architecture](https://arxiv.org/html/2602.23361v1/figures/method/vggt_workings.png)
 
 _(a) VGGT (원논문 Fig. 99)_

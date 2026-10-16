@@ -1,5 +1,12 @@
 # SurgCUT3R: Surgical Scene-Aware Continuous Understanding of Temporal 3D Representation (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/surgcut3r.png" width="720" alt="English summary card for surgcut3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/surgcut3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.06971v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/surgcut3r.png)
+<!-- /PAPER-CARD -->
+
 ![surgcut3r — architecture](https://arxiv.org/html/2603.06971v1/figures/pipeline.png)
 
 _Overview of SurgCUT3R (원논문 Fig. 2)_

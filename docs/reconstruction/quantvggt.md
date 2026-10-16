@@ -1,5 +1,12 @@
 # QuantVGGT: Quantized Visual Geometry Grounded Transformer (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/quantvggt.png" width="720" alt="English summary card for quantvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/quantvggt.png)
+
+[Original paper](https://arxiv.org/abs/2509.21302v4) · [Full-size English card](../../assets/paper-cards/en/reconstruction/quantvggt.png)
+<!-- /PAPER-CARD -->
+
 ![quantvggt — architecture](https://arxiv.org/html/2509.21302v4/x2.png)
 
 _Overview of proposed QuantVGGT (원논문 Fig. 2)_

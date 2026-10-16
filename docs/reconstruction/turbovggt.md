@@ -1,5 +1,12 @@
 # TurboVGGT: Fast Visual Geometry Reconstruction with Adaptive Alternating Attention (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/turbovggt.png" width="720" alt="English summary card for turbovggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/turbovggt.png)
+
+[Original paper](https://arxiv.org/abs/2605.14315v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/turbovggt.png)
+<!-- /PAPER-CARD -->
+
 ![turbovggt — architecture](https://arxiv.org/html/2605.14315v1/x2.png)
 
 _The overall framework of the proposed TurboVGGT. (원논문 Fig. 2)_

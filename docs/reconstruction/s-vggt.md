@@ -1,5 +1,12 @@
 # S-VGGT: Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models (ICME 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/s-vggt.png" width="720" alt="English summary card for s-vggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/s-vggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.17625v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/s-vggt.png)
+<!-- /PAPER-CARD -->
+
 ![s-vggt — architecture](https://arxiv.org/html/2603.17625v1/x2.png)
 
 _The framework of S-VGGT (원논문 Fig. 2)_

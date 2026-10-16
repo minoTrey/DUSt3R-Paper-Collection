@@ -1,5 +1,12 @@
 # TALO: Pushing 3D Vision Foundation Models Towards Globally Consistent Online Reconstruction (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/talo.png" width="720" alt="English summary card for talo: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/talo.png)
+
+[Original paper](https://arxiv.org/abs/2512.02341v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/talo.png)
+<!-- /PAPER-CARD -->
+
 ![talo — architecture](https://arxiv.org/html/2512.02341v3/Fig/Fig1.png)
 
 _Degeneration of Sim​(3)\mathrm{Sim}(3) alignment used in VGGT-Long [8] and SL​(4)\mathrm{SL}(4) in VGGT-SLAM [23] (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # MV-DUSt3R+: Single-Stage Scene Reconstruction from Sparse Views In 2 Seconds (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/mv-dust3r-plus.png" width="720" alt="English summary card for mv-dust3r-plus: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/mv-dust3r-plus.png)
+
+[Original paper](https://arxiv.org/abs/2412.06974v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/mv-dust3r-plus.png)
+<!-- /PAPER-CARD -->
+
 ![MV-DUSt3R+ teaser](https://github.com/MV-DUSt3Rp/MV-DUSt3Rp.github.io/blob/main/static/images/tsr_.png?raw=true)
 _MV-DUSt3R+ achieves single-stage multi-view reconstruction in ~2 seconds using novel cross-reference view blocks_
 

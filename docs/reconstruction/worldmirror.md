@@ -1,5 +1,12 @@
 # WorldMirror: Universal 3D World Reconstruction with Any-Prior Prompting (ICML 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/worldmirror.png" width="720" alt="English summary card for worldmirror: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/worldmirror.png)
+
+[Original paper](https://arxiv.org/abs/2510.10726v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/worldmirror.png)
+<!-- /PAPER-CARD -->
+
 ![worldmirror — architecture](https://arxiv.org/html/2510.10726/Figs/teaser.png)
 
 _WorldMirror is a large feed-forward 3D reconstruction model that takes raw images along with optional priors (depth, calibrated intrinsics, camera… (원논문 Fig. 1)_

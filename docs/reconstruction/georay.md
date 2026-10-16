@@ -1,5 +1,12 @@
 # GeoRay: Gauge-Aware Feed-Forward Satellite 3D Reconstruction in the Geodetic Frame (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/georay.png" width="720" alt="English summary card for georay: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/georay.png)
+
+[Original paper](https://arxiv.org/abs/2608.29680v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/georay.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhe Dong, Wanqing Wu, Yuzhe Sun, Haochen Jiang, Yuchen Ma, Lecheng Ren, Tianzhu Liu, Yanfeng Gu

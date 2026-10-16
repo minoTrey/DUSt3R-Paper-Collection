@@ -1,5 +1,12 @@
 # Reliev3R: Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/reliev3r.png" width="720" alt="English summary card for reliev3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/reliev3r.png)
+
+[Original paper](https://arxiv.org/abs/2604.00548v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/reliev3r.png)
+<!-- /PAPER-CARD -->
+
 ![reliev3r — architecture](https://arxiv.org/html/2604.00548v1/figures/Figure1-v7-ds4.jpg)
 
 _In this paper, we propose Reliev3R, the first learning paradigm to train a Feed-forward Reconstruction Model (FFRM) from scratch without reliance on… (원논문 Fig. 1)_

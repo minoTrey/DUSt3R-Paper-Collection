@@ -1,5 +1,12 @@
 # Scal3R: Learning Efficient Multi-Relative Pose Query for Scalable Online 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/scal3r-query.png" width="720" alt="English summary card for scal3r-query: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/scal3r-query.png)
+
+[Original paper](https://arxiv.org/abs/2609.04201v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/scal3r-query.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Chin-Yang Lin, Yang-Che Sun, Cheng Sun, Fu-En Yang, Min-Hung Chen, Yen-Yu Lin, Wei-Chen Chiu, Yu-Lun Liu

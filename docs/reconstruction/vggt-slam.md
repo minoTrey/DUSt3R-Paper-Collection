@@ -1,5 +1,12 @@
 # VGGT-SLAM: Dense RGB SLAM Optimized on the SL(4) Manifold (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt-slam.png" width="720" alt="English summary card for vggt-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vggt-slam.png)
+
+[Original paper](https://arxiv.org/abs/2505.12549v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt-slam.png)
+<!-- /PAPER-CARD -->
+
 ![vggt-slam — architecture](https://arxiv.org/html/2505.12549/extracted/6471271/fig/sim3_limited.png)
 
 _VGGT-SLAM alignment of 6 submaps created from VGGT using Sim⁢(3)Sim3\mathrm{Sim}(3)roman_Sim ( 3 ) alignment (top) and… (원논문 Fig. 1)_

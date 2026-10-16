@@ -802,3 +802,13 @@ PR #22 merged at `c8367506df111a0466ea41c130fd6b98702ab5db` after CI passed. Fet
 Replaced six incorrect external figure URLs with complete figure regions extracted from the verified official PDFs: CroCo Figures 1-3 and CroCo v2 Figures 1,2,7. The old URLs returned the same NO IMAGE AVAILABLE placeholder even with HTTP200 and successful PNG decoding. The new assets retain every panel and original caption; each note links the exact PDF revision and page. No generated illustration replaces a paper figure.
 
 Checked image URLs in both notes and all 27 migrated notes: 56 unique URLs/paths, no missing relative files or additional copies of the placeholder. Original PDF hashes, page/crop coordinates, PNG hashes and the two figure-only note-snapshot revalidations are recorded in data/paper-figure-repairs/croco-2026-10-16.json. The seven-section summaries and all 73 summary-card PNGs remain unchanged. Browser pixel rendering is not verified.
+
+## 2026-10-16 — Review and integrate English card batch 003
+
+Added 45 supplied original PNGs to existing reconstruction notes after exact source-ID/path-map resolution, inspection of every actual image and same-revision original-paper HTML/PDF review. The audit records method, dataset/protocol/table attribution, limitations, PDF hashes and numeric-token pages. Token presence supplements manual attribution. GeoFF3D HTML was unavailable, so its verified v2 PDF was read directly. VGG-T3 has an explicit HTML/PDF figure-number note; the reported runtime follows Section 4.2 rather than the abstract.
+
+All 337 detailed note-content hashes and all 104 existing card/alias and original-figure asset blobs match baseline main `c259e2e99c1daaa785fc9a3a45959519220c420a`. All 45 received PNGs decode, are distinct from one another and previous assets, and retain their exact bytes. Existing headings, seven sections, tables and original figures are preserved. The batch adds no paper note or benchmark measurement.
+
+Inventory scope remains repository integration only: 73 previously published cards, 45 reviewed cards pending main verification and 219 notes without a recorded integration. External card production is unknown. GitHub browser pixel/layout verification and the full repository PDF suite are not claimed.
+
+Validation: 33 unit tests, all 12 default offline checks, inventory export consistency and `git diff --check` passed. No tracked files are deleted.

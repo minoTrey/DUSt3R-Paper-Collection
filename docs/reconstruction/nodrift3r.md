@@ -1,5 +1,12 @@
 # NoDrift3R: Raymap-Guided Coupling for Drift-Robust Unposed Feed-Forward 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/nodrift3r.png" width="720" alt="English summary card for nodrift3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/nodrift3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.07168v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/nodrift3r.png)
+<!-- /PAPER-CARD -->
+
 ![nodrift3r — architecture](https://arxiv.org/html/2607.07168v2/figures/problem_formulation_epark.png)
 
 _Our synergistic framework for "Rendering-to-Geometry Gain". (원논문 Fig. 2)_
