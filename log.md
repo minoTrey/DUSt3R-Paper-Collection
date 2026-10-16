@@ -846,3 +846,7 @@ Added supplied English cards to 60 existing notes across Gaussian splatting, dyn
 All 337 detailed bodies and 264 previous card/alias/figure blobs match baseline main. All 60 new images match supplied originals exactly. Before main publication, 233 cards are complete, 60 are reviewed/ready and 44 repository integrations remain unrecorded. External production state and GitHub browser rendering are not verified.
 
 Batch 006 validation: all 33 unit tests and all 12 default offline checks passed, including Markdown lint/format, seven-section schema, candidate reconciliation, README/index/category counts, internal links and cached links. Inventory exports and diff whitespace checks passed. Reviewed the original matching-revision PDFs for all 60 changed cards; 336 selected numeric tokens were additionally located in those PDFs. These token checks do not prove semantic attribution. Repository-wide PDF/live-link checks and GitHub browser layout were not run.
+
+## 2026-10-16 — Verify batch 006 on main
+
+PR #31 merged at `d0b4099060383c69d21fa3f4a9fd6ba7dd0f6d25` after CI passed. Fetched all 60 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 293 complete/published cards and 44 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
