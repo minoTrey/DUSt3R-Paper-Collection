@@ -812,3 +812,7 @@ All 337 detailed note-content hashes and all 104 existing card/alias and origina
 Inventory scope remains repository integration only: 73 previously published cards, 45 reviewed cards pending main verification and 219 notes without a recorded integration. External card production is unknown. GitHub browser pixel/layout verification and the full repository PDF suite are not claimed.
 
 Validation: 33 unit tests, all 12 default offline checks, inventory export consistency and `git diff --check` passed. No tracked files are deleted.
+
+## 2026-10-16 — Verify the 45-card batch on main
+
+PR #25 merged at `831c9c43a0615d39ff7b65d74bd7c9c5b39ad70b` after CI passed. Fetched all 45 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 118 complete/published cards and 219 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
