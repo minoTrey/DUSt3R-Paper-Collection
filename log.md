@@ -796,3 +796,9 @@ The central guide and exact JSON mapping retain all previous-to-current identiti
 ## 2026-10-16 — Verify the 42-card batch on main
 
 PR #22 merged at `c8367506df111a0466ea41c130fd6b98702ab5db` after CI passed. Fetched all 42 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 73 complete/published cards and 264 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
+
+## 2026-10-16 — Restore original CroCo and CroCo v2 figures
+
+Replaced six incorrect external figure URLs with complete figure regions extracted from the verified official PDFs: CroCo Figures 1-3 and CroCo v2 Figures 1,2,7. The old URLs returned the same NO IMAGE AVAILABLE placeholder even with HTTP200 and successful PNG decoding. The new assets retain every panel and original caption; each note links the exact PDF revision and page. No generated illustration replaces a paper figure.
+
+Checked image URLs in both notes and all 27 migrated notes: 56 unique URLs/paths, no missing relative files or additional copies of the placeholder. Original PDF hashes, page/crop coordinates, PNG hashes and the two figure-only note-snapshot revalidations are recorded in data/paper-figure-repairs/croco-2026-10-16.json. The seven-section summaries and all 73 summary-card PNGs remain unchanged. Browser pixel rendering is not verified.

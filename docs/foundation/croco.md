@@ -7,17 +7,17 @@
 [Original paper](https://arxiv.org/abs/2210.10716v2) · [Full-size English card](../../assets/paper-cards/en/foundation/croco.png)
 <!-- /PAPER-CARD -->
 
-![CroCo Overview](https://ar5iv.labs.arxiv.org/html/2210.10716/assets/x1.png)
+![CroCo Overview](../../assets/paper-figures/croco/figure-1.png)
 
-_Figure 1: CroCo cross-view completion task_
+_Figure 1: CroCo cross-view completion task. Source: [original PDF, p. 1](https://arxiv.org/pdf/2210.10716v2#page=1)._
 
-![CroCo Architecture](https://ar5iv.labs.arxiv.org/html/2210.10716/assets/x2.png)
+![CroCo reconstruction examples](../../assets/paper-figures/croco/figure-2.png)
 
-_Figure 2: CroCo reconstruction examples_
+_Figure 2: CroCo reconstruction examples. Source: [original PDF, p. 2](https://arxiv.org/pdf/2210.10716v2#page=2)._
 
-![CroCo Architecture](https://ar5iv.labs.arxiv.org/html/2210.10716/assets/x3.png)
+![CroCo Architecture](../../assets/paper-figures/croco/figure-3.png)
 
-_Figure 3: CroCo architecture_
+_Figure 3: CroCo architecture. Source: [original PDF, p. 3](https://arxiv.org/pdf/2210.10716v2#page=3)._
 
 ## 📋 Overview
 

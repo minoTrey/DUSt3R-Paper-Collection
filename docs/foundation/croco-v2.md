@@ -7,14 +7,14 @@
 [Original paper](https://arxiv.org/abs/2211.10408v3) · [Full-size English card](../../assets/paper-cards/en/foundation/croco-v2.png)
 <!-- /PAPER-CARD -->
 
-![CroCo v2](https://ar5iv.labs.arxiv.org/html/2211.10408/assets/x1.png)
-_Figure 1: CroCo v2 overview_
+![CroCo v2](../../assets/paper-figures/croco-v2/figure-1.png)
+_Figure 1: CroCo v2 overview. Source: [original PDF, p. 1](https://arxiv.org/pdf/2211.10408v3#page=1)._
 
-![CroCo v2](https://ar5iv.labs.arxiv.org/html/2211.10408/assets/x2.png)
-_Figure 2: CroCo v2 improvements_
+![CroCo v2](../../assets/paper-figures/croco-v2/figure-2.png)
+_Figure 2: CroCo v2 improvements. Source: [original PDF, p. 2](https://arxiv.org/pdf/2211.10408v3#page=2)._
 
-![CroCo v2](https://ar5iv.labs.arxiv.org/html/2211.10408/assets/x7.png)
-_Figure 7: CroCo v2 results_
+![CroCo v2](../../assets/paper-figures/croco-v2/figure-7.png)
+_Figure 7: CroCo v2 results. Source: [original PDF, p. 9](https://arxiv.org/pdf/2211.10408v3#page=9)._
 
 ## 📋 Overview
 
