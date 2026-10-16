@@ -1,5 +1,12 @@
 # InvSplat: Inverse Feed-Forward Scene Splatting (arXiv preprint (2026-07))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/invsplat.png" width="720" alt="English summary card for invsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/invsplat.png)
+
+[Original paper](https://arxiv.org/abs/2607.02301v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/invsplat.png)
+<!-- /PAPER-CARD -->
+
 ![invsplat — architecture](https://arxiv.org/html/2607.02301v1/x1.png)
 
 _InvSplat Overview (원논문 Fig. 1)_

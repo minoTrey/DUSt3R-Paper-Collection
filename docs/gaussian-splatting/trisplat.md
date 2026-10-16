@@ -1,5 +1,12 @@
 # TriSplat: Simulation-Ready Feed-Forward 3D Scene Reconstruction (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/trisplat.png" width="720" alt="English summary card for trisplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/trisplat.png)
+
+[Original paper](https://arxiv.org/abs/2605.26115v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/trisplat.png)
+<!-- /PAPER-CARD -->
+
 ![trisplat — architecture](https://arxiv.org/html/2605.26115v1/x1.png)
 
 _Overview of TriSplat (원논문 Fig. 2)_

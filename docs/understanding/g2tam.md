@@ -1,5 +1,12 @@
 # G2TAM: Geometry Grounded Track Anything Model (ICML 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/g2tam.png" width="720" alt="English summary card for g2tam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/g2tam.png)
+
+[Original paper](https://arxiv.org/abs/2607.03789v1) · [Full-size English card](../../assets/paper-cards/en/understanding/g2tam.png)
+<!-- /PAPER-CARD -->
+
 ![g2tam — architecture](https://arxiv.org/html/2607.03789v1/figures/model_v4.jpeg)
 
 _Overview of G2TAM (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # G-MASt3R-SfM: Graph-based View Pruning and Multi-Stage Optimization for Robust SfM (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/g-mast3r-sfm.png" width="720" alt="English summary card for g-mast3r-sfm: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/g-mast3r-sfm.png)
+
+[Original paper](https://arxiv.org/abs/2606.22856v1) · [Full-size English card](../../assets/paper-cards/en/pose/g-mast3r-sfm.png)
+<!-- /PAPER-CARD -->
+
 ![g-mast3r-sfm — architecture](https://arxiv.org/html/2606.22856v1/x1.png)
 
 _The overall pipeline of the proposed G-MASt3R-SfM (원논문 Fig. 1)_

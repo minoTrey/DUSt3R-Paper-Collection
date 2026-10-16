@@ -1,5 +1,12 @@
 # RoadVGGT: Road-Structure-Aware Feed-Forward Road Surface Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/roadvggt.png" width="720" alt="English summary card for roadvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/roadvggt.png)
+
+[Original paper](https://arxiv.org/abs/2607.23758v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/roadvggt.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Han Jiao, Chen Liu, Jiakai Sun, Zhanjie Zhang, Mengyuan Yang, Yimeng Li, Mofan Zhou, Kun Zhan, Lei Zhao

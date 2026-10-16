@@ -1,5 +1,12 @@
 # Wild3R: Feed-Forward 3D Gaussian Splatting from Unconstrained Sparse Photo Collections (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/wild3r.png" width="720" alt="English summary card for wild3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/wild3r.png)
+
+[Original paper](https://arxiv.org/abs/2606.11894v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/wild3r.png)
+<!-- /PAPER-CARD -->
+
 ![wild3r — architecture](https://arxiv.org/html/2606.11894v2/x1.png)
 
 _Given unconstrained photo collections and reference views, Wild3R reconstructs 3D scenes in the reference appearances without transient objects. (원논문 Fig. 1)_

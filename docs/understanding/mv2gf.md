@@ -1,5 +1,12 @@
 # MV2GF: Multi-view Pedestrian Detection with a Visual Geometric Foundation Model (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/mv2gf.png" width="720" alt="English summary card for mv2gf: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/mv2gf.png)
+
+[Original paper](https://arxiv.org/abs/2608.20639v1) · [Full-size English card](../../assets/paper-cards/en/understanding/mv2gf.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Taiga Yamane, Satoshi Suzuki, Ryo Masumura, Shota Orihashi, Tomohiro Tanaka, Mana Ihori, Naoki Makishima

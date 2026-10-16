@@ -1,5 +1,12 @@
 # Pixel-wise Geo-registration of Drone and Satellite Images (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/skyreg.png" width="720" alt="English summary card for skyreg: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/skyreg.png)
+
+[Original paper](https://arxiv.org/abs/2608.28891v1) · [Full-size English card](../../assets/paper-cards/en/pose/skyreg.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Qingyang Liu, David G Shatwell, Parth Parag Kulkarni, Mubarak Shah

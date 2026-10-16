@@ -1,5 +1,12 @@
 # Dust to Tower: Coarse-to-Fine Photo-Realistic Scene Reconstruction from Sparse Uncalibrated Images (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/dust-to-tower.png" width="720" alt="English summary card for dust-to-tower: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/dust-to-tower.png)
+
+[Original paper](https://arxiv.org/abs/2412.19518v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/dust-to-tower.png)
+<!-- /PAPER-CARD -->
+
 ![Dust to Tower Pipeline](https://arxiv.org/html/2412.19518v1/x1.png)
 _Dust to Tower achieves photo-realistic scene reconstruction through a coarse-to-fine approach with CCM, CADA, and WIGI modules_
 

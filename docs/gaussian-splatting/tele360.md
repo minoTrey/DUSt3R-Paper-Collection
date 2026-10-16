@@ -1,5 +1,12 @@
 # Tele360: Real-Time Feed-Forward Human Reconstruction from Sparse Unposed Cameras (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/tele360.png" width="720" alt="English summary card for tele360: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/tele360.png)
+
+[Original paper](https://arxiv.org/abs/2609.15032v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/tele360.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Hanzhang Tu, Zhanfeng Liao, Wei Min, Jiajun Zhang, Yebin Liu

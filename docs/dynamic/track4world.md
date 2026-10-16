@@ -1,5 +1,12 @@
 # Track4World: Feedforward World-centric Dense 3D Tracking of All Pixels (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/track4world.png" width="720" alt="English summary card for track4world: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/track4world.png)
+
+[Original paper](https://arxiv.org/abs/2603.02573v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/track4world.png)
+<!-- /PAPER-CARD -->
+
 ![track4world — architecture](https://arxiv.org/html/2603.02573v2/x1.png)
 
 _Overview (원논문 Fig. 2)_

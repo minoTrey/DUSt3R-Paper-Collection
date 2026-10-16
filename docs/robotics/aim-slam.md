@@ -1,5 +1,12 @@
 # AIM-SLAM: Dense Monocular SLAM via Adaptive and Informative Multi-View Keyframe Prioritization with Foundation Model (arXiv preprint 2026-03)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/aim-slam.png" width="720" alt="English summary card for aim-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/aim-slam.png)
+
+[Original paper](https://arxiv.org/abs/2603.05097v3) · [Full-size English card](../../assets/paper-cards/en/robotics/aim-slam.png)
+<!-- /PAPER-CARD -->
+
 ![aim-slam — architecture](https://arxiv.org/html/2603.05097v3/x2.png)
 
 _Overall architecture of AIM-SLAM (원논문 Fig. 2)_

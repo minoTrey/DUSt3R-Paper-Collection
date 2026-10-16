@@ -1,5 +1,12 @@
 # MV-SAM: Multi-view Promptable Segmentation using Pointmap Guidance (arXiv preprint 2026-01)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/mv-sam.png" width="720" alt="English summary card for mv-sam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/mv-sam.png)
+
+[Original paper](https://arxiv.org/abs/2601.17866v1) · [Full-size English card](../../assets/paper-cards/en/understanding/mv-sam.png)
+<!-- /PAPER-CARD -->
+
 ![mv-sam — architecture](https://arxiv.org/html/2601.17866/x1.png)
 
 _MV-SAM (원논문 Fig. 1)_

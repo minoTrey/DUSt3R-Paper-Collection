@@ -1,5 +1,12 @@
 # Survey-DUSt3R-to-VGGT: Review of Feed-forward 3D Reconstruction (JAICS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/survey-dust3r-to-vggt.png" width="720" alt="English summary card for survey-dust3r-to-vggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/survey-dust3r-to-vggt.png)
+
+[Original paper](https://arxiv.org/abs/2507.08448v1) · [Full-size English card](../../assets/paper-cards/en/surveys/survey-dust3r-to-vggt.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Wei Zhang, Yihang Wu, Songhua Li, Wenjie Ma, Xin Ma, Qiang Li, Qi Wang

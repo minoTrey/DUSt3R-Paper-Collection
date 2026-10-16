@@ -1,5 +1,12 @@
 # MEt3R: Measuring Multi-View Consistency in Generated Images (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/met3r.png" width="720" alt="English summary card for met3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/met3r.png)
+
+[Original paper](https://arxiv.org/abs/2501.06336v2) · [Full-size English card](../../assets/paper-cards/en/understanding/met3r.png)
+<!-- /PAPER-CARD -->
+
 ![MEt3R Method Overview](https://raw.githubusercontent.com/mohammadasim98/met3r/master/assets/method_overview.jpg)
 _MEt3R uses DUSt3R for geometry-aware warping and DINO features to measure multi-view consistency without camera poses_
 

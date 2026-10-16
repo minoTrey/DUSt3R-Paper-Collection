@@ -1,5 +1,12 @@
 # E3D-Bench: A Benchmark for End-to-End 3D Geometric Foundation Models (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/e3d-bench.png" width="720" alt="English summary card for e3d-bench: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/e3d-bench.png)
+
+[Original paper](https://arxiv.org/abs/2506.01933v3) · [Full-size English card](../../assets/paper-cards/en/surveys/e3d-bench.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Wenyan Cong, Yiqing Liang, Yancheng Zhang, Ziyi Yang, Yan Wang, Boris Ivanovic, Marco Pavone, Chen Chen, Zhangyang Wang, Zhiwen Fan

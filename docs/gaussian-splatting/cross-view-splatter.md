@@ -1,5 +1,12 @@
 # Cross-View Splatter: Feed-Forward View Synthesis with Georeferenced Images (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/cross-view-splatter.png" width="720" alt="English summary card for cross-view-splatter: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/cross-view-splatter.png)
+
+[Original paper](https://arxiv.org/abs/2605.19656v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/cross-view-splatter.png)
+<!-- /PAPER-CARD -->
+
 ![cross-view-splatter — architecture](https://arxiv.org/html/2605.19656v1/x2.png)
 
 _Method overview: Given geolocalized ground images and a single orthorectified satellite perspective, our model synthesizes 3D Gaussian splats in a… (원논문 Fig. 2)_

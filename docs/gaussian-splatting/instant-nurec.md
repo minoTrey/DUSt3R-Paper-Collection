@@ -1,5 +1,12 @@
 # Instant NuRec: Feed-Forward 3D Gaussian Reconstruction for Driving Scene Simulation (arXiv preprint (2026-07))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/instant-nurec.png" width="720" alt="English summary card for instant-nurec: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/instant-nurec.png)
+
+[Original paper](https://arxiv.org/abs/2607.14203v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/instant-nurec.png)
+<!-- /PAPER-CARD -->
+
 ![instant-nurec — architecture](https://arxiv.org/html/2607.14203v1/x2.png)
 
 _Pipeline overview (원논문 Fig. 2)_

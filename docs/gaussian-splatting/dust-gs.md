@@ -1,5 +1,12 @@
 # Dense Point Clouds Matter: Dust-GS for Scene Reconstruction from Sparse Viewpoints (ICASSP 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/dust-gs.png" width="720" alt="English summary card for dust-gs: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/dust-gs.png)
+
+[Original paper](https://arxiv.org/abs/2409.08613v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/dust-gs.png)
+<!-- /PAPER-CARD -->
+
 ![Dust-GS Framework](https://arxiv.org/html/2409.08613v1/x2.png)
 _Dust-GS framework estimates camera poses and registers point clouds using DUSt3R, initializes 3D Gaussian primitives, and optimizes them with RGB, depth, GPP, and dynamic depth masks_
 

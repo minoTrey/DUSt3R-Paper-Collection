@@ -1,5 +1,12 @@
 # Splatt3R: Zero-shot Gaussian Splatting from Uncalibrated Image Pairs (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/splatt3r.png" width="720" alt="English summary card for splatt3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/splatt3r.png)
+
+[Original paper](https://arxiv.org/abs/2408.13912v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/splatt3r.png)
+<!-- /PAPER-CARD -->
+
 ![Splatt3R Overview](https://splatt3r.active.vision/static/images/methodology.svg)
 _Splatt3R enables instant 3D Gaussian Splatting from uncalibrated image pairs by extending MASt3R with Gaussian parameter prediction_
 

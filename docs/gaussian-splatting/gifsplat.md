@@ -1,5 +1,12 @@
 # GIFSplat: Generative Prior-Guided Iterative Feed-Forward 3D Gaussian Splatting from Sparse Views (arXiv preprint (2026-02))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/gifsplat.png" width="720" alt="English summary card for gifsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/gifsplat.png)
+
+[Original paper](https://arxiv.org/abs/2602.22571v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/gifsplat.png)
+<!-- /PAPER-CARD -->
+
 ![gifsplat — architecture](https://arxiv.org/html/2602.22571v1/pics/overview.png)
 
 _Overview of GIFSplat (원논문 Fig. 2)_

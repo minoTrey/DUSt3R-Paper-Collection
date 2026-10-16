@@ -1,5 +1,12 @@
 # NemoSplat: Feed-Forward 4D Gaussian Splatting for Media-Aware Underwater Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/nemosplat.png" width="720" alt="English summary card for nemosplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/nemosplat.png)
+
+[Original paper](https://arxiv.org/abs/2608.22888v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/nemosplat.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Xiaopeng Guo, Wai Chung Tse, Yipeng Zhu, Hanwen Zhang, Huajian Huang, Sai-Kit Yeung

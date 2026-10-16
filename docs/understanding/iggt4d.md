@@ -1,5 +1,12 @@
 # IGGT4D: Streaming 4D Instance-Grounded Geometry Transformer (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/iggt4d.png" width="720" alt="English summary card for iggt4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/iggt4d.png)
+
+[Original paper](https://arxiv.org/abs/2607.19228v1) · [Full-size English card](../../assets/paper-cards/en/understanding/iggt4d.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhengyu Zou, Hao Li, Kuixuan Jiao, Liu Liu, Tingyang Xiao, Xiaolin Zhou, Fangzhou Hong, Zhizhong Su, Dingwen Zhang, Ziwei Liu

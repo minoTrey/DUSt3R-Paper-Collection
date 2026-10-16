@@ -1,5 +1,12 @@
 # FAST3DIS: Feed-forward Anchored Scene Transformer for 3D Instance Segmentation (arXiv preprint 2026-03)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/fast3dis.png" width="720" alt="English summary card for fast3dis: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/fast3dis.png)
+
+[Original paper](https://arxiv.org/abs/2603.25993v1) · [Full-size English card](../../assets/paper-cards/en/understanding/fast3dis.png)
+<!-- /PAPER-CARD -->
+
 ![fast3dis — architecture](https://arxiv.org/html/2603.25993v1/figs/overview.jpg)
 
 _Overview of the FAST3DIS framework (원논문 Fig. 1)_
