@@ -1,5 +1,12 @@
 # TrackCraft3R: Repurposing Video Diffusion Transformers for Dense 3D Tracking (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/trackcraft3r.png" width="720" alt="English summary card for trackcraft3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/trackcraft3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.12587v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/trackcraft3r.png)
+<!-- /PAPER-CARD -->
+
 ![trackcraft3r — architecture](https://arxiv.org/html/2605.12587v1/x1.png)
 
 _Overall architecture (원논문 Fig. 1)_

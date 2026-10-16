@@ -1,5 +1,12 @@
 # UFO: Unifying Feed-Forward and Optimization-based Methods for Large Driving Scene Modeling (arXiv preprint (2026-02))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/ufo.png" width="720" alt="English summary card for ufo: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/ufo.png)
+
+[Original paper](https://arxiv.org/abs/2602.20943v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/ufo.png)
+<!-- /PAPER-CARD -->
+
 ![ufo — architecture](https://arxiv.org/html/2602.20943/images/pipeline_v7.png)
 
 _Overview of our proposed framework (원논문 Fig. 2)_

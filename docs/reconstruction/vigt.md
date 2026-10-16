@@ -1,5 +1,12 @@
 # ViGT: Visual Implicit Geometry Transformer for Autonomous Driving (arXiv preprint 2026-02)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vigt.png" width="720" alt="English summary card for vigt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vigt.png)
+
+[Original paper](https://arxiv.org/abs/2602.05573v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vigt.png)
+<!-- /PAPER-CARD -->
+
 ![vigt — architecture](https://arxiv.org/html/2602.05573/x1.png)
 
 _Our architecture consists of three main components: (1) an image encoder (ViT-L) that independently processes each image and extracts feature tokens… (원논문 Fig. 2)_

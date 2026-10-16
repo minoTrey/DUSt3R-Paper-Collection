@@ -1,5 +1,12 @@
 # Dynamic Point Maps: A Versatile Representation for Dynamic 3D Reconstruction (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/dynamic-point-maps.png" width="720" alt="English summary card for dynamic-point-maps: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/dynamic-point-maps.png)
+
+[Original paper](https://arxiv.org/abs/2503.16318v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/dynamic-point-maps.png)
+<!-- /PAPER-CARD -->
+
 ![Dynamic Point Maps Overview](https://arxiv.org/html/2503.16318v1/x2.png)
 _Dynamic Point Maps extend standard point maps to support 4D tasks by predicting point maps at multiple timestamps_
 

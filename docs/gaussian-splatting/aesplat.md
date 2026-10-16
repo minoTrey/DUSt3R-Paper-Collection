@@ -1,5 +1,12 @@
 # AESplat: Advancing Pose-Free Feed-Forward 3D Gaussian Splatting via Decoupled Appearance Modeling (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/aesplat.png" width="720" alt="English summary card for aesplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/aesplat.png)
+
+[Original paper](https://arxiv.org/abs/2609.36693v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/aesplat.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Shiwei Ren, Zhiang Liu, Yongchun Fang, Hongwei Chen

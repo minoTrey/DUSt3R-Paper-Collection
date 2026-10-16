@@ -1,5 +1,12 @@
 # WorldReel: 4D Video Generation with Consistent Geometry and Motion Modeling (arXiv preprint (2025-12))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/worldreel.png" width="720" alt="English summary card for worldreel: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/worldreel.png)
+
+[Original paper](https://arxiv.org/abs/2512.07821v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/worldreel.png)
+<!-- /PAPER-CARD -->
+
 ![worldreel — architecture](https://arxiv.org/html/2512.07821/figures/figure2_v2.png)
 
 _Overview of WorldReel (원논문 Fig. 2)_

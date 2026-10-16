@@ -1,5 +1,12 @@
 # InstantSplat: Sparse-view Gaussian Splatting in Seconds (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/instantsplat.png" width="720" alt="English summary card for instantsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/instantsplat.png)
+
+[Original paper](https://arxiv.org/abs/2403.20309v6) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/instantsplat.png)
+<!-- /PAPER-CARD -->
+
 ![InstantSplat Pipeline](https://instantsplat.github.io/static/images/arc_v2.png)
 _InstantSplat combines MASt3R/DUSt3R 기반 초기화와 빠른 Gaussian 최적화로, Tanks and Temples 3-view에서 7.5초 만에 학습을 끝낸다 (원논문 Table 2)_
 

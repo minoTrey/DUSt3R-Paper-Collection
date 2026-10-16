@@ -1,5 +1,12 @@
 # GlobalSplat: Efficient Feed-Forward 3D Gaussian Splatting via Global Scene Tokens (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/globalsplat.png" width="720" alt="English summary card for globalsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/globalsplat.png)
+
+[Original paper](https://arxiv.org/abs/2604.15284v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/globalsplat.png)
+<!-- /PAPER-CARD -->
+
 ![globalsplat — architecture](https://arxiv.org/html/2604.15284v2/x5.png)
 
 _GlobalSplat Architecture Overview (원논문 Fig. 2)_

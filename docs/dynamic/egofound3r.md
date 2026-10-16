@@ -1,5 +1,12 @@
 # EgoFound3R: End-to-End Egocentric Hand Reconstruction in World Space with Point-Wise Interaction Attributes (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/egofound3r.png" width="720" alt="English summary card for egofound3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/egofound3r.png)
+
+[Original paper](https://arxiv.org/abs/2610.01210v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/egofound3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Hongming Fu, Jingcheng Shi, Wenjia Wang, Binhua Zuo, Bo Zhao

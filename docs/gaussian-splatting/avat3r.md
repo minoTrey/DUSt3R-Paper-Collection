@@ -1,5 +1,12 @@
 # AVAT3R: Large Animatable Gaussian Reconstruction Model for High-fidelity 3D Head Avatars (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/avat3r.png" width="720" alt="English summary card for avat3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/avat3r.png)
+
+[Original paper](https://arxiv.org/abs/2502.20220v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/avat3r.png)
+<!-- /PAPER-CARD -->
+
 ![AVAT3R Method](https://tobias-kirschstein.github.io/avat3r/static/images/avat3r_method.jpg)
 _AVAT3R creates animatable 3D head avatars from just 4 smartphone images using pixel-aligned 3D Gaussian prediction_
 

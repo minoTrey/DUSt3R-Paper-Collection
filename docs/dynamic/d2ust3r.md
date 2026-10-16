@@ -1,5 +1,12 @@
 # D²USt3R: Enhancing 3D Reconstruction with 4D Pointmaps for Dynamic Scenes (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/d2ust3r.png" width="720" alt="English summary card for d2ust3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/d2ust3r.png)
+
+[Original paper](https://arxiv.org/abs/2504.06264v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/d2ust3r.png)
+<!-- /PAPER-CARD -->
+
 ![D²USt3R Teaser](https://cvlab-kaist.github.io/DDUSt3R/assets/1_teaser.png)
 _D²USt3R extends DUSt3R to 4D pointmaps, accurately establishing dense correspondence in both static and dynamic regions_
 

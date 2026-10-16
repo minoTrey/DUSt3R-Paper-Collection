@@ -1,5 +1,12 @@
 # Continuous 3D Perception Model with Persistent State (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/cut3r.png" width="720" alt="English summary card for cut3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/cut3r.png)
+
+[Original paper](https://arxiv.org/abs/2501.12387v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/cut3r.png)
+<!-- /PAPER-CARD -->
+
 ![CUT3R Method](https://cut3r.github.io/static/images/method1_2-min.jpg)
 _CUT3R uses a stateful recurrent transformer for continuous online 3D reconstruction in a unified coordinate space_
 

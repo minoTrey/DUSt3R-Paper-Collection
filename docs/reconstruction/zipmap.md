@@ -1,5 +1,12 @@
 # ZipMap: Linear-Time Stateful 3D Reconstruction via Test-Time Training (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/zipmap.png" width="720" alt="English summary card for zipmap: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/zipmap.png)
+
+[Original paper](https://arxiv.org/abs/2603.04385v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/zipmap.png)
+<!-- /PAPER-CARD -->
+
 ![zipmap — architecture](https://arxiv.org/html/2603.04385v3/x2.png)
 
 _Method Overview (원논문 Fig. 2)_

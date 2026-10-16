@@ -1,5 +1,12 @@
 # MUT3R: Motion-aware Updating Transformer for Dynamic 3D Reconstruction (arXiv preprint (2025-12))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/mut3r.png" width="720" alt="English summary card for mut3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/mut3r.png)
+
+[Original paper](https://arxiv.org/abs/2512.03939v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/mut3r.png)
+<!-- /PAPER-CARD -->
+
 ![mut3r — architecture](https://arxiv.org/html/2512.03939/fig-head.png)
 
 _We present MUT3R, a training-free framework that derives motion cues from CUT3R’s attention maps and performs early-layer motion suppression to… (원논문 Fig. 1)_

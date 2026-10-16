@@ -1,5 +1,12 @@
 # UniScene3D: RGB-Pointmap Pretraining for Unified 3D Scene Understanding (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/uniscene3d.png" width="720" alt="English summary card for uniscene3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/uniscene3d.png)
+
+[Original paper](https://arxiv.org/abs/2604.02546v3) · [Full-size English card](../../assets/paper-cards/en/understanding/uniscene3d.png)
+<!-- /PAPER-CARD -->
+
 ![uniscene3d — architecture](https://arxiv.org/html/2604.02546v3/x2.png)
 
 _Overview of UniScene3D pretraining (원논문 Fig. 2)_

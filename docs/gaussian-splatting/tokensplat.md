@@ -1,5 +1,12 @@
 # TokenSplat: Token-aligned 3D Gaussian Splatting for Feed-forward Pose-free Reconstruction (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/tokensplat.png" width="720" alt="English summary card for tokensplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/tokensplat.png)
+
+[Original paper](https://arxiv.org/abs/2603.00697v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/tokensplat.png)
+<!-- /PAPER-CARD -->
+
 ![tokensplat — architecture](https://arxiv.org/html/2603.00697v1/img/pipeline.png)
 
 _Overview of TokenSplat (원논문 Fig. 1)_

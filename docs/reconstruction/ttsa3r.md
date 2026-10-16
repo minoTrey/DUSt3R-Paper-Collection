@@ -1,5 +1,12 @@
 # TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction (arXiv preprint 2026-01)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/ttsa3r.png" width="720" alt="English summary card for ttsa3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/ttsa3r.png)
+
+[Original paper](https://arxiv.org/abs/2601.22615v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/ttsa3r.png)
+<!-- /PAPER-CARD -->
+
 ![ttsa3r — architecture](https://arxiv.org/html/2601.22615v3/sec/imgs/TTSA3R.png)
 
 _Overview of our framework (원논문 Fig. 2)_

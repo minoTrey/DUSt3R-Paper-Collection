@@ -1,5 +1,12 @@
 # VGTW: Visual Geometry Transformer in the Wild — Distractor-Free 3D Reconstruction (arXiv preprint 2026-06)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt-wild.png" width="720" alt="English summary card for vggt-wild: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vggt-wild.png)
+
+[Original paper](https://arxiv.org/abs/2606.22787v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt-wild.png)
+<!-- /PAPER-CARD -->
+
 ![vggt-wild — architecture](https://arxiv.org/html/2606.22787v1/x1.png)
 
 _Our VGTW is a feed-forward method for distractor-free 3D reconstruction from inconsistent input images (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # Stereo4D: Learning How Things Move in 3D from Internet Stereo Videos (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/stereo4d.png" width="720" alt="English summary card for stereo4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/stereo4d.png)
+
+[Original paper](https://arxiv.org/abs/2412.09621v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/stereo4d.png)
+<!-- /PAPER-CARD -->
+
 ![stereo4d — architecture](https://arxiv.org/html/2412.09621/x2.png)
 
 _Data processing pipeline (원논문 Fig. 2)_

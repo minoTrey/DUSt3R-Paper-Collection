@@ -1,5 +1,12 @@
 # 4D-HOF: Hand-Object Flow Matching for Feed-Forward 4D Interaction Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/4d-hof.png" width="720" alt="English summary card for 4d-hof: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/4d-hof.png)
+
+[Original paper](https://arxiv.org/abs/2610.08782v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/4d-hof.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Shiqi Li, Sean Cho, Yijie Li, Fengzhi Guo, Bowen Wen, Cheng Zhang

@@ -1,5 +1,12 @@
 # RayMap3R: Inference-Time RayMap for Dynamic 3D Reconstruction (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/raymap3r.png" width="720" alt="English summary card for raymap3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/raymap3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.20588v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/raymap3r.png)
+<!-- /PAPER-CARD -->
+
 ![raymap3r — architecture](https://arxiv.org/html/2603.20588v1/x4.png)
 
 _Method Overview (원논문 Fig. 4)_

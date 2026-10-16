@@ -1,5 +1,12 @@
 # Feed-Forward Multi-view Multi-person Reconstruction with Contrastive Human-Aware 3D Representation (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/human-aware-multiview.png" width="720" alt="English summary card for human-aware-multiview: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/human-aware-multiview.png)
+
+[Original paper](https://arxiv.org/abs/2609.00745v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/human-aware-multiview.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Yuanwang Yang, Buzhen Huang, Zongxuan Ren, Jing Huang, Kun Li

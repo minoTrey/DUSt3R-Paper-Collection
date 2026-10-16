@@ -1,5 +1,12 @@
 # UniSH: Unifying Scene and Human Reconstruction in a Feed-Forward Pass (arXiv preprint 2026-01)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/unish.png" width="720" alt="English summary card for unish: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/unish.png)
+
+[Original paper](https://arxiv.org/abs/2601.01222v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/unish.png)
+<!-- /PAPER-CARD -->
+
 ![unish — architecture](https://arxiv.org/html/2601.01222/x1.png)
 
 _The network architecture of UniSH (원논문 Fig. 2)_

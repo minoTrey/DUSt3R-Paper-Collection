@@ -1,5 +1,12 @@
 # VGGT-Long: Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences (ICRA 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt-long.png" width="720" alt="English summary card for vggt-long: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vggt-long.png)
+
+[Original paper](https://arxiv.org/abs/2507.16443v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt-long.png)
+<!-- /PAPER-CARD -->
+
 ![vggt-long — architecture](https://arxiv.org/html/2507.16443v2/x2.png)
 
 _Overview of VGGT-Long (원논문 Fig. 2)_

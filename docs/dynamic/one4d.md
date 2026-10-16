@@ -1,5 +1,12 @@
 # One4D: Unified 4D Generation and Reconstruction via Decoupled LoRA Control (arXiv preprint (2025-11))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/one4d.png" width="720" alt="English summary card for one4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/one4d.png)
+
+[Original paper](https://arxiv.org/abs/2511.18922v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/one4d.png)
+<!-- /PAPER-CARD -->
+
 ![one4d — architecture](https://arxiv.org/html/2511.18922/x4.png)
 
 _Overview of the One4D framework (원논문 Fig. 4)_

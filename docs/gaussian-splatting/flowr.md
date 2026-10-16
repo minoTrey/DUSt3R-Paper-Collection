@@ -1,5 +1,12 @@
 # FlowR: Flowing from Sparse to Dense 3D Reconstructions (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/flowr.png" width="720" alt="English summary card for flowr: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/flowr.png)
+
+[Original paper](https://arxiv.org/abs/2504.01647v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/flowr.png)
+<!-- /PAPER-CARD -->
+
 ![FlowR Teaser](https://tobiasfshr.github.io/pub/flowr/teaser.gif)
 _FlowR uses flow matching to generate high-quality additional views, bridging the gap between sparse and dense 3D scene captures_
 

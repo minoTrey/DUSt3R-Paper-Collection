@@ -1,5 +1,12 @@
 # GAUGE: Group-Wise View-Inconsistency Rectification for Feed-Forward 4D Tracking (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/gauge.png" width="720" alt="English summary card for gauge: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/gauge.png)
+
+[Original paper](https://arxiv.org/abs/2609.32596v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/gauge.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhuoqian Feng, Weixing Chen, Ziliang Chen, Yang Liu, Liang Lin

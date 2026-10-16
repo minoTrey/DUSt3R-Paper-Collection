@@ -1,5 +1,12 @@
 # DensiTok: Making Feed-Forward 3D Gaussian Splatting See More Views Than It Is Given (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/densitok.png" width="720" alt="English summary card for densitok: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/densitok.png)
+
+[Original paper](https://arxiv.org/abs/2610.07958v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/densitok.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Minhyeok Lee, Jungho Lee, Minseok Kang, Heeseung Choi, Ig-Jae Kim, Sangyoun Lee

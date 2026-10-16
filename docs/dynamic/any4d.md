@@ -1,5 +1,12 @@
 # Any4D: Unified Feed-Forward Metric 4D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/any4d.png" width="720" alt="English summary card for any4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/any4d.png)
+
+[Original paper](https://arxiv.org/abs/2512.10935v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/any4d.png)
+<!-- /PAPER-CARD -->
+
 ![any4d — architecture](https://arxiv.org/html/2512.10935/x6.png)
 
 _Figure S.1: 4-View training is key to enabling multi-frame generalization during inference (원논문 Fig. 99)_

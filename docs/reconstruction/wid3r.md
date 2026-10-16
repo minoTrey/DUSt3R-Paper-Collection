@@ -1,5 +1,12 @@
 # Wid3R: Wide Field-of-View 3D Reconstruction via Camera Model Conditioning (arXiv preprint 2026-02)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/wid3r.png" width="720" alt="English summary card for wid3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/wid3r.png)
+
+[Original paper](https://arxiv.org/abs/2602.05321v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/wid3r.png)
+<!-- /PAPER-CARD -->
+
 ![wid3r — architecture](https://arxiv.org/html/2602.05321v2/x1.png)
 
 _Wid3R surpasses VGGT [wang2025vggt] and π3\pi^{3} [wang2025pi] in feed-forward reconstruction of fisheye and 360∘ imagery, demonstrating strong… (원논문 Fig. 1)_

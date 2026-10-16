@@ -1,5 +1,12 @@
 # Geo4D: Leveraging Video Generators for Geometric 4D Scene Reconstruction (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/geo4d.png" width="720" alt="English summary card for geo4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/geo4d.png)
+
+[Original paper](https://arxiv.org/abs/2504.07961v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/geo4d.png)
+<!-- /PAPER-CARD -->
+
 ![Geo4D Results](https://geo4d.github.io/resources/teaser_v3.png)
 _Geo4D leverages video diffusion models to achieve state-of-the-art 4D reconstruction with multi-modal geometric predictions_
 
