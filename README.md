@@ -42,7 +42,7 @@ This is a reading guide, not a performance ranking or a claim of direct lineage.
 
 ## Images to 3D
 
-![RGB observations enter learned geometry prediction. Depending on the method, outputs include pointmaps, depth and cameras; post-processing varies.](assets/images-to-3d.svg)
+![RGB observations enter learned geometry prediction. Depending on the method, outputs include pointmaps, depth and cameras; post-processing varies. Conceptual illustration, not a paper result or model prediction.](assets/images-to-3d-v2.png)
 
 A **pointmap** stores a 3D coordinate for each image pixel. Depth, camera parameters and confidence are related outputs, but their availability depends on the method.
 Separate input calibration, training supervision and inference-time optimization when comparing papers.
@@ -56,7 +56,7 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 **Learn a representation, reconstruct a scene, or follow it through time.**
 
-![Static reconstruction maps overlapping RGB views to a shared 3D scene. Dynamic reconstruction additionally represents changing geometry and motion across frames.](assets/task-geometry.svg)
+![Static reconstruction maps overlapping RGB views to a shared 3D scene. Dynamic reconstruction additionally represents changing geometry and motion across frames. Conceptual illustration, not a paper result or model prediction.](assets/task-geometry-v2.png)
 
 | Task / main folder                                            | Input → typical output                  | Reading tags / example                                                        |
 | ------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
@@ -68,7 +68,7 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 **Predict a new image, attach meaning to geometry, or infer what is hidden.**
 
-![Three different targets: Gaussian scene representations rendered from a new camera, semantic labels attached to observed geometry, and inferred structure behind an occluder. Hidden geometry is drawn dashed to mark inference.](assets/task-render-interpret.svg)
+![Three different targets: Gaussian scene representations rendered from a new camera, semantic labels attached to observed geometry, and inferred structure behind an occluder. Hidden geometry is drawn dashed to mark inference. Conceptual illustration, not a paper result or model prediction.](assets/task-render-interpret-v2.png)
 
 | Task / main folder                                                    | Input → typical output                           | Reading tags / example                                                 |
 | --------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
@@ -80,7 +80,7 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 **Estimate where the camera is, then use geometry for mapping or decisions.**
 
-![Pose estimation recovers camera position and orientation in a reference frame. A robot application combines geometry with a persistent map and goals to select actions; a map alone is not a navigation policy.](assets/task-pose-action.svg)
+![Pose estimation recovers camera position and orientation in a reference frame. A robot application combines geometry with a persistent map and goals to select actions; a map alone is not a navigation policy. Conceptual illustration, not a paper result or model prediction.](assets/task-pose-action-v2.png)
 
 | Task / main folder                                      | Input → typical output                                | Reading tags / example                                                     |
 | ------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
