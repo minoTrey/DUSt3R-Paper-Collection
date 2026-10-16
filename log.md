@@ -778,3 +778,9 @@ Validation before the category PR: all 12 offline checks, inventory consistency 
 ## [2026-10-16] Verify publication after category migration
 
 PR #19 merged at `5b81146a8035ddee61a58964baa0848cc4b90b37` after CI passed. Fetched all 27 canonical note sources and legacy move notices at that main commit, plus both old/new PNG URLs for the 25 moved cards. The note sources match and all 50 PNG hashes match their reviewed bytes. The six GitHub-rendered HTML checks used an identical tree to main and passed. Browser layout remains unverified. Progress now records the new canonical locations as published: 31 complete/published cards and 306 not started. The migration map and legacy aliases remain available for ongoing card-production jobs.
+
+## [2026-10-16] Show only the core models in the Foundation file list
+
+The generated Foundation index correctly listed five papers, but GitHub’s directory view also displayed 26 legacy move notices. After verifying all canonical destinations, complete paper sections and the existing card hashes, removed only those 26 `PAPER-REDIRECT` files. Foundation now physically contains its five canonical notes and README. Paper notes, original PNGs, compatibility PNG aliases and historical source-review records are preserved.
+
+The central guide and exact JSON mapping retain all previous-to-current identities and paths for card producers. Retired external GitHub file URLs do not automatically redirect. Internal Markdown links use canonical destinations. Migration validation now distinguishes intentionally retired notice files from retained notices and checks the physical Foundation directory contents.

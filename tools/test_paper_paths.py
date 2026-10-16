@@ -70,6 +70,16 @@ class PaperPathTests(unittest.TestCase):
         self.records.append({"file": "docs/foundation/extra.md", "cat": "foundation", "arxiv_id": "2601.00003"})
         self.assertTrue(any("approved core-model set" in e for e in paper_paths.migration_errors(self.root, self.records)))
 
+    def test_retired_notice_is_absent_and_mapping_still_resolves(self):
+        self.row["legacy_note_retained"] = False
+        self.data["foundation_directory_policy"] = "canonical_only"
+        self.write("data/paper-path-migrations.json", json.dumps(self.data))
+        self.write("docs/foundation/README.md", "# Core models\n")
+        self.assertTrue(any("retired compatibility" in e for e in paper_paths.migration_errors(self.root, self.records)))
+        (self.root / self.row["old_note_path"]).unlink()
+        self.assertEqual(paper_paths.migration_errors(self.root, self.records), [])
+        self.assertEqual(paper_paths.resolve("foundation/example", root=self.root), "extensions/example")
+
 
 if __name__ == "__main__":
     unittest.main()
