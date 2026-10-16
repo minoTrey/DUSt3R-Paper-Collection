@@ -1,5 +1,12 @@
 # GroupForward: Building Referable 3D Scenes via Instance-Grouped Feed-Forward Gaussian Splatting (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/groupforward.png" width="720" alt="English summary card for groupforward: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/groupforward.png)
+
+[Original paper](https://arxiv.org/abs/2608.17535v1) · [Full-size English card](../../assets/paper-cards/en/understanding/groupforward.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Qijian Tian, Zimeng Wu, Xuhong Wang, Lizhuang Ma, Xin Tan

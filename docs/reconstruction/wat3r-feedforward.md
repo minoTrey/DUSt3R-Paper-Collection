@@ -1,5 +1,12 @@
 # WAT3R: Feedforward Underwater 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/wat3r-feedforward.png" width="720" alt="English summary card for wat3r-feedforward: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/wat3r-feedforward.png)
+
+[Original paper](https://arxiv.org/abs/2607.21023v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/wat3r-feedforward.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jiayi Xu, Jiahao Lu, Ziqiang Zheng, Yihao Tan, Yaolong Zhu, Yuan Liu, Sai-Kit Yeung

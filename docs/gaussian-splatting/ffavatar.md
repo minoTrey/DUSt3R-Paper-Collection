@@ -1,5 +1,12 @@
 # FFAvatar: Feed-Forward 4D Head Avatar Reconstruction from Sparse Portrait Images (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/ffavatar.png" width="720" alt="English summary card for ffavatar: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/ffavatar.png)
+
+[Original paper](https://arxiv.org/abs/2606.30347v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/ffavatar.png)
+<!-- /PAPER-CARD -->
+
 ![ffavatar — architecture](https://arxiv.org/html/2606.30347v2/x2.png)
 
 _Overview of FFAvatar (원논문 Fig. 2)_

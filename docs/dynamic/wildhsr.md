@@ -1,5 +1,12 @@
 # WildHSR: Metric Feed-Forward 4D People-Scene Reconstruction from a 3D Foundation Model (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/wildhsr.png" width="720" alt="English summary card for wildhsr: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/wildhsr.png)
+
+[Original paper](https://arxiv.org/abs/2609.29106v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/wildhsr.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jerrin Bright, John Zelek

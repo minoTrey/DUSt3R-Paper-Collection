@@ -1,5 +1,12 @@
 # FF-ProCams: Feed-Forward Gaussian Splatting for Projector-Camera System (arXiv preprint 2026-07)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/ff-procams.png" width="720" alt="English summary card for ff-procams: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/ff-procams.png)
+
+[Original paper](https://arxiv.org/abs/2607.17803v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/ff-procams.png)
+<!-- /PAPER-CARD -->
+
 ![ff-procams — architecture](https://arxiv.org/html/2607.17803v1/x1.png)
 
 _Overview of our FF-ProCams framework (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # LGTM: Less Gaussians, Texture More — 4K Feed-Forward Textured Splatting (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/lgtm.png" width="720" alt="English summary card for lgtm: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/lgtm.png)
+
+[Original paper](https://arxiv.org/abs/2603.25745v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/lgtm.png)
+<!-- /PAPER-CARD -->
+
 ![lgtm — architecture](https://arxiv.org/html/2603.25745v1/x2.png)
 
 _LGTM Architecture (원논문 Fig. 2)_

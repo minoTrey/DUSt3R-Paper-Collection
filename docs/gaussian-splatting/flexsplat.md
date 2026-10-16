@@ -1,5 +1,12 @@
 # FlexSplat: Flexible Feed-Forward 3D Gaussian Splatting without Point Cloud Correspondence (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/flexsplat.png" width="720" alt="English summary card for flexsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/flexsplat.png)
+
+[Original paper](https://arxiv.org/abs/2608.07937v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/flexsplat.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Amir Sabbaghziarani, Hanting Ye, Maria Gorlatova, Yi Ding

@@ -1,5 +1,12 @@
 # POMATO: Marrying Pointmap Matching with Temporal Motion for Dynamic 3D Reconstruction (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/pomato.png" width="720" alt="English summary card for pomato: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/pomato.png)
+
+[Original paper](https://arxiv.org/abs/2504.05692v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/pomato.png)
+<!-- /PAPER-CARD -->
+
 ![POMATO Architecture](https://github.com/wyddmw/POMATO/blob/main/assets/teaser.png?raw=true)
 _POMATO combines explicit pointmap matching with temporal motion modeling for dynamic scene reconstruction_
 

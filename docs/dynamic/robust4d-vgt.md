@@ -1,5 +1,12 @@
 # Robust4D-VGT: Robust 4D Visual Geometry Transformer with Uncertainty-Aware Priors (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/robust4d-vgt.png" width="720" alt="English summary card for robust4d-vgt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/robust4d-vgt.png)
+
+[Original paper](https://arxiv.org/abs/2604.09366v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/robust4d-vgt.png)
+<!-- /PAPER-CARD -->
+
 ![robust4d-vgt — architecture](https://arxiv.org/html/2604.09366v1/x1.png)
 
 _Overview of the proposed framwwork. (원논문 Fig. 1)_

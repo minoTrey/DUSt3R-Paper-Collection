@@ -1,5 +1,12 @@
 # UniCon3R: Unified Contact-aware 4D Human-Scene Reconstruction from Monocular Video (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/unicon3r.png" width="720" alt="English summary card for unicon3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/unicon3r.png)
+
+[Original paper](https://arxiv.org/abs/2604.19923v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/unicon3r.png)
+<!-- /PAPER-CARD -->
+
 ![unicon3r — architecture](https://arxiv.org/html/2604.19923v2/figure/UniCon3R_architecture_new14.png)
 
 _Overview of UniCon3R (원논문 Fig. 2)_

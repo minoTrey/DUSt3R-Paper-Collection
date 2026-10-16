@@ -1,5 +1,12 @@
 # DeltaSplat: Iterative Gaussian Refinement for Pose-Free Feed-Forward 3D Gaussian Splatting (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/deltasplat.png" width="720" alt="English summary card for deltasplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/deltasplat.png)
+
+[Original paper](https://arxiv.org/abs/2610.09853v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/deltasplat.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Chanung Park, Seunghyeon Song, Joo Chan Lee, Eunbyung Park, Jong Hwan Ko

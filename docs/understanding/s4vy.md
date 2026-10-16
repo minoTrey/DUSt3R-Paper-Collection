@@ -1,5 +1,12 @@
 # S4VY: Segment Anything in Feed-Forward 4D Visual Geometry (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/s4vy.png" width="720" alt="English summary card for s4vy: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/s4vy.png)
+
+[Original paper](https://arxiv.org/abs/2609.36875v2) · [Full-size English card](../../assets/paper-cards/en/understanding/s4vy.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jingdong Zhang, Xin Li, Jan Kautz, Wenping Wang, Chris Choy

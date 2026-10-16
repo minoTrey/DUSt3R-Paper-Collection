@@ -1,5 +1,12 @@
 # Human3R: Everyone Everywhere All at Once (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/human3r.png" width="720" alt="English summary card for human3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/human3r.png)
+
+[Original paper](https://arxiv.org/abs/2510.06219v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/human3r.png)
+<!-- /PAPER-CARD -->
+
 ![human3r — pipeline](https://fanegg.github.io/Human3R/static/images/fig_pipe.png)
 
 _전체 파이프라인 (저자 project page)_

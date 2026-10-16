@@ -1,5 +1,12 @@
 # EPS3D: End-to-End Feed-Forward 3D Panoptic Segmentation (ICML 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/eps3d.png" width="720" alt="English summary card for eps3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/eps3d.png)
+
+[Original paper](https://arxiv.org/abs/2606.08980v1) · [Full-size English card](../../assets/paper-cards/en/understanding/eps3d.png)
+<!-- /PAPER-CARD -->
+
 ![eps3d — overview](https://raw.githubusercontent.com/Runsong123/EPS3D/main/assets/Overview.png)
 
 _전체 개요 (저자 project page)_

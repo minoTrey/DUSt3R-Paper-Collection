@@ -1,5 +1,12 @@
 # OmniX: Any-view and Any-time 4D Reconstruction via Feed-forward Trajectory Fields (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/omnix.png" width="720" alt="English summary card for omnix: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/omnix.png)
+
+[Original paper](https://arxiv.org/abs/2607.10840v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/omnix.png)
+<!-- /PAPER-CARD -->
+
 ![omnix — architecture](https://arxiv.org/html/2607.10840v1/x1.png)
 
 _Framework of OmniX (원논문 Fig. 1)_

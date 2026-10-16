@@ -1,5 +1,12 @@
 # PanSt3R: Multi-view Consistent Panoptic Segmentation (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/panst3r.png" width="720" alt="English summary card for panst3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/panst3r.png)
+
+[Original paper](https://arxiv.org/abs/2506.21348v1) · [Full-size English card](../../assets/paper-cards/en/understanding/panst3r.png)
+<!-- /PAPER-CARD -->
+
 ![panst3r — architecture](https://arxiv.org/html/2506.21348/x1.png)
 
 _Architecture of PanSt3R (원논문 Fig. 1)_

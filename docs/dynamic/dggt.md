@@ -1,5 +1,12 @@
 # DGGT: Feedforward 4D Reconstruction of Dynamic Driving Scenes using Unposed Images (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/dggt.png" width="720" alt="English summary card for dggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/dggt.png)
+
+[Original paper](https://arxiv.org/abs/2512.03004v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/dggt.png)
+<!-- /PAPER-CARD -->
+
 ![dggt — architecture](https://arxiv.org/html/2512.03004/x3.png)
 
 _Overall Architecture (원논문 Fig. 2)_

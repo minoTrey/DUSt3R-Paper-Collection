@@ -1,5 +1,12 @@
 # WildSplat: Feedforward Gaussian Splatting from Unposed In-the-Wild Images (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/wildsplat.png" width="720" alt="English summary card for wildsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/wildsplat.png)
+
+[Original paper](https://arxiv.org/abs/2607.05347v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/wildsplat.png)
+<!-- /PAPER-CARD -->
+
 ![wildsplat — architecture](https://arxiv.org/html/2607.05347v1/x2.png)
 
 _Overview of WildSplat (원논문 Fig. 2)_

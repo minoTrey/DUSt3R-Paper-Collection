@@ -826,3 +826,11 @@ Before publication, 118 cards are complete, 55 are reviewed/ready, and 164 repos
 ## 2026-10-16 — Verify the 55-card batch on main
 
 PR #27 merged at `4afb25dfd388b49d3b3883ea64de97b248c89386` after CI passed. Fetched all 55 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 173 complete/published cards and 164 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
+
+## 2026-10-16 — Review and stage the fixed 60-card batch 005
+
+Added supplied English cards to 60 existing dynamic, reconstruction, Gaussian-splatting and understanding notes. Opened every actual image and read matching-revision paper methods, result attribution and limitations. The audit records source/PDF hashes, dataset/protocol attribution and supplemental numeric-token locations. Source qualifications include Robust4D-VGT training/head ambiguity, VGGT-Edit inconsistent latency, MUT3R softmax-equation caveats and AdaptiveSplat allocation equations; the last has an explicit note below the card. All 337 detailed bodies and 204 previous card/alias/figure blobs match baseline main, and all 60 new PNGs are byte-identical to supplied originals. No new papers or measurements are introduced.
+
+Before publication, 173 cards are complete, 60 are reviewed/ready, and 104 repository integrations remain unrecorded; external production state is unknown. Browser rendering is unverified. Main publication evidence will be recorded after validation.
+
+Batch 005 validation: all 33 unit tests and all 12 default offline checks passed, including Markdown lint/format, seven-section schema, candidate reconciliation, README/index/category counts, internal links and cached links. Inventory exports and diff whitespace checks passed. Reviewed the original matching-revision PDFs for all 60 changed cards; 211 selected numeric tokens were additionally located in those PDFs. These token checks do not prove semantic attribution. Repository-wide PDF/live-link checks and GitHub browser layout were not run.

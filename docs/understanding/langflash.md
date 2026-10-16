@@ -1,5 +1,12 @@
 # LangFlash: Feed-forward 3D Language Gaussian Splatting from Sparse Unposed Images (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/langflash.png" width="720" alt="English summary card for langflash: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/langflash.png)
+
+[Original paper](https://arxiv.org/abs/2605.23287v1) · [Full-size English card](../../assets/paper-cards/en/understanding/langflash.png)
+<!-- /PAPER-CARD -->
+
 ![langflash — architecture](https://arxiv.org/html/2605.23287v1/x2.png)
 
 _The overall architecture of LangFlash is illustrated as follows (원논문 Fig. 2)_

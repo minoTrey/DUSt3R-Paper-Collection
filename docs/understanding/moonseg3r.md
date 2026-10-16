@@ -1,5 +1,12 @@
 # MoonSeg3R: Monocular Online Zero-Shot Segment Anything in 3D with Reconstructive Foundation Priors (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/moonseg3r.png" width="720" alt="English summary card for moonseg3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/moonseg3r.png)
+
+[Original paper](https://arxiv.org/abs/2512.15577v2) · [Full-size English card](../../assets/paper-cards/en/understanding/moonseg3r.png)
+<!-- /PAPER-CARD -->
+
 ![moonseg3r — architecture](https://arxiv.org/html/2512.15577v2/x1.png)
 
 _Previous VFM-assisted Online Paradigm v.s (원논문 Fig. 1)_

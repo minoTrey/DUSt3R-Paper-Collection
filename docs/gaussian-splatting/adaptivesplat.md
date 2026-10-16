@@ -1,5 +1,14 @@
 # AdaptiveSplat: Texture Aware Controllable 3D Gaussian Allocation for Feed-Forward Reconstruction (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/adaptivesplat.png" width="720" alt="English summary card for adaptivesplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/adaptivesplat.png)
+
+[Original paper](https://arxiv.org/abs/2607.04256v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/adaptivesplat.png)
+**Source qualification:** The card follows Figure 4 and its description of retaining high-energy regions. Section 3.2’s budget/index equations do not fully specify the same allocation; an exact implementation of that pruning rule requires clarification. The supplied PNG is preserved unchanged.
+
+<!-- /PAPER-CARD -->
+
 ![adaptivesplat — architecture](https://arxiv.org/html/2607.04256v1/x1.png)
 
 _Overview: We demonstrate AdaptiveSplat’s ability to maintain scene fidelity while controlling the allocation of primitives (원논문 Fig. 1)_

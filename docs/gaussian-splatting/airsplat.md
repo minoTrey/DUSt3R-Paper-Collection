@@ -1,5 +1,12 @@
 # AirSplat: Alignment and Rating for Robust Feed-Forward 3D Gaussian Splatting (arXiv preprint 2026-03)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/airsplat.png" width="720" alt="English summary card for airsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/airsplat.png)
+
+[Original paper](https://arxiv.org/abs/2603.25129v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/airsplat.png)
+<!-- /PAPER-CARD -->
+
 ![airsplat — architecture](https://arxiv.org/html/2603.25129v1/figures/main_architecture.png)
 
 _Overview of our AirSplat training pipeline (원논문 Fig. 2)_

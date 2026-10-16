@@ -1,5 +1,12 @@
 # Align3R: Aligned Monocular Depth Estimation for Dynamic Videos (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/align3r.png" width="720" alt="English summary card for align3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/align3r.png)
+
+[Original paper](https://arxiv.org/abs/2412.03079v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/align3r.png)
+<!-- /PAPER-CARD -->
+
 ![Align3R Framework](https://igl-hkust.github.io/Align3R.github.io/static/img/framework_00.jpg)
 _Align3R combines monocular depth estimation with DUSt3R to achieve temporally consistent depth for dynamic videos_
 

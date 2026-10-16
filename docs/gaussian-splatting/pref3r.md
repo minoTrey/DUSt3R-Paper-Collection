@@ -1,5 +1,12 @@
 # PreF3R: Pose-Free Feed-Forward 3D Gaussian Splatting from Variable-length Image Sequence (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/pref3r.png" width="720" alt="English summary card for pref3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/pref3r.png)
+
+[Original paper](https://arxiv.org/abs/2411.16877v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/pref3r.png)
+<!-- /PAPER-CARD -->
+
 ![PreF3R Method](https://computationalrobotics.seas.harvard.edu/PreF3R/static/images/method.jpg)
 _PreF3R enables feed-forward 3D Gaussian Splatting using spatial memory networks for variable-length sequences_
 

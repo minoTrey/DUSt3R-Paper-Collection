@@ -1,5 +1,12 @@
 # Easi3R: Estimating Disentangled Motion from DUSt3R Without Training (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/easi3r.png" width="720" alt="English summary card for easi3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/easi3r.png)
+
+[Original paper](https://arxiv.org/abs/2503.24391v3) · [Full-size English card](../../assets/paper-cards/en/dynamic/easi3r.png)
+<!-- /PAPER-CARD -->
+
 ![Easi3R Pipeline](https://easi3r.github.io/static/images/fig_pipe.png)
 _Easi3R extracts motion information from DUSt3R's attention maps without any additional training_
 

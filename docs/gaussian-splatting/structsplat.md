@@ -1,5 +1,12 @@
 # StructSplat: Generalizable 3D Gaussian Splatting from Uncalibrated Sparse Views (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/structsplat.png" width="720" alt="English summary card for structsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/structsplat.png)
+
+[Original paper](https://arxiv.org/abs/2606.28321v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/structsplat.png)
+<!-- /PAPER-CARD -->
+
 ![structsplat — overview](https://raw.githubusercontent.com/J-C-Zhao/StructSplat/main/asserts/demo.jpeg)
 
 _전체 개요 (저자 project page)_

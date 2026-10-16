@@ -1,5 +1,12 @@
 # VGGT-Edit: Feed-forward Native 3D Scene Editing with Residual Field Prediction (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt-edit.png" width="720" alt="English summary card for vggt-edit: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vggt-edit.png)
+
+[Original paper](https://arxiv.org/abs/2605.15186v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt-edit.png)
+<!-- /PAPER-CARD -->
+
 ![vggt-edit — architecture](https://arxiv.org/html/2605.15186v2/x2.png)
 
 _The DeltaScene Data Pipeline (원논문 Fig. 2)_

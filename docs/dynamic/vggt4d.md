@@ -1,5 +1,12 @@
 # VGGT4D: Mining Motion Cues in Visual Geometry Transformers for 4D Scene Reconstruction (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/vggt4d.png" width="720" alt="English summary card for vggt4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/vggt4d.png)
+
+[Original paper](https://arxiv.org/abs/2511.19971v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/vggt4d.png)
+<!-- /PAPER-CARD -->
+
 ![vggt4d — architecture](https://arxiv.org/html/2511.19971/x2.png)
 
 _Overview of VGGT4D (원논문 Fig. 2)_
