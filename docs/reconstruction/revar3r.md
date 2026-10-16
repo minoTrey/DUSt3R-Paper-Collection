@@ -1,5 +1,12 @@
 # ReVar3R: Gauge-Aware Perturbation Uncertainty for Feed-Forward 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/revar3r.png" width="720" alt="English summary card for revar3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/revar3r.png)
+
+[Original paper](https://arxiv.org/abs/2610.07883v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/revar3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Sammam Mahdi, Fariha Binta Salim, Rakin Bin Rabbani, Aniqua Nusrat Zereen

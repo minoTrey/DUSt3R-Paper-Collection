@@ -1,5 +1,12 @@
 # ReCal3R: Reliability-Calibrated Learning Rates for Streaming 3D Reconstruction (arXiv preprint (2026-07))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/recal3r.png" width="720" alt="English summary card for recal3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/recal3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.05356v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/recal3r.png)
+<!-- /PAPER-CARD -->
+
 ![recal3r — architecture](https://arxiv.org/html/2607.05356v2/x1.png)
 
 _Given the current image and the recurrent scene state, ReCal3R derives a candidate learning rate and estimates state token reliability from… (원논문 Fig. 1)_

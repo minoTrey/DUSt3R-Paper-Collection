@@ -1,5 +1,12 @@
 # LoGeR: Long-Context Geometric Reconstruction with Hybrid Memory (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/loger.png" width="720" alt="English summary card for loger: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/loger.png)
+
+[Original paper](https://arxiv.org/abs/2603.03269v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/loger.png)
+<!-- /PAPER-CARD -->
+
 ![loger — architecture](https://arxiv.org/html/2603.03269v2/x2.png)
 
 _Overview of a single block of our hybrid memory module (원논문 Fig. 2)_

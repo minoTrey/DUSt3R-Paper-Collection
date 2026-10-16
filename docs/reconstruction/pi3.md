@@ -1,5 +1,12 @@
 # π³: Scalable Permutation-Equivariant Visual Geometry Learning (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/pi3.png" width="720" alt="English summary card for pi3: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/pi3.png)
+
+[Original paper](https://arxiv.org/abs/2507.13347v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/pi3.png)
+<!-- /PAPER-CARD -->
+
 ![Pi3 Teaser](https://yyfz.github.io/pi3/assets/images/main.png)
 _π³ achieves true permutation equivariance in visual geometry through symmetric architecture design_
 

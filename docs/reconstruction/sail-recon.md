@@ -1,5 +1,12 @@
 # SAIL-Recon: Large SfM by Augmenting Scene Regression with Localization (3DV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/sail-recon.png" width="720" alt="English summary card for sail-recon: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/sail-recon.png)
+
+[Original paper](https://arxiv.org/abs/2508.17972v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/sail-recon.png)
+<!-- /PAPER-CARD -->
+
 ![sail-recon — architecture](https://arxiv.org/html/2508.17972/x1.png)
 
 _Architecture Overview (원논문 Fig. 2)_

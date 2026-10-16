@@ -1,5 +1,12 @@
 # OVGGT: O(1) Constant-Cost Streaming Visual Geometry Transformer (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/ovggt.png" width="720" alt="English summary card for ovggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/ovggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.05959v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/ovggt.png)
+<!-- /PAPER-CARD -->
+
 ![ovggt — architecture](https://arxiv.org/html/2603.05959v3/x1.png)
 
 _Overview of OVGGT (원논문 Fig. 1)_

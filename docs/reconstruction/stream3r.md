@@ -1,5 +1,12 @@
 # STream3R: Scalable Sequential 3D Reconstruction with Causal Transformer (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/stream3r.png" width="720" alt="English summary card for stream3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/stream3r.png)
+
+[Original paper](https://arxiv.org/abs/2508.10893v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/stream3r.png)
+<!-- /PAPER-CARD -->
+
 ![stream3r — architecture](https://arxiv.org/html/2508.10893/x1.png)
 
 _STream3R (원논문 Fig. 1)_

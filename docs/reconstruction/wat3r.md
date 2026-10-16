@@ -1,5 +1,12 @@
 # Wat3R: Underwater 3D Geometry Learning without Annotations (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/wat3r.png" width="720" alt="English summary card for wat3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/wat3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.08772v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/wat3r.png)
+<!-- /PAPER-CARD -->
+
 ![wat3r — architecture](https://arxiv.org/html/2607.08772v1/x9.png)
 
 _Figure A2: Synthetic underwater rendering examples (원논문 Fig. 99)_

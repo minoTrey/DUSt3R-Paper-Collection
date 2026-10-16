@@ -1,5 +1,12 @@
 # StereoVGGT: A Training-Free Visual Geometry Transformer for Stereo Vision (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/stereovggt.png" width="720" alt="English summary card for stereovggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/stereovggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.29368v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/stereovggt.png)
+<!-- /PAPER-CARD -->
+
 ![stereovggt — architecture](https://arxiv.org/html/2603.29368v1/x3.png)
 
 _VGGT suffers from spatial-structural degradation during its feature processing (원논문 Fig. 3)_

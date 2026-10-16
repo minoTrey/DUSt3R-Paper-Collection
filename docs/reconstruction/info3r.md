@@ -1,5 +1,12 @@
 # Info3R: Information-Adaptive Test-Time Training for 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/info3r.png" width="720" alt="English summary card for info3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/info3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.21938v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/info3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Sunghyun Baek, Hanna Bae, Minchan Kwon, Junmo Kim

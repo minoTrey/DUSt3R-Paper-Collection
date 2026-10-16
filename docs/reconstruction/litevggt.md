@@ -1,5 +1,12 @@
 # LiteVGGT: Boosting Vanilla VGGT via Geometry-aware Cached Token Merging (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/litevggt.png" width="720" alt="English summary card for litevggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/litevggt.png)
+
+[Original paper](https://arxiv.org/abs/2512.04939v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/litevggt.png)
+<!-- /PAPER-CARD -->
+
 ![litevggt — architecture](https://arxiv.org/html/2512.04939/x2.png)
 
 _Architecture Overview (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # From Feed-Forward to Flow: Unifying Reconstruction and Generation Is Easier Than You Think (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/just3r.png" width="720" alt="English summary card for just3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/just3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.32761v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/just3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Haoru Wang, Qianfan Shen, Kai Ye, Wenzheng Chen, Baoquan Chen

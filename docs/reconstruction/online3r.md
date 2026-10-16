@@ -1,5 +1,12 @@
 # Online3R: Online Learning for Consistent Sequential Reconstruction Based on Geometry Foundation Model (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/online3r.png" width="720" alt="English summary card for online3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/online3r.png)
+
+[Original paper](https://arxiv.org/abs/2604.09480v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/online3r.png)
+<!-- /PAPER-CARD -->
+
 ![online3r — architecture](https://arxiv.org/html/2604.09480v1/x1.png)
 
 _Overview of our proposed Online3R (원논문 Fig. 1)_

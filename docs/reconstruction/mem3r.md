@@ -1,5 +1,12 @@
 # Mem3R: Streaming 3D Reconstruction with Hybrid Memory via Test-Time Training (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/mem3r.png" width="720" alt="English summary card for mem3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/mem3r.png)
+
+[Original paper](https://arxiv.org/abs/2604.07279v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/mem3r.png)
+<!-- /PAPER-CARD -->
+
 ![mem3r — architecture](https://arxiv.org/html/2604.07279v1/x2.png)
 
 _Overview of Mem3R (원논문 Fig. 2)_

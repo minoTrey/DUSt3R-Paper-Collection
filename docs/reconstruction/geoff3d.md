@@ -1,5 +1,12 @@
 # GeoFF3D: Coordinate-Anchored Feed-Forward Reconstruction for Large-Scale UAV Mapping (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/geoff3d.png" width="720" alt="English summary card for geoff3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/geoff3d.png)
+
+[Original paper](https://arxiv.org/abs/2608.28288v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/geoff3d.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Xiang Yang, Yongli Wang, Yunsheng Zhang, Jun Li, Hao Chen, Haifeng Li

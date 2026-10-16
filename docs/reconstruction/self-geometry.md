@@ -1,5 +1,12 @@
 # Self-Geometry: GT-Free and Plug-and-Play Test-Time Adaptation for Geometrically Consistent 3D Vision Foundation Models (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/self-geometry.png" width="720" alt="English summary card for self-geometry: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/self-geometry.png)
+
+[Original paper](https://arxiv.org/abs/2608.10708v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/self-geometry.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Seokhyun Youn, Dahyeon Kye, Sung-Ho Bae, Jihyong Oh

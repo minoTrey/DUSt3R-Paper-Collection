@@ -1,5 +1,12 @@
 # MoGe: Unlocking Accurate Monocular Geometry Estimation for Open-Domain Images (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/moge.png" width="720" alt="English summary card for moge: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/moge.png)
+
+[Original paper](https://arxiv.org/abs/2410.19115v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/moge.png)
+<!-- /PAPER-CARD -->
+
 ![MoGe Overview](https://wangrc.site/MoGePage/static/images/overview.png)
 _MoGe enables accurate monocular geometry estimation on diverse open-domain images through affine-invariant representation and robust training strategies_
 

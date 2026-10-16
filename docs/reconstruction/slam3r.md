@@ -1,5 +1,12 @@
 # SLAM3R: Real-Time Dense Scene Reconstruction from Monocular RGB Videos (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/slam3r.png" width="720" alt="English summary card for slam3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/slam3r.png)
+
+[Original paper](https://arxiv.org/abs/2412.09401v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/slam3r.png)
+<!-- /PAPER-CARD -->
+
 ![SLAM3R Demo](https://raw.githubusercontent.com/PKU-VCL-3DV/SLAM3R/main/media/replica.gif)
 _SLAM3R achieves real-time dense 3D reconstruction with two-hierarchy networks: I2P for local geometry and L2W for global alignment_
 

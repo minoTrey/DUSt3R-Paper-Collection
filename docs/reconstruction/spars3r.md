@@ -1,5 +1,12 @@
 # SPARS3R: Semantic Prior Alignment and Regularization for Sparse 3D Reconstruction (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/spars3r.png" width="720" alt="English summary card for spars3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/spars3r.png)
+
+[Original paper](https://arxiv.org/abs/2411.12592v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/spars3r.png)
+<!-- /PAPER-CARD -->
+
 ![SPARS3R Pipeline](https://raw.githubusercontent.com/snldmt/SPARS3R/main/assets/pipeline.png)
 _SPARS3R fuses DUSt3R priors with SfM calibration using semantic-aware alignment for high-quality sparse-view reconstruction_
 

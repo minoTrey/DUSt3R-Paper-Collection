@@ -1,5 +1,12 @@
 # HorizonStream: Long-Horizon Attention for Streaming 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/horizonstream.png" width="720" alt="English summary card for horizonstream: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/horizonstream.png)
+
+[Original paper](https://arxiv.org/abs/2605.23889v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/horizonstream.png)
+<!-- /PAPER-CARD -->
+
 ![horizonstream — architecture](https://arxiv.org/html/2605.23889v1/x2.png)
 
 _Visualization of long-range streaming 3D reconstruction across diverse scenes (원논문 Fig. 2)_

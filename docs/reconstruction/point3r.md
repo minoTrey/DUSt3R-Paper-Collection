@@ -1,5 +1,12 @@
 # Point3R: Streaming 3D Reconstruction with Explicit Spatial Pointer Memory (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/point3r.png" width="720" alt="English summary card for point3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/point3r.png)
+
+[Original paper](https://arxiv.org/abs/2507.02863v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/point3r.png)
+<!-- /PAPER-CARD -->
+
 ![point3r — architecture](https://arxiv.org/html/2507.02863/x2.png)
 
 _Overview of Point3R (원논문 Fig. 2)_

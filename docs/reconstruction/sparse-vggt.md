@@ -1,5 +1,12 @@
 # Sparse-VGGT: Block-Sparse Global Attention for Efficient Multi-View Geometry Transformers (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/sparse-vggt.png" width="720" alt="English summary card for sparse-vggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/sparse-vggt.png)
+
+[Original paper](https://arxiv.org/abs/2509.07120v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/sparse-vggt.png)
+<!-- /PAPER-CARD -->
+
 ![sparse-vggt — architecture](https://brianwang00001.github.io/sparse-vggt/static/images/vggt_arch_overview.jpg)
 
 _모델 아키텍처 (저자 project page)_

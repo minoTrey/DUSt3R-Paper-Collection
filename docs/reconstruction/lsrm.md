@@ -1,5 +1,12 @@
 # LSRM: High-Fidelity Object-Centric Reconstruction via Scaled Context Windows (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/lsrm.png" width="720" alt="English summary card for lsrm: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/lsrm.png)
+
+[Original paper](https://arxiv.org/abs/2604.05182v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/lsrm.png)
+<!-- /PAPER-CARD -->
+
 ![lsrm — architecture](https://arxiv.org/html/2604.05182v2/x2.png)
 
 _Network architecture of LSRM (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # MAGiSt3R: Multi-Agent Feed-forward 3D Reconstruction from Monocular RGB Videos (arXiv preprint (2026-07))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/magist3r.png" width="720" alt="English summary card for magist3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/magist3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.15211v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/magist3r.png)
+<!-- /PAPER-CARD -->
+
 ![magist3r — architecture](https://arxiv.org/html/2607.15211v1/x1.png)
 
 _Overview of MAGiSt3R (원논문 Fig. 2)_

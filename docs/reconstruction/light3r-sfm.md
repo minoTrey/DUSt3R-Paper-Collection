@@ -1,5 +1,12 @@
 # Light3R-SfM: Towards Feed-forward Structure-from-Motion (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/light3r-sfm.png" width="720" alt="English summary card for light3r-sfm: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/light3r-sfm.png)
+
+[Original paper](https://arxiv.org/abs/2501.14914v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/light3r-sfm.png)
+<!-- /PAPER-CARD -->
+
 ![Light3R Pipeline](https://selflein.github.io/Light3R/static/images/pipeline_4.png)
 _Light3R achieves 49× speedup in SfM through learnable global alignment, reconstructing 200 images in 33 seconds_
 
