@@ -1,5 +1,9 @@
 # Pose Estimation
 
+[<img src="../../assets/category-thumbnails/pose.png" width="640" alt="Camera frustums and coordinate axes around a shared room point cloud; conceptual illustration, not estimated camera poses." />](../../assets/category-thumbnails/pose.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 📍 Overview
 
 Estimate camera or object position and orientation, either relative to another view or in a reference map. Compare scale assumptions, available reference information and the trajectory-alignment protocol before comparing errors.

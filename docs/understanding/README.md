@@ -1,5 +1,9 @@
 # Scene Understanding
 
+[<img src="../../assets/category-thumbnails/understanding.png" width="640" alt="Tree, walls, planter and bench distinguished by semantic colors and geometric bounds; conceptual illustration, not predicted semantic labels." />](../../assets/category-thumbnails/understanding.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🧠 Overview
 
 Attach labels, object structure, semantic features or physical-property predictions to visual geometry. These are task-level predictions built from geometric representations, rather than automatically improvements to the geometry backbone.

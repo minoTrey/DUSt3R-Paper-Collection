@@ -1,5 +1,9 @@
 # Gaussian Splatting Integration
 
+[<img src="../../assets/category-thumbnails/gaussian-splatting.png" width="640" alt="A courtyard represented with Gaussian-like primitives, an enlarged primitive detail and a rendered-view inset; conceptual illustration, not a paper result." />](../../assets/category-thumbnails/gaussian-splatting.png)
+
+_Conceptual illustration, not a paper result._
+
 ## ✨ Overview
 
 Connect image-based geometric prediction to Gaussian scene representations and novel-view rendering. Methods differ in whether they directly predict, initialize or refine the representation. Rendering quality and geometric accuracy are separate evaluation targets.

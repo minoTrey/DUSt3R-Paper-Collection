@@ -1,5 +1,9 @@
 # Foundation Models
 
+[<img src="../../assets/category-thumbnails/foundation.png" width="640" alt="Different scenes processed separately by one shared geometry model, with a separate reconstruction for each scene; conceptual illustration, not a paper result." />](../../assets/category-thumbnails/foundation.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🔬 Overview
 
 Reusable geometric backbones, cross-view pretraining and matching representations. This folder also contains methods that adapt or make those backbones more efficient; it does not imply that every downstream pipeline is free of optimization.

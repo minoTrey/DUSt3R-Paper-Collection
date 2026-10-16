@@ -1,5 +1,9 @@
 # 3D Reconstruction
 
+[<img src="../../assets/category-thumbnails/reconstruction.png" width="640" alt="Overlapping views and correspondences connected to one shared courtyard reconstruction; conceptual illustration, not a model result." />](../../assets/category-thumbnails/reconstruction.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🏗️ Overview
 
 Recover scene geometry from images, align local predictions and scale reconstruction to longer sequences or larger scenes. Outputs may include depth, pointmaps and camera estimates. Check each method for its camera assumptions and post-processing.

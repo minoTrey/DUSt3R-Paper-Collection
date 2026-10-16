@@ -1,5 +1,9 @@
 # Surveys, Benchmarks & Analysis
 
+[<img src="../../assets/category-thumbnails/surveys.png" width="640" alt="Paper literature connected to static reconstruction, dynamic scenes and robot applications; conceptual illustration, not benchmark measurements or rankings." />](../../assets/category-thumbnails/surveys.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 📚 Overview
 
 Compare methods, define evaluation protocols and investigate reliability or failure cases. A benchmark or analysis does not necessarily propose a new reconstruction backbone. Read the tested inputs, alignment rules and data coverage with each conclusion.
