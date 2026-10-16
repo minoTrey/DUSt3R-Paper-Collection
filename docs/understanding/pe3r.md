@@ -1,5 +1,12 @@
 # PE3R: Perception-Efficient 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/pe3r.png" width="720" alt="English summary card for pe3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/pe3r.png)
+
+[Original paper](https://arxiv.org/abs/2503.07507v2) · [Full-size English card](../../assets/paper-cards/en/understanding/pe3r.png)
+<!-- /PAPER-CARD -->
+
 ![PE3R Demo](https://raw.githubusercontent.com/hujiecpp/PE3R/main/imgs/pe3r.gif)
 _PE3R enables perception-efficient 3D reconstruction: take 2-3 photos with your phone and explore your 3D world via text_
 _PE3R achieves 9× speedup by integrating semantic understanding into 3D reconstruction, enabling text-based scene exploration_

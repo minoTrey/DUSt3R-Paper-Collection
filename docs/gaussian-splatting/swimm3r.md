@@ -1,5 +1,12 @@
 # Swimm3R: Splatting with Medium-aware SfM for Underwater 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/swimm3r.png" width="720" alt="English summary card for swimm3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/swimm3r.png)
+
+[Original paper](https://arxiv.org/abs/2608.00950v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/swimm3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Minseong Kweon, Junaed Sattar

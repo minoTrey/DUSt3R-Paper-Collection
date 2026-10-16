@@ -1,5 +1,12 @@
 # MIRAGE: Metric Inference and Reliability-Aware Gaussian Estimation from Feed-Forward Vision (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/mirage.png" width="720" alt="English summary card for mirage: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/mirage.png)
+
+[Original paper](https://arxiv.org/abs/2610.12568v2) · [Full-size English card](../../assets/paper-cards/en/robotics/mirage.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Xinzhe Wang, Changjian Jiang, Kaiwen Song, Xudong Li, Kerui Ren, Ran Yi, Lizhuang Ma, Chunhua Shen, Linning Xu, Tao Lu, Mulin Yu

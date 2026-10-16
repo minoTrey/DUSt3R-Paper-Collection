@@ -1,5 +1,12 @@
 # FLAT: Feedforward Latent Triangle Splatting for Geometrically Accurate Scene Generation (arXiv preprint 2026-06)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/flat.png" width="720" alt="English summary card for flat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/flat.png)
+
+[Original paper](https://arxiv.org/abs/2606.24876v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/flat.png)
+<!-- /PAPER-CARD -->
+
 ![flat — architecture](https://arxiv.org/html/2606.24876v1/x1.png)
 
 _Pipeline: Starting from a single image, we construct a point-cloud-based control video by rendering along the target camera trajectory (원논문 Fig. 2)_

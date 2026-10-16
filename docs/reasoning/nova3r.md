@@ -1,5 +1,12 @@
 # NOVA3R: Non-Pixel-Aligned Visual Transformer for Amodal 3D Reconstruction (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/nova3r.png" width="720" alt="English summary card for nova3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/nova3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.04179v2) · [Full-size English card](../../assets/paper-cards/en/reasoning/nova3r.png)
+<!-- /PAPER-CARD -->
+
 ![nova3r — architecture](https://arxiv.org/html/2603.04179v2/x3.png)
 
 _Overview of NOVA3R (원논문 Fig. 3)_

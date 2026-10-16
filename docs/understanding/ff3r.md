@@ -1,5 +1,12 @@
 # FF3R: Feedforward Feature 3D Reconstruction from Unconstrained views (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/ff3r.png" width="720" alt="English summary card for ff3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/ff3r.png)
+
+[Original paper](https://arxiv.org/abs/2604.09862v1) · [Full-size English card](../../assets/paper-cards/en/understanding/ff3r.png)
+<!-- /PAPER-CARD -->
+
 ![ff3r — architecture](https://arxiv.org/html/2604.09862v1/x2.png)
 
 _Architecture Overview (원논문 Fig. 2)_

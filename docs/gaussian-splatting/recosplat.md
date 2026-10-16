@@ -1,5 +1,12 @@
 # ReCoSplat: Autoregressive Feed-Forward Gaussian Splatting Using Render-and-Compare (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/recosplat.png" width="720" alt="English summary card for recosplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/recosplat.png)
+
+[Original paper](https://arxiv.org/abs/2603.09968v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/recosplat.png)
+<!-- /PAPER-CARD -->
+
 ![recosplat — architecture](https://arxiv.org/html/2603.09968v1/x1.png)
 
 _Autoregressive Reconstruction (원논문 Fig. 1)_

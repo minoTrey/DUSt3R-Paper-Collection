@@ -1,5 +1,12 @@
 # PanoSeg3R: Feed-Forward 3D Semantic Segmentation for Panoramic Images with an Automatic Data Curation Pipeline (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/panoseg3r.png" width="720" alt="English summary card for panoseg3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/panoseg3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.22687v1) · [Full-size English card](../../assets/paper-cards/en/understanding/panoseg3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Heechan Yoon, Dongki Jung, Phuc Nguyen, Ming Lin, Dinesh Manocha

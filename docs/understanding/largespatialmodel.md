@@ -1,5 +1,12 @@
 # LargeSpatialModel: End-to-end Unposed Images to Semantic 3D (NeurIPS 2024)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/largespatialmodel.png" width="720" alt="English summary card for largespatialmodel: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/largespatialmodel.png)
+
+[Original paper](https://arxiv.org/abs/2410.18956v2) · [Full-size English card](../../assets/paper-cards/en/understanding/largespatialmodel.png)
+<!-- /PAPER-CARD -->
+
 ![LargeSpatialModel Pipeline](https://largespatialmodel.github.io/static/images/teaser.png)
 _LargeSpatialModel creates semantic 3D representations directly from unposed images through end-to-end learning_
 

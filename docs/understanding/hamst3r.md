@@ -1,5 +1,12 @@
 # HAMSt3R: Human-Aware Multi-view Stereo 3D Reconstruction (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/hamst3r.png" width="720" alt="English summary card for hamst3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/hamst3r.png)
+
+[Original paper](https://arxiv.org/abs/2508.16433v1) · [Full-size English card](../../assets/paper-cards/en/understanding/hamst3r.png)
+<!-- /PAPER-CARD -->
+
 ![hamst3r — architecture](https://arxiv.org/html/2508.16433/imgs/GA_scene/input_0.jpg)
 
 _Results on HumGen3D data (on a scene not seen during training), using global alignment: Given a set of images of a scene (three out of eight of them… (원논문 Fig. 3)_

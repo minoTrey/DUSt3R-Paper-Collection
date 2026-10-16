@@ -1,5 +1,12 @@
 # XPos3R: Cross-Modal Transformer for Intraoperative 2D/3D Registration (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/medical/xpos3r.png" width="720" alt="English summary card for xpos3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/medical/xpos3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.10733v1) · [Full-size English card](../../assets/paper-cards/en/medical/xpos3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Shiyan Su, Ruyi Zha, Hongdong Li, Xuelian Cheng, Zongyuan Ge

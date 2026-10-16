@@ -1,5 +1,12 @@
 # Marrying Optimal Transport and ODEs for Unified Continuous-Time 4D Reconstruction and Tracking (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/uni4r.png" width="720" alt="English summary card for uni4r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/uni4r.png)
+
+[Original paper](https://arxiv.org/abs/2608.09613v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/uni4r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Liying Yang, Hao Mo, Jialun Liu, Chen Liu, Xinxing Yu, Chenhao Guan, Hui Ma, Xiao Cao, Ajian Liu, Yanyan Liang

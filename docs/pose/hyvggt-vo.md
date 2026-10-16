@@ -1,5 +1,12 @@
 # HyVGGT-VO: Tightly Coupled Hybrid Dense Visual Odometry with Feed-Forward Models (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/hyvggt-vo.png" width="720" alt="English summary card for hyvggt-vo: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/hyvggt-vo.png)
+
+[Original paper](https://arxiv.org/abs/2604.02107v1) · [Full-size English card](../../assets/paper-cards/en/pose/hyvggt-vo.png)
+<!-- /PAPER-CARD -->
+
 ![hyvggt-vo — architecture](https://arxiv.org/html/2604.02107v1/figures/system_overview.png)
 
 _Overall architecture of the proposed HyVGGT-VO framework (원논문 Fig. 2)_

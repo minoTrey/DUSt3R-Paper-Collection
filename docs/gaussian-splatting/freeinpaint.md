@@ -1,5 +1,12 @@
 # Pose-Free Feed-Forward 3D Inpainting via Learnable Mask Attention and Support Token Refinement (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/freeinpaint.png" width="720" alt="English summary card for freeinpaint: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/freeinpaint.png)
+
+[Original paper](https://arxiv.org/abs/2610.11857v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/freeinpaint.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jingyi Pan, Dan Xu, Qiong Luo

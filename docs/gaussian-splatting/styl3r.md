@@ -1,5 +1,12 @@
 # Styl3R: Instant 3D Stylized Reconstruction for Arbitrary Scenes and Styles (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/styl3r.png" width="720" alt="English summary card for styl3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/styl3r.png)
+
+[Original paper](https://arxiv.org/abs/2505.21060v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/styl3r.png)
+<!-- /PAPER-CARD -->
+
 ![Styl3R Teaser](https://nickisdope.github.io/Styl3R/static/images/pipeline_v4.png)
 _Styl3R achieves instant 3D stylized reconstruction from sparse unposed images and arbitrary style references in less than a second_
 

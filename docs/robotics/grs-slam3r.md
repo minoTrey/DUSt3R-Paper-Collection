@@ -1,5 +1,12 @@
 # GRS-SLAM3R: Real-Time Dense SLAM with Gated Recurrent State (arXiv preprint 2025-09)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/grs-slam3r.png" width="720" alt="English summary card for grs-slam3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/grs-slam3r.png)
+
+[Original paper](https://arxiv.org/abs/2509.23737v1) · [Full-size English card](../../assets/paper-cards/en/robotics/grs-slam3r.png)
+<!-- /PAPER-CARD -->
+
 ![grs-slam3r — architecture](https://arxiv.org/html/2509.23737/pipeline1.png)
 
 _System overview (원논문 Fig. 2)_

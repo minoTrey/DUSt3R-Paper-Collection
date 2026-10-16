@@ -1,5 +1,12 @@
 # ARTDECO: Towards Efficient and High-Fidelity On-the-Fly 3D Reconstruction with Structured Scene Representation (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/artdeco.png" width="720" alt="English summary card for artdeco: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/artdeco.png)
+
+[Original paper](https://arxiv.org/abs/2510.08551v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/artdeco.png)
+<!-- /PAPER-CARD -->
+
 ![artdeco — architecture](https://arxiv.org/html/2510.08551/x1.png)
 
 _ARTDECO delivers high-fidelity, interactive 3D reconstruction from monocular images, combining efficiency with robustness across indoor and outdoor… (원논문 Fig. 1)_

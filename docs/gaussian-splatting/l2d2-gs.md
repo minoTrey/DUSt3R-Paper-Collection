@@ -1,5 +1,12 @@
 # L2D2-GS: Learning to Densify for Feedforward Dynamic Gaussian Scene Reconstruction (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/l2d2-gs.png" width="720" alt="English summary card for l2d2-gs: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/l2d2-gs.png)
+
+[Original paper](https://arxiv.org/abs/2606.29374v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/l2d2-gs.png)
+<!-- /PAPER-CARD -->
+
 ![l2d2-gs — architecture](https://arxiv.org/html/2606.29374v1/x1.png)
 
 _Our proposed learning-to-densitfy framework enables generalizable reconstruction of dynamic urban scenes through a combination of feedforward… (원논문 Fig. 1)_

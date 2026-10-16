@@ -1,5 +1,12 @@
 # YoNoSplat: You Only Need One Model for Feedforward 3D Gaussian Splatting (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/yonosplat.png" width="720" alt="English summary card for yonosplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/yonosplat.png)
+
+[Original paper](https://arxiv.org/abs/2511.07321v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/yonosplat.png)
+<!-- /PAPER-CARD -->
+
 ![yonosplat — architecture](https://arxiv.org/html/2511.07321/x3.png)
 
 _Overview of YoNoSplat (원논문 Fig. 3)_

@@ -1,5 +1,12 @@
 # 4DLangVGGT: 4D Language-Visual Geometry Grounded Transformer (arXiv preprint 2025-12)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/4dlangvggt.png" width="720" alt="English summary card for 4dlangvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/4dlangvggt.png)
+
+[Original paper](https://arxiv.org/abs/2512.05060v1) · [Full-size English card](../../assets/paper-cards/en/understanding/4dlangvggt.png)
+<!-- /PAPER-CARD -->
+
 ![4dlangvggt — architecture](https://arxiv.org/html/2512.05060/x2.png)
 
 _Overview of 4DLangVGGT (원논문 Fig. 2)_

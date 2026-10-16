@@ -1,5 +1,12 @@
 # Leveling3D: Leveling Up 3D Reconstruction with Feed-Forward 3D Gaussian Splatting and Geometry-Aware Generation (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/leveling3d.png" width="720" alt="English summary card for leveling3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/leveling3d.png)
+
+[Original paper](https://arxiv.org/abs/2603.16211v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/leveling3d.png)
+<!-- /PAPER-CARD -->
+
 ![leveling3d — architecture](https://arxiv.org/html/2603.16211v1/x2.png)
 
 _Overview of the Leveling3D pipeline (원논문 Fig. 2)_

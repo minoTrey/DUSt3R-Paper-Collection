@@ -1,5 +1,12 @@
 # IGGT: Instance-Grounded Geometry Transformer for Semantic 3D Reconstruction (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/iggt.png" width="720" alt="English summary card for iggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/iggt.png)
+
+[Original paper](https://arxiv.org/abs/2510.22706v1) · [Full-size English card](../../assets/paper-cards/en/understanding/iggt.png)
+<!-- /PAPER-CARD -->
+
 ![iggt — architecture](https://arxiv.org/html/2510.22706/x2.png)
 
 _Data Curation Pipeline (원논문 Fig. 2)_

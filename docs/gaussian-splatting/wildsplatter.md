@@ -1,5 +1,12 @@
 # WildSplatter: Feed-forward 3D Gaussian Splatting with Appearance Control from Unconstrained Images (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/wildsplatter.png" width="720" alt="English summary card for wildsplatter: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/wildsplatter.png)
+
+[Original paper](https://arxiv.org/abs/2604.21182v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/wildsplatter.png)
+<!-- /PAPER-CARD -->
+
 ![wildsplatter — architecture](https://arxiv.org/html/2604.21182v1/x1.png)
 
 _We propose WildSplatter, a feed-forward 3DGS model for unconstrained images with unknown camera parameters and varying lighting conditions (원논문 Fig. 1)_

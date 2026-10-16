@@ -1,5 +1,12 @@
 # DAS3R: Dynamics-Aware Gaussian Splatting for Static Scene Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/das3r.png" width="720" alt="English summary card for das3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/das3r.png)
+
+[Original paper](https://arxiv.org/abs/2412.19584v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/das3r.png)
+<!-- /PAPER-CARD -->
+
 ![DAS3R Overview](https://kai422.github.io/DAS3R/assets/main.png)
 _DAS3R reconstructs clean static scenes from videos with moving objects by predicting dynamic masks and using staticness attributes_
 

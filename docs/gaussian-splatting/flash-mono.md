@@ -1,5 +1,12 @@
 # Flash-Mono: Feed-Forward Accelerated Gaussian Splatting Monocular SLAM (arXiv preprint 2026-04)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/flash-mono.png" width="720" alt="English summary card for flash-mono: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/flash-mono.png)
+
+[Original paper](https://arxiv.org/abs/2604.03092v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/flash-mono.png)
+<!-- /PAPER-CARD -->
+
 ![flash-mono — architecture](https://arxiv.org/html/2604.03092v1/figures/cover_v1.png)
 
 _Our Results for Reconstruction and Rendering & Tracking & Speed Metrics (원논문 Fig. 1)_

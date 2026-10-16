@@ -1,5 +1,12 @@
 # HiReFF: High-Resolution Feedforward Human Reconstruction from Uncalibrated Sparse-View Video (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/hireff.png" width="720" alt="English summary card for hireff: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/hireff.png)
+
+[Original paper](https://arxiv.org/abs/2606.29333v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/hireff.png)
+<!-- /PAPER-CARD -->
+
 ![hireff — architecture](https://arxiv.org/html/2606.29333v1/x4.png)
 
 _More visualization results (원논문 Fig. 4)_

@@ -1,5 +1,12 @@
 # ArtSplat: Feed-Forward Articulated 3D Gaussian Splatting from Sparse Multi-State Uncalibrated Views (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/artsplat.png" width="720" alt="English summary card for artsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/artsplat.png)
+
+[Original paper](https://arxiv.org/abs/2605.24304v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/artsplat.png)
+<!-- /PAPER-CARD -->
+
 ![artsplat — method](https://artsplat.github.io/static/images/method.png)
 
 _메소드 개요 (저자 project page)_
