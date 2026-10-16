@@ -6,18 +6,18 @@ Source-linked paper notes on DUSt3R and related feed-forward 3D research. Start 
 
 ## Browse by category
 
-| Category                                                   | Research focus                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| [Foundation Models](docs/foundation/) (30 papers)          | Reusable geometric representations, matching and backbone methods.              |
-| [3D Reconstruction](docs/reconstruction/) (128 papers)     | Scene geometry, alignment, streaming, mixed cameras and reconstruction systems. |
-| [Dynamic Scenes](docs/dynamic/) (50 papers)                | Geometry and motion in changing scenes.                                         |
-| [Gaussian Splatting](docs/gaussian-splatting/) (51 papers) | Explicit scene representations and novel-view rendering.                        |
-| [Scene Understanding](docs/understanding/) (26 papers)     | Semantic labels, objects and features attached to geometry.                     |
-| [Scene Reasoning](docs/reasoning/) (7 papers)              | Hidden structure, completion and spatial inference.                             |
-| [Robotics](docs/robotics/) (22 papers)                     | Calibration, mapping, navigation and robot-facing applications.                 |
-| [Surveys & Analysis](docs/surveys/) (8 papers)             | Evaluation protocols, reliability, comparisons and failure analysis.            |
-| [Pose Estimation](docs/pose/) (12 papers)                  | Camera and object localization in a reference frame.                            |
-| [Medical](docs/medical/) (3 papers)                        | Task-specific geometry for specialized medical imagery.                         |
+| Visual                                                                                                                                                                                                                                                                         | Category and research focus                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| [<img src="assets/category-thumbnails/foundation.png" width="160" alt="Different scenes processed separately by one shared geometry model, with a separate reconstruction for each scene; conceptual illustration, not a paper result." />](docs/foundation/)                  | [Foundation Models](docs/foundation/) (30 papers)<br>Reusable geometric representations, matching and backbone methods.                   |
+| [<img src="assets/category-thumbnails/reconstruction.png" width="160" alt="Overlapping views and correspondences connected to one shared courtyard reconstruction; conceptual illustration, not a model result." />](docs/reconstruction/)                                     | [3D Reconstruction](docs/reconstruction/) (128 papers)<br>Scene geometry, alignment, streaming, mixed cameras and reconstruction systems. |
+| [<img src="assets/category-thumbnails/dynamic.png" width="160" alt="A moving person represented at successive times with illustrative geometry and motion; conceptual illustration, not measured tracking." />](docs/dynamic/)                                                 | [Dynamic Scenes](docs/dynamic/) (50 papers)<br>Geometry and motion in changing scenes.                                                    |
+| [<img src="assets/category-thumbnails/gaussian-splatting.png" width="160" alt="A courtyard represented with Gaussian-like primitives, an enlarged primitive detail and a rendered-view inset; conceptual illustration, not a paper result." />](docs/gaussian-splatting/)      | [Gaussian Splatting](docs/gaussian-splatting/) (51 papers)<br>Explicit scene representations and novel-view rendering.                    |
+| [<img src="assets/category-thumbnails/understanding.png" width="160" alt="Tree, walls, planter and bench distinguished by semantic colors and geometric bounds; conceptual illustration, not predicted semantic labels." />](docs/understanding/)                              | [Scene Understanding](docs/understanding/) (26 papers)<br>Semantic labels, objects and features attached to geometry.                     |
+| [<img src="assets/category-thumbnails/reasoning.png" width="160" alt="Spatial relations among a cube, its supporting block and a nearby sphere, represented with geometry and relation arrows; conceptual illustration, not a measured reasoning result." />](docs/reasoning/) | [Scene Reasoning](docs/reasoning/) (7 papers)<br>Hidden structure, completion and spatial inference.                                      |
+| [<img src="assets/category-thumbnails/robotics.png" width="160" alt="Camera geometry and a point cloud supporting an illustrative robot-arm motion toward an object; conceptual illustration, not a measured robot trajectory." />](docs/robotics/)                            | [Robotics](docs/robotics/) (22 papers)<br>Calibration, mapping, navigation and robot-facing applications.                                 |
+| [<img src="assets/category-thumbnails/surveys.png" width="160" alt="Paper literature connected to static reconstruction, dynamic scenes and robot applications; conceptual illustration, not benchmark measurements or rankings." />](docs/surveys/)                           | [Surveys & Analysis](docs/surveys/) (8 papers)<br>Evaluation protocols, reliability, comparisons and failure analysis.                    |
+| [<img src="assets/category-thumbnails/pose.png" width="160" alt="Camera frustums and coordinate axes around a shared room point cloud; conceptual illustration, not estimated camera poses." />](docs/pose/)                                                                   | [Pose Estimation](docs/pose/) (12 papers)<br>Camera and object localization in a reference frame.                                         |
+| [<img src="assets/category-thumbnails/medical.png" width="160" alt="Endoscopic views, camera geometry and an illustrative tissue surface; conceptual illustration, not patient images or a medical model result." />](docs/medical/)                                           | [Medical](docs/medical/) (3 papers)<br>Task-specific geometry for specialized medical imagery.                                            |
 
 [![Papers](https://img.shields.io/badge/Papers-337-green.svg)](docs/papers-list.md)
 
@@ -51,7 +51,11 @@ This is a reading guide, not a performance ranking or a claim of direct lineage.
 
 ## Visual guide
 
-![Two RGB views of a courtyard connect through point correspondences to a shared 3D point cloud. Conceptual illustration, not a paper result or model reconstruction.](assets/dust3r-research-atlas-hero-v2.png)
+[![Two rendered RGB views connected to a rotating point-cloud scene. Conceptual animation rendered from a synthetic 3D scene, not a paper result or model prediction.](assets/dust3r-animated-hero.gif)](assets/dust3r-animated-hero-poster.png)
+
+[Static version (PNG)](assets/dust3r-animated-hero-poster.png)
+
+Conceptual animation of a synthetic 3D scene; not a paper result.
 
 <details>
 <summary>Images to 3D: the common vocabulary</summary>
