@@ -51,7 +51,11 @@ This is a reading guide, not a performance ranking or a claim of direct lineage.
 
 ## Visual guide
 
-![Two RGB views of a courtyard connect through point correspondences to a shared 3D point cloud. Conceptual illustration, not a paper result or model reconstruction.](assets/dust3r-research-atlas-hero-v2.png)
+[![Two rendered RGB views connected to a rotating point-cloud scene. Conceptual animation rendered from a synthetic 3D scene, not a paper result or model prediction.](assets/dust3r-animated-hero.gif)](assets/dust3r-animated-hero-poster.png)
+
+[Static version (PNG)](assets/dust3r-animated-hero-poster.png)
+
+Conceptual animation of a synthetic 3D scene; not a paper result.
 
 <details>
 <summary>Images to 3D: the common vocabulary</summary>
