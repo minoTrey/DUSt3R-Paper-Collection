@@ -35,7 +35,7 @@ def migration_errors(root: Path, records: list[dict]) -> list[str]:
         return []
     errors = []
     canonical = {row["file"]: row for row in records}
-    expected_redirects = {row["old_note_path"] for row in rows}
+    expected_redirects = {row["old_note_path"] for row in rows if row.get("legacy_note_retained", True)}
     for key in ("old_record_id", "new_record_id", "old_note_path", "new_note_path"):
         values = [row[key] for row in rows]
         if len(values) != len(set(values)):
@@ -43,8 +43,11 @@ def migration_errors(root: Path, records: list[dict]) -> list[str]:
     for row in rows:
         old, new = row["old_note_path"], row["new_note_path"]
         old_path, new_path = root / old, root / new
-        if not old_path.is_file() or redirect_target(old_path.read_text(encoding="utf-8")) != new:
-            errors.append("missing or mismatched compatibility notice: " + old)
+        if row.get("legacy_note_retained", True):
+            if not old_path.is_file() or redirect_target(old_path.read_text(encoding="utf-8")) != new:
+                errors.append("missing or mismatched compatibility notice: " + old)
+        elif old_path.exists():
+            errors.append("retired compatibility notice still present: " + old)
         if old in canonical or new not in canonical or not new_path.is_file():
             errors.append("migration must have one canonical note: " + new)
             continue
@@ -63,4 +66,9 @@ def migration_errors(root: Path, records: list[dict]) -> list[str]:
     foundation = {r["file"][5:-3] for r in records if r["cat"] == "foundation"}
     if foundation != set(data["core_foundation_record_ids"]):
         errors.append("Foundation must match the approved core-model set")
+    if data.get("foundation_directory_policy") == "canonical_only":
+        expected = {Path("docs/" + rid + ".md").name for rid in foundation} | {"README.md"}
+        actual = {path.name for path in (root / "docs/foundation").iterdir()}
+        if actual != expected:
+            errors.append("Foundation directory must contain only core notes and README")
     return errors
