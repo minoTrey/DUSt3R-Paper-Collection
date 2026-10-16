@@ -1,5 +1,12 @@
 # MonST3R: A Simple Approach for Estimating Geometry in the Presence of Motion (ICLR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/monst3r.png" width="720" alt="English summary card for monst3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/monst3r.png)
+
+[Original paper](https://arxiv.org/abs/2410.03825v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/monst3r.png)
+<!-- /PAPER-CARD -->
+
 ![MonST3R Results](https://monst3r-project.github.io/files/fig5_system.png)
 _MonST3R extends DUSt3R to dynamic scenes with per-timestep geometry estimation, without explicit motion modeling_
 

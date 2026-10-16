@@ -1,5 +1,12 @@
 # PRISM: Feed-Forward Single-Image 3D Reconstruction via Geometric Warp-Residual Modeling (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/prism.png" width="720" alt="English summary card for prism: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/prism.png)
+
+[Original paper](https://arxiv.org/abs/2606.25430v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/prism.png)
+<!-- /PAPER-CARD -->
+
 ![prism — architecture](https://arxiv.org/html/2606.25430v1/sec/imgs/FIG2-Structure_Comparison.png)
 
 _From diffusion sampling to feed-forward geometric reasoning (원논문 Fig. 2)_

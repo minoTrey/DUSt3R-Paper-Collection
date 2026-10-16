@@ -1,5 +1,12 @@
 # Pow3R: Empowering Unconstrained 3D Reconstruction with Camera and Scene Priors (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/pow3r.png" width="720" alt="English summary card for pow3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/pow3r.png)
+
+[Original paper](https://arxiv.org/abs/2503.17316v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/pow3r.png)
+<!-- /PAPER-CARD -->
+
 ![Pow3R Teaser](https://arxiv.org/html/2503.17316v1/x1.png)
 ![Pow3R Overview](https://raw.githubusercontent.com/naver/pow3r/main/assets/overview.jpg)
 _Pow3R conditions on any combination of camera intrinsics, poses, and depth for versatile 3D reconstruction_

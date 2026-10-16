@@ -1,5 +1,14 @@
 # Interp3R: Continuous-time 3D Geometry Estimation with Frames and Events (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/interp3r.png" width="720" alt="English summary card for interp3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/interp3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.14528v3) · [Full-size English card](../../assets/paper-cards/en/dynamic/interp3r.png)
+Source precision note: the card follows Table 1 of the arXiv HTML (DSEC, skip=7: 0.1048 versus 0.1540). The same-revision PDF rounds these AbsRel values to 0.105 versus 0.154.
+
+<!-- /PAPER-CARD -->
+
 ![interp3r — architecture](https://arxiv.org/html/2603.14528v1/x1.png)
 
 _The proposed method takes two images I0,I1I_{0},I_{1} and the events between them ℰ\mathcal{E} as input (Left), and recovers the scene geometry (in… (원논문 Fig. 1)_

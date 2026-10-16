@@ -1,5 +1,12 @@
 # Flow3r: Factored Flow Prediction for Scalable Visual Geometry Learning (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/flow3r.png" width="720" alt="English summary card for flow3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/flow3r.png)
+
+[Original paper](https://arxiv.org/abs/2602.20157v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/flow3r.png)
+<!-- /PAPER-CARD -->
+
 ![flow3r — architecture](https://arxiv.org/html/2602.20157/x1.png)
 
 _Mechanisms for flow prediction (원논문 Fig. 2)_

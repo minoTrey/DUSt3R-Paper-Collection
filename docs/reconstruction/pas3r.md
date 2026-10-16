@@ -1,5 +1,12 @@
 # PAS3R: Pose-Adaptive Streaming 3D Reconstruction for Long Video Sequences (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/pas3r.png" width="720" alt="English summary card for pas3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/pas3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.21436v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/pas3r.png)
+<!-- /PAPER-CARD -->
+
 ![pas3r — architecture](https://arxiv.org/html/2603.21436v1/x1.png)
 
 _The overall pipeline (원논문 Fig. 1)_

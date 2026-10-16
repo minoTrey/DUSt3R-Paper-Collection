@@ -1,5 +1,12 @@
 # 4DVGGT-D: 4D Visual Geometry Transformer with Improved Dynamic Depth Estimation (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/4dvggt-d.png" width="720" alt="English summary card for 4dvggt-d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/4dvggt-d.png)
+
+[Original paper](https://arxiv.org/abs/2605.12027v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/4dvggt-d.png)
+<!-- /PAPER-CARD -->
+
 ![4dvggt-d — architecture](https://arxiv.org/html/2605.12027v1/x1.png)
 
 _Overview of the proposed progressive decoupling framework (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # NoPo4D: No Pose, No Problem in 4D — Feed-Forward Dynamic Gaussians from Unposed Multi-View Videos (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/nopo4d.png" width="720" alt="English summary card for nopo4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/nopo4d.png)
+
+[Original paper](https://arxiv.org/abs/2605.22190v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/nopo4d.png)
+<!-- /PAPER-CARD -->
+
 ![nopo4d — architecture](https://arxiv.org/html/2605.22190v1/x1.png)
 
 _Architecture overview (원논문 Fig. 1)_

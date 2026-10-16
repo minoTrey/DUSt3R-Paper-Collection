@@ -1,5 +1,12 @@
 # VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vist3a.png" width="720" alt="English summary card for vist3a: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vist3a.png)
+
+[Original paper](https://arxiv.org/abs/2510.13454v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vist3a.png)
+<!-- /PAPER-CARD -->
+
 ![vist3a — architecture](https://arxiv.org/html/2510.13454v2/x1.png)
 
 _Text-to-3D generation with VIST3A (원논문 Fig. 1)_

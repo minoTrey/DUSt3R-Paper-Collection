@@ -1,5 +1,12 @@
 # MUSt3R: Multi-view Network for Stereo 3D Reconstruction (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/must3r.png" width="720" alt="English summary card for must3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/must3r.png)
+
+[Original paper](https://arxiv.org/abs/2503.01661v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/must3r.png)
+<!-- /PAPER-CARD -->
+
 ![MUSt3R Architecture](https://raw.githubusercontent.com/naver/must3r/main/assets/overview.jpg)
 _Official implementation overview: current RGB frames read layerwise latent memory to predict global and local pointmaps._
 

@@ -1,5 +1,12 @@
 # Test3R: Learning to Reconstruct 3D at Test Time (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/test3r.png" width="720" alt="English summary card for test3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/test3r.png)
+
+[Original paper](https://arxiv.org/abs/2506.13750v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/test3r.png)
+<!-- /PAPER-CARD -->
+
 ![Test3R Pipeline](https://test3r-nop.github.io/static/images/pipeline.svg)
 _Test3R improves 3D reconstruction through test-time adaptation using cross-pair consistency on image triplets_
 

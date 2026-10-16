@@ -1,5 +1,12 @@
 # GUSH3R: Everyone Everywhere All at Once as Gaussians (arXiv preprint (2026-07))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/gush3r.png" width="720" alt="English summary card for gush3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/gush3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.05243v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/gush3r.png)
+<!-- /PAPER-CARD -->
+
 ![gush3r — architecture](https://arxiv.org/html/2607.05243v1/x2.png)
 
 _Overview of the proposed framework (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # Mono3R: Exploiting Monocular Cues for Geometric 3D Reconstruction (ACM MM 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/mono3r.png" width="720" alt="English summary card for mono3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/mono3r.png)
+
+[Original paper](https://arxiv.org/abs/2504.13419v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/mono3r.png)
+<!-- /PAPER-CARD -->
+
 ![mono3r — architecture](https://arxiv.org/html/2504.13419/x1.png)
 
 _In this paper, we reveal the limitations of DUSt3R in reconstructing textureless regions and fine structures, as demonstrated in the 2nd row (원논문 Fig. 1)_

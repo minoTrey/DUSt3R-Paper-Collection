@@ -1,5 +1,12 @@
 # D4RT: Efficiently Reconstructing Dynamic Scenes One Query at a Time (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/d4rt.png" width="720" alt="English summary card for d4rt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/d4rt.png)
+
+[Original paper](https://arxiv.org/abs/2512.08924v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/d4rt.png)
+<!-- /PAPER-CARD -->
+
 ![d4rt — architecture](https://arxiv.org/html/2512.08924/x1.png)
 
 _D4RT is a unified, efficient, feedforward method for Dynamic 4D Reconstruction and Tracking, unlocking a variety of outputs including point cloud… (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # 2Xplat: Decoupling Geometry and Appearance Modeling for Feed-Forward 3D Gaussian Splatting (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/2xplat.png" width="720" alt="English summary card for 2xplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/2xplat.png)
+
+[Original paper](https://arxiv.org/abs/2603.21064v3) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/2xplat.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Hwasik Jeong, Seungryong Lee, Gyeongjin Kang, Seungkwon Yang, Xiangyu Sun, Seungtae Nam, Eunbyung Park

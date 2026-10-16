@@ -1,5 +1,12 @@
 # UniQueR: Unified Query-based Feedforward 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/uniquer.png" width="720" alt="English summary card for uniquer: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/uniquer.png)
+
+[Original paper](https://arxiv.org/abs/2603.22851v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/uniquer.png)
+<!-- /PAPER-CARD -->
+
 ![uniquer — architecture](https://arxiv.org/html/2603.22851v1/x2.png)
 
 _UniQueR pipeline overview (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # MapAnything: Universal Feed-Forward Metric 3D Reconstruction (3DV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/mapanything.png" width="720" alt="English summary card for mapanything: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/mapanything.png)
+
+[Original paper](https://arxiv.org/abs/2509.13414v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/mapanything.png)
+<!-- /PAPER-CARD -->
+
 ![mapanything — architecture](https://arxiv.org/html/2509.13414/x2.png)
 
 _Overview of the MapAnything Architecture (원논문 Fig. 2)_

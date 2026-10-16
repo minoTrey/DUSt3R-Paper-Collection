@@ -1,5 +1,12 @@
 # DynamicVGGT: Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/dynamicvggt.png" width="720" alt="English summary card for dynamicvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/dynamicvggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.08254v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/dynamicvggt.png)
+<!-- /PAPER-CARD -->
+
 ![dynamicvggt — architecture](https://arxiv.org/html/2603.08254v1/x2.png)
 
 _Proposed DynamicVGGT training framework (원논문 Fig. 2)_

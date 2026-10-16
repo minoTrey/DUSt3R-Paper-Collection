@@ -1,5 +1,12 @@
 # ReconX: Reconstruct Any Scene from Sparse Views with Video Diffusion Model (IEEE TIP 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/reconx.png" width="720" alt="English summary card for reconx: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/reconx.png)
+
+[Original paper](https://arxiv.org/abs/2408.16767v4) · [Full-size English card](../../assets/paper-cards/en/reconstruction/reconx.png)
+<!-- /PAPER-CARD -->
+
 ![ReconX Pipeline](https://liuff19.github.io/ReconX/static/images/teaser.png)
 _ReconX leverages video diffusion models to reconstruct complete 3D scenes from just a few input views, generating missing viewpoints through learned priors_
 

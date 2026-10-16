@@ -1,5 +1,12 @@
 # C4G: Learning Global Motion with Compact Gaussians for Feed-Forward 4D Reconstruction (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/c4g.png" width="720" alt="English summary card for c4g: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/c4g.png)
+
+[Original paper](https://arxiv.org/abs/2605.31595v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/c4g.png)
+<!-- /PAPER-CARD -->
+
 ![c4g — architecture](https://arxiv.org/html/2605.31595v1/x2.png)
 
 _Pixel-wise 4DGS vs (원논문 Fig. 2)_

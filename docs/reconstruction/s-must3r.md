@@ -1,5 +1,12 @@
 # S-MUSt3R: Sliding Multi-view 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/s-must3r.png" width="720" alt="English summary card for s-must3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/s-must3r.png)
+
+[Original paper](https://arxiv.org/abs/2602.04517v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/s-must3r.png)
+<!-- /PAPER-CARD -->
+
 ![s-must3r — architecture](https://arxiv.org/html/2602.04517/fig/tum/tum-fr1-desk.png)
 
 _Segment pose correction with lightweight loop closure, for TUM (top) and 7-Scenes (down) datasets. (원논문 Fig. 4)_

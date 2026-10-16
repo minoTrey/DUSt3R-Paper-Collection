@@ -816,3 +816,9 @@ Validation: 33 unit tests, all 12 default offline checks, inventory export consi
 ## 2026-10-16 — Verify the 45-card batch on main
 
 PR #25 merged at `831c9c43a0615d39ff7b65d74bd7c9c5b39ad70b` after CI passed. Fetched all 45 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 118 complete/published cards and 219 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
+
+## 2026-10-16 — Review and stage the fixed 55-card batch 004
+
+Added supplied English cards to 55 existing reconstruction, dynamic and Gaussian-splatting notes. Read matching paper methods/results/limitations and opened every supplied image; audit records source/PDF hashes, dataset/protocol attribution and supplemental numeric-token locations. Interp3R HTML retains four decimal places where the PDF rounds to three, now stated under the card. All 337 detailed bodies and 149 prior card/alias/figure blobs match baseline main. Every new PNG is byte-identical to its supplied original. No new paper, reclassification or benchmark measurement is introduced.
+
+Before publication, 118 cards are complete, 55 are reviewed/ready, and 164 repository integrations are unrecorded; external production state is unknown. Browser rendering is unverified. All 12 offline checks and 33 regression tests passed; inventory exports and git diff checks also passed. Each changed card was manually checked against its paper and same-revision PDF. The repository-wide PDF suite and browser layout checks were not run. Main publication verification remains pending.

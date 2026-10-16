@@ -1,5 +1,12 @@
 # MASt3R-SLAM: Real-Time Dense SLAM with 3D Reconstruction Priors (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/mast3r-slam.png" width="720" alt="English summary card for mast3r-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/mast3r-slam.png)
+
+[Original paper](https://arxiv.org/abs/2412.12392v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/mast3r-slam.png)
+<!-- /PAPER-CARD -->
+
 ![MASt3R-SLAM Demo](https://raw.githubusercontent.com/rmurai0610/MASt3R-SLAM/main/media/teaser.gif)
 _Real-time monocular dense SLAM system that leverages MASt3R priors for robust performance on in-the-wild video sequences_
 

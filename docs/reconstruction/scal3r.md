@@ -1,5 +1,12 @@
 # Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/scal3r.png" width="720" alt="English summary card for scal3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/scal3r.png)
+
+[Original paper](https://arxiv.org/abs/2604.08542v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/scal3r.png)
+<!-- /PAPER-CARD -->
+
 ![scal3r — architecture](https://arxiv.org/html/2604.08542v1/x2.png)
 
 _Overview of Scal3R (원논문 Fig. 2)_

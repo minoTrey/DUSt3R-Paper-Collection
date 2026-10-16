@@ -1,5 +1,12 @@
 # Surflo: Consistent 3D Surface Flow Model with Global State (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/surflo.png" width="720" alt="English summary card for surflo: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/surflo.png)
+
+[Original paper](https://arxiv.org/abs/2606.13644v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/surflo.png)
+<!-- /PAPER-CARD -->
+
 ![surflo — architecture](https://arxiv.org/html/2606.13644v1/x1.png)
 
 _Surflo turns a handful of unposed RGB views into a detailed 3D surface (원논문 Fig. 1)_

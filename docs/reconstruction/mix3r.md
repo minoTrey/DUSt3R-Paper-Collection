@@ -1,5 +1,12 @@
 # Mix3R: Mixing Feed-forward Reconstruction and Generative 3D Priors for Joint Multi-view Aligned 3D Reconstruction and Pose Estimation (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/mix3r.png" width="720" alt="English summary card for mix3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/mix3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.03359v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/mix3r.png)
+<!-- /PAPER-CARD -->
+
 ![mix3r — architecture](https://arxiv.org/html/2605.03359v1/figs/fig_architecture_img.png)
 
 _The overall architecture of our two-stage framework (원논문 Fig. 1)_

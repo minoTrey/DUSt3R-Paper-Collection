@@ -1,5 +1,12 @@
 # PointSt3R: Point Tracking through 3D Grounded Correspondence (WACV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/pointst3r.png" width="720" alt="English summary card for pointst3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/pointst3r.png)
+
+[Original paper](https://arxiv.org/abs/2510.26443v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/pointst3r.png)
+<!-- /PAPER-CARD -->
+
 ![pointst3r — architecture](https://arxiv.org/html/2510.26443/x2.png)
 
 _PCA visualisation of feature maps extracted from CoTracker3 [14], MASt3R [18] and our PointSt3R on two frames of a TAP-Vid-DAVIS [8] video (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # Slot3R: Set-Associative Spatial Memory for Streaming 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/slot3r.png" width="720" alt="English summary card for slot3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/slot3r.png)
+
+[Original paper](https://arxiv.org/abs/2610.12282v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/slot3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Xiyuan Zhang, Yanming Yang, Kaiyuan Xu, Ruibo Li, Chi Zhang
