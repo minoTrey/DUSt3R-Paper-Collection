@@ -1,5 +1,12 @@
 # Unifying Scene Representation and Hand-Eye Calibration with 3D Foundation Models (RA-L 2024)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/unifying-scene-representation.png" width="720" alt="English summary card for unifying-scene-representation: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/unifying-scene-representation.png)
+
+[Original paper](https://arxiv.org/abs/2404.11683v1) · [Full-size English card](../../assets/paper-cards/en/robotics/unifying-scene-representation.png)
+<!-- /PAPER-CARD -->
+
 ![Unified Framework Overview](https://arxiv.org/html/2404.11683v1/extracted/2404.11683v1/fig1.png)
 _Unified framework for joint scene representation and hand-eye calibration using 3D foundation models without external markers_
 

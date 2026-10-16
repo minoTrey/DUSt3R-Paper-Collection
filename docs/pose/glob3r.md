@@ -1,5 +1,12 @@
 # Glob3R: Global Structure-from-Motion with 3D Foundation Models (arXiv preprint (2026-07))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/glob3r.png" width="720" alt="English summary card for glob3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/glob3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.09225v1) · [Full-size English card](../../assets/paper-cards/en/pose/glob3r.png)
+<!-- /PAPER-CARD -->
+
 ![glob3r — architecture](https://arxiv.org/html/2607.09225v1/x1.png)
 
 _Overview of the proposed reconstruction framework (원논문 Fig. 1)_

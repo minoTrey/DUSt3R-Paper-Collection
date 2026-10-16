@@ -1,5 +1,12 @@
 # SPOON: Towards Coherent Compositional 3D Scene Generation from Uncalibrated Multi-view Images (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/spoon.png" width="720" alt="English summary card for spoon: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/spoon.png)
+
+[Original paper](https://arxiv.org/abs/2609.39590v1) · [Full-size English card](../../assets/paper-cards/en/reasoning/spoon.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Guibiao Liao, Mochu Xiang, Heng Li, Ken Deng, Zijie Wang, Guanbin Li, Ping Tan, Shenghua Gao, Yizhou Yu

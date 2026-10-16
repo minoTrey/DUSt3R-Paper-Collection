@@ -1,5 +1,12 @@
 # GLUEMAP: Global Structure-from-Motion Meets Feedforward Reconstruction (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/gluemap.png" width="720" alt="English summary card for gluemap: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/gluemap.png)
+
+[Original paper](https://arxiv.org/abs/2605.26103v1) · [Full-size English card](../../assets/paper-cards/en/pose/gluemap.png)
+<!-- /PAPER-CARD -->
+
 ![gluemap — architecture](https://arxiv.org/html/2605.26103v2/x2.png)
 
 _Illustration of our proposed GLUEMAP pipeline consisting of four major steps: view graph initialization, feedforward local inference, global motion… (원논문 Fig. 2)_

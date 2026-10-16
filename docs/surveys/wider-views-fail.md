@@ -1,5 +1,12 @@
 # When Wider Views Fail: Stress-Testing Feed-Forward 3D Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/wider-views-fail.png" width="720" alt="English summary card for wider-views-fail: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/wider-views-fail.png)
+
+[Original paper](https://arxiv.org/abs/2609.24839v1) · [Full-size English card](../../assets/paper-cards/en/surveys/wider-views-fail.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Daisy Li, Kyle Gao, Quanyun Wu, Hanna Chomko, John S. Zelek, Jonathan Li

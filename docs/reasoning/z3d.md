@@ -1,5 +1,12 @@
 # Zero-Shot Novel Depth Synthesis Using 3D Foundation Models Scene Representations (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/z3d.png" width="720" alt="English summary card for z3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/z3d.png)
+
+[Original paper](https://arxiv.org/abs/2609.04174v1) · [Full-size English card](../../assets/paper-cards/en/reasoning/z3d.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Denis M. Akola, David F. Fouhey

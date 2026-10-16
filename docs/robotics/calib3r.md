@@ -1,5 +1,12 @@
 # Calib3R: A 3D Foundation Model for Multi-Camera to Robot Calibration and 3D Metric-Scaled Scene Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/calib3r.png" width="720" alt="English summary card for calib3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/calib3r.png)
+
+[Original paper](https://arxiv.org/abs/2509.08813v1) · [Full-size English card](../../assets/paper-cards/en/robotics/calib3r.png)
+<!-- /PAPER-CARD -->
+
 ![calib3r — architecture](https://arxiv.org/html/2509.08813/x1.png)
 
 _Overview of the Calib3R method (원논문 Fig. 1)_

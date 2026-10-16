@@ -1,5 +1,12 @@
 # FFVO: A Feedforward Pose Decoder for Long-Horizon Visual Odometry (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/ffvo.png" width="720" alt="English summary card for ffvo: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/ffvo.png)
+
+[Original paper](https://arxiv.org/abs/2609.13733v1) · [Full-size English card](../../assets/paper-cards/en/pose/ffvo.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Meng-Li Shih, Shih-Yang Su, Yuliang Zou, Hao Xiang, Haidong Zhu, Vincent Casser, Brian Curless, Dmitry Kalenichenko, Mingxing Tan, Dragomir Anguelov

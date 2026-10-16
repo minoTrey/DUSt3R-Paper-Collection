@@ -1,5 +1,12 @@
 # FUSER: Feed-Forward Multiview 3D Registration Transformer and SE(3)N Diffusion Refinement (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/fuser.png" width="720" alt="English summary card for fuser: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/fuser.png)
+
+[Original paper](https://arxiv.org/abs/2512.09373v3) · [Full-size English card](../../assets/paper-cards/en/pose/fuser.png)
+<!-- /PAPER-CARD -->
+
 ![fuser — architecture](https://arxiv.org/html/2512.09373v3/x2.png)
 
 _Architecture of FUSER (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # ViPE: Video Pose Engine for 3D Geometric Perception (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/vipe.png" width="720" alt="English summary card for vipe: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/vipe.png)
+
+[Original paper](https://arxiv.org/abs/2508.10934v1) · [Full-size English card](../../assets/paper-cards/en/robotics/vipe.png)
+<!-- /PAPER-CARD -->
+
 ![vipe — method](https://research.nvidia.com/labs/toronto-ai/vipe/assets/images/method.png)
 
 _메소드 개요 (저자 project page)_

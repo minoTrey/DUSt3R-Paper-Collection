@@ -1,5 +1,12 @@
 # GRLoc: Geometric Representation Regression for Visual Localization (arXiv preprint (2025-11))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/grloc.png" width="720" alt="English summary card for grloc: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/grloc.png)
+
+[Original paper](https://arxiv.org/abs/2511.13864v2) · [Full-size English card](../../assets/paper-cards/en/pose/grloc.png)
+<!-- /PAPER-CARD -->
+
 ![grloc — architecture](https://arxiv.org/html/2511.13864v2/figs/comp_twosides.jpg)
 
 _Left: Our Geometric Representation Regression (GRR) paradigm is inspired by Novel View Synthesis (NVS) (원논문 Fig. 1)_

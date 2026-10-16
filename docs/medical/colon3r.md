@@ -1,5 +1,12 @@
 # Colon3R: Cross-Domain 3D Reconstruction from Monocular Colonoscopic Video (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/medical/colon3r.png" width="720" alt="English summary card for colon3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/medical/colon3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.23961v1) · [Full-size English card](../../assets/paper-cards/en/medical/colon3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhihao Xing, Yingyu Wang, Liang Zhao, Shoudong Huang

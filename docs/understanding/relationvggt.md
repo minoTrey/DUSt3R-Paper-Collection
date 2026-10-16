@@ -1,5 +1,12 @@
 # RelationVGGT: Visual Geometry Transformers for 3D Spatial Relation Segmentation (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/relationvggt.png" width="720" alt="English summary card for relationvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/relationvggt.png)
+
+[Original paper](https://arxiv.org/abs/2610.00970v2) · [Full-size English card](../../assets/paper-cards/en/understanding/relationvggt.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Minsu Kim, Jaesung Choe, Jiwoo Lee, Yu-Chiang Frank Wang, Seon Joo Kim

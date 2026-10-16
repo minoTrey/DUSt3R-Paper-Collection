@@ -1,5 +1,12 @@
 # Endo3R: Unified Online Reconstruction from Dynamic Monocular Endoscopic Video (MICCAI 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/medical/endo3r.png" width="720" alt="English summary card for endo3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/medical/endo3r.png)
+
+[Original paper](https://arxiv.org/abs/2504.03198v1) · [Full-size English card](../../assets/paper-cards/en/medical/endo3r.png)
+<!-- /PAPER-CARD -->
+
 ![Endo3R Pipeline](https://wrld.github.io/Endo3R/static/images/pipeline.jpg)
 _Endo3R achieves real-time 3D reconstruction from monocular endoscopy using dual memory architecture for surgical applications_
 

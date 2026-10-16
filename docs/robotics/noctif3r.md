@@ -1,5 +1,12 @@
 # Noctif3R: Feed-Forward Monocular Real-Time SLAM for Photon-Limited Scenes on Embedded Hardware (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/noctif3r.png" width="720" alt="English summary card for noctif3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/noctif3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.21114v1) · [Full-size English card](../../assets/paper-cards/en/robotics/noctif3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Mihir Chauhan, Aditya Uday Abhang, Kevin Biju Mathew, Aniket Bera

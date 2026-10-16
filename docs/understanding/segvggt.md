@@ -1,5 +1,12 @@
 # SegVGGT: Joint 3D Reconstruction and Instance Segmentation from Multi-View Images (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/segvggt.png" width="720" alt="English summary card for segvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/segvggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.19926v1) · [Full-size English card](../../assets/paper-cards/en/understanding/segvggt.png)
+<!-- /PAPER-CARD -->
+
 ![segvggt — architecture](https://arxiv.org/html/2603.19926v1/x2.png)
 
 _Overall architecture of SegVGGT (원논문 Fig. 2)_

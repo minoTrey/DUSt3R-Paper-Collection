@@ -1,5 +1,12 @@
 # CoMo3R-SLAM: Collaborative Monocular Dense SLAM with Learned 3D Reconstruction Priors for Outdoor Multi-Agent Systems (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/como3r-slam.png" width="720" alt="English summary card for como3r-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/como3r-slam.png)
+
+[Original paper](https://arxiv.org/abs/2605.30488v2) · [Full-size English card](../../assets/paper-cards/en/robotics/como3r-slam.png)
+<!-- /PAPER-CARD -->
+
 ![como3r-slam — architecture](https://arxiv.org/html/2605.30488v1/x2.png)
 
 _Overview of CoMo3R-SLAM (원논문 Fig. 2)_

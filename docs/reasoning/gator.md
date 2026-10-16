@@ -1,5 +1,12 @@
 # GATOR: Generative and Agentic 3D Object Reconstruction From Casual Images (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/gator.png" width="720" alt="English summary card for gator: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/gator.png)
+
+[Original paper](https://arxiv.org/abs/2610.11215v1) · [Full-size English card](../../assets/paper-cards/en/reasoning/gator.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Qirui Wu, Stan Birchfield, Hesam Rabeti, Angel X. Chang, Bowen Wen

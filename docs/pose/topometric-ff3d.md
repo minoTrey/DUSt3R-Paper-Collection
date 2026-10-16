@@ -1,5 +1,12 @@
 # Topometric Autonomous Vehicle Localization by Combining Visual Embeddings and Feed-Forward 3D Models (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/topometric-ff3d.png" width="720" alt="English summary card for topometric-ff3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/topometric-ff3d.png)
+
+[Original paper](https://arxiv.org/abs/2608.06021v1) · [Full-size English card](../../assets/paper-cards/en/pose/topometric-ff3d.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Eulogio Quemada-Torres, Alberto Jaenal, Francisco-Angel Moreno, Javier Gonzalez-Jimenez

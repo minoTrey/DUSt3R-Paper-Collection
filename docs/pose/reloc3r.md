@@ -1,5 +1,12 @@
 # Reloc3r: Large-Scale Training of Relative Camera Pose Regression for Generalizable, Fast, and Accurate Visual Localization (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/reloc3r.png" width="720" alt="English summary card for reloc3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/reloc3r.png)
+
+[Original paper](https://arxiv.org/abs/2412.08376v2) · [Full-size English card](../../assets/paper-cards/en/pose/reloc3r.png)
+<!-- /PAPER-CARD -->
+
 ![ReLoc3R Overview](https://raw.githubusercontent.com/ffrivera0/reloc3r/main/media/overview.png)
 _ReLoc3R achieves 40 FPS visual localization through simplified DUSt3R-based architecture trained on 8M+ image pairs_
 

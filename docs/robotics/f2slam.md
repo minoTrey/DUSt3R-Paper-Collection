@@ -1,5 +1,12 @@
 # F$^2$ SLAM: Turning Feed-Forward Geometry into Persistent Factors for SLAM (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/f2slam.png" width="720" alt="English summary card for f2slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/f2slam.png)
+
+[Original paper](https://arxiv.org/abs/2610.05207v1) · [Full-size English card](../../assets/paper-cards/en/robotics/f2slam.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhisong Xu, Fan Zhu, Jiawei Qian, Ziyu Chen, Zhenjun Zhao, Javier Civera

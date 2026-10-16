@@ -1,5 +1,12 @@
 # Pow3R-SLAM: Real-Time RGB-D SLAM with 3D Reconstruction Priors (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/pow3r-slam.png" width="720" alt="English summary card for pow3r-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/pow3r-slam.png)
+
+[Original paper](https://arxiv.org/abs/2609.38054v1) · [Full-size English card](../../assets/paper-cards/en/robotics/pow3r-slam.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Christopher Kolios, Ishaan Mehta, Sasa Janjic, Yeganeh Bahoo, Sajad Saeedi
