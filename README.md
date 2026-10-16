@@ -11,7 +11,7 @@ Start with the inputs and outputs, then follow the method and its evidence.
 
 </div>
 
-![Overlapping image views connect to a shared 3D scene. Original conceptual illustration, not a reconstruction result.](assets/collection-cover.svg)
+![Two RGB views of a courtyard connect through point correspondences to a shared 3D point cloud. Conceptual illustration, not a paper result or model reconstruction.](assets/dust3r-research-atlas-hero-v2.png)
 
 <div align="center">
 

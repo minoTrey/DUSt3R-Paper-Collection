@@ -1,10 +1,11 @@
 # Figure provenance
 
-The homepage uses original, code-authored SVG illustrations. No figures, screenshots, textures or other visual assets were copied from a paper, project website or another repository for this design.
+The homepage uses a maintainer-approved PNG hero supplied from Library and original, code-authored SVG illustrations. These assets illustrate concepts, not paper results or model reconstructions. The SVG illustrations were created for this collection without copying figures, screenshots, textures or other visual assets from a paper, project website or another repository.
 
 | Asset                                                  | Purpose                                                                 | Origin and limits                                                                                    |
 | ------------------------------------------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [collection-cover.svg](collection-cover.svg)           | Introduce image views and shared 3D space                               | Original geometric cover created for this collection. Decorative schematic.                          |
+| [dust3r-research-atlas-hero-v2.png](dust3r-research-atlas-hero-v2.png) | Connect two RGB views, point correspondences and shared 3D geometry | Maintainer-approved conceptual courtyard illustration supplied from Library on 2026-10-16. Not a paper result or model reconstruction. |
+| [collection-cover.svg](collection-cover.svg)           | Previous homepage cover, retained as an asset                            | Original geometric cover created for this collection. Decorative schematic.                          |
 | [images-to-3d.svg](images-to-3d.svg)                   | Explain RGB input, learned geometry and possible outputs                | Original conceptual diagram created for this collection. Outputs and post-processing vary by method. |
 | [task-geometry.svg](task-geometry.svg)                 | Contrast static shape with time-varying geometry                        | Original task-family illustration. Points and motion arrows are not experimental predictions.        |
 | [task-render-interpret.svg](task-render-interpret.svg) | Distinguish rendering, semantic labeling and unseen-structure inference | Original task-family illustration. Dashed hidden geometry denotes inference, not observation.        |
