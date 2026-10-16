@@ -1,29 +1,41 @@
 # DUSt3R Paper Collection
 
-<div align="center">
+Source-linked paper notes on DUSt3R and related feed-forward 3D research. Start with a research topic, then compare each method's inputs, outputs and evidence.
 
-**From images to geometry. A reading map for feed-forward 3D vision.**
+<div id="research-categories"></div>
 
-Source-linked paper notes, organized by the problem each method solves.<br>
-Start with the inputs and outputs, then follow the method and its evidence.
+## Browse by category
+
+| Category                                                   | Research focus                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [Foundation Models](docs/foundation/) (30 papers)          | Reusable geometric representations, matching and backbone methods.              |
+| [3D Reconstruction](docs/reconstruction/) (128 papers)     | Scene geometry, alignment, streaming, mixed cameras and reconstruction systems. |
+| [Dynamic Scenes](docs/dynamic/) (50 papers)                | Geometry and motion in changing scenes.                                         |
+| [Gaussian Splatting](docs/gaussian-splatting/) (51 papers) | Explicit scene representations and novel-view rendering.                        |
+| [Scene Understanding](docs/understanding/) (26 papers)     | Semantic labels, objects and features attached to geometry.                     |
+| [Scene Reasoning](docs/reasoning/) (7 papers)              | Hidden structure, completion and spatial inference.                             |
+| [Robotics](docs/robotics/) (22 papers)                     | Calibration, mapping, navigation and robot-facing applications.                 |
+| [Surveys & Analysis](docs/surveys/) (8 papers)             | Evaluation protocols, reliability, comparisons and failure analysis.            |
+| [Pose Estimation](docs/pose/) (12 papers)                  | Camera and object localization in a reference frame.                            |
+| [Medical](docs/medical/) (3 papers)                        | Task-specific geometry for specialized medical imagery.                         |
 
 [![Papers](https://img.shields.io/badge/Papers-337-green.svg)](docs/papers-list.md)
 
-</div>
+**[Browse all papers →](docs/papers-list.md)** · [Selected additions](#selected-additions) · [Start reading](#start-reading) · [Change log (KO)](log.md)
 
-![Two RGB views of a courtyard connect through point correspondences to a shared 3D point cloud. Conceptual illustration, not a paper result or model reconstruction.](assets/dust3r-research-atlas-hero-v2.png)
+Paper notes are primarily English. Some legacy passages remain in Korean; see the [language audit](raw/language_correction_2026-10-15.json).
 
-<div align="center">
+## Selected additions
 
-**[Browse all papers →](docs/papers-list.md)** · **[Start reading](#start-reading)** · **[Explore by task](#explore-by-question)**
+**Source-review batch: 2026-10-15** — selected entry points, not publication-date rankings.
+See the [candidate decisions (KO)](candidates/review-2026-10-15.md) and [change log (KO)](log.md) for the full scope.
 
-[Selected additions](#selected-additions) · [Verification](#verification) · [Change log (KO)](log.md)
-
-</div>
-
-> A source-linked collection of **337 papers** on DUSt3R and related feed-forward 3D research.
-> Paper notes are primarily English. Some legacy passages remain in Korean; see the [language audit](raw/language_correction_2026-10-15.json).
-> Document counts are not counts of fully verified papers. Read each result with its source, protocol and limitations.
+| Paper                                           | Input → Output                                      | What to inspect                                                     |
+| ----------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| [Slot3R · Notes](docs/reconstruction/slot3r.md) | Frames → streaming geometry                         | How state carries information between frames.                       |
+| [GeoCond · Notes](docs/foundation/geocond.md)   | Images + geometric conditions → adapted predictions | Which conditions the model accepts and how reliability is tested.   |
+| [MEOW · Notes](docs/reconstruction/meow.md)     | Mixed-camera views → scene geometry                 | How different camera models enter the reconstruction.               |
+| [LG-VLN · Notes](docs/robotics/lg-vln.md)       | RGB + instruction + camera height → map and actions | Correspondence filtering, scale initialization and pose evaluation. |
 
 ## Start reading
 
@@ -36,6 +48,10 @@ This is a reading guide, not a performance ranking or a claim of direct lineage.
 | **MASt3R** | Image pair → geometry + matches      | Add local descriptors for matching.          | [Notes](docs/foundation/mast3r.md) · [Paper](https://arxiv.org/abs/2406.09756) · [Code](https://github.com/naver/mast3r)            |
 | **VGGT**   | Image set → cameras + dense geometry | Alternate attention within and across views. | [Notes](docs/reconstruction/vggt.md) · [Paper](https://arxiv.org/abs/2503.11651) · [Code](https://github.com/facebookresearch/vggt) |
 | **MUSt3R** | Images + memory → shared pointmaps   | Reuse features stored at decoder layers.     | [Notes](docs/reconstruction/must3r.md) · [Paper](https://arxiv.org/abs/2503.01661) · [Code](https://github.com/naver/must3r)        |
+
+## Visual guide
+
+![Two RGB views of a courtyard connect through point correspondences to a shared 3D point cloud. Conceptual illustration, not a paper result or model reconstruction.](assets/dust3r-research-atlas-hero-v2.png)
 
 <details>
 <summary>Images to 3D: the common vocabulary</summary>
@@ -58,23 +74,11 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 ![Static reconstruction maps overlapping RGB views to a shared 3D scene. Dynamic reconstruction additionally represents changing geometry and motion across frames. Conceptual illustration, not a paper result or model prediction.](assets/task-geometry-v2.png)
 
-| Task / main folder                                            | Input → typical output                  | Reading tags / example                                                        |
-| ------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| Learn reusable geometry · [Foundation](docs/foundation/)      | Views → geometric features or pointmaps | `cross-view` · `matching` · [DUSt3R notes](docs/foundation/dust3r.md)         |
-| Recover static shape · [Reconstruction](docs/reconstruction/) | Views → aligned scene geometry          | `streaming` · `mixed cameras` · [Slot3R notes](docs/reconstruction/slot3r.md) |
-| Recover changing scenes · [Dynamic](docs/dynamic/)            | Frames → geometry over time             | `motion` · `persistent state` · [CUT3R notes](docs/dynamic/cut3r.md)          |
-
 ### Render and interpret
 
 **Predict a new image, attach meaning to geometry, or infer what is hidden.**
 
 ![Three different targets: Gaussian scene representations rendered from a new camera, semantic labels attached to observed geometry, and inferred structure behind an occluder. Hidden geometry is drawn dashed to mark inference. Conceptual illustration, not a paper result or model prediction.](assets/task-render-interpret-v2.png)
-
-| Task / main folder                                                    | Input → typical output                           | Reading tags / example                                                 |
-| --------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
-| Synthesize new views · [Gaussian Splatting](docs/gaussian-splatting/) | Views → Gaussians → rendered image               | `novel view` · [Splatt3R notes](docs/gaussian-splatting/splatt3r.md)   |
-| Label the scene · [Understanding](docs/understanding/)                | Views / geometry → labels, objects or properties | `semantic geometry` · [IGGT notes](docs/understanding/iggt.md)         |
-| Infer unseen structure · [Reasoning](docs/reasoning/)                 | Partial observations → inferred geometry         | `amodal` · `completion` · [Amodal3R notes](docs/reasoning/amodal3r.md) |
 
 ### Localize and act
 
@@ -82,76 +86,11 @@ For example, DUSt3R predicts a pair of pointmaps; its multi-image pipeline adds 
 
 ![Pose estimation recovers camera position and orientation in a reference frame. A robot application combines geometry with a persistent map and goals to select actions; a map alone is not a navigation policy. Conceptual illustration, not a paper result or model prediction.](assets/task-pose-action-v2.png)
 
-| Task / main folder                                      | Input → typical output                                | Reading tags / example                                                     |
-| ------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| Estimate pose · [Pose Estimation](docs/pose/)           | Images / references → camera or object pose           | `localization` · [FFVO notes](docs/pose/ffvo.md)                           |
-| Map and interact · [Robotics](docs/robotics/)           | Observations + task → map, calibration or actions     | `SLAM` · `navigation` · [LG-VLN notes](docs/robotics/lg-vln.md)            |
-| Adapt to specialized imagery · [Medical](docs/medical/) | Medical imagery → task-specific geometry              | `endoscopy` · [Endo3R notes](docs/medical/endo3r.md)                       |
-| Test what works · [Surveys & Analysis](docs/surveys/)   | Models + protocols → comparisons and failure analysis | `reliability` · [Confidence Audit notes](docs/surveys/confidence-audit.md) |
-
 **Folders and tags serve different purposes.** Each paper has one primary filing location in the complete index.
-The task groups above are reading routes; the tags are cross-cutting cues, not extra folders or duplicate counts.
+The category table above lists filing locations; tags are cross-cutting cues, not extra folders or duplicate counts.
 For example, `SLAM` spans reconstruction, pose and robotics, while `semantic geometry` spans understanding and reasoning.
 Medical is an application-domain folder; its papers can also address motion or reconstruction.
 The diagrams show task families, not architectures shared by every paper. [Figure provenance](assets/README.md).
-
-## Selected additions
-
-**Source-review batch: 2026-10-15** — selected entry points, not publication-date rankings.
-See the [candidate decisions (KO)](candidates/review-2026-10-15.md) and [change log (KO)](log.md) for the full scope.
-
-| Paper                                           | Input → Output                                      | What to inspect                                                     |
-| ----------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
-| [Slot3R · Notes](docs/reconstruction/slot3r.md) | Frames → streaming geometry                         | How state carries information between frames.                       |
-| [GeoCond · Notes](docs/foundation/geocond.md)   | Images + geometric conditions → adapted predictions | Which conditions the model accepts and how reliability is tested.   |
-| [MEOW · Notes](docs/reconstruction/meow.md)     | Mixed-camera views → scene geometry                 | How different camera models enter the reconstruction.               |
-| [LG-VLN · Notes](docs/robotics/lg-vln.md)       | RGB + instruction + camera height → map and actions | Correspondence filtering, scale initialization and pose evaluation. |
-
-<details>
-<summary>All primary folders and generated document counts</summary>
-
-## Research categories
-
-These are the existing filing locations. No papers are moved or counted twice by the reading routes above.
-Each link opens a category index; detailed notes may contain Korean.
-
-### 🔬 [Foundation Models](docs/foundation/) (30 papers)
-
-Reusable geometric representations, matching and backbone methods.
-
-### 🏗️ [3D Reconstruction](docs/reconstruction/) (128 papers)
-
-Scene geometry, alignment, streaming, mixed cameras and reconstruction systems.
-
-### 🎬 [Dynamic Scenes](docs/dynamic/) (50 papers)
-
-Geometry and motion in changing scenes.
-
-### ✨ [Gaussian Splatting](docs/gaussian-splatting/) (51 papers)
-
-Explicit scene representations and novel-view rendering.
-
-### 🧠 [Scene Understanding](docs/understanding/) (26 papers)
-
-Semantic labels, objects and features attached to geometry.
-
-### 🔍 [Scene Reasoning](docs/reasoning/) (7 papers)
-
-Hidden structure, completion and spatial inference.
-
-### 🤖 [Robotics](docs/robotics/) (22 papers)
-
-Calibration, mapping, navigation and robot-facing applications.
-
-### 📚 [Surveys & Analysis](docs/surveys/) (8 papers)
-
-Evaluation protocols, reliability, comparisons and failure analysis.
-
-### 📍 [Pose Estimation](docs/pose/) (12 papers) · 🏥 [Medical](docs/medical/) (3 papers)
-
-Camera/object localization, and geometry for specialized medical imagery.
-
-</details>
 
 <details>
 <summary>Publication-year distribution: CONFIRMED venues only</summary>
@@ -176,49 +115,6 @@ LIKELY, UNKNOWN and arXiv submission years are excluded. This is not a fresh pub
 Preprints and papers with unconfirmed venues remain part of the collection.
 
 </details>
-
-## Reading results responsibly
-
-Keep each number beside its source table, dataset, camera inputs, units and alignment protocol.
-The same metric name does not make results comparable when GT poses, scale treatment or completed sequences differ.
-Start with [Surveys & Analysis](docs/surveys/) for comparisons under a shared protocol.
-
-## Verification
-
-Metadata and results in this collection are checked by scripts in [`tools/`](tools/):
-
-| Check                     | What it does                                                                          |
-| ------------------------- | ------------------------------------------------------------------------------------- |
-| `verify_metadata.py`      | Venue, authors, arXiv ID against arXiv + DBLP + Semantic Scholar + Crossref           |
-| `verify_benchmarks.py`    | Selected numeric tokens in tables against source PDF text; labels need source review  |
-| `verify_index_numbers.py` | Checks README numeric claims against paper documents                                  |
-| `check_structure.py`      | Seven-section structure and Overview field schema                                     |
-| `update_stats.py`         | Document/category counts and the confirmed-venue histogram — generated from documents |
-
-Each paper's Overview carries a `Verification` field:
-
-- **CONFIRMED** — venue proven by DBLP, a publisher DOI, OpenReview, CVF openaccess, or an
-  author-maintained badge
-- **LIKELY** — a publication candidate or author claim needs corroboration and identity checks
-- **PREPRINT** — stored metadata checks found no publication record; indexing delays remain possible
-- **UNKNOWN** — publication venue remains unverified, even if the arXiv paper is available.
-  The venue says `arXiv preprint`, and the Verification field or a Note states what is missing.
-
-### What verification does not cover
-
-Stated plainly, because a checkmark that overstates itself is worse than none:
-
-- **Benchmark verification does not run in CI.** Source PDFs are gitignored, so it is a
-  local gate. CI checks structure, counts, links, and formatting only.
-- **Default benchmark checks extract decimals.** `--int` also checks selected integer
-  tokens, but cannot establish that the labels, units, or protocols are correct.
-  A matching value elsewhere in the PDF can still conceal a wrong table.
-- **Coverage is aggregate.** A paper can score above threshold while containing one wholly
-  fabricated table. Seven papers were caught this way, after passing an earlier sweep.
-- **Prose is weaker than tables.** Derived claims in body text get less scrutiny than the
-  tables they cite.
-
-[`log.md`](log.md) records what was found and fixed, including the failure modes above.
 
 ## 🤝 Contributing
 
@@ -263,3 +159,11 @@ started this.
 License status needs maintainer confirmation: this repository's earlier README referred
 to MIT, but no `LICENSE` file is tracked, while `package.json` declares ISC.
 This curation does not choose or change license terms. Paper content belongs to its respective authors.
+
+<div id="reading-results-responsibly"></div>
+<div id="verification"></div>
+<div id="what-verification-does-not-cover"></div>
+
+## Reading and verification
+
+[Reading results responsibly](guides/reading-and-verification.md#reading-results-responsibly) · [Verification and limitations](guides/reading-and-verification.md#verification)
