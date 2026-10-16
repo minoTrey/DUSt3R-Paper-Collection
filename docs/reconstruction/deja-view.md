@@ -1,5 +1,12 @@
 # DejaView: Looping Transformers for Multi-View 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/deja-view.png" width="720" alt="English summary card for deja-view: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/deja-view.png)
+
+[Original paper](https://arxiv.org/abs/2605.30215v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/deja-view.png)
+<!-- /PAPER-CARD -->
+
 ![deja-view — architecture](https://arxiv.org/html/2605.30215v2/x2.png)
 
 _Method overview (원논문 Fig. 2)_

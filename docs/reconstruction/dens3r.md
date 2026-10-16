@@ -1,5 +1,12 @@
 # Dens3R: A Foundation Model for 3D Geometry Prediction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/dens3r.png" width="720" alt="English summary card for dens3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/dens3r.png)
+
+[Original paper](https://arxiv.org/abs/2507.16290v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/dens3r.png)
+<!-- /PAPER-CARD -->
+
 ![Dens3R Teaser](https://github.com/G-1nOnly/Dens3R/raw/main/assets/Teaser.jpg)
 _Dens3R provides unified geometric dense prediction for high-quality 3D reconstruction from unposed images through joint modeling of multiple geometric quantities_
 

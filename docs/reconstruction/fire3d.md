@@ -1,5 +1,12 @@
 # FIRE3D: Feed-forward Interactive 3D Scene Reconstruction Within A Minute (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/fire3d.png" width="720" alt="English summary card for fire3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/fire3d.png)
+
+[Original paper](https://arxiv.org/abs/2609.08848v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/fire3d.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Hongchi Xia, Tianhang Cheng, Wei-Chiu Ma, Shenlong Wang

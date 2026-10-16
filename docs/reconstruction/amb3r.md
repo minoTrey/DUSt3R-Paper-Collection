@@ -1,5 +1,12 @@
 # AMB3R: Accurate Feed-forward Metric-scale 3D Reconstruction with Backend (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/amb3r.png" width="720" alt="English summary card for amb3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/amb3r.png)
+
+[Original paper](https://arxiv.org/abs/2511.20343v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/amb3r.png)
+<!-- /PAPER-CARD -->
+
 ![amb3r — architecture](https://arxiv.org/html/2511.20343/x2.png)
 
 _Overview of AMB3R (원논문 Fig. 2)_

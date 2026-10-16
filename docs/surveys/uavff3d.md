@@ -1,5 +1,12 @@
 # UAVFF3D: A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/uavff3d.png" width="720" alt="English summary card for uavff3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/uavff3d.png)
+
+[Original paper](https://arxiv.org/abs/2605.17942v2) · [Full-size English card](../../assets/paper-cards/en/surveys/uavff3d.png)
+<!-- /PAPER-CARD -->
+
 ![uavff3d — architecture](https://arxiv.org/html/2605.17942v2/x1.png)
 
 _Typical failure cases of feed-forward UAV reconstruction (원논문 Fig. 1)_

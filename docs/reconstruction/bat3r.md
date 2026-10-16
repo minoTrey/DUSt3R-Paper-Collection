@@ -1,5 +1,12 @@
 # BAT3R: Bootstrapping Articulated 3D Reconstruction from 2D Image Collections (ECCV 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/bat3r.png" width="720" alt="English summary card for bat3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/bat3r.png)
+
+[Original paper](https://arxiv.org/abs/2607.03891v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/bat3r.png)
+<!-- /PAPER-CARD -->
+
 ![bat3r — architecture](https://arxiv.org/html/2607.03891v1/x1.png)
 
 _While effective, supervised approaches for 3D shape estimation from 2D images rely on the availability of large manually crafted and curated 3D shape… (원논문 Fig. 1)_

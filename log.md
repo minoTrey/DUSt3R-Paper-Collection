@@ -778,3 +778,10 @@ Validation before the category PR: all 12 offline checks, inventory consistency 
 ## [2026-10-16] Verify publication after category migration
 
 PR #19 merged at `5b81146a8035ddee61a58964baa0848cc4b90b37` after CI passed. Fetched all 27 canonical note sources and legacy move notices at that main commit, plus both old/new PNG URLs for the 25 moved cards. The note sources match and all 50 PNG hashes match their reviewed bytes. The six GitHub-rendered HTML checks used an identical tree to main and passed. Browser layout remains unverified. Progress now records the new canonical locations as published: 31 complete/published cards and 306 not started. The migration map and legacy aliases remain available for ongoing card-production jobs.
+
+## 2026-10-16 — Review and integrate the next 42 English paper cards
+
+- Added 42 supplied original PNGs and linked cards above the existing notes. Resolved Trust3R and UAVFF3D through the exact category migration map; preserved all existing detailed note text and all 31 earlier published cards.
+- Opened all 42 actual images and checked their claims against the matching original-paper HTML/PDF revisions. The batch audit records datasets, protocols, table/section attribution, qualifications, PDF hashes and numeric-token pages. Numeric token presence supplements manual source attribution. MVID v3 is labeled explicitly while the legacy IDT note snapshot is retained.
+- The inventory tracks repository integration/publication. An unrecorded card does not imply that no externally produced card exists. All 42 reviewed additions remain ready/pending main until their exact published bytes and note links are verified. GitHub browser rendering is not verified in this environment.
+- Validation: 32 unit tests and all 12 default checks passed. Detailed content of all 337 notes, all 56 existing card/alias assets and all 42 supplied new PNGs passed preservation checks. No tracked file is deleted by this card batch.

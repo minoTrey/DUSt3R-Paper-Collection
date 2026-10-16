@@ -1,5 +1,12 @@
 # Empowering: Metric-Scale Feed-Forward Reconstruction via Satellite Images (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/empowering.png" width="720" alt="English summary card for empowering: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/empowering.png)
+
+[Original paper](https://arxiv.org/abs/2606.08205v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/empowering.png)
+<!-- /PAPER-CARD -->
+
 ![empowering — architecture](https://arxiv.org/html/2606.08205v1/x1.png)
 
 _By incorporating satellite patches retrieved from coarse GPS signals, our method resolves the scale ambiguity of foundation-model-based 3D estimation… (원논문 Fig. 1)_

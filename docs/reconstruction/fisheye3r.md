@@ -1,5 +1,12 @@
 # Fisheye3R: Adapting Unified 3D Feed-Forward Foundation Models to Fisheye Lenses (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/fisheye3r.png" width="720" alt="English summary card for fisheye3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/fisheye3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.28896v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/fisheye3r.png)
+<!-- /PAPER-CARD -->
+
 ![fisheye3r — architecture](https://arxiv.org/html/2603.28896v2/x1.png)
 
 _Foundation models for 3D reconstruction generally fail on fisheye images (원논문 Fig. 1)_

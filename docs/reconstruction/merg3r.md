@@ -1,5 +1,12 @@
 # MERG3R: A Divide-and-Conquer Approach to Large-Scale Neural Visual Geometry (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/merg3r.png" width="720" alt="English summary card for merg3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/merg3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.02351v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/merg3r.png)
+<!-- /PAPER-CARD -->
+
 ![merg3r — architecture](https://arxiv.org/html/2603.02351v1/x2.png)
 
 _Overview of our large-scale 3D reconstruction pipeline (원논문 Fig. 2)_

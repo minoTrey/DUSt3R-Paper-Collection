@@ -1,5 +1,12 @@
 # Trust3R: Evidential Uncertainty for Feed-Forward 3D Reconstruction (ICML 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/extensions/trust3r.png" width="720" alt="English summary card for trust3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/extensions/trust3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.19539v1) · [Full-size English card](../../assets/paper-cards/en/extensions/trust3r.png)
+<!-- /PAPER-CARD -->
+
 ![trust3r — architecture](https://arxiv.org/html/2605.19539v1/x2.png)
 
 _Overview of the proposed Trust3R framework (원논문 Fig. 2)_

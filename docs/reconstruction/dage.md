@@ -1,5 +1,12 @@
 # DAGE: Dual-Stream Architecture for Efficient and Fine-Grained Geometry Estimation (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/dage.png" width="720" alt="English summary card for dage: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/dage.png)
+
+[Original paper](https://arxiv.org/abs/2603.03744v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/dage.png)
+<!-- /PAPER-CARD -->
+
 ![dage — architecture](https://arxiv.org/html/2603.03744v2/x2.png)
 
 _Overview of DAGE (원논문 Fig. 2)_

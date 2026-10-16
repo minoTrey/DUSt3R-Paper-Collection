@@ -1,5 +1,12 @@
 # C3Po: Cross-View Cross-Modality Correspondence by Pointmap Prediction (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/c3po.png" width="720" alt="English summary card for c3po: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/c3po.png)
+
+[Original paper](https://arxiv.org/abs/2511.18559v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/c3po.png)
+<!-- /PAPER-CARD -->
+
 ![c3po — teaser](https://c3po-correspondence.github.io/static/images/teaser.png)
 
 _핵심 개념 (저자 project page)_

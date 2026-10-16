@@ -1,5 +1,12 @@
 # DA3: Recovering the Visual Space from Any Views (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/depth-anything-3.png" width="720" alt="English summary card for depth-anything-3: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/depth-anything-3.png)
+
+[Original paper](https://arxiv.org/abs/2511.10647v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/depth-anything-3.png)
+<!-- /PAPER-CARD -->
+
 ![depth-anything-3 — architecture](https://arxiv.org/html/2511.10647/figs/pdfs/pipeline.png)
 
 _Pipeline of Depth Anything 3 (원논문 Fig. 2)_

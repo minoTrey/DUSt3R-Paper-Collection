@@ -17,7 +17,7 @@ python tools/build_card_inventory.py --check
 
 The exporter reads the current note titles and Overview links. It does not invent project links, extract another paper's citation from Related Work, or treat venue verification as a completed card review. A missing project link means **not recorded in the note**, not that no project exists. Explicit PDF links are included only when they refer to the same arXiv ID.
 
-Check `audit_passed` and the audit's `blocking_findings` before selecting a production batch. Note hashes use UTF-8 text with LF line endings and exclude only the marked summary-card presentation block. Select records whose `card_production_status` is `not_started` for new production work.
+Check `audit_passed` and the audit's `blocking_findings` before selecting a production batch. Note hashes use UTF-8 text with LF line endings and exclude only the marked summary-card presentation block. A `card_production_status` of `not_started` means no reviewed integration is recorded in this repository. Check delivered Library assets and pending batches before commissioning or generating another card; this field does not prove that no card exists externally.
 
 Use the full title and `paper_source_identity` to resolve identity. Abbreviations can collide: the current collection contains separate Scal3R papers and separate Wat3R/WAT3R papers. Their different source IDs and slugs must remain separate card jobs.
 
@@ -53,7 +53,7 @@ The image should also open at a readable size. Keep card source/version informat
 
 ## Proposed progress tracking
 
-Maintain the separate [progress records](../data/paper-card-progress.jsonl). Manually reviewed status belongs there; the generated inventory only copies it. DUSt3R, MASt3R and VGGT are published on main. The next 28 supplied cards have source and image review records in the [batch audit](../data/paper-card-reviews/batch-2026-10-16.json). A reviewed card awaiting main publication has `production_status: ready`; only a card whose exact bytes and note link have been verified on main may have `production_status: complete` and `status: published`. Other papers remain not started.
+Maintain the separate [progress records](../data/paper-card-progress.jsonl). Manually reviewed status belongs there; the generated inventory only copies it. DUSt3R, MASt3R and VGGT are published on main. The next 28 supplied cards have source and image review records in the [batch audit](../data/paper-card-reviews/batch-2026-10-16.json). A reviewed card awaiting main publication has `production_status: ready`; only a card whose exact bytes and note link have been verified on main may have `production_status: complete` and `status: published`. The supplied 42-card batch has a separate [source and image audit](../data/paper-card-reviews/batch-42-2026-10-16.json). Unrecorded cards remain outside the repository integration workflow; their external production state is unknown.
 
 Each progress record should contain:
 
@@ -68,13 +68,13 @@ Each progress record should contain:
 
 Use these states:
 
-| State             | Required evidence                                                                                             |
-| ----------------- | ------------------------------------------------------------------------------------------------------------- |
-| `not_started`     | No received card asset.                                                                                       |
-| `asset_received`  | A real file has been received and associated with the correct source identity.                                |
-| `source_reviewed` | The English wording, diagrams, numbers and qualifications were checked against the original paper.            |
-| `visual_reviewed` | The actual image opens correctly; text, links, layout and labeling were checked at the intended display size. |
-| `published`       | The reviewed bytes and note link are verified on main, with a recorded commit.                                |
+| State             | Required evidence                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `not_started`     | No reviewed repository integration record; external asset availability is unknown.                                         |
+| `asset_received`  | A real file has been received and associated with the correct source identity.                                             |
+| `source_reviewed` | The English wording, diagrams, numbers and qualifications were checked against the original paper.                         |
+| `visual_reviewed` | The actual image opens and its text, diagrams, labels and clipping were inspected; record browser verification separately. |
+| `published`       | The reviewed bytes and note link are verified on main, with a recorded commit.                                             |
 
 Record issues separately and keep the last supported state. A generated file, successful image decode, category-banner approval or CI pass is not evidence that a paper card's claims were reviewed. If the note or paper revision changes, compare it with the recorded source snapshot and re-review affected card content.
 

@@ -1,5 +1,12 @@
 # GARD: Geometry-Aware Representation Denoising for Robust Multi-view 3D Reconstruction (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/gard.png" width="720" alt="English summary card for gard: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/gard.png)
+
+[Original paper](https://arxiv.org/abs/2605.26230v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/gard.png)
+<!-- /PAPER-CARD -->
+
 ![gard — architecture](https://arxiv.org/html/2605.26230v1/x1.png)
 
 _Geometry-Aware Representation Denoising (GARD) framework (원논문 Fig. 1)_

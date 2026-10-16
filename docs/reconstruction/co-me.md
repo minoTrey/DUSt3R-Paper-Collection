@@ -1,5 +1,12 @@
 # Co-Me: Confidence Guided Token Merging for Visual Geometric Transformers (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/co-me.png" width="720" alt="English summary card for co-me: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/co-me.png)
+
+[Original paper](https://arxiv.org/abs/2511.14751v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/co-me.png)
+<!-- /PAPER-CARD -->
+
 ![co-me — architecture](https://arxiv.org/html/2511.14751v2/x2.png)
 
 _Overview of Co-Me (원논문 Fig. 2)_

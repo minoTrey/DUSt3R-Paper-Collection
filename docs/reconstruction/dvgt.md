@@ -1,5 +1,12 @@
 # DVGT: Driving Visual Geometry Transformer (arXiv preprint (2025-12))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/dvgt.png" width="720" alt="English summary card for dvgt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/dvgt.png)
+
+[Original paper](https://arxiv.org/abs/2512.16919v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/dvgt.png)
+<!-- /PAPER-CARD -->
+
 ![dvgt — architecture](https://arxiv.org/html/2512.16919v2/x2.png)
 
 _Framework of our DVGT for metric-scaled 3D scene geometry prediction (원논문 Fig. 3)_
