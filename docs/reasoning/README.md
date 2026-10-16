@@ -1,5 +1,9 @@
 # Scene Reasoning
 
+[<img src="../../assets/category-thumbnails/reasoning.png" width="640" alt="Spatial relations among a cube, its supporting block and a nearby sphere, represented with geometry and relation arrows; conceptual illustration, not a measured reasoning result." />](../../assets/category-thumbnails/reasoning.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🔍 Overview
 
 Infer hidden structure, complete partial observations or reason about spatial relationships. Separate geometry supported by observations from plausible structure supplied by learned priors or generative models.

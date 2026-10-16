@@ -1,5 +1,12 @@
 # DUSt3R: Geometric 3D Vision Made Easy (CVPR 2024)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/dust3r.png" width="720" alt="English summary card for DUSt3R; diagrams are illustrative, not measured outputs." />](../../assets/paper-cards/en/foundation/dust3r.png)
+
+[Original paper](https://arxiv.org/abs/2312.14132) · [Full-size English card](../../assets/paper-cards/en/foundation/dust3r.png)
+<!-- /PAPER-CARD -->
+
 ![DUSt3R Architecture](https://github.com/naver/dust3r/raw/main/assets/dust3r_archi.jpg)
 _Predict both images' pointmaps in the first camera frame; combining multiple pairs requires separate global alignment._
 

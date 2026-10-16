@@ -1,5 +1,9 @@
 # Medical and Specialized Applications
 
+[<img src="../../assets/category-thumbnails/medical.png" width="640" alt="Endoscopic views, camera geometry and an illustrative tissue surface; conceptual illustration, not patient images or a medical model result." />](../../assets/category-thumbnails/medical.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🏥 Overview
 
 Adapt geometry methods to specialized imagery, particularly medical and endoscopic views. Tissue deformation, illumination, limited texture and acquisition constraints can change the task and its evaluation. This is an application-domain folder, which can overlap conceptually with reconstruction or dynamic scenes.

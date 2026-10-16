@@ -1,5 +1,9 @@
 # Robotics Applications
 
+[<img src="../../assets/category-thumbnails/robotics.png" width="640" alt="Camera geometry and a point cloud supporting an illustrative robot-arm motion toward an object; conceptual illustration, not a measured robot trajectory." />](../../assets/category-thumbnails/robotics.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🤖 Overview
 
 Use visual geometry for calibration, mapping, navigation and robot-facing tasks. A paper can belong here by contributing a concrete application method and evaluating its output; a new geometry backbone is not required.

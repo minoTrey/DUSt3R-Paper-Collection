@@ -1,5 +1,12 @@
 # MASt3R: Grounding Image Matching in 3D (ECCV 2024)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/foundation/mast3r.png" width="720" alt="English summary card for MASt3R; diagrams are illustrative, not measured outputs." />](../../assets/paper-cards/en/foundation/mast3r.png)
+
+[Original paper](https://arxiv.org/abs/2406.09756) · [Full-size English card](../../assets/paper-cards/en/foundation/mast3r.png)
+<!-- /PAPER-CARD -->
+
 ![MASt3R Overview](https://github.com/naver/mast3r/raw/main/assets/mast3r_archi.jpg)
 _MASt3R grounds image matching in 3D space, unifying dense correspondence with geometric reconstruction_
 

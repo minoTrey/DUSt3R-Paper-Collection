@@ -1,5 +1,9 @@
 # Dynamic Scene Reconstruction
 
+[<img src="../../assets/category-thumbnails/dynamic.png" width="640" alt="A moving person represented at successive times with illustrative geometry and motion; conceptual illustration, not measured tracking." />](../../assets/category-thumbnails/dynamic.png)
+
+_Conceptual illustration, not a paper result._
+
 ## 🎬 Overview
 
 Recover geometry as the scene changes over time. Papers address moving objects, deformation, persistent state or temporal correspondence; a moving camera alone does not make a scene dynamic.
