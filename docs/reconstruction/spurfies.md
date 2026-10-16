@@ -1,5 +1,12 @@
 # Spurfies: Sparse Surface Reconstruction using Local Geometry Priors (3DV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/spurfies.png" width="720" alt="English summary card for spurfies: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/spurfies.png)
+
+[Original paper](https://arxiv.org/abs/2408.16544v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/spurfies.png)
+<!-- /PAPER-CARD -->
+
 ![Spurfies Pipeline](https://geometric-rl.mpi-inf.mpg.de/spurfies/static/images/teaser.png)
 _Spurfies reconstructs high-quality surfaces from sparse point clouds by leveraging local geometry priors and neural implicit representations_
 

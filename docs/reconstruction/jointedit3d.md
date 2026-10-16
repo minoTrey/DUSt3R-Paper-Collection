@@ -1,5 +1,12 @@
 # JointEdit3D: Feed-Forward 3D Scene Editing in a Unified Latent Space (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/jointedit3d.png" width="720" alt="English summary card for jointedit3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/jointedit3d.png)
+
+[Original paper](https://arxiv.org/abs/2606.13345v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/jointedit3d.png)
+<!-- /PAPER-CARD -->
+
 ![jointedit3d — architecture](https://arxiv.org/html/2606.13345v1/x1.png)
 
 _JointEdit3D pipeline (원논문 Fig. 1)_

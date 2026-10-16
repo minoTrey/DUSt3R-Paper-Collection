@@ -1,5 +1,12 @@
 # Ground4D: Spatially-Grounded Feedforward 4D Reconstruction for Unstructured Off-Road Scenes (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/ground4d.png" width="720" alt="English summary card for ground4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/ground4d.png)
+
+[Original paper](https://arxiv.org/abs/2605.04435v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/ground4d.png)
+<!-- /PAPER-CARD -->
+
 ![ground4d — architecture](https://arxiv.org/html/2605.04435v1/x2.png)
 
 _Overview of our Ground4D framework (원논문 Fig. 2)_

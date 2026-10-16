@@ -1,5 +1,12 @@
 # Spann3R: 3D Reconstruction with Spatial Memory (3DV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/spann3r.png" width="720" alt="English summary card for spann3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/spann3r.png)
+
+[Original paper](https://arxiv.org/abs/2408.16061v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/spann3r.png)
+<!-- /PAPER-CARD -->
+
 ![Spann3R Pipeline](https://hengyiwang.github.io/projects/spanner/images/pipeline_dark_v2.jpg)
 _Spann3R achieves real-time 3D reconstruction using dual spatial memory for globally aligned pointmap generation_
 

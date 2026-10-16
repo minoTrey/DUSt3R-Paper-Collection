@@ -1,5 +1,12 @@
 # SING3R-SLAM: Submap-based Indoor Monocular Gaussian SLAM with 3D Reconstruction Priors (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/sing3r-slam.png" width="720" alt="English summary card for sing3r-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/sing3r-slam.png)
+
+[Original paper](https://arxiv.org/abs/2511.17207v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/sing3r-slam.png)
+<!-- /PAPER-CARD -->
+
 ![sing3r-slam — architecture](https://arxiv.org/html/2511.17207v2/x2.png)
 
 _Overview (원논문 Fig. 2)_

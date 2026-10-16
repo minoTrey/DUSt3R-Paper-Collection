@@ -1,5 +1,12 @@
 # AVSplat: Dense-View Feed-Forward 3D Gaussian Splatting with Assist-View Preconditioning (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/avsplat.png" width="720" alt="English summary card for avsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/avsplat.png)
+
+[Original paper](https://arxiv.org/abs/2609.05925v1) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/avsplat.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Muyu Xu, Fangneng Zhan, Yu Wei, Hanspeter Pfister, Shijian Lu

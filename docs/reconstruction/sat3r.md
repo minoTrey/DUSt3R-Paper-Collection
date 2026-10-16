@@ -1,5 +1,12 @@
 # Sat3R: Satellite DSM Reconstruction via RPC-Aware Depth Fine-tuning (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/sat3r.png" width="720" alt="English summary card for sat3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/sat3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.07264v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/sat3r.png)
+<!-- /PAPER-CARD -->
+
 ![sat3r — architecture](https://arxiv.org/html/2605.07264v1/figs/method_new.png)
 
 _Overview of Sat3R (원논문 Fig. 2)_

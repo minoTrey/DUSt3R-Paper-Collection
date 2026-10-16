@@ -1,5 +1,12 @@
 # SHOW: Scene and Human in One World — Reconstruction in a Feedforward Pass (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/show.png" width="720" alt="English summary card for show: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/show.png)
+
+[Original paper](https://arxiv.org/abs/2606.27720v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/show.png)
+<!-- /PAPER-CARD -->
+
 ![show — architecture](https://arxiv.org/html/2606.27720v1/x1.png)
 
 _Our method can produce better human and scene alignment under monocular human-centric video input (원논문 Fig. 1)_

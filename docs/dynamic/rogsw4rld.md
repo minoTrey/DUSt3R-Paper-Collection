@@ -1,5 +1,12 @@
 # RoGSW4RLD: Feed-Forward 4D Gaussian Lifting for Robot World Model Rollouts (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/rogsw4rld.png" width="720" alt="English summary card for rogsw4rld: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/rogsw4rld.png)
+
+[Original paper](https://arxiv.org/abs/2609.35311v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/rogsw4rld.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jin Hyun Kim, Min Young Kim, Soohwan Song, Daekyum Kim

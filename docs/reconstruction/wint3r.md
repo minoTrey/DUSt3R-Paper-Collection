@@ -1,5 +1,12 @@
 # WinT3R: Window-based Streaming Reconstruction with Camera Token Pool (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/wint3r.png" width="720" alt="English summary card for wint3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/wint3r.png)
+
+[Original paper](https://arxiv.org/abs/2509.05296v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/wint3r.png)
+<!-- /PAPER-CARD -->
+
 ![wint3r — architecture](https://arxiv.org/html/2509.05296/x1.png)
 
 _Overview (원논문 Fig. 1)_

@@ -1,5 +1,12 @@
 # EAG3R: Event-Augmented 3D Geometry Estimation for Dynamic and Extreme-Lighting Scenes (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/eag3r.png" width="720" alt="English summary card for eag3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/eag3r.png)
+
+[Original paper](https://arxiv.org/abs/2512.00771v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/eag3r.png)
+<!-- /PAPER-CARD -->
+
 ![eag3r — architecture](https://arxiv.org/html/2512.00771/x1.png)
 
 _EAG3R pipeline for event-augmented dynamic 3D reconstruction (원논문 Fig. 1)_

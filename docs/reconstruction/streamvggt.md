@@ -1,5 +1,12 @@
 # StreamVGGT: Streaming Visual Geometry Transformer (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/streamvggt.png" width="720" alt="English summary card for streamvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/streamvggt.png)
+
+[Original paper](https://arxiv.org/abs/2507.11539v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/streamvggt.png)
+<!-- /PAPER-CARD -->
+
 ![streamvggt — architecture](https://arxiv.org/html/2507.11539v2/x3.png)
 
 _Framework of StreamVGGT (원논문 Fig. 3)_

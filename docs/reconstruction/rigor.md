@@ -1,5 +1,12 @@
 # RIGOR: Rig-Informed Geometry for Omnidirectional Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/rigor.png" width="720" alt="English summary card for rigor: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/rigor.png)
+
+[Original paper](https://arxiv.org/abs/2609.13504v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/rigor.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Tingjun Huang, Dmitry Rudshin, Mathieu Meyer, Pietro Bonazzi, Marc Pollefeys, Emilia Szymańska

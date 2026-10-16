@@ -1,5 +1,12 @@
 # On-the-Fly3R: Towards Robust Online 3D Reconstruction with Feed-Forward 3R Models for Large-Scale UAV Scenarios (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/on-the-fly3r.png" width="720" alt="English summary card for on-the-fly3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/on-the-fly3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.00923v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/on-the-fly3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhe Shen, Liyuan Lou, Yifei Yu, Guanbo Wang, Quanjian Ji, Xin Wang, Zongqian Zhan

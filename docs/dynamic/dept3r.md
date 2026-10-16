@@ -1,5 +1,12 @@
 # DePT3R: Joint Dense Point Tracking and 3D Reconstruction of Dynamic Scenes in a Single Forward Pass (arXiv preprint (2025-12))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/dept3r.png" width="720" alt="English summary card for dept3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/dept3r.png)
+
+[Original paper](https://arxiv.org/abs/2512.13122v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/dept3r.png)
+<!-- /PAPER-CARD -->
+
 ![dept3r — architecture](https://arxiv.org/html/2512.13122v2/figures/framework.jpg)
 
 _Our proposed DePT3R framework (원논문 Fig. 2)_

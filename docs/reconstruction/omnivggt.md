@@ -1,5 +1,12 @@
 # OmniVGGT: Omni-Modality Driven Visual Geometry Grounded Transformer (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/omnivggt.png" width="720" alt="English summary card for omnivggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/omnivggt.png)
+
+[Original paper](https://arxiv.org/abs/2511.10560v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/omnivggt.png)
+<!-- /PAPER-CARD -->
+
 ![omnivggt — architecture](https://arxiv.org/html/2511.10560/x2.png)
 
 _Overview of OmniVGGT (원논문 Fig. 2)_

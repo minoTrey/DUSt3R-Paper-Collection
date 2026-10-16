@@ -1,5 +1,12 @@
 # Adapt3R: Adaptive 3D Scene Representation for Domain Transfer in Imitation Learning (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/adapt3r.png" width="720" alt="English summary card for adapt3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/adapt3r.png)
+
+[Original paper](https://arxiv.org/abs/2503.04877v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/adapt3r.png)
+<!-- /PAPER-CARD -->
+
 ![Adapt3R Framework](https://arxiv.org/html/2503.04877v1/x1.png)
 _Adapt3R synthesizes RGBD observations into robust 3D representations for domain transfer in imitation learning_
 

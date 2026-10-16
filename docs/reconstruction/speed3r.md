@@ -1,5 +1,12 @@
 # Speed3R: Sparse Feed-forward 3D Reconstruction Models (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/speed3r.png" width="720" alt="English summary card for speed3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/speed3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.08055v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/speed3r.png)
+<!-- /PAPER-CARD -->
+
 ![speed3r — architecture](https://arxiv.org/html/2603.08055v1/x2.png)
 
 _Architecture (원논문 Fig. 2)_

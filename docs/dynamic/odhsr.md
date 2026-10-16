@@ -1,5 +1,12 @@
 # ODHSR: Online Dense 3D Reconstruction of Humans and Scenes from Monocular Videos (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/odhsr.png" width="720" alt="English summary card for odhsr: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/odhsr.png)
+
+[Original paper](https://arxiv.org/abs/2504.13167v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/odhsr.png)
+<!-- /PAPER-CARD -->
+
 ![ODHSR Pipeline](https://eth-ait.github.io/ODHSR/static/images/pipeline.jpg)
 _ODHSR achieves unified online reconstruction of humans and scenes from monocular video with 75× speedup_
 

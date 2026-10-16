@@ -1,5 +1,12 @@
 # Envision4D: Envisioning Visual Futures via Feed-forward 4D Gaussian Splatting for Autonomous Driving (arXiv preprint (2026-06))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/envision4d.png" width="720" alt="English summary card for envision4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/envision4d.png)
+
+[Original paper](https://arxiv.org/abs/2606.10656v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/envision4d.png)
+<!-- /PAPER-CARD -->
+
 ![envision4d — architecture](https://arxiv.org/html/2606.10656v1/x2.png)
 
 _Framework of Envision4D (원논문 Fig. 2)_

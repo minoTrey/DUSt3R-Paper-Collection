@@ -1,5 +1,12 @@
 # PAGE-4D: VGGT-4D Perception via Disentangled Pose and Geometry Estimation (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/page-4d.png" width="720" alt="English summary card for page-4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/page-4d.png)
+
+[Original paper](https://arxiv.org/abs/2510.17568v8) · [Full-size English card](../../assets/paper-cards/en/dynamic/page-4d.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Kaichen Zhou, Yuhan Wang, Grace Chen, Xinhai Chang, Gaspard Beaudouin, Fangneng Zhan, Paul Pu Liang, Mengyu Wang

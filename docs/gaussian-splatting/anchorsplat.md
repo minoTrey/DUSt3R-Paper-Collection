@@ -1,5 +1,12 @@
 # AnchorSplat: Feed-Forward 3D Gaussian Splatting with 3D Geometric Priors (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/gaussian-splatting/anchorsplat.png" width="720" alt="English summary card for anchorsplat: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/gaussian-splatting/anchorsplat.png)
+
+[Original paper](https://arxiv.org/abs/2604.07053v2) · [Full-size English card](../../assets/paper-cards/en/gaussian-splatting/anchorsplat.png)
+<!-- /PAPER-CARD -->
+
 ![anchorsplat — architecture](https://arxiv.org/html/2604.07053v2/x3.png)
 
 _Overview of the proposed AnchorSplat pipeline (원논문 Fig. 3)_

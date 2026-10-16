@@ -1,5 +1,12 @@
 # PanoVGGT: Feed-Forward 3D Reconstruction from Panoramic Imagery (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/panovggt.png" width="720" alt="English summary card for panovggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/panovggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.17571v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/panovggt.png)
+<!-- /PAPER-CARD -->
+
 ![panovggt — architecture](https://arxiv.org/html/2603.17571v1/x2.png)
 
 _Overview of the proposed PanoVGGT framework (원논문 Fig. 2)_

@@ -1,5 +1,12 @@
 # REGIST3R: Incremental Registration with Stereo Foundation Model (ACM MM 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/regist3r.png" width="720" alt="English summary card for regist3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/regist3r.png)
+
+[Original paper](https://arxiv.org/abs/2504.12356v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/regist3r.png)
+<!-- /PAPER-CARD -->
+
 ![REGIST3R Overview](https://www.researchgate.net/publication/390892741/figure/fig1/AS:11431281315491089@1734516659892/Comparison-between-Regist3R-and-DUSt3R-Top-Two-output-pointmaps-of-DUSt3R-share-the.png)
 <!-- Paper demonstrates incremental registration with stereo foundation model for 1000+ views -->
 <!-- Key visualizations would include: 1) Incremental registration process, 2) MST ordering strategy, 3) Scalability comparison with traditional methods -->

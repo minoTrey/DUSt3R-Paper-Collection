@@ -1,5 +1,12 @@
 # C4D: 4D Made from 3D through Dual Correspondences (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/c4d.png" width="720" alt="English summary card for c4d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/c4d.png)
+
+[Original paper](https://arxiv.org/abs/2510.14960v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/c4d.png)
+<!-- /PAPER-CARD -->
+
 ![c4d — architecture](https://arxiv.org/html/2510.14960/x2.png)
 
 _Overview of C4D (원논문 Fig. 2)_

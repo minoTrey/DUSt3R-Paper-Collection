@@ -1,5 +1,12 @@
 # TrajVG: 3D Trajectory-Coupled Visual Geometry Learning (arXiv preprint (2026-02))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/trajvg.png" width="720" alt="English summary card for trajvg: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/trajvg.png)
+
+[Original paper](https://arxiv.org/abs/2602.04439v2) · [Full-size English card](../../assets/paper-cards/en/dynamic/trajvg.png)
+<!-- /PAPER-CARD -->
+
 ![trajvg — architecture](https://arxiv.org/html/2602.04439/x2.png)
 
 _Overview of our model (원논문 Fig. 2)_

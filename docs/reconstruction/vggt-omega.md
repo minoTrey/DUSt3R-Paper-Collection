@@ -1,5 +1,12 @@
 # VGGT-Ω: Scaling Feed-Forward Reconstruction with Registers and Self-Supervision (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/vggt-omega.png" width="720" alt="English summary card for vggt-omega: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/vggt-omega.png)
+
+[Original paper](https://arxiv.org/abs/2605.15195v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt-omega.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jianyuan Wang, Minghao Chen, Shangzhan Zhang, Nikita Karaev, Johannes Schönberger, Patrick Labatut, Piotr Bojanowski, David Novotny, Andrea Vedaldi, Christian Rupprecht

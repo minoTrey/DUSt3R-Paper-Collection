@@ -1,5 +1,12 @@
 # V-DPM: 4D Video Reconstruction with Dynamic Point Maps (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/dynamic/v-dpm.png" width="720" alt="English summary card for v-dpm: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/dynamic/v-dpm.png)
+
+[Original paper](https://arxiv.org/abs/2601.09499v1) · [Full-size English card](../../assets/paper-cards/en/dynamic/v-dpm.png)
+<!-- /PAPER-CARD -->
+
 ![v-dpm — architecture](https://www.robots.ox.ac.uk/~vgg/research/vdpm/resources/architecture.png)
 
 _모델 아키텍처 (저자 project page)_
