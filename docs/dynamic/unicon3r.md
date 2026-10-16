@@ -144,8 +144,8 @@ UniCon3R is compared primarily against feed-forward monocular 4D human-scene rec
 
 ## 🔗 Related Work
 
-- **[Human3R](./human3r.md)**: Direct predecessor and primary baseline; UniCon3R builds on its Visual-Prompt-Tuning human prompt and inherits its frozen backbone, adding the contact prompt and latent refinement.
-- **[CUT3R](./cut3r.md)**: Frozen 4D scene backbone (persistent-state continuous 3D perception) whose prompting mechanism and decoders UniCon3R reuses.
+- **[Human3R](human3r.md)**: Direct predecessor and primary baseline; UniCon3R builds on its Visual-Prompt-Tuning human prompt and inherits its frozen backbone, adding the contact prompt and latent refinement.
+- **[CUT3R](cut3r.md)**: Frozen 4D scene backbone (persistent-state continuous 3D perception) whose prompting mechanism and decoders UniCon3R reuses.
 - **[DUSt3R](../foundation/dust3r.md)**: Pointmap-prediction foundation of the feed-forward reconstruction lineage that CUT3R extends.
 
 ## 📚 Key Takeaways

@@ -108,7 +108,7 @@ As with topometric localization and physical-property heads, separate backbone i
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): the geometry backbone used.
+- [VGGT](../foundation/vggt.md): the geometry backbone used.
 - [VGGT-SLAM](../reconstruction/vggt-slam.md): cited dense RGB SLAM/Sim(3)-backend context.
 - [Topometric FF3D localization](../pose/topometric-ff3d.md): another direct learned-geometry localization application.
 - [PhysVGGT](../understanding/physvggt.md): learns downstream prediction heads from geometry features.

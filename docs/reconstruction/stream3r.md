@@ -226,7 +226,7 @@ STream3Rβ-W[5] beats the unbounded-context STream3Rβ on Bonn and KITTI depth d
 
 - **[CUT3R](../dynamic/cut3r.md)**: The primary comparison and the RNN design STream3R argues against. Both the retrained ablation and the main tables target it; CUT3R still holds the best completion median on 7-Scenes and better metric-scale KITTI depth.
 - **[DUSt3R](../foundation/dust3r.md)**: STream3Rα's initialization and the source of the confidence-aware pointmap loss. Its symmetric two-decoder design is the specific structure STream3R removes.
-- **[VGGT](vggt.md)**: STream3Rβ's initialization — the SelfAttn layers in Global Attention are replaced by CausalAttn and everything is fine-tuned. Also the reference bidirectional baseline it must justify itself against.
+- **[VGGT](../foundation/vggt.md)**: STream3Rβ's initialization — the SelfAttn layers in Global Attention are replaced by CausalAttn and everything is fine-tuned. Also the reference bidirectional baseline it must justify itself against.
 - **[MASt3R](../foundation/mast3r.md)**: Used for the metric-scale supervision convention and as the initialization for all ablation runs.
 - **[Fast3R](fast3r.md)**: The full-attention many-view baseline; STream3R outperforms it while remaining streaming.
 - **[Spann3R](spann3r.md)**: The fixed-size memory approach STream3R characterizes as scaling poorly with sequence length.

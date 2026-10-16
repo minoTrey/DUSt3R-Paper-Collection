@@ -236,7 +236,7 @@ Because the method touches only attention computation and masking, it stacks dir
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the frozen backbone; VGGT4D is a pure inference-time modification of it
+- [VGGT](../foundation/vggt.md) — the frozen backbone; VGGT4D is a pure inference-time modification of it
 - [Easi3R](easi3r.md) — the direct conceptual predecessor (training-free attention-based 4D on DUSt3R); Table 5 shows its mechanism does not transfer to VGGT
 - [MonST3R](monst3r.md) — fine-tunes on dynamic data with optical flow; the main recall competitor on DAVIS-all
 - [DAS3R](../gaussian-splatting/das3r.md) — feed-forward motion masks via an augmented DPT head

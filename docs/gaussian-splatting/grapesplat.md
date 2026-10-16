@@ -54,7 +54,7 @@ Make Gaussian budgets follow occupied scene cells rather than input pixels.
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): atlas backbone.
+- [VGGT](../foundation/vggt.md): atlas backbone.
 - [VoxelTTO](voxeltto.md): another voxel-Gaussian design, with different TTO requirements.
 
 ## 📚 Key Takeaways

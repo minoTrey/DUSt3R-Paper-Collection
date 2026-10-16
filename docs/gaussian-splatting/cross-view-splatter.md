@@ -94,7 +94,7 @@ Consistency (Lconst) and sky (Lsky) regularization each help the ground-only mod
 
 ## 🔗 Related Work
 
-- Built on the feed-forward geometry line: [DUSt3R](../foundation/dust3r.md), [MASt3R-SfM](../foundation/mast3r-sfm.md), [MapAnything](../reconstruction/mapanything.md), and the [VGGT](../reconstruction/vggt.md) backbone; initialized from AnySplat weights.
+- Built on the feed-forward geometry line: [DUSt3R](../foundation/dust3r.md), [MASt3R-SfM](../reconstruction/mast3r-sfm.md), [MapAnything](../reconstruction/mapanything.md), and the [VGGT](../foundation/vggt.md) backbone; initialized from AnySplat weights.
 - Feed-forward NVS baselines: MVSplat, DepthSplat, NoPoSplat, Long-LRM, AnySplat; satellite-to-ground baseline Sat2Density.
 - Related in-collection feed-forward Gaussian splatting: [Splatt3R](splatt3r.md), and the [WorldMirror](../reconstruction/worldmirror.md) universal-prior line.
 

@@ -164,7 +164,7 @@ ScanNet-v2 average ATE goes to HI-SLAM2. Completeness on 7-Scenes goes to MASt3R
 - [MASt3R-SLAM](mast3r-slam.md) — the two-view feature-matching SLAM baseline; wins completeness, loses map compactness
 - [SLAM3R](slam3r.md) — cited as the first system integrating DUSt3R into a sequential framework
 - [CUT3R](../dynamic/cut3r.md) — used as the monocular geometry estimator inside SING3R-SLAM
-- [VGGT](vggt.md) and [Spann3R](spann3r.md) — cited as the multi-view priors that improve geometric consistency but drift on long sequences
+- [VGGT](../foundation/vggt.md) and [Spann3R](spann3r.md) — cited as the multi-view priors that improve geometric consistency but drift on long sequences
 - [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md) — the underlying pointmap priors
 
 ## 📚 Key Takeaways

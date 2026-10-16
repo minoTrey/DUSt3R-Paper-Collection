@@ -118,11 +118,11 @@ Data-scaling (Fig. 8, low-res 224×224): nearly every metric improves monotonica
 
 ## 🔗 Related Work
 
-- **[π³](./pi3.md)**: the permutation-equivariant feed-forward backbone Cross3R extends with satellite-aware modifications; π³* is the key ablation baseline.
-- **[VGGT](./vggt.md)**: feed-forward multi-view geometry baseline compared on CrossGeo.
+- **[π³](pi3.md)**: the permutation-equivariant feed-forward backbone Cross3R extends with satellite-aware modifications; π³* is the key ablation baseline.
+- **[VGGT](../foundation/vggt.md)**: feed-forward multi-view geometry baseline compared on CrossGeo.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: foundational feed-forward reconstruction; AerialMD (a baseline) fine-tunes DUSt3R for aerial-ground.
-- **[Fast3R](./fast3r.md)** / **[MapAnything](./mapanything.md)** / **[SLAM3R](./slam3r.md)**: cited feed-forward reconstruction methods that assume common-altitude image collections.
-- **[Depth Anything 3](./depth-anything-3.md)**: monocular depth foundation model whose predecessor (V3) supplies ground-depth priors in the CrossGeo pipeline.
+- **[Fast3R](fast3r.md)** / **[MapAnything](mapanything.md)** / **[SLAM3R](slam3r.md)**: cited feed-forward reconstruction methods that assume common-altitude image collections.
+- **[Depth Anything 3](depth-anything-3.md)**: monocular depth foundation model whose predecessor (V3) supplies ground-depth priors in the CrossGeo pipeline.
 
 ## 📚 Key Takeaways
 

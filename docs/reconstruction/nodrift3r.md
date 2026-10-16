@@ -270,7 +270,7 @@ Table 8 deserves emphasis: fine-tuning Depth Anything v3 on DL3DV takes it from 
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — pose-estimation reference in Tables 2, 3, and 10
+- [VGGT](../foundation/vggt.md) — pose-estimation reference in Tables 2, 3, and 10
 - [π³](pi3.md) — the strongest 3D foundation model baseline on 6-view pose; NoDrift3R exceeds it at 224×224 against π³'s 518×280
 - [Depth Anything 3](depth-anything-3.md) — the multi-view transformer backbone, and the fine-tuned control in Table 8
 - [MASt3R](../foundation/mast3r.md) — zero-shot RE10K pose baseline

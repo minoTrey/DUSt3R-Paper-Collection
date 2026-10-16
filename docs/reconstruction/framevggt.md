@@ -102,7 +102,7 @@ _Pipeline of FrameVGGT (원논문 Fig. 2)_
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The streaming backbone family whose KV cache FrameVGGT bounds.
+- **[VGGT](../foundation/vggt.md)**: The streaming backbone family whose KV cache FrameVGGT bounds.
 - **[CUT3R](../dynamic/cut3r.md)**, **[TTT3R](ttt3r.md)**, **[Point3R](point3r.md)**: Implicit-state and explicit-memory streaming baselines.
 - **[Evict3R](evict3r.md)**: Token-level eviction cited as a contrasting granularity.
 - **[Long3R](long3r.md)**, **[WinT3R](wint3r.md)**, **[VGGT-Long](vggt-long.md)**: Long-sequence / windowed / chunk-based streaming references.

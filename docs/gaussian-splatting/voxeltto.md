@@ -54,7 +54,7 @@ Separate voxel-representation improvements from camera-prior adaptation through 
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): frozen visual-geometric-model background.
+- [VGGT](../foundation/vggt.md): frozen visual-geometric-model background.
 - [AVSplat](avsplat.md): another voxel-fusion improvement.
 
 ## 📚 Key Takeaways

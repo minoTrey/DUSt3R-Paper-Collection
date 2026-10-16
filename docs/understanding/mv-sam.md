@@ -126,7 +126,7 @@ MV-SAM has fewer trainable parameters than SAM2-Video (no memory modules) and fa
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: Feed-forward transformer jointly predicting depth, camera poses, and pointmaps; MV-SAM's ablation shows it as a weaker VGM than π³.
+- **[VGGT](../foundation/vggt.md)**: Feed-forward transformer jointly predicting depth, camera poses, and pointmaps; MV-SAM's ablation shows it as a weaker VGM than π³.
 - **[π³ / Pi3](../reconstruction/pi3.md)**: Permutation-equivariant reformulation of VGGT; MV-SAM's default visual geometry model, source of its frame-order equivariance.
 - **[DUSt3R](../foundation/dust3r.md)**: Origin of the feed-forward pointmap paradigm MV-SAM builds on.
 - **[Fast3R](../reconstruction/fast3r.md)**: Feed-forward multi-view pose + point prediction cited in the same lineage.

@@ -98,7 +98,7 @@ Two sequential cross-attention blocks (CA + CA) beat a single block or a self-at
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[MonST3R](../dynamic/monst3r.md)**: General-domain feed-forward geometric models evaluated as pointmap baselines.
+- **[VGGT](../foundation/vggt.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[MonST3R](../dynamic/monst3r.md)**: General-domain feed-forward geometric models evaluated as pointmap baselines.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Foundational pixel-aligned reconstruction baselines.
 
 ## 📚 Key Takeaways

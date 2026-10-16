@@ -104,10 +104,10 @@ _Method Overview: We propose a keyframe-based feed-forward VO with VGGT [13] as 
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: backbone visual foundation model the keyframe policy wraps without modifying its architecture.
+- **[VGGT](../foundation/vggt.md)**: backbone visual foundation model the keyframe policy wraps without modifying its architecture.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: pioneering feed-forward pose + dense geometry from uncalibrated pairs, cited as the lineage.
 - **[CUT3R](../dynamic/cut3r.md)** / **[Fast3R](../reconstruction/fast3r.md)**: successors that refined the feed-forward paradigm, cited in related work.
-- **[π³](../reconstruction/pi3.md)** / **[MapAnything](../reconstruction/mapanything.md)** / **[FlashVGGT](../foundation/flashvggt.md)**: recent foundation models and long-sequence variants cited; VGGT-Long, StreamVGGT, FastVGGT, InfiniteVGGT are the compared baselines.
+- **[π³](../reconstruction/pi3.md)** / **[MapAnything](../reconstruction/mapanything.md)** / **[FlashVGGT](../extensions/flashvggt.md)**: recent foundation models and long-sequence variants cited; VGGT-Long, StreamVGGT, FastVGGT, InfiniteVGGT are the compared baselines.
 
 ## 📚 Key Takeaways
 

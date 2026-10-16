@@ -137,7 +137,7 @@ Increasing the meta-gradient weight (lowering λ) deepens the early deficit but 
 
 ## 🔗 Related Work
 
-- Backbones and the feed-forward geometry line: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md), [VGGT](../reconstruction/vggt.md), and Pi3X (a variant of [Pi3](../reconstruction/pi3.md)); AnySplat is the primary host.
+- Backbones and the feed-forward geometry line: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md), [VGGT](../foundation/vggt.md), and Pi3X (a variant of [Pi3](../reconstruction/pi3.md)); AnySplat is the primary host.
 - Predict-then-refine peers: InstantSplat, [Splatt3R](splatt3r.md), MVSGaussian; other feed-forward Gaussian works [YoNoSplat](yonosplat.md), DepthSplat, EcoSplat.
 - Meta-learning foundations: MAML, Reptile, and learned NeRF initializations (Tancik et al.).
 

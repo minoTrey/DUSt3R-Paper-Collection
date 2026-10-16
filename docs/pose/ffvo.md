@@ -57,7 +57,7 @@ Specialize temporal pose estimation while preserving general geometry-backbone r
 ## 🔗 Related Work
 
 - [π3](../reconstruction/pi3.md): the frozen feature backbone.
-- [VGGT](../reconstruction/vggt.md): background for long-trajectory processing.
+- [VGGT](../foundation/vggt.md): background for long-trajectory processing.
 
 ## 📚 Key Takeaways
 

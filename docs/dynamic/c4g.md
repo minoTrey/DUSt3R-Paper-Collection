@@ -137,7 +137,7 @@ _Pixel-wise 4DGS vs (원논문 Fig. 2)_
 
 ## 🔗 Related Work
 
-- Backbone [VGGT](../reconstruction/vggt.md); geometry supervision from [MoGe-2](../reconstruction/moge-2.md); scene-understanding baseline [LSM (Large Spatial Model)](../understanding/largespatialmodel.md); built on C3G (compact static Gaussians); compared against per-pixel 4D methods (4DGT, MoVieS, NeoVerse) and optimization methods (Shape of Motion, MoSca).
+- Backbone [VGGT](../foundation/vggt.md); geometry supervision from [MoGe-2](../reconstruction/moge-2.md); scene-understanding baseline [LSM (Large Spatial Model)](../understanding/largespatialmodel.md); built on C3G (compact static Gaussians); compared against per-pixel 4D methods (4DGT, MoVieS, NeoVerse) and optimization methods (Shape of Motion, MoSca).
 
 ## 📚 Key Takeaways
 

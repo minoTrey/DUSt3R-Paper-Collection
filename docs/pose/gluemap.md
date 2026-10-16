@@ -132,8 +132,8 @@ Classical methods largely fail at low overlap; GLUEMAP leads at AUC@5/@20, but t
 ## 🔗 Related Work
 
 - **[Pi3](../reconstruction/pi3.md)**: The permutation-equivariant π³ model used as GLUEMAP's feedforward local-inference backbone and strongest pure-feedforward baseline.
-- **[VGGT](../reconstruction/vggt.md)** and **[MapAnything](../reconstruction/mapanything.md)**: Multi-view feedforward baselines analyzed for their view-graph-radius sensitivity.
-- **[MASt3R-SfM](../foundation/mast3r-sfm.md)**: Feedforward SfM baseline compared across ETH3D, SMERF, and LaMAR.
+- **[VGGT](../foundation/vggt.md)** and **[MapAnything](../reconstruction/mapanything.md)**: Multi-view feedforward baselines analyzed for their view-graph-radius sensitivity.
+- **[MASt3R-SfM](../reconstruction/mast3r-sfm.md)**: Feedforward SfM baseline compared across ETH3D, SMERF, and LaMAR.
 - **[DUSt3R](../foundation/dust3r.md)**: Two-view transformer foundation underpinning the feedforward line.
 
 ## 📚 Key Takeaways

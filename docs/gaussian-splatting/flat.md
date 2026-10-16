@@ -85,7 +85,7 @@ Predicting rotation directly in world space diverges to noise/empty renders; the
 
 ## 🔗 Related Work
 
-- Uses feed-forward metric reconstruction [MapAnything](../reconstruction/mapanything.md) for metric poses/depth; geometry-free NVS methods leverage [VGGT](../reconstruction/vggt.md) features, and the paper cites [Depth Anything 3](../reconstruction/depth-anything-3.md) and [YoNoSplat](yonosplat.md) among feed-forward NVS baselines.
+- Uses feed-forward metric reconstruction [MapAnything](../reconstruction/mapanything.md) for metric poses/depth; geometry-free NVS methods leverage [VGGT](../foundation/vggt.md) features, and the paper cites [Depth Anything 3](../reconstruction/depth-anything-3.md) and [YoNoSplat](yonosplat.md) among feed-forward NVS baselines.
 - Positioned against latent 3DGS scene generators (Wonderland, Lyra, Generative Gaussian Splatting, Bolt3D) and the generate-then-optimize line (ViewCrafter, WorldStereo).
 
 ## 📚 Key Takeaways

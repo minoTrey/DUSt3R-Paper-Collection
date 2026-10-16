@@ -54,7 +54,7 @@ Jointly design human-focused sparse tokens and transmissible pixel-aligned repre
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): the geometry-teacher family.
+- [VGGT](../foundation/vggt.md): the geometry-teacher family.
 - [Human3R](../dynamic/human3r.md): a different human–scene reconstruction task.
 
 ## 📚 Key Takeaways

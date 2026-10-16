@@ -155,7 +155,7 @@ rel은 Absolute Relative Error, τ는 3% 임계값 inlier ratio, 정렬 방식�
 
 ### Comparison with Other Quality Methods
 
-- **[VGGT](vggt.md)**: Architectural improvements
+- **[VGGT](../foundation/vggt.md)**: Architectural improvements
 - **[Mono3R](mono3r.md)**: Additional monocular cues
 - **Test3R**: Test-time optimization
 

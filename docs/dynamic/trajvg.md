@@ -201,10 +201,10 @@ Best on Bonn and NYU-v2; second-best overall on Sintel and KITTI (e.g., Sintel A
 ## 🔗 Related Work
 
 - **[π³](../reconstruction/pi3.md)**: Permutation-equivariant, local-frame per-view point maps; TrajVG initializes from and freezes the π³ backbone and adopts a π³-like third training stage.
-- **[VGGT](../reconstruction/vggt.md)**: Reference-frame (fixed world) feed-forward geometry transformer; a key baseline and motivation for TrajVG's explicit-coupling design.
+- **[VGGT](../foundation/vggt.md)**: Reference-frame (fixed world) feed-forward geometry transformer; a key baseline and motivation for TrajVG's explicit-coupling design.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Pairwise pointmap regression foundations; MASt3R adds a dense feature/matching head.
-- **[CUT3R](./cut3r.md)** / **[Fast3R](../reconstruction/fast3r.md)**: Streaming/many-view feed-forward reconstruction baselines compared on pose, point map, and depth.
-- **[MonST3R](./monst3r.md)**: Dynamic-scene geometry baseline in the depth comparisons.
+- **[CUT3R](cut3r.md)** / **[Fast3R](../reconstruction/fast3r.md)**: Streaming/many-view feed-forward reconstruction baselines compared on pose, point map, and depth.
+- **[MonST3R](monst3r.md)**: Dynamic-scene geometry baseline in the depth comparisons.
 - **[MoGe](../reconstruction/moge.md)**: Specialized monocular geometry estimator compared on monocular depth.
 
 ## 📚 Key Takeaways

@@ -187,13 +187,13 @@ disc exceeds 1 on every dataset; AUC exceeds 0.5 on the real-world datasets, wit
 
 ## 🔗 Related Work
 
-- **[CUT3R](./cut3r.md)**: The frozen recurrent implicit-memory backbone RayMap3R builds on; the static bias is derived from its RayMap-only predictions.
-- **[MonST3R](./monst3r.md)**: Offline dynamic-scene reconstruction baseline (with global alignment) compared throughout.
+- **[CUT3R](cut3r.md)**: The frozen recurrent implicit-memory backbone RayMap3R builds on; the static bias is derived from its RayMap-only predictions.
+- **[MonST3R](monst3r.md)**: Offline dynamic-scene reconstruction baseline (with global alignment) compared throughout.
 - **[TTT3R](../reconstruction/ttt3r.md)**: Extends CUT3R with cross-attention soft gating for long-range reconstruction; the closest streaming competitor in the tables.
 - **[Point3R](../reconstruction/point3r.md)**: Streaming baseline with explicit spatial pointer memory that grows with sequence length.
 - **[StreamVGGT](../reconstruction/streamvggt.md)**: Distills VGGT for streaming prediction; wins per-sequence Sintel depth but its memory scales with frame count.
 - **[Spann3R](../reconstruction/spann3r.md)**: Streaming spatial-memory extension of DUSt3R; higher normal consistency but weaker on other geometric metrics.
-- **[VGGT](../reconstruction/vggt.md)**: Offline joint pose/geometry transformer used as an accuracy reference (and StreamVGGT's teacher).
+- **[VGGT](../foundation/vggt.md)**: Offline joint pose/geometry transformer used as an accuracy reference (and StreamVGGT's teacher).
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Pointmap foundations and offline pose/reconstruction baselines.
 - **[Fast3R](../reconstruction/fast3r.md)**: Single-forward multi-view reconstruction cited among offline feed-forward methods.
 

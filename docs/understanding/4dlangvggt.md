@@ -95,7 +95,7 @@ Removing the auxiliary RGB head drops performance by ~5% IoU (1–2% Acc); the U
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)** & **[StreamVGGT](../reconstruction/streamvggt.md)**: The geometry backbone (StreamVGGT is VGGT extended to streaming) that 4DLangVGGT freezes and builds on.
+- **[VGGT](../foundation/vggt.md)** & **[StreamVGGT](../reconstruction/streamvggt.md)**: The geometry backbone (StreamVGGT is VGGT extended to streaming) that 4DLangVGGT freezes and builds on.
 - **[CUT3R](../dynamic/cut3r.md)**: Streaming/continuous perception relevant to the dynamic 4D setting.
 - **[DUSt3R](../foundation/dust3r.md)**: The feed-forward reconstruction foundation cited as prior geometry-only work.
 

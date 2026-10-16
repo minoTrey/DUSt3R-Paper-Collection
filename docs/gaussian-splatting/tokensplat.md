@@ -225,7 +225,7 @@ Predicting rotation and translation separately can yield inconsistent pairs. Sup
 - [Splatt3R](splatt3r.md) — an earlier bridge from MASt3R-style geometry to feed-forward 3DGS
 - [PREF3R](pref3r.md), [Styl3R](styl3r.md), [FLowR](flowr.md) — related feed-forward Gaussian prediction from unposed or sparse views
 - [InstantSplat](instantsplat.md) — pose-free 3DGS relying on optimization rather than a single feed-forward pass
-- [VGGT](../reconstruction/vggt.md) — the unified-transformer approach to joint pose and geometry that TokenSplat's camera-token design echoes
+- [VGGT](../foundation/vggt.md) — the unified-transformer approach to joint pose and geometry that TokenSplat's camera-token design echoes
 - [DUSt3R-GS](dust-gs.md), [DUSt3R-to-Tower](dust-to-tower.md) — other DUSt3R-based Gaussian pipelines
 
 ## 📚 Key Takeaways

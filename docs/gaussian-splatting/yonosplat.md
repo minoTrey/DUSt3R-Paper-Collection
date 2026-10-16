@@ -247,7 +247,7 @@ camera estimation, not just appearance.
 - [PreF3R](pref3r.md) — feed-forward pose-free 3DGS from image sequences, the same problem setting with a different scaling strategy.
 - [InstantSplat](instantsplat.md) — the optimization-based sparse-view pose-free baseline in Table 1, which YoNoSplat's optional post-optimization variant outperforms substantially.
 - [π³](../reconstruction/pi3.md) — supplies the initialization for YoNoSplat's backbone, Gaussian center head, and pose head, and the pairwise relative pose loss formulation.
-- [VGGT](../reconstruction/vggt.md) — the source of the local-global alternating attention used in the decoder, and a pose-estimation baseline.
+- [VGGT](../foundation/vggt.md) — the source of the local-global alternating attention used in the decoder, and a pose-estimation baseline.
 
 ## 📚 Key Takeaways
 

@@ -107,7 +107,7 @@ _Overview of our token eviction framework (원논문 Fig. 2)_
 ## 🔗 Related Work
 
 - **[StreamVGGT](streamvggt.md)**: The streaming baseline whose KV cache Evict3R bounds.
-- **[VGGT](vggt.md)**: Underlying offline multi-view transformer.
+- **[VGGT](../foundation/vggt.md)**: Underlying offline multi-view transformer.
 - **[CUT3R](../dynamic/cut3r.md)**, **[Spann3R](spann3r.md)**, **[Point3R](point3r.md)**: Streaming/memory-augmented baselines compared and contrasted with the per-layer KV budgeting.
 - **[MonST3R](../dynamic/monst3r.md)**, **[MASt3R](../foundation/mast3r.md)**, **[DUSt3R](../foundation/dust3r.md)**: Pairwise/global-alignment baselines in the depth and pose comparisons.
 

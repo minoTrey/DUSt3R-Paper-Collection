@@ -151,13 +151,13 @@ The paper is honest that video depth is mixed. On Sintel and BONN, StreamVGGT re
 ## 🔗 Related Work
 
 - [CUT3R](../dynamic/cut3r.md) — the recurrent state-token design WinT3R builds on and repeatedly ablates against.
-- [Spann3R](./spann3r.md) — earlier memory-based online reconstruction baseline.
-- [StreamVGGT](./streamvggt.md) — the strongest online baseline here; wins Sintel/BONN depth and DTU Completeness.
-- [Point3R](./point3r.md) — explicit spatial-pointer memory, compared throughout.
-- [VGGT](./vggt.md) — source of the Alternating-Attention block used in the decoder's image-token branch.
-- [pi3](./pi3.md) — source of the relative-pose supervision strategy.
+- [Spann3R](spann3r.md) — earlier memory-based online reconstruction baseline.
+- [StreamVGGT](streamvggt.md) — the strongest online baseline here; wins Sintel/BONN depth and DTU Completeness.
+- [Point3R](point3r.md) — explicit spatial-pointer memory, compared throughout.
+- [VGGT](../foundation/vggt.md) — source of the Alternating-Attention block used in the decoder's image-token branch.
+- [pi3](pi3.md) — source of the relative-pose supervision strategy.
 - [DUSt3R](../foundation/dust3r.md) — WinT3R is initialised from DUSt3R weights.
-- [SLAM3R](./slam3r.md) — online SLAM-style baseline in the reconstruction tables.
+- [SLAM3R](slam3r.md) — online SLAM-style baseline in the reconstruction tables.
 
 ## 📚 Key Takeaways
 

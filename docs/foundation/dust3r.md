@@ -145,7 +145,7 @@ This note removes an untraceable H100 40 ms claim and generic completion-time co
 ### Direct Extensions
 
 - **Efficiency**: [Fast3R](../reconstruction/fast3r.md), [SLAM3R](../reconstruction/slam3r.md), [Spann3R](../reconstruction/spann3r.md) (speed improvements)
-- **Quality**: [MASt3R](mast3r.md), [VGGT](../reconstruction/vggt.md), [π³](../reconstruction/pi3.md) (Pi3) (improved accuracy)
+- **Quality**: [MASt3R](mast3r.md), [VGGT](vggt.md), [π³](../reconstruction/pi3.md) (Pi3) (improved accuracy)
 - **Scale**: [REGIST3R](../reconstruction/regist3r.md), [ReconX](../reconstruction/reconx.md), [Light3R-SfM](../reconstruction/light3r-sfm.md) (larger scenes)
 - **Applications**: [Splatt3R](../gaussian-splatting/splatt3r.md), [Dust-GS](../gaussian-splatting/dust-gs.md) (Gaussian Splatting), [RIG3R](../robotics/rig3r.md) (robotics)
 

@@ -140,7 +140,7 @@ Reported for 4 input views on a single NVIDIA-A100 (원논문 §S2.2): stage-1 g
 ## 🔗 Related Work
 
 - **Feed-forward branch — [π³](pi3.md)**: The pixel-aligned, permutation-equivariant backbone reused as Mix3R's 2D branch; its affine-invariant point-map/pose outputs are grounded to the generative prior.
-- **[VGGT](vggt.md)**: Cited as the prototypical feed-forward reconstruction method and used as the pose baseline; π³ follows VGGT's alternating local/global attention, which Mix3R preserves.
+- **[VGGT](../foundation/vggt.md)**: Cited as the prototypical feed-forward reconstruction method and used as the pose baseline; π³ follows VGGT's alternating local/global attention, which Mix3R preserves.
 - **[DUSt3R](../foundation/dust3r.md)**: The pioneering point-map regression paradigm from which the feed-forward reconstruction line (and π³/VGGT) descends.
 - **[MonST3R](../dynamic/monst3r.md)** and **[CUT3R](../dynamic/cut3r.md)**: Cited extensions of the point-map paradigm to dynamic scenes and to latent-state streaming reconstruction.
 - **Generative branch — TRELLIS**: The two-stage sparse-structure flow model reused for both the coarse-voxel generation and the training-free textured stage-2. Related unification attempts include ReconViaGen (one-way VGGT-feature injection into generation) and CUPID (UV voxel volume + PnP); Mix3R differs by making the two branches mutually beneficial.

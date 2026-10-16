@@ -1,156 +1,77 @@
+<!-- PAPER-REDIRECT: docs/foundation/vggt.md -->
+
 # VGGT: Visual Geometry Grounded Transformer (CVPR 2025)
 
-<!-- PAPER-CARD:en -->
+This paper note moved to **[VGGT: Visual Geometry Grounded Transformer (CVPR 2025)](../foundation/vggt.md)**. Open that page for the full summary, figures, source links and English card when available.
 
-[<img src="../../assets/paper-cards/en/reconstruction/vggt.png" width="720" alt="English summary card for VGGT; diagrams are illustrative, not measured outputs." />](../../assets/paper-cards/en/reconstruction/vggt.png)
+This compatibility notice preserves the previous URL. It is not a second paper entry. See the [path mapping](../../data/paper-path-migrations.json) for card-production identities.
 
-[Original paper](https://arxiv.org/abs/2503.11651) · [Full-size English card](../../assets/paper-cards/en/reconstruction/vggt.png)
-<!-- /PAPER-CARD -->
+## Previous section links
 
-![VGGT Architecture](https://vgg-t.github.io/resources/architecture_v4.png)
-_Predict cameras, depth, pointmaps and tracking information from features alternating within-image and cross-frame attention._
+<div id="-overview"></div>
 
-## 📋 Overview
+[📋 Overview](../foundation/vggt.md#-overview)
 
-- **Authors**: Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, David Novotny
-- **Institution**: Visual Geometry Group, University of Oxford, Meta AI
-- **Venue**: CVPR 2025
-- **Award**: Best Paper Award
-- **Links**: [Paper](https://arxiv.org/abs/2503.11651) | [Code](https://github.com/facebookresearch/vggt) | [Project Page](https://vgg-t.github.io/)
-- **Verification**: CONFIRMED (venue: existing verdict 2026-07-20; methods/results PDF re-reviewed 2026-10-15)
-- **TL;DR**: Jointly process RGB images to predict cameras, depth, 3D pointmaps and tracking features. Infer shared-frame geometry without GT cameras, with optional BA refinement.
+<div id="-key-contributions"></div>
 
-## 🎯 Key Contributions
+[🎯 Key Contributions](../foundation/vggt.md#-key-contributions)
 
-1. **Joint Geometry**: Learn multiple geometric tasks through one feature backbone.
-2. **Alternating-Attention**: Alternate within-image and cross-image relationships.
-3. **Direct Multi-View Prediction**: Reduce separate pairwise-pointmap alignment in default inference.
-4. **Reusable Features**: Supply features to separate tracking modules and downstream tasks.
+<div id="-technical-details"></div>
 
-## 🔧 Technical Details
+[🔧 Technical Details](../foundation/vggt.md#-technical-details)
 
-### Input and Output
+<div id="input-and-output"></div>
 
-- **Input**: One or more RGB images; default inference jointly processes the provided set.
-- **Output**: Camera rotation, translation and FoV; depth, pointmaps, tracking features and query-point 2D trajectories.
-- **Coordinates**: Relative to the first camera; assume a centered principal point (§3.1).
+[Input and Output](../foundation/vggt.md#input-and-output)
 
-### Architecture
+<div id="architecture"></div>
 
-```text
-RGB images → DINOv2-initialized tokens
-           → within-image self-attention ↔ all-frame self-attention
-           → camera head / DPT dense heads / query-based tracking module
-```
+[Architecture](../foundation/vggt.md#architecture)
 
-Camera heads predict rotation, translation and FoV.
-DPT heads output depth, pointmaps and dense tracking features.
-A CoTracker2-based module combines query points with these features to find framewise correspondences (§3.2).
-DPT therefore does not directly output all tracks without queries.
+<div id="inference-scope"></div>
 
-### Inference Scope
+[Inference Scope](../foundation/vggt.md#inference-scope)
 
-Default results use feed-forward inference; the paper also reports optional bundle adjustment (BA).
-BA optimizes cameras/correspondences to reduce reprojection errors.
-Global cross-frame attention costs grow with image count, motivating chunking/streaming extensions for long videos.
-Remove unsupported fixed limits such as DUSt3R maximum 32 images and guarantees of generalization to every domain.
+<div id="-results"></div>
 
-## 📊 Results
+[📊 Results](../foundation/vggt.md#-results)
 
-### Point Map Estimation on ETH3D
+<div id="point-map-estimation-on-eth3d"></div>
 
-[arXiv 2503.11651v1 PDF](https://arxiv.org/pdf/2503.11651v1), Table 3, PDF p.7.
-Metrics are Acc / Comp / Overall. DUSt3R and MASt3R use global alignment.
-Distinguish direct VGGT point-head outputs from depth/camera unprojection. This table is not DTU.
+[Point Map Estimation on ETH3D](../foundation/vggt.md#point-map-estimation-on-eth3d)
 
-| Method                 | Acc. ↓    | Comp. ↓   | Overall ↓ | Time      |
-| ---------------------- | --------- | --------- | --------- | --------- |
-| DUSt3R                 | 1.167     | 0.842     | 1.005     | ~7s       |
-| MASt3R                 | 0.968     | 0.684     | 0.826     | ~9s       |
-| **VGGT (Point)**       | 0.901     | 0.518     | 0.709     | **~0.2s** |
-| **VGGT (Depth + Cam)** | **0.873** | **0.482** | **0.677** | **~0.2s** |
+<div id="camera-pose-estimation"></div>
 
-### Camera Pose Estimation
+[Camera Pose Estimation](../foundation/vggt.md#camera-pose-estimation)
 
-원논문 Table 1. 10프레임 무작위 샘플, 두 지표 모두 높을수록 좋다.
-No compared method trains on Re10K. Runtime is measured under this protocol on one H100.
+<div id="추론-시간"></div>
 
-| Method                  | Re10K (unseen) AUC@30 ↑ | CO3Dv2 AUC@30 ↑ | Time      |
-| ----------------------- | ----------------------- | --------------- | --------- |
-| Colmap+SPSG             | 45.2                    | 25.3            | ~15s      |
-| PixSfM                  | 49.4                    | 30.1            | >20s      |
-| PoseDiff                | 48.0                    | 66.5            | ~7s       |
-| DUSt3R                  | 67.7                    | 76.7            | ~7s       |
-| MASt3R                  | 76.4                    | 81.8            | ~9s       |
-| VGGSfM v2               | 78.9                    | 83.4            | ~10s      |
-| MV-DUSt3R               | 71.3                    | 69.5            | ~0.6s     |
-| CUT3R                   | 75.3                    | 82.8            | ~0.6s     |
-| FLARE                   | 78.8                    | 83.3            | ~0.5s     |
-| Fast3R                  | 72.7                    | 82.5            | ~0.2s     |
-| **VGGT (Feed-Forward)** | 85.3                    | 88.2            | **~0.2s** |
-| **VGGT (with BA)**      | **93.5**                | **91.8**        | ~1.8s     |
+[추론 시간](../foundation/vggt.md#추론-시간)
 
-### 추론 시간
+<div id="dense-mvs-estimation-on-dtu"></div>
 
-Source Tables 1 and 3. Do not generalize timings to arbitrary frame counts/pipelines; unreported derived speedups are omitted.
+[Dense MVS Estimation on DTU](../foundation/vggt.md#dense-mvs-estimation-on-dtu)
 
-| Method   | Time      |
-| -------- | --------- |
-| DUSt3R   | ~7s       |
-| MASt3R   | ~9s       |
-| **VGGT** | **~0.2s** |
+<div id="ablation-attention-구조-eth3d"></div>
 
-### Dense MVS Estimation on DTU
+[Ablation: Attention 구조 (ETH3D)](../foundation/vggt.md#ablation-attention-구조-eth3d)
 
-Source Table 2, PDF p.7, in mm; separate from the ETH3D results above.
-MASt3R uses GT cameras; DUSt3R and VGGT do not in these rows.
+<div id="-insights--impact"></div>
 
-| Method | GT Cameras | Acc. ↓ | Comp. ↓ | Overall ↓ |
-| ------ | ---------- | ------ | ------- | --------- |
-| DUSt3R | No         | 2.677  | 0.805   | 1.741     |
-| MASt3R | Yes        | 0.403  | 0.344   | 0.374     |
-| VGGT   | No         | 0.389  | 0.374   | 0.382     |
+[💡 Insights & Impact](../foundation/vggt.md#-insights--impact)
 
-### Ablation: Attention 구조 (ETH3D)
+<div id="-related-work"></div>
 
-Source Table 5, PDF p.8. Alternating-Attention is VGGT's chosen design.
+[🔗 Related Work](../foundation/vggt.md#-related-work)
 
-| Attention                  | Acc. ↓    | Comp. ↓   | Overall ↓ |
-| -------------------------- | --------- | --------- | --------- |
-| Cross-Attention            | 1.287     | 0.835     | 1.061     |
-| Global Self-Attention Only | 1.032     | 0.621     | 0.827     |
-| **Alternating-Attention**  | **0.901** | **0.518** | **0.709** |
+<div id="evolution-from-dust3r"></div>
 
-## 💡 Insights & Impact
+[Evolution from DUSt3R](../foundation/vggt.md#evolution-from-dust3r)
 
-Joint learning reduces the burden of separately estimating and reconciling cameras and depth.
-Depth/camera-unprojected clouds can outperform direct point-head outputs, so distinguish output paths.
-Fast initial predictions can initialize BA; optional optimization is not made pointless.
+<div id="comparison-with-other-extensions"></div>
 
-Do not directly rank results with different GT-camera inputs, alignments or image counts.
-Visual examples show varied-input possibilities, not guaranteed accuracy for all images, sensors or dynamic scenes.
+[Comparison with Other Extensions](../foundation/vggt.md#comparison-with-other-extensions)
 
-## 🔗 Related Work
+<div id="-key-takeaways"></div>
 
-### Evolution from DUSt3R
-
-| Aspect       | [DUSt3R](../foundation/dust3r.md) | VGGT          |
-| ------------ | --------------------------------- | ------------- |
-| Tasks        | 3D only                           | All geometric |
-| Speed        | ~7s                               | ~0.2s         |
-| Scale        | ~32 views                         | 200+ views    |
-| Architecture | Specialized                       | Unified       |
-| Post-process | Required                          | None          |
-
-### Comparison with Other Extensions
-
-- **[MUSt3R](must3r.md)**: Memory for scale → VGGT: Direct scale
-- **[Fast3R](fast3r.md)**: Speed focus → VGGT: Speed + quality
-- **[Test3R](test3r.md)**: Test-time adapt → VGGT: Direct generalization
-
-## 📚 Key Takeaways
-
-1. A shared backbone learns information for cameras, depth, pointmaps and tracking.
-2. Separate default feed-forward and BA-augmented paths.
-3. ETH3D pointmap and DTU MVS evaluations use different tables.
-4. Consider long-video costs and first-frame coordinates when choosing extensions.
+[📚 Key Takeaways](../foundation/vggt.md#-key-takeaways)

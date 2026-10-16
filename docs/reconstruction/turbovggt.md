@@ -280,7 +280,7 @@ SparseVGGT and FastVGGT both _raise_ peak memory above VGGT's while lowering run
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the default backbone and the method being accelerated
+- [VGGT](../foundation/vggt.md) — the default backbone and the method being accelerated
 - [pi3](pi3.md) — alternative backbone (TurboVGGT-π); notably the one where acceleration costs quality
 - [MapAnything](mapanything.md) — alternative backbone (TurboVGGT-M) and source of the 13-dataset training mixture
 - [FastVGGT](fastvggt.md) — token-merging accelerator, the closest competitor across all tables

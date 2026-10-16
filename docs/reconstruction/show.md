@@ -136,7 +136,7 @@ Qualitative comparisons and the ablation visualizations (Fig. 4–8) are figure-
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: Provides the feed-forward geometry backbone (camera/depth/point-map prediction) that SHOW adapts with mask prompting and a DensePose head.
+- **[VGGT](../foundation/vggt.md)**: Provides the feed-forward geometry backbone (camera/depth/point-map prediction) that SHOW adapts with mask prompting and a DensePose head.
 - **[CUT3R](../dynamic/cut3r.md)**: Online 4D reconstruction model with persistent state; the foundation extended by Human3R.
 - **[Human3R](../dynamic/human3r.md)**: Extends CUT3R with visual prompt tuning to decode SMPL-X from reconstruction latents; a primary baseline (strong HS-CF via metric backbone, but weaker HS-V).
 - **[DUSt3R](../foundation/dust3r.md)**: Progenitor of the feed-forward 3D reconstruction paradigm this line of work builds on.

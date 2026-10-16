@@ -197,14 +197,14 @@ The honest picture from the tables is that D4RT is not uniformly ahead. SpatialT
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the global-attention encoder D4RT builds on, but with separate per-task decoder heads that D4RT replaces.
+- [VGGT](../foundation/vggt.md) — the global-attention encoder D4RT builds on, but with separate per-task decoder heads that D4RT replaces.
 - [π³](../reconstruction/pi3.md) — the strongest pure-reconstruction baseline in Tables 5 and 6, and the one D4RT does not fully dominate.
 - [DUSt3R](../foundation/dust3r.md) — the pairwise pointmap formulation that established the feed-forward paradigm.
 - [MapAnything](../reconstruction/mapanything.md) — compared in Tables 5 and 6.
-- [Dynamic Point Maps](../dynamic/dynamic-point-maps.md) — DPM, cited as a pairwise 3D-tracking approach D4RT contrasts with.
-- [CUT3R](../dynamic/cut3r.md) — a streaming alternative in the dynamic feed-forward line.
-- [MonST3R](../dynamic/monst3r.md) — earlier dynamic extension of the pointmap paradigm.
-- [Any4D](../dynamic/any4d.md) — related unified 4D reconstruction work.
+- [Dynamic Point Maps](dynamic-point-maps.md) — DPM, cited as a pairwise 3D-tracking approach D4RT contrasts with.
+- [CUT3R](cut3r.md) — a streaming alternative in the dynamic feed-forward line.
+- [MonST3R](monst3r.md) — earlier dynamic extension of the pointmap paradigm.
+- [Any4D](any4d.md) — related unified 4D reconstruction work.
 
 ## 📚 Key Takeaways
 

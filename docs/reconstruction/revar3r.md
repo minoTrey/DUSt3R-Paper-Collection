@@ -97,8 +97,8 @@ Multiple view sets from one scene are correlated, affecting independence and sig
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md), [π³](pi3.md), [MASt3R](../foundation/mast3r.md)**: fixed reconstruction backbones receiving the same procedure.
-- **[Trust3R](../foundation/trust3r.md)**: a GT-trained uncertainty head; compare inference cost, calibration and domain-transfer trade-offs.
+- **[VGGT](../foundation/vggt.md), [π³](pi3.md), [MASt3R](../foundation/mast3r.md)**: fixed reconstruction backbones receiving the same procedure.
+- **[Trust3R](../extensions/trust3r.md)**: a GT-trained uncertainty head; compare inference cost, calibration and domain-transfer trade-offs.
 - **[DUSt3R](../foundation/dust3r.md)**: the pointmap/confidence family foundation; built-in confidence still needs error-relation analysis.
 
 ## 📚 Key Takeaways

@@ -93,10 +93,10 @@ Evaluated on nuScenes at 15 / 25 / 35 frames (90 / 150 / 210 images). Baselines 
 
 ## 🔗 Related Work
 
-- **[VGGT](./vggt.md)**: the global-attention baseline DriveVGGT restructures; used as both a base transformer and comparison.
-- **[FastVGGT](./fastvggt.md)**: training-free accelerated VGGT, usable as DriveVGGT's TVA base and a baseline.
-- **[StreamVGGT](./streamvggt.md)**: streaming VGGT with memory-cached causal attention; a baseline that hits OOM on long multi-camera sequences.
-- **[DUSt3R](../foundation/dust3r.md)** / **[MonST3R](../dynamic/monst3r.md)** / **[Point3R](./point3r.md)** / **[π³](./pi3.md)**: feed-forward reconstruction lineage cited in related work.
+- **[VGGT](../foundation/vggt.md)**: the global-attention baseline DriveVGGT restructures; used as both a base transformer and comparison.
+- **[FastVGGT](fastvggt.md)**: training-free accelerated VGGT, usable as DriveVGGT's TVA base and a baseline.
+- **[StreamVGGT](streamvggt.md)**: streaming VGGT with memory-cached causal attention; a baseline that hits OOM on long multi-camera sequences.
+- **[DUSt3R](../foundation/dust3r.md)** / **[MonST3R](../dynamic/monst3r.md)** / **[Point3R](point3r.md)** / **[π³](pi3.md)**: feed-forward reconstruction lineage cited in related work.
 
 ## 📚 Key Takeaways
 

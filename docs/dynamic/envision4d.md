@@ -109,7 +109,7 @@ _Framework of Envision4D (원논문 Fig. 2)_
 
 ## 🔗 Related Work
 
-- Backbone [VGGT](../reconstruction/vggt.md); compared/related to driving 4D methods [DGGT](dggt.md), [DynamicVGGT](dynamicvggt.md), and [V-DPM](v-dpm.md); STORM as primary re-implemented baseline.
+- Backbone [VGGT](../foundation/vggt.md); compared/related to driving 4D methods [DGGT](dggt.md), [DynamicVGGT](dynamicvggt.md), and [V-DPM](v-dpm.md); STORM as primary re-implemented baseline.
 
 ## 📚 Key Takeaways
 

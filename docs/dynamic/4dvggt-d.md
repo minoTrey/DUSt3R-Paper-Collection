@@ -76,7 +76,7 @@ Pose Decoupling alone gives the largest geometric gain but increases RTE (↑33.
 
 ## 🔗 Related Work
 
-- Built directly on [VGGT](../reconstruction/vggt.md); adapts attention-based motion cues from [VGGT4D](vggt4d.md).
+- Built directly on [VGGT](../foundation/vggt.md); adapts attention-based motion cues from [VGGT4D](vggt4d.md).
 - Compared against dynamic methods [MonST3R](monst3r.md), [CUT3R](cut3r.md), [Easi3R](easi3r.md), [DAS3R](../gaussian-splatting/das3r.md), [POMATO](pomato.md), and cites [PAGE-4D](page-4d.md) for disentangled pose/geometry.
 - Foundation lineage: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md).
 

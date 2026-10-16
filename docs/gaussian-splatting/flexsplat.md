@@ -54,7 +54,7 @@ Jointly adapt the geometry frontend and Gaussian decoder to rendering instead of
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): geometry-transformer background.
+- [VGGT](../foundation/vggt.md): geometry-transformer background.
 - [Splatt3R](splatt3r.md): pointmap-based Gaussian prediction.
 
 ## 📚 Key Takeaways

@@ -108,7 +108,7 @@ Note: GARD does not fully recover HQ-input quality (e.g., 7Scenes Overall 0.190 
 ## 🔗 Related Work
 
 - **[Depth Anything 3](depth-anything-3.md)**: The frozen feed-forward reconstructor providing the geometry-aware feature space and evaluation benchmark.
-- **[VGGT](vggt.md)**, **[MASt3R](../foundation/mast3r.md)**, **[DUSt3R](../foundation/dust3r.md)**: Cited feed-forward reconstruction lineage.
+- **[VGGT](../foundation/vggt.md)**, **[MASt3R](../foundation/mast3r.md)**, **[DUSt3R](../foundation/dust3r.md)**: Cited feed-forward reconstruction lineage.
 
 ## 📚 Key Takeaways
 

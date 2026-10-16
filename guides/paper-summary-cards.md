@@ -87,3 +87,9 @@ Use English and lead with the research problem, a concrete input and output, and
 Retain source-specific limits. Every numeric result needs its dataset, units, protocol and source table/figure. Do not compare incompatible metrics or turn an explanatory simulation into a real robot success claim. If the source does not provide a usable number, explain the finding without inventing one.
 
 For each card, keep the original paper link and the collection note link. Add a project/code link only when its identity is verified. Do not replace the existing note with automatically inferred prose or treat the inventory's stored metadata as a fresh paper audit.
+
+## Resolve legacy production jobs
+
+Before placing a delivered card, resolve its exact legacy `record_id` through [paper-path-migrations.json](../data/paper-path-migrations.json). Each changed record supplies the old/new record IDs, note paths, canonical card paths and the same paper source identity. Unlisted records are unchanged. The importable `tools/paper_paths.py` module provides `resolve(value)` or `resolve(value, "note_path")` / `resolve(value, "card_path")`.
+
+Use the current inventory destination after resolving the identity. Preserve the source review and card hash. Existing legacy PNGs are retained as byte-identical compatibility aliases; they are not extra card jobs. Legacy note URLs show a move notice and are excluded from metadata, indexes and counts. Historical review manifests keep the identities and paths used at their review time; migration history connects them to current progress records.

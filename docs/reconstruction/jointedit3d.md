@@ -185,7 +185,7 @@ Figure 3 plots inference time per scene vs LPIPS Edit with VRAM annotations; ind
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: JointEdit3D reuses frozen VGGT features (via a Geometry Adapter) as the geometry stream of the unified latent, and also uses a VGGT reconstruction backend for the RGB→3D baselines and the cascaded "JointEdit3D RGB + VGGT" comparison in Table 4.
+- **[VGGT](../foundation/vggt.md)**: JointEdit3D reuses frozen VGGT features (via a Geometry Adapter) as the geometry stream of the unified latent, and also uses a VGGT reconstruction backend for the RGB→3D baselines and the cascaded "JointEdit3D RGB + VGGT" comparison in Table 4.
 - **Gen3R** [11]: The feed-forward 3D scene reconstruction model whose unified RGB-geometry reconstruction-generation latent space JointEdit3D adapts to editing; also the source of the point-cloud evaluation protocol (Table 4).
 - **Wan** [29]: The pretrained video VAE and diffusion backbone (Wan2.1 1.3B DiT) that JointEdit3D freezes as its main branch.
 - **Feed-forward 3D editors**: MVInpainter [2], Omni-3DEdit [4], EditCast3D [24], Edit3R [19] — prior feed-forward methods that still edit at the 2D/multi-view level; MVInpainter and Omni-3DEdit are the main feed-forward baselines.

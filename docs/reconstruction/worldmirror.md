@@ -182,12 +182,12 @@ Sintel camera pose remains behind π³, and the no-prior configuration does not 
 
 ## 🔗 Related Work
 
-- [VGGT](./vggt.md) — the architecture and multi-task template WorldMirror extends.
-- [pi3](./pi3.md) — the strongest image-only baseline; source of the evaluation protocol and sequence-id mappings.
-- [Pow3R](./pow3r.md) — the closest prior-conditioning precedent, limited to sparse-view DUSt3R-style inputs.
+- [VGGT](../foundation/vggt.md) — the architecture and multi-task template WorldMirror extends.
+- [pi3](pi3.md) — the strongest image-only baseline; source of the evaluation protocol and sequence-id mappings.
+- [Pow3R](pow3r.md) — the closest prior-conditioning precedent, limited to sparse-view DUSt3R-style inputs.
 - [CUT3R](../dynamic/cut3r.md) — recurrent baseline in the point map and pose tables.
-- [Fast3R](./fast3r.md) — multi-view feed-forward baseline.
-- [MapAnything](./mapanything.md) — related any-input/any-output universal reconstruction direction.
+- [Fast3R](fast3r.md) — multi-view feed-forward baseline.
+- [MapAnything](mapanything.md) — related any-input/any-output universal reconstruction direction.
 - [DUSt3R](../foundation/dust3r.md) — the paradigm origin.
 
 ## 📚 Key Takeaways

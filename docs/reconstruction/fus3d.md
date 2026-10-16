@@ -73,7 +73,7 @@ Fus3D leads on all metrics except EMD, where VGGTft+TSDF is marginally better (0
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The geometry-transformer backbone; VGGT+TSDF / VGGT+Poisson are the predict-then-fuse baselines.
+- **[VGGT](../foundation/vggt.md)**: The geometry-transformer backbone; VGGT+TSDF / VGGT+Poisson are the predict-then-fuse baselines.
 - **[DUSt3R](../foundation/dust3r.md)** and **[MASt3R](../foundation/mast3r.md)**: Pairwise pointmap methods, deemed unsuitable as backbones (post-hoc aggregation).
 - **[π³](pi3.md)**, **[MapAnything](mapanything.md)**, **[Depth Anything 3](depth-anything-3.md)**: Cited unified geometry transformers with shared-token processing.
 - **[Spann3R](spann3r.md)** and **[CUT3R](../dynamic/cut3r.md)**: Persistent-memory methods, contrasted as still producing 2.5D per-view outputs needing fusion.

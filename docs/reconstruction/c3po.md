@@ -97,8 +97,8 @@ Wilcoxon signed-rank tests between C3Po and each baseline give P-values all belo
 
 - **[DUSt3R](../foundation/dust3r.md)**: the pointmap-prediction backbone C3Po fine-tunes; its ability to correspond across near-opposite viewpoints motivates the approach.
 - **[MASt3R](../foundation/mast3r.md)**: DUSt3R-based matching model evaluated as a baseline; underperforms DUSt3R on this cross-modal task.
-- **[MASt3R-SfM](../foundation/mast3r-sfm.md)**: related fully-integrated SfM extension of the DUSt3R/MASt3R family (cited).
-- **[VGGT](./vggt.md)**: broader multi-view feed-forward geometry line into which pointmap-based correspondence fits.
+- **[MASt3R-SfM](mast3r-sfm.md)**: related fully-integrated SfM extension of the DUSt3R/MASt3R family (cited).
+- **[VGGT](../foundation/vggt.md)**: broader multi-view feed-forward geometry line into which pointmap-based correspondence fits.
 
 ## 📚 Key Takeaways
 

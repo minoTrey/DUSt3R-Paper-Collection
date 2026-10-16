@@ -195,12 +195,12 @@ Track4World is evaluated on 2D/3D flow estimation, 3D tracking, 2D tracking, poi
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: The VGGT-style ViT global 3D representation is the geometric backbone paradigm Track4World builds on; also a point-map/pose baseline and pose provider for ‡ variants.
+- **[VGGT](../foundation/vggt.md)**: The VGGT-style ViT global 3D representation is the geometric backbone paradigm Track4World builds on; also a point-map/pose baseline and pose provider for ‡ variants.
 - **[Pi3](../reconstruction/pi3.md)** / **[MapAnything](../reconstruction/mapanything.md)** / **[MoGe](../reconstruction/moge.md)**: Feedforward reconstruction backbones and point-map baselines; Pi3 and DA3 are the primary backbone initializations.
 - **[DUSt3R](../foundation/dust3r.md)**: The pairwise pointmap foundation that seeded the feedforward-reconstruction trend Track4World follows.
-- **[MonST3R](./monst3r.md)** / **[CUT3R](./cut3r.md)** / **[Align3R](./align3r.md)**: Dynamic-scene reconstruction / tracking and camera-pose baselines.
-- **[POMATO](./pomato.md)** / **[Stereo4D](./stereo4d.md)**: Pairwise pointmap / scene-flow methods for motion reconstruction; POMATO is a major tracking and pose baseline.
-- **[Any4D](./any4d.md)** / **[V-DPM](./v-dpm.md)**: Concurrent joint geometry-and-motion works used as baselines across tracking benchmarks.
+- **[MonST3R](monst3r.md)** / **[CUT3R](cut3r.md)** / **[Align3R](align3r.md)**: Dynamic-scene reconstruction / tracking and camera-pose baselines.
+- **[POMATO](pomato.md)** / **[Stereo4D](stereo4d.md)**: Pairwise pointmap / scene-flow methods for motion reconstruction; POMATO is a major tracking and pose baseline.
+- **[Any4D](any4d.md)** / **[V-DPM](v-dpm.md)**: Concurrent joint geometry-and-motion works used as baselines across tracking benchmarks.
 
 ## 📚 Key Takeaways
 

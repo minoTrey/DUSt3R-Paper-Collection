@@ -131,7 +131,7 @@ The future-work agenda is reasonable and holds up: quadratic attention complexit
 Primary papers for the models this review surveys, where the collection has entries:
 
 - [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md) — the origin of the paradigm.
-- [VGGT](../reconstruction/vggt.md) — the review's titular endpoint.
+- [VGGT](../foundation/vggt.md) — the review's titular endpoint.
 - [Spann3R](../reconstruction/spann3r.md) — spatial memory, not sparse attention.
 - [Fast3R](../reconstruction/fast3r.md) — parallel multi-view, not pairwise.
 - [Pow3R](../reconstruction/pow3r.md) — prior conditioning, not pose-graph optimisation.

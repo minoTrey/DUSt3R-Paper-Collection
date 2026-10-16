@@ -41,3 +41,7 @@ The supplied PNG originals remain in Library. Web copies are resized proportiona
 | [surveys](category-thumbnails/surveys.png)                       | `category-surveys-professional-v1.png`            | Paper literature connected to static reconstruction, dynamic scenes and robot applications; conceptual illustration, not benchmark measurements or rankings.                       |
 | [pose](category-thumbnails/pose.png)                             | `category-pose-professional-v1.png`               | Camera frustums and coordinate axes around a shared room point cloud; conceptual illustration, not estimated camera poses.                                                         |
 | [medical](category-thumbnails/medical.png)                       | `category-medical-professional-v1.png`            | Endoscopic views, camera geometry and an illustrative tissue surface; conceptual illustration, not patient images or a medical model result.                                       |
+
+## Model Extensions illustration reuse
+
+The Model Extensions category reuses [the Foundation illustration](category-thumbnails/foundation.png) to show the common shared-backbone workflow. No new image or extension-specific architecture is implied. The category text distinguishes efficiency/compression, adaptation/reliability and further pretraining. The original ten category illustrations now serve eleven filing categories.

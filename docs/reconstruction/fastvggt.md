@@ -153,7 +153,7 @@ VGGT\* — discarding intermediate outputs from the 20 of 24 encoder blocks that
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the sole acceleration target. FastVGGT changes no weights, only which tokens enter global attention.
+- [VGGT](../foundation/vggt.md) — the sole acceleration target. FastVGGT changes no weights, only which tokens enter global attention.
 - [StreamVGGT](streamvggt.md) — the causal-attention route to efficiency; FastVGGT reports it as OOM across all tested sequence lengths on ScanNet-50, 7 Scenes, and NRGBD.
 - [CUT3R](../dynamic/cut3r.md) — the constant-memory recurrent baseline; fast on long sequences but with substantially worse reconstruction quality here.
 - [Fast3R](fast3r.md) — the other 1000+-image feed-forward design, used as a long-sequence baseline.

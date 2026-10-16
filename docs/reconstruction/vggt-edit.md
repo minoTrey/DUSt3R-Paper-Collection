@@ -76,7 +76,7 @@ Removing depth-synchronized injection drops CLIP Score from 30.2 to 28.1; removi
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The feed-forward geometry backbone whose geometric field VGGT-Edit edits.
+- **[VGGT](../foundation/vggt.md)**: The feed-forward geometry backbone whose geometric field VGGT-Edit edits.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Foundational feed-forward reconstruction models underlying the native-3D editing paradigm.
 
 ## 📚 Key Takeaways

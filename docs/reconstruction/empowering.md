@@ -97,7 +97,7 @@ Multi-view point-cloud estimation on nuScenes (Table 3): with GT-scale alignment
 ## 🔗 Related Work
 
 - **[π³](pi3.md)**: Adopted as the frozen feed-forward backbone.
-- **[VGGT](vggt.md)**: Compared as a scale-agnostic multi-view baseline.
+- **[VGGT](../foundation/vggt.md)**: Compared as a scale-agnostic multi-view baseline.
 - **[Fast3R](fast3r.md)** and **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Feed-forward reconstruction lineage compared against.
 - **[MoGe](moge.md)**: MoGeV2 compared as a monocular metric geometry baseline.
 

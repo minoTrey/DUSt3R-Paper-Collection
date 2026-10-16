@@ -95,11 +95,11 @@ Per the ablation text: Uncertainty-Aware Cross-View Consistency yields a 12.00% 
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: The Visual Geometry Grounded Transformer backbone this framework is built upon and modifies (added confidence-logit head).
-- **[VGGT4D](./vggt4d.md)**: The primary baseline; the paper follows its experimental setup and analytical framework for the necessity of dynamic masking.
-- **[Easi3R](./easi3r.md)**: Training-free dynamic-cue extraction from pretrained pairwise models; cited as producing coarse masks limited to pairwise architectures.
-- **[MonST3R](./monst3r.md)** / **[DAS3R](../gaussian-splatting/das3r.md)** / **[CUT3R](./cut3r.md)**: Learning-based dynamic-aware baselines requiring fine-tuning on dynamic datasets.
-- **[PAGE-4D](./page-4d.md)**: Concurrent work using architectural disentanglement with an explicit mask-prediction module and targeted attention fine-tuning; contrasted with this paper's uncertainty-driven approach.
+- **[VGGT](../foundation/vggt.md)**: The Visual Geometry Grounded Transformer backbone this framework is built upon and modifies (added confidence-logit head).
+- **[VGGT4D](vggt4d.md)**: The primary baseline; the paper follows its experimental setup and analytical framework for the necessity of dynamic masking.
+- **[Easi3R](easi3r.md)**: Training-free dynamic-cue extraction from pretrained pairwise models; cited as producing coarse masks limited to pairwise architectures.
+- **[MonST3R](monst3r.md)** / **[DAS3R](../gaussian-splatting/das3r.md)** / **[CUT3R](cut3r.md)**: Learning-based dynamic-aware baselines requiring fine-tuning on dynamic datasets.
+- **[PAGE-4D](page-4d.md)**: Concurrent work using architectural disentanglement with an explicit mask-prediction module and targeted attention fine-tuning; contrasted with this paper's uncertainty-driven approach.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Pairwise pointmap foundations that preceded VGGT's multi-view extension.
 
 ## 📚 Key Takeaways

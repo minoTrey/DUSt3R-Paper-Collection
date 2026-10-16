@@ -96,7 +96,7 @@ On the NeRF-OSR dataset (원논문 Table 5, 16 views) Wild3R consistently beats 
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: Geometry foundation model underpinning the feed-forward 3DGS line.
-- **[VGGT](../reconstruction/vggt.md)**: The transformer backbone that AnySplat (Wild3R's base) is built on.
+- **[VGGT](../foundation/vggt.md)**: The transformer backbone that AnySplat (Wild3R's base) is built on.
 - **[Depth Anything 3](../reconstruction/depth-anything-3.md)**: A compared camera-free feed-forward baseline (DA3).
 
 ## 📚 Key Takeaways

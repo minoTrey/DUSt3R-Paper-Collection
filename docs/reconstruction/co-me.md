@@ -221,7 +221,7 @@ The paper organizes its analysis around six hypotheses. Several are reported onl
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — primary acceleration target
+- [VGGT](../foundation/vggt.md) — primary acceleration target
 - [Pi3](pi3.md) — second acceleration target, permutation-equivariant reconstruction
 - [FastVGGT](fastvggt.md) — the similarity/norm-based merging baseline Co-Me is measured against
 - [MapAnything](mapanything.md) — third target, and the model deployed on the Jetson Thor

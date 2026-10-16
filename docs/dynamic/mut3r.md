@@ -104,9 +104,9 @@ MUT3R is built on CUT3R (streaming). It does not win on every metric — it slig
 
 ## 🔗 Related Work
 
-- **[CUT3R](./cut3r.md)**: Streaming stateful backbone that MUT3R builds on and derives motion cues from.
-- **[Easi3R](./easi3r.md)**: Training-free attention adjustment within the pairwise DUSt3R framework; MUT3R instead uses CUT3R's stateful self-attention.
-- **[MonST3R](./monst3r.md)** / **[DAS3R](../gaussian-splatting/das3r.md)**: Dynamic-scene reconstruction baselines.
+- **[CUT3R](cut3r.md)**: Streaming stateful backbone that MUT3R builds on and derives motion cues from.
+- **[Easi3R](easi3r.md)**: Training-free attention adjustment within the pairwise DUSt3R framework; MUT3R instead uses CUT3R's stateful self-attention.
+- **[MonST3R](monst3r.md)** / **[DAS3R](../gaussian-splatting/das3r.md)**: Dynamic-scene reconstruction baselines.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Pairwise pointmap foundations.
 - **[Spann3R](../reconstruction/spann3r.md)** / **[Point3R](../reconstruction/point3r.md)** / **[STREAM3R](../reconstruction/stream3r.md)**: Streaming pointmap transformers MUT3R is complementary to.
 

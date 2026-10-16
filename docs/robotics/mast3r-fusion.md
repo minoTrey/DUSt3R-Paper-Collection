@@ -164,9 +164,9 @@ The authors attribute VGGT-Long's poor showing not to the model but to system dy
 - [MASt3R](../foundation/mast3r.md) — the two-view pointmap and descriptor front-end this system is built on.
 - [MASt3R-SLAM](../reconstruction/mast3r-slam.md) — the visual-only predecessor whose pointmap-alignment practice is followed and whose scale failures motivate the work.
 - [DUSt3R](../foundation/dust3r.md) — the originating pointmap regression paradigm.
-- [VGGT](../reconstruction/vggt.md) — the backbone of the VGGT-Long baseline in Tables II and IV.
+- [VGGT](../foundation/vggt.md) — the backbone of the VGGT-Long baseline in Tables II and IV.
 - [VGGT-SLAM](../reconstruction/vggt-slam.md) — a related SLAM system built on VGGT.
-- [Unifying Scene Representation](../robotics/unifying-scene-representation.md) — related robotics-oriented reconstruction work in this collection.
+- [Unifying Scene Representation](unifying-scene-representation.md) — related robotics-oriented reconstruction work in this collection.
 
 ## 📚 Key Takeaways
 

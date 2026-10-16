@@ -1,71 +1,45 @@
+<!-- PAPER-REDIRECT: docs/extensions/g-ray.md -->
+
 # G-ray: Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity (arXiv 2026)
 
-<!-- PAPER-CARD:en -->
+This paper note moved to **[G-ray: Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity (arXiv 2026)](../extensions/g-ray.md)**. Open that page for the full summary, figures, source links and English card when available.
 
-[<img src="../../assets/paper-cards/en/foundation/g-ray.png" width="720" alt="English summary card for G-ray: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/g-ray.png)
+This compatibility notice preserves the previous URL. It is not a second paper entry. See the [path mapping](../../data/paper-path-migrations.json) for card-production identities.
 
-[Original paper](https://arxiv.org/abs/2609.15018v2) · [Full-size English card](../../assets/paper-cards/en/foundation/g-ray.png)
-<!-- /PAPER-CARD -->
+## Previous section links
 
-## 📋 Overview
+<div id="-overview"></div>
 
-- **Authors**: Shuo Zhang, Xin Su, Wei Wang, Jun Liu, Xinrui Zeng, Yongsen Chen, Chenjie Wang, Guibo Zhu, Jinqiao Wang, Bin Luo, Liangpei Zhang
-- **Institution**: Wuhan University, Institute of Automation Chinese Academy of Sciences, Wuhan AI Research, Rongyun Robot
-- **Venue**: arXiv preprint (2026-09)
-- **Links**: [Paper](https://arxiv.org/abs/2609.15018)
-- **Verification**: UNKNOWN (2026-10-15; source 2609.15018v2 content reviewed; publication venue not independently confirmed)
-- **TL;DR**: Encode relative positions through camera-local ray angles instead of image coordinates, making attention consistent across mixed projections.
+[📋 Overview](../extensions/g-ray.md#-overview)
 
-## 🎯 Key Contributions
+<div id="-key-contributions"></div>
 
-1. Define ray-level rotary phases.
-2. Provide an encoding compatible with RoPE, GTA and RayRoPE.
-3. Evaluate external-calibration and estimated-calibration settings separately.
+[🎯 Key Contributions](../extensions/g-ray.md#-key-contributions)
 
-## 🔧 Technical Details
+<div id="-technical-details"></div>
 
-### Input, Output, and Problem
+[🔧 Technical Details](../extensions/g-ray.md#-technical-details)
 
-- **Input**: RGB views with calibrated per-view ray maps; an alternative configuration estimates rays with AnyCalib.
-- **Output**: Pointmaps, depth, poses or novel views from the attached model.
-- **Problem**: Identical physical ray relationships produce different image-plane relative phases under different projections and FoVs.
+<div id="input-output-and-problem"></div>
 
-### Method
+[Input, Output, and Problem](../extensions/g-ray.md#input-output-and-problem)
 
-1. Express camera-local rays in angular coordinates.
-2. Construct attention rotary phases from relative ray angles.
-3. Combine with existing position encodings to preserve ray relationships across projections.
-4. Evaluate pinhole-trained reconstruction models on mixed projections.
+<div id="method"></div>
 
-The encoding adds no learned parameters; this does not make the whole model training-free. Disclose external calibration inputs.
+[Method](../extensions/g-ray.md#method)
 
-## 📊 Results
+<div id="-results"></div>
 
-**Source**: [Source PDF](https://arxiv.org/pdf/2609.15018v2), Table I, PDF p.10.
+[📊 Results](../extensions/g-ray.md#-results)
 
-Mean over ScanNet++, PandaSet and ETH3D mixed-projection 50-view settings. Both rows receive external calibration; lower point relative error is better.
+<div id="-insights--impact"></div>
 
-| Method                       | Point relative error ↓ | Ray error (°) ↓ | Depth relative error ↓ |
-| ---------------------------- | ---------------------- | --------------- | ---------------------- |
-| MapAnything, calibrated rays | 0.1372                 | 2.11            | 0.1199                 |
-| G-ray, calibrated rays       | 0.0744                 | 0.38            | 0.0744                 |
+[💡 Insights & Impact](../extensions/g-ray.md#-insights--impact)
 
-With AnyCalib-estimated calibration, G-ray point error is 0.1347. Do not treat uncalibrated VGGT and calibrated G-ray as identical-input comparisons.
+<div id="-related-work"></div>
 
-## 💡 Insights & Impact
+[🔗 Related Work](../extensions/g-ray.md#-related-work)
 
-Use the physical ray seen by each pixel as attention's geometric reference rather than a camera-type label.
+<div id="-key-takeaways"></div>
 
-- Ray-calibration quality directly affects performance.
-- Pinhole-to-mixed-camera transfer is established only within the tested scope, not for every lens or scene.
-
-## 🔗 Related Work
-
-- [MEOW](../reconstruction/meow.md): mixed-camera adaptation without camera labels uses different input assumptions.
-- [VGGT](../reconstruction/vggt.md): background on multi-view attention.
-
-## 📚 Key Takeaways
-
-1. Use rays as the reference for positional encoding.
-2. No added parameters does not mean training-free.
-3. State calibration conditions beside results.
+[📚 Key Takeaways](../extensions/g-ray.md#-key-takeaways)

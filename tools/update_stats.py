@@ -22,6 +22,7 @@ README = ROOT / "README.md"
 
 CATEGORY_TITLE = {
     "foundation": "Foundation Models",
+    "extensions": "Model Extensions",
     "reconstruction": "3D Reconstruction",
     "dynamic": "Dynamic Scenes",
     "gaussian-splatting": "Gaussian Splatting",
@@ -30,7 +31,7 @@ CATEGORY_TITLE = {
     "understanding": "Scene Understanding",
     "robotics": "Robotics",
     "medical": "Medical",
-    "surveys": "Surveys & Analysis",
+    "surveys": "Surveys, Benchmarks & Analysis",
 }
 
 
@@ -123,10 +124,12 @@ def apply(text: str, st: dict) -> tuple[str, list[str]]:
     _before = text
     text = outside_blocks(
         text,
-        lambda s: re.sub(
-            r"\b\d+(\+?) (research )?papers\b",
-            lambda m: f"{total}{m.group(1)} {m.group(2) or ''}papers",
-            s,
+        lambda s: "\n".join(
+            line if re.search(r"\]\(docs/[a-z0-9-]+/?\)", line) else re.sub(
+                r"\b\d+(\+?) (research )?papers\b",
+                lambda m: f"{total}{m.group(1)} {m.group(2) or ''}papers",
+                line,
+            ) for line in s.split("\n")
         ),
     )
     if text != _before:
@@ -137,7 +140,7 @@ def apply(text: str, st: dict) -> tuple[str, list[str]]:
     # 카테고리별 "(N papers)" — 링크 뒤에 오는 것만
     for cat, n in st["categories"].items():
         text = sub(
-            rf"(\(docs/{re.escape(cat)}/\)\s*)\(\d+ papers?\)",
+            rf"(\(docs/{re.escape(cat)}/?\)\s*)\(\d+ papers?\)",
             rf"\g<1>({n} paper{'s' if n != 1 else ''})",
             f"{cat} 카운트",
             text,
@@ -160,6 +163,21 @@ def apply(text: str, st: dict) -> tuple[str, list[str]]:
     return text, changes
 
 
+def category_errors(text: str, st: dict) -> list[str]:
+    """Require one correctly counted category entry, with either slash style."""
+    entries = re.findall(r"\]\(docs/([a-z0-9-]+)/?\)\s*\((\d+) papers?\)", text)
+    found = collections.defaultdict(list)
+    for category, count in entries:
+        found[category].append(int(count))
+    errors = []
+    for category, count in st["categories"].items():
+        if found.get(category) != [count]:
+            errors.append(f"{category}: expected one entry with {count}, found {found.get(category, [])}")
+    for category in set(found) - set(st["categories"]):
+        errors.append("unknown category entry: " + category)
+    return errors
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="CI용: 불일치 시 non-zero")
@@ -179,6 +197,11 @@ def main() -> int:
 
     old = README.read_text(encoding="utf-8")
     new, changes = apply(old, st)
+    invalid_categories = category_errors(new, st)
+    if invalid_categories:
+        for error in invalid_categories:
+            print("❌ " + error, file=sys.stderr)
+        return 1
 
     if args.check:
         if new != old:

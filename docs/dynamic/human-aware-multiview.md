@@ -54,7 +54,7 @@ Jointly estimate cameras and people through instance features in a shared 3D spa
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): initialization of 3D features.
+- [VGGT](../foundation/vggt.md): initialization of 3D features.
 - [Human3R](human3r.md): context for human-centered reconstruction.
 
 ## 📚 Key Takeaways

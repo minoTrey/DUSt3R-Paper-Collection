@@ -171,7 +171,7 @@ This note records only those documents' existence and names; it does not assign 
 - **[DUSt3R](../foundation/dust3r.md)**: the pairwise-pointmap regression foundation.
 - **[MASt3R](../foundation/mast3r.md)**: adds correspondence features, a different objective from MUSt3R memory scaling.
 - **[Spann3R](spann3r.md)**: a direct spatial-memory comparison; read ATE and FPS separately.
-- **[VGGT](vggt.md)**: another approach using joint attention across views.
+- **[VGGT](../foundation/vggt.md)**: another approach using joint attention across views.
 - **[Slot3R](slot3r.md)**: subsequent work on spatially addressed state retention and bounded memory reads.
 
 ## 📚 Key Takeaways

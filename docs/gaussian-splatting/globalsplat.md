@@ -124,7 +124,7 @@ The two-stream factorization helps beyond raw capacity (single-stream is widened
 
 ## 🔗 Related Work
 
-- Builds on the feed-forward 3D reconstruction line from [DUSt3R](../foundation/dust3r.md) (pixel-aligned pointmaps) and multi-view extensions with global attention such as [VGGT](../reconstruction/vggt.md) and [Fast3R](../reconstruction/fast3r.md); cites streaming/memory approaches [CUT3R](../dynamic/cut3r.md) and MUSt3R for large-context scalability.
+- Builds on the feed-forward 3D reconstruction line from [DUSt3R](../foundation/dust3r.md) (pixel-aligned pointmaps) and multi-view extensions with global attention such as [VGGT](../foundation/vggt.md) and [Fast3R](../reconstruction/fast3r.md); cites streaming/memory approaches [CUT3R](../dynamic/cut3r.md) and MUSt3R for large-context scalability.
 - Contrasts with feed-forward 3DGS baselines: pixelSplat, MVSplat, GS-LRM, DepthSplat, NoPoSplat, AnySplat, GGN, and compression-oriented Zpressor/TinySplat, which rely on view-centric intermediates.
 - Closest to LVSM (fixed latent tokens but no explicit 3D asset) and concurrent C3G (learnable queries → compact Gaussians via full self-attention and single-Gaussian decoding); GlobalSplat differs with an iterative disentangled dual-branch encoder and coarse-to-fine curriculum.
 

@@ -117,7 +117,7 @@ _Method Overview (원논문 Fig. 2)_
 
 ## 🔗 Related Work
 
-- Backbone/comparison [VGGT](../reconstruction/vggt.md); foundation [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md); also compares to [MapAnything](../reconstruction/mapanything.md) and [Pi3 (π³)](../reconstruction/pi3.md).
+- Backbone/comparison [VGGT](../foundation/vggt.md); foundation [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md); also compares to [MapAnything](../reconstruction/mapanything.md) and [Pi3 (π³)](../reconstruction/pi3.md).
 - Streaming peers: [Spann3R](../reconstruction/spann3r.md), [CUT3R](cut3r.md), [StreamVGGT](../reconstruction/streamvggt.md), [Stream3R](../reconstruction/stream3r.md), [Wint3R](../reconstruction/wint3r.md); dynamic method [MonST3R](monst3r.md).
 
 ## 📚 Key Takeaways

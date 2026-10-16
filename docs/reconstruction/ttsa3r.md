@@ -95,7 +95,7 @@ On NRGBD (long sequences), as sequences extend from 50 to 250 frames, TTSA3R exh
 ## 🔗 Related Work
 
 - **[CUT3R](../dynamic/cut3r.md)**: The recurrent persistent-state backbone TTSA3R builds on and improves.
-- **[VGGT](vggt.md)** and **[StreamVGGT](streamvggt.md)**: Full-attention / streaming baselines that set the upper bound on short sequences.
+- **[VGGT](../foundation/vggt.md)** and **[StreamVGGT](streamvggt.md)**: Full-attention / streaming baselines that set the upper bound on short sequences.
 - **[Spann3R](spann3r.md)**: Spatial-memory streaming baseline compared against.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**, **[MonST3R](../dynamic/monst3r.md)**: Optimization-based (global-alignment) baselines.
 

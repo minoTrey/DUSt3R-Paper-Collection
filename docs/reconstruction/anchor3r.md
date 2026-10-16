@@ -194,7 +194,7 @@ Removing pose-query tokens from the cache improves ATE, RTE, and RRE on most sce
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the initialization and backbone; its unified camera/depth/point/track prediction is the starting point
+- [VGGT](../foundation/vggt.md) — the initialization and backbone; its unified camera/depth/point/track prediction is the starting point
 - [Pi3](pi3.md) — permutation-equivariant formulation that removed fixed-reference bias; source of the scale-factor estimation, and the Pi3-Chunk baseline
 - [CUT3R](../dynamic/cut3r.md) — persistent latent scene memory, a streaming baseline
 - [TTT3R](ttt3r.md) — inference-time state updating, a streaming baseline

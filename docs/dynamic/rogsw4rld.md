@@ -54,7 +54,7 @@ Convert visual rollouts into a representation queryable in space and time, using
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): the backbone family underlying MoVieS.
+- [VGGT](../foundation/vggt.md): the backbone family underlying MoVieS.
 - [Uni4R](uni4r.md): another continuous-time geometry formulation.
 
 ## 📚 Key Takeaways

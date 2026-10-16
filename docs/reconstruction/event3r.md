@@ -102,7 +102,7 @@ _Overview of the Event3R pipeline (원논문 Fig. 2)_
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: Backbone weights and global-alignment reconstruction pipeline.
-- **[VGGT](vggt.md)** and **[CUT3R](../dynamic/cut3r.md)**: RGB feed-forward reconstruction context; CUT3R metrics/protocol reused for depth.
+- **[VGGT](../foundation/vggt.md)** and **[CUT3R](../dynamic/cut3r.md)**: RGB feed-forward reconstruction context; CUT3R metrics/protocol reused for depth.
 - **[MASt3R](../foundation/mast3r.md)**: Cited transformer-based dense correspondence lineage.
 - **[EAG3R](../dynamic/eag3r.md)**: Concurrent event-augmented feed-forward pipeline, contrasted as RGB-centric rather than event-only.
 

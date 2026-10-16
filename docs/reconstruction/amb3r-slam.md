@@ -56,7 +56,7 @@ Add large-model constraints only when long context is needed rather than executi
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md): the feed-forward geometry family.
+- [VGGT](../foundation/vggt.md): the feed-forward geometry family.
 - [Depth Anything 3](depth-anything-3.md): the default geometry-model family.
 
 ## 📚 Key Takeaways

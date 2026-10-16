@@ -185,7 +185,7 @@ The cached KV memory grows linearly with sequence length, so StreamVGGT trades V
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the direct parent: same encoder, same heads, same loss structure, and the teacher model for distillation. StreamVGGT is best read as "VGGT made causal".
+- [VGGT](../foundation/vggt.md) — the direct parent: same encoder, same heads, same loss structure, and the teacher model for distillation. StreamVGGT is best read as "VGGT made causal".
 - [CUT3R](../dynamic/cut3r.md) — the fixed-length-state alternative, and the main streaming baseline throughout.
 - [Point3R](point3r.md) — sibling work from the same lab; StreamVGGT adopts its variable-aspect-ratio image processing.
 - [Spann3R](spann3r.md) / [MUSt3R](must3r.md) — the earlier explicit-memory streaming lineage.

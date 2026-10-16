@@ -97,7 +97,7 @@ On a 10-frame video at 518×518 (RTX A6000, 48 GB): SpatialTrackerV2 exceeds 48 
 
 ## 🔗 Related Work
 
-- Backbone and closest baseline: [VGGT](../reconstruction/vggt.md); foundation lineage [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), scalability from [Fast3R](../reconstruction/fast3r.md).
+- Backbone and closest baseline: [VGGT](../foundation/vggt.md); foundation lineage [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), scalability from [Fast3R](../reconstruction/fast3r.md).
 - Dynamic reconstruction/tracking peers: [MonST3R](monst3r.md), [CUT3R](cut3r.md), [Stereo4D](stereo4d.md), [POMATO](pomato.md); builds on St4RTrack's pointmap representation.
 
 ## 📚 Key Takeaways

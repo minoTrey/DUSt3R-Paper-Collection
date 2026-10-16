@@ -258,7 +258,7 @@ dense metric 4D practical at this speed, not a uniform accuracy leader.
 
 - [MonST3R](monst3r.md) — the dynamic DUSt3R extension used here as a composed baseline (with CoTracker3 and SEA-RAFT); requires post-hoc optimization to establish correspondences.
 - [Dynamic Point Maps](dynamic-point-maps.md) and [V-DPM](v-dpm.md) — the alternative line that encodes motion inside the point-map representation itself, rather than as a separate factored scene-flow output.
-- [VGGT](../reconstruction/vggt.md) — the alternating-attention design Any4D inherits, and a baseline in every table.
+- [VGGT](../foundation/vggt.md) — the alternating-attention design Any4D inherits, and a baseline in every table.
 - [CUT3R](cut3r.md) — streaming single-step feed-forward baseline in the video-depth comparison.
 - [Easi3R](easi3r.md) — related attention-based dynamic decomposition on top of DUSt3R-family models.
 

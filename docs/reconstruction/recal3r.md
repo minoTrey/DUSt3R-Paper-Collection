@@ -83,7 +83,7 @@ Reliability calibration helps even when the candidate rate is inherited from TTT
 - **[Spann3R](spann3r.md)** & **[Point3R](point3r.md)**: Persistent/pointer-memory streaming methods.
 - **[StreamVGGT](streamvggt.md)**, **[Stream3R](stream3r.md)**, **[InfiniteVGGT](infinitevggt.md)**, **[HorizonStream](horizonstream.md)**: Causal VGGT-style streaming systems with cache management.
 - **[VGG-T3](vgg-t3.md)** & **[ZipMap](zipmap.md)**: TTT-based approaches that scale feed-forward reconstruction rather than modifying recurrent updates.
-- **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**, **[VGGT](vggt.md)**, **[Fast3R](fast3r.md)**, **[MonST3R](../dynamic/monst3r.md)**: Feed-forward foundations referenced.
+- **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**, **[VGGT](../foundation/vggt.md)**, **[Fast3R](fast3r.md)**, **[MonST3R](../dynamic/monst3r.md)**: Feed-forward foundations referenced.
 
 ## 📚 Key Takeaways
 

@@ -128,7 +128,7 @@ Camera pose (원논문 Table 5): on RealEstate10K, Wan+VGGT reaches RRA@5 99.65,
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: Used as one of the feed-forward 3D decoders, enabling the text-to-pointmap variant.
+- **[VGGT](../foundation/vggt.md)**: Used as one of the feed-forward 3D decoders, enabling the text-to-pointmap variant.
 - **[DUSt3R](../foundation/dust3r.md)** and **[MASt3R](../foundation/mast3r.md)**: Foundational feed-forward reconstruction networks in the lineage that VIST3A's decoders (MVDUSt3R, AnySplat) build upon.
 
 ## 📚 Key Takeaways

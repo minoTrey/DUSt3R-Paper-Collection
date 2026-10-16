@@ -93,7 +93,7 @@ The headline "3.73% pose / 2.88% point map" figures are the VGGT 32-view AUC3 an
 
 ## 🔗 Related Work
 
-- **[Depth Anything 3](depth-anything-3.md)** and **[VGGT](vggt.md)**: The two frozen feed-forward backbones adapted.
+- **[Depth Anything 3](depth-anything-3.md)** and **[VGGT](../foundation/vggt.md)**: The two frozen feed-forward backbones adapted.
 - **[DUSt3R](../foundation/dust3r.md)**: Cited pointmap-regression predecessor.
 - **[Test3R](test3r.md)**: Prior 3D test-time adaptation via symmetric pairwise consistency, contrasted with the asymmetric full-vs-partial signal.
 

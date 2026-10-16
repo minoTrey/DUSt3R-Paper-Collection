@@ -57,7 +57,7 @@ Combine improved learned priors with enforced physical consistency across views.
 ## 🔗 Related Work
 
 - [Depth Anything 3](depth-anything-3.md): the adapted backbone.
-- [VGGT](vggt.md): long-sequence comparisons.
+- [VGGT](../foundation/vggt.md): long-sequence comparisons.
 
 ## 📚 Key Takeaways
 

@@ -89,7 +89,7 @@ The unified architecture consistently beats both stitched baselines across all m
 
 ## 🔗 Related Work
 
-- Builds directly on the feed-forward reconstruction backbone ReSplat (recurrent Gaussian splats) and the material network MVInverse, alongside feed-forward 3DGS lineage pixelSplat, MVSplat, DepthSplat, NoPoSplat, and the multi-representation [VGGT](../reconstruction/vggt.md)/[DUSt3R](../foundation/dust3r.md)/WorldMirror line.
+- Builds directly on the feed-forward reconstruction backbone ReSplat (recurrent Gaussian splats) and the material network MVInverse, alongside feed-forward 3DGS lineage pixelSplat, MVSplat, DepthSplat, NoPoSplat, and the multi-representation [VGGT](../foundation/vggt.md)/[DUSt3R](../foundation/dust3r.md)/WorldMirror line.
 - Contrasts with optimization-based inverse rendering (IRIS, Intrinsic Image Fusion) and image-space diffusion approaches (DiffusionRenderer, DNF-Intrinsic) that lack an explicit, multi-view-consistent 3D representation.
 - Uses a [MoGe](../reconstruction/moge.md)-style affine-invariant depth loss for self-supervised depth from pose-free training data.
 

@@ -201,10 +201,10 @@ The paper explicitly rejects two other efficiency routes: sequential/streaming i
 
 ## 🔗 Related Work
 
-- [VGGT](./vggt.md) — the model being compressed; every table's reference point.
-- [FastVGGT](./fastvggt.md) — the closest competitor, and the method LiteVGGT's central argument targets: generic token merging that ignores geometric coupling.
-- [StreamVGGT](./streamvggt.md) — the streaming alternative LiteVGGT declines to follow because it gives up single-pass inference.
-- [Fast3R](./fast3r.md) — many-view feed-forward baseline appearing in the reconstruction and pose tables.
+- [VGGT](../foundation/vggt.md) — the model being compressed; every table's reference point.
+- [FastVGGT](fastvggt.md) — the closest competitor, and the method LiteVGGT's central argument targets: generic token merging that ignores geometric coupling.
+- [StreamVGGT](streamvggt.md) — the streaming alternative LiteVGGT declines to follow because it gives up single-pass inference.
+- [Fast3R](fast3r.md) — many-view feed-forward baseline appearing in the reconstruction and pose tables.
 - [CUT3R](../dynamic/cut3r.md) — recurrent-state baseline; fastest at some settings but with notably worse accuracy here.
 - [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md) — the pointmap lineage the related-work section traces.
 

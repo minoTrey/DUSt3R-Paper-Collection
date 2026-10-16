@@ -175,13 +175,13 @@ The query formulation is borrowed explicitly from DETR / DETR3D / PETR in detect
 
 ## 🔗 Related Work
 
-- [Pi3](./pi3.md) — supplies the frozen DINOv2 encoder and point-map head, the alternating-attention design, and the pose evaluation protocol; also the strongest pose baseline.
-- [VGGT](./vggt.md) — the pixel-aligned pointmap approach UniQueR argues against, and a pose and initialization baseline.
-- [MapAnything](./mapanything.md) — source of the data processing and the dynamic-resolution training recipe.
+- [Pi3](pi3.md) — supplies the frozen DINOv2 encoder and point-map head, the alternating-attention design, and the pose evaluation protocol; also the strongest pose baseline.
+- [VGGT](../foundation/vggt.md) — the pixel-aligned pointmap approach UniQueR argues against, and a pose and initialization baseline.
+- [MapAnything](mapanything.md) — source of the data processing and the dynamic-resolution training recipe.
 - [CUT3R](../dynamic/cut3r.md) — the other data-processing source, and a pose baseline.
-- [Fast3R](./fast3r.md) — many-view feed-forward pose baseline.
+- [Fast3R](fast3r.md) — many-view feed-forward pose baseline.
 - [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md) — the pointmap lineage; named in the abstract as representative of the 2.5D paradigm.
-- [Spann3R](./spann3r.md), [MUSt3R](./must3r.md) — memory/recurrent extensions surveyed in the related work.
+- [Spann3R](spann3r.md), [MUSt3R](must3r.md) — memory/recurrent extensions surveyed in the related work.
 - [InstantSplat](../gaussian-splatting/instantsplat.md), [Splatt3R](../gaussian-splatting/splatt3r.md) — feed-forward Gaussian neighbours in this collection.
 
 ## 📚 Key Takeaways

@@ -128,7 +128,7 @@ High-resolution re-training alone lifts PSNR from 16.964 to 23.502; image patchi
 
 ## 🔗 Related Work
 
-- Applies over feed-forward 3DGS backbones NoPoSplat, DepthSplat, Flash3D, and [VGGT](../reconstruction/vggt.md) (with an AnySplat-style Gaussian head), building on pose-free pointmap inference from [DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md) and multi-view methods such as MV-DUSt3R+ and [Spann3R](../reconstruction/spann3r.md).
+- Applies over feed-forward 3DGS backbones NoPoSplat, DepthSplat, Flash3D, and [VGGT](../foundation/vggt.md) (with an AnySplat-style Gaussian head), building on pose-free pointmap inference from [DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md) and multi-view methods such as MV-DUSt3R+ and [Spann3R](../reconstruction/spann3r.md).
 - Extends per-primitive textured Gaussian methods (BBSplat, GsTex, Gaussian Billboards, Textured Gaussians) into a feed-forward, cross-scene setting, removing their per-scene optimization requirement.
 - Uses 2D Gaussian Splatting (2DGS) as its geometric primitive.
 

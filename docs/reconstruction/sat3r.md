@@ -75,7 +75,7 @@ A 150 m threshold is best: 100 m causes saturation near the depth boundary, whil
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: A geometry foundation model baseline that fails zero-shot on satellite imagery.
+- **[VGGT](../foundation/vggt.md)**: A geometry foundation model baseline that fails zero-shot on satellite imagery.
 - **[DUSt3R](../foundation/dust3r.md)** & **[MASt3R](../foundation/mast3r.md)**: Feed-forward geometry foundations in the cited lineage.
 - **[MonST3R](../dynamic/monst3r.md)**: Referenced geometry-estimation model.
 - **[FF3R](../understanding/ff3r.md)**: Feedforward feature 3D reconstruction cited from the same group.

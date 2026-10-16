@@ -5,40 +5,41 @@
 
 **Total: 337 papers**
 
-## Foundation Models (30)
+## Foundation Models (5)
 
-- [**3DTurboQuant**](foundation/3dturboquant.md) (arXiv preprint (2026-04)) — Training-Free Near-Optimal Quantization for 3D Reconstruction Models
 - [**CroCo**](foundation/croco.md) (NeurIPS 2022) — Self-Supervised Pre-training for 3D Vision Tasks by Cross-View Completion
 - [**CroCo v2**](foundation/croco-v2.md) (ICCV 2023) — Improved Cross-view Completion Pre-training for Stereo Matching and Optical Flow
-- [**DarkVGGT**](foundation/darkvggt.md) (arXiv preprint (2026-06)) — Seeing Through Darkness Using Thermal Geometry without Daylight Tax
-- [**Distill3R**](foundation/distill3r.md) (arXiv preprint (2026-01)) — A Pipeline for Democratizing 3D Foundation Models on Commodity Hardware
 - [**DUSt3R**](foundation/dust3r.md) (CVPR 2024) — Geometric 3D Vision Made Easy
-- [**Not All Tasks Quantize Equally**](foundation/fisher-quant.md) (arXiv preprint (2026-05)) — Fisher-Guided Quantization for Visual Geometry Transformer
-- [**FlashVGGT**](foundation/flashvggt.md) (arXiv preprint (2025-12)) — Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention
-- [**G-ray**](foundation/g-ray.md) (arXiv preprint (2026-09)) — Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity
-- [**G3T**](foundation/g3t.md) (arXiv preprint (2026-05)) — Gravity Aligned Coordinate Frames Simplify Pointmap Processing
-- [**Revisiting Cross-View Completion**](foundation/gekko.md) (arXiv preprint (2026-09)) — Self-Supervised Pre-Training via Reconstruction Error Comparison
-- [**GeoCond**](foundation/geocond.md) (arXiv preprint (2026-09)) — A Conditioning-Aware Reliability Adapter for Feed-Forward 3D Reconstruction
-- [**GoToHunt**](foundation/good-token-hunting.md) (arXiv preprint (2026-05)) — Good Token Hunting for Visual Geometry Transformers
-- [**HD-VGGT**](foundation/hd-vggt.md) (arXiv preprint (2026-03)) — High-Resolution Visual Geometry Transformer
-- [**Lite3R**](foundation/lite3r.md) (arXiv preprint (2026-05)) — A Model-Agnostic Framework for Efficient Feed-Forward 3D Reconstruction
 - [**MASt3R**](foundation/mast3r.md) (ECCV 2024) — Grounding Image Matching in 3D
-- [**MASt3R-SfM**](foundation/mast3r-sfm.md) (3DV 2025) — A Fully-Integrated Solution for Unconstrained Structure-from-Motion
-- [**Muskie**](foundation/muskie.md) (arXiv preprint (2025-11)) — Multi-view Masked Image Modeling for 3D Vision Pre-training
-- [**OTT3R**](foundation/ott3r.md) (arXiv preprint (2026-09)) — Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute
-- [**PrePARE**](foundation/pacevggt.md) (arXiv preprint (2026-05)) — Pre-AA Token Pruning for Frozen Multi-View Geometry Transformers
-- [**QVGGT**](foundation/qvggt.md) (CVPR 2026) — Post-Training Quantized Visual Geometry Grounded Transformer
-- [**RayTun3R**](foundation/raytun3r.md) (arXiv preprint (2026-07)) — Online Camera Adaptation in 3D Foundation Models
-- [**RoMa-Ω**](foundation/roma-omega.md) (arXiv preprint (2026-09)) — What Feed-Forward 3D Models Know About Image Matching
-- [**SAF3R**](foundation/saf3r.md) (ECCV 2026) — Dynamic Sparse Attention for Feed-Forward 3D Reconstruction Transformers
-- [**Spark3R**](foundation/spark3r.md) (arXiv preprint (2026-05)) — Asymmetric Token Reduction Makes Fast Feed-Forward 3D Reconstruction
-- [**StreamCacheVGGT**](foundation/streamcachevggt.md) (arXiv preprint (2026-04)) — Streaming Visual Geometry Transformers with Robust Scoring and Hybrid Cache Compression
-- [**Trust3R**](foundation/trust3r.md) (ICML 2026) — Evidential Uncertainty for Feed-Forward 3D Reconstruction
-- [**UAVFF3D**](foundation/uavff3d.md) (arXiv preprint (2026-05)) — A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction
-- [**VGGT-Prime**](foundation/vggt-prime.md) (arXiv preprint (2026-09)) — Compute-Adaptive Mixture-of-Heads for Efficient Visual Geometry Transformers
-- [**VLRC**](foundation/vlrc.md) (arXiv preprint (2026-07)) — Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining
+- [**VGGT**](foundation/vggt.md) (CVPR 2025) — Visual Geometry Grounded Transformer
 
-## 3D Reconstruction (128)
+## Model Extensions (23)
+
+- [**3DTurboQuant**](extensions/3dturboquant.md) (arXiv preprint (2026-04)) — Training-Free Near-Optimal Quantization for 3D Reconstruction Models
+- [**DarkVGGT**](extensions/darkvggt.md) (arXiv preprint (2026-06)) — Seeing Through Darkness Using Thermal Geometry without Daylight Tax
+- [**Distill3R**](extensions/distill3r.md) (arXiv preprint (2026-01)) — A Pipeline for Democratizing 3D Foundation Models on Commodity Hardware
+- [**Not All Tasks Quantize Equally**](extensions/fisher-quant.md) (arXiv preprint (2026-05)) — Fisher-Guided Quantization for Visual Geometry Transformer
+- [**FlashVGGT**](extensions/flashvggt.md) (arXiv preprint (2025-12)) — Efficient and Scalable Visual Geometry Transformers with Compressed Descriptor Attention
+- [**G-ray**](extensions/g-ray.md) (arXiv preprint (2026-09)) — Ray-Level Relative Geometric Position Encoding in Multi-View Vision Transformers under Camera Heterogeneity
+- [**G3T**](extensions/g3t.md) (arXiv preprint (2026-05)) — Gravity Aligned Coordinate Frames Simplify Pointmap Processing
+- [**Revisiting Cross-View Completion**](extensions/gekko.md) (arXiv preprint (2026-09)) — Self-Supervised Pre-Training via Reconstruction Error Comparison
+- [**GeoCond**](extensions/geocond.md) (arXiv preprint (2026-09)) — A Conditioning-Aware Reliability Adapter for Feed-Forward 3D Reconstruction
+- [**GoToHunt**](extensions/good-token-hunting.md) (arXiv preprint (2026-05)) — Good Token Hunting for Visual Geometry Transformers
+- [**HD-VGGT**](extensions/hd-vggt.md) (arXiv preprint (2026-03)) — High-Resolution Visual Geometry Transformer
+- [**Lite3R**](extensions/lite3r.md) (arXiv preprint (2026-05)) — A Model-Agnostic Framework for Efficient Feed-Forward 3D Reconstruction
+- [**Muskie**](extensions/muskie.md) (arXiv preprint (2025-11)) — Multi-view Masked Image Modeling for 3D Vision Pre-training
+- [**OTT3R**](extensions/ott3r.md) (arXiv preprint (2026-09)) — Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute
+- [**PrePARE**](extensions/pacevggt.md) (arXiv preprint (2026-05)) — Pre-AA Token Pruning for Frozen Multi-View Geometry Transformers
+- [**QVGGT**](extensions/qvggt.md) (CVPR 2026) — Post-Training Quantized Visual Geometry Grounded Transformer
+- [**RayTun3R**](extensions/raytun3r.md) (arXiv preprint (2026-07)) — Online Camera Adaptation in 3D Foundation Models
+- [**SAF3R**](extensions/saf3r.md) (ECCV 2026) — Dynamic Sparse Attention for Feed-Forward 3D Reconstruction Transformers
+- [**Spark3R**](extensions/spark3r.md) (arXiv preprint (2026-05)) — Asymmetric Token Reduction Makes Fast Feed-Forward 3D Reconstruction
+- [**StreamCacheVGGT**](extensions/streamcachevggt.md) (arXiv preprint (2026-04)) — Streaming Visual Geometry Transformers with Robust Scoring and Hybrid Cache Compression
+- [**Trust3R**](extensions/trust3r.md) (ICML 2026) — Evidential Uncertainty for Feed-Forward 3D Reconstruction
+- [**VGGT-Prime**](extensions/vggt-prime.md) (arXiv preprint (2026-09)) — Compute-Adaptive Mixture-of-Heads for Efficient Visual Geometry Transformers
+- [**VLRC**](extensions/vlrc.md) (arXiv preprint (2026-07)) — Vision-Language Reprojection Consistency as a Scalable Signal for Better Feed-Forward 3D Pretraining
+
+## 3D Reconstruction (129)
 
 - [**AMB3R**](reconstruction/amb3r.md) (CVPR 2026) — Accurate Feed-forward Metric-scale 3D Reconstruction with Backend
 - [**AMB3R-SLAM**](reconstruction/amb3r-slam.md) (arXiv preprint (2026-09)) — Kilometer-scale SLAM with Hierarchical Backend
@@ -95,6 +96,7 @@
 - [**LSRM**](reconstruction/lsrm.md) (arXiv preprint (2026-04)) — High-Fidelity Object-Centric Reconstruction via Scaled Context Windows
 - [**MAGiSt3R**](reconstruction/magist3r.md) (arXiv preprint (2026-07)) — Multi-Agent Feed-forward 3D Reconstruction from Monocular RGB Videos
 - [**MapAnything**](reconstruction/mapanything.md) (3DV 2026) — Universal Feed-Forward Metric 3D Reconstruction
+- [**MASt3R-SfM**](reconstruction/mast3r-sfm.md) (3DV 2025) — A Fully-Integrated Solution for Unconstrained Structure-from-Motion
 - [**MASt3R-SLAM**](reconstruction/mast3r-slam.md) (CVPR 2025) — Real-Time Dense SLAM with 3D Reconstruction Priors
 - [**Mem3R**](reconstruction/mem3r.md) (arXiv preprint (2026-04)) — Streaming 3D Reconstruction with Hybrid Memory via Test-Time Training
 - [**Many Eyes, One World**](reconstruction/meow.md) (arXiv preprint (2026-09)) — Feed-Forward 3D Reconstruction from Mixed Cameras
@@ -123,6 +125,7 @@
 - [**Reliev3R**](reconstruction/reliev3r.md) (CVPR 2026) — Relieving Feed-forward 3D Reconstruction from Multi-View Geometric Annotations
 - [**ReVar3R**](reconstruction/revar3r.md) (arXiv preprint (2026-10)) — Gauge-Aware Perturbation Uncertainty for Feed-Forward 3D Reconstruction
 - [**RIGOR**](reconstruction/rigor.md) (arXiv preprint (2026-09)) — Rig-Informed Geometry for Omnidirectional Reconstruction
+- [**RoMa-Ω**](reconstruction/roma-omega.md) (arXiv preprint (2026-09)) — What Feed-Forward 3D Models Know About Image Matching
 - [**S-MUSt3R**](reconstruction/s-must3r.md) (arXiv preprint (2026-02)) — Sliding Multi-view 3D Reconstruction
 - [**S-VGGT**](reconstruction/s-vggt.md) (ICME 2026) — Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models
 - [**SAIL-Recon**](reconstruction/sail-recon.md) (3DV 2026) — Large SfM by Augmenting Scene Regression with Localization
@@ -153,7 +156,6 @@
 - [**UniQueR**](reconstruction/uniquer.md) (arXiv preprint (2026-03)) — Unified Query-based Feedforward 3D Reconstruction
 - [**UniSH**](reconstruction/unish.md) (arXiv preprint (2026-01)) — Unifying Scene and Human Reconstruction in a Feed-Forward Pass
 - [**VGG-T3**](reconstruction/vgg-t3.md) (CVPR 2026) — Offline Feed-Forward 3D Reconstruction at Scale
-- [**VGGT**](reconstruction/vggt.md) (CVPR 2025) — Visual Geometry Grounded Transformer
 - [**VGGT-Bridge**](reconstruction/vggt-bridge.md) (ACCV 2026) — Beyond Sequential Pose Graphs via Coarse-Stride Skip Edges
 - [**VGGT-Edit**](reconstruction/vggt-edit.md) (arXiv preprint (2026-05)) — Feed-forward Native 3D Scene Editing with Residual Field Prediction
 - [**VGGT-Long**](reconstruction/vggt-long.md) (ICRA 2026) — Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences
@@ -340,7 +342,7 @@
 - [**VGGT-GS SLAM**](robotics/vggt-gs-slam.md) (arXiv preprint (2026-09)) — Uncalibrated Monocular Gaussian Splatting SLAM with Feed-Forward Priors
 - [**ViPE**](robotics/vipe.md) (arXiv preprint (2025-08)) — Video Pose Engine for 3D Geometric Perception
 
-## Surveys & Analysis (8)
+## Surveys, Benchmarks & Analysis (9)
 
 - [**CARVE**](surveys/carve.md) (CVPR 2026) — Unlocking the Power of Critical Factors for 3D Visual Geometry Estimation
 - [**A Calibration Audit of Confidence in Feed-Forward 3D Reconstruction Models (arXiv 2026)**](surveys/confidence-audit.md) (arXiv preprint (2026-08))
@@ -349,6 +351,7 @@
 - [**GeomUnderstanding**](surveys/geometric-understanding.md) (arXiv preprint (2025-12)) — On Geometric Understanding and Learned Priors in Feed-forward 3D Reconstruction Models
 - [**Generating Multi-view Adversarial Examples for Visual Geometry Grounded Transformer (arXiv 2026)**](surveys/mvap-g.md) (arXiv preprint (2026-08))
 - [**Survey-DUSt3R-to-VGGT**](surveys/survey-dust3r-to-vggt.md) (JAICS 2025) — Review of Feed-forward 3D Reconstruction
+- [**UAVFF3D**](surveys/uavff3d.md) (arXiv preprint (2026-05)) — A Geometry-Aware Benchmark for Feed-Forward UAV 3D Reconstruction
 - [**When Wider Views Fail**](surveys/wider-views-fail.md) (arXiv preprint (2026-09)) — Stress-Testing Feed-Forward 3D Reconstruction
 
 ## Pose Estimation (12)

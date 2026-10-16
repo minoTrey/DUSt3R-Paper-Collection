@@ -94,7 +94,7 @@ Removing the stabilization module slightly improves some isolated metrics (e.g.,
 - **[CUT3R](../dynamic/cut3r.md)**: The recurrent-state streaming base whose loss definitions PAS3R inherits and whose update mechanism it improves.
 - **[TTT3R](ttt3r.md)**: Introduced cross-attention learning rates; PAS3R adds explicit pose-based modulation.
 - **[InfiniteVGGT](infinitevggt.md)**: KV-cache long-sequence baseline (referred to as IVGGT).
-- **[DUSt3R](../foundation/dust3r.md)**, **[VGGT](vggt.md)**, **[Fast3R](fast3r.md)**: Feed-forward reconstruction foundations discussed for their online limitations.
+- **[DUSt3R](../foundation/dust3r.md)**, **[VGGT](../foundation/vggt.md)**, **[Fast3R](fast3r.md)**: Feed-forward reconstruction foundations discussed for their online limitations.
 - **[MUSt3R](must3r.md)**: A DUSt3R multi-view extension cited among follow-ups.
 
 ## 📚 Key Takeaways

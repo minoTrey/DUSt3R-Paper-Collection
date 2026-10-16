@@ -159,10 +159,10 @@ For 12 frames, TrackCraft3R is **1.3× faster** and uses **4.6× less peak memor
 
 ## 🔗 Related Work
 
-- **[Any4D](./any4d.md)**: Feed-forward metric 4D reconstruction; a reconstruction-model-based dense 3D tracker baseline compared in Table 1.
-- **[V-DPM](./v-dpm.md)**: Concurrent VGGT-based 4D video reconstruction method; compared as an alternative and as an input-geometry source (Tables 10–11).
-- **[Stereo4D](./stereo4d.md)**: Learning 3D motion from internet stereo videos; cited among feed-forward approaches that fine-tune 3D reconstruction models.
-- **[VGGT](../reconstruction/vggt.md)**: Visual geometry grounded transformer; the 3D reconstruction backbone underlying the concurrent V-DPM comparison.
+- **[Any4D](any4d.md)**: Feed-forward metric 4D reconstruction; a reconstruction-model-based dense 3D tracker baseline compared in Table 1.
+- **[V-DPM](v-dpm.md)**: Concurrent VGGT-based 4D video reconstruction method; compared as an alternative and as an input-geometry source (Tables 10–11).
+- **[Stereo4D](stereo4d.md)**: Learning 3D motion from internet stereo videos; cited among feed-forward approaches that fine-tune 3D reconstruction models.
+- **[VGGT](../foundation/vggt.md)**: Visual geometry grounded transformer; the 3D reconstruction backbone underlying the concurrent V-DPM comparison.
 - **[DUSt3R](../foundation/dust3r.md)**: Geometric pairwise pointmap foundation; representative of the static multi-view reconstruction models that prior feed-forward trackers fine-tune.
 
 ## 📚 Key Takeaways

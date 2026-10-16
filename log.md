@@ -764,3 +764,13 @@ GitHub GFM returned HTTP 200 with six tables, three collapsible regions and four
 ## [2026-10-16] Verify main publication of 28 cards
 
 PR #17 merged at `93c8db82562bd0a3d2aa715a379637f6a5b90282` after CI passed. Fetched all 28 exact PNGs and note sources at that main commit; all asset hashes, single card blocks, asset links and reviewed-paper links match. Their progress records now mark verified publication. Total: 31 published cards, 306 not started, 337 paper notes. This metadata update does not change classification or paper content.
+
+## [2026-10-16] Restore the core Foundation reading category
+
+Following the maintainer’s explicit classification, Foundation now contains CroCo, CroCo v2, DUSt3R, MASt3R and VGGT. Model Extensions contains 23 notes grouped as Efficiency & compression (13), Adaptation & reliability (7), and Further pretraining (3). MASt3R-SfM and RoMa-Ω move to reconstruction; UAVFF3D moves to the Benchmarks group in surveys. The other reconstruction notes retain their filing locations. Total remains 337: Foundation 5, Model Extensions 23, Reconstruction 129 and Surveys/Benchmarks/Analysis 9, with all other category counts unchanged.
+
+The exact 27-note migration is recorded in `data/paper-path-migrations.json`, including legacy record IDs, note paths, canonical card paths and source identities for production jobs. Old note URLs retain move notices and section links and are excluded from counting. The 25 moved published cards retain byte-identical PNG aliases at their previous URLs. The new category reuses the existing shared-backbone illustration with an explicit conceptual caption.
+
+Compared all 337 canonical notes with baseline main `4bbec7c13086b0fac6529c44680f49cb4bdae26c`: paper wording and numeric cells are preserved; only internal link destinations and formatter table padding change. Historical source-review manifests retain their original identities; progress records retain migration history and source/card hashes. The new canonical locations of 25 cards remain ready until verified on main. Candidate decisions and queue states are unchanged; current pointers, generated indexes, statistics, fact cards and inventories follow the new locations.
+
+Validation before the category PR: all 12 offline checks, inventory consistency and 32 regression tests passed. The migration validator checks canonical identities, registered compatibility notices, the approved Foundation set and original PNG aliases. README counts now support directory links with or without a trailing slash and reject missing/duplicate category rows. All 337 paper titles, source/project/code links and stored verification fields are unchanged.

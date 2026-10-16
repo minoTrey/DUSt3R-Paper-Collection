@@ -232,7 +232,7 @@ CARVE the model exists mainly to demonstrate that the study's conclusions compos
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the representative method ablated, the initialisation, and the efficiency comparison point.
+- [VGGT](../foundation/vggt.md) — the representative method ablated, the initialisation, and the efficiency comparison point.
 - [pi3](../reconstruction/pi3.md) — the strongest baseline throughout; permutation-equivariant, reference-view-free.
 - [MoGe](../reconstruction/moge.md) and [MoGe-2](../reconstruction/moge-2.md) — the per-frame models whose single-frame accuracy motivates the study, and the source of the inverse-depth weighting and ROE alignment ideas.
 - [Fast3R](../reconstruction/fast3r.md) and [Spann3R](../reconstruction/spann3r.md) — multi-view baselines in the point cloud tables.

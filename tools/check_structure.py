@@ -10,6 +10,7 @@ import json
 import pathlib
 import subprocess
 import sys
+from paper_paths import migration_errors
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -37,6 +38,9 @@ def main() -> int:
         ).stdout
     )
     bad = 0
+    for error in migration_errors(ROOT, recs):
+        bad += 1
+        print(f"❌ {error}", file=sys.stderr)
     for r in recs:
         errs = []
         if r["sections"] != STD:

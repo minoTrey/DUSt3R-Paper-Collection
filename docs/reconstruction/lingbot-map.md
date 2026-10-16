@@ -216,7 +216,7 @@ Table 2 shows an online method beating the strongest offline (DA3, 49.84 AUC@15)
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the loss definitions and token layout LingBot-Map builds from; also an offline baseline it beats by 2.6× on Oxford Spires AUC@15
+- [VGGT](../foundation/vggt.md) — the loss definitions and token layout LingBot-Map builds from; also an offline baseline it beats by 2.6× on Oxford Spires AUC@15
 - [π³](pi3.md) — source of the relative pose loss over window pairs; an offline baseline in Table 2
 - [CUT3R](../dynamic/cut3r.md) — the strongest online competitor on Oxford Spires; degrades 14.31 ATE from sparse to dense
 - [TTT3R](ttt3r.md) and [Stream3R](stream3r.md) — online streaming baselines across every table

@@ -56,7 +56,7 @@ Generate latent evidence readable by a frozen decoder rather than new pixels.
 ## 🔗 Related Work
 
 - AnySplat: the applied backbone evaluated in source Table 1.
-- [VGGT](../reconstruction/vggt.md): geometry-token and multi-head-prediction background.
+- [VGGT](../foundation/vggt.md): geometry-token and multi-head-prediction background.
 
 ## 📚 Key Takeaways
 

@@ -187,13 +187,13 @@ Multi-view pointmap accuracy on NRGBD gets slightly worse for VGGT, and CUT3R re
 
 ## 🔗 Related Work
 
-- [VGGT](./vggt.md) — the primary fine-tuning target and the strongest base model.
+- [VGGT](../foundation/vggt.md) — the primary fine-tuning target and the strongest base model.
 - [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md) — the two-view bases fine-tuned.
 - [CUT3R](../dynamic/cut3r.md) — the recurrent base fine-tuned.
-- [MoGe](./moge.md) — the monocular teacher supplying pseudo-labels.
-- [pi3](./pi3.md) — the concurrent model compared against on DTU and ETH3D.
+- [MoGe](moge.md) — the monocular teacher supplying pseudo-labels.
+- [pi3](pi3.md) — the concurrent model compared against on DTU and ETH3D.
 - [Reloc3r](../pose/reloc3r.md) — dedicated pose regressor overtaken at AUC@5 by fine-tuned VGGT.
-- [Spann3R](./spann3r.md) — source of the 7-Scenes / NRGBD evaluation protocol.
+- [Spann3R](spann3r.md) — source of the 7-Scenes / NRGBD evaluation protocol.
 
 ## 📚 Key Takeaways
 

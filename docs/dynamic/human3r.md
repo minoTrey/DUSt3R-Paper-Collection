@@ -218,7 +218,7 @@ optimization-based pipelines. Its argument is throughput and completeness rather
 - [CUT3R](cut3r.md) — the frozen 4D backbone. Human3R's entire method is a parameter-efficient prompt-tuning layer on top of it.
 - [ODHSR](odhsr.md) — the closest neighbour in the collection on joint human + scene reconstruction from monocular video; ODHSR optimizes per scene while Human3R is feed-forward and online.
 - [MonST3R](monst3r.md) — the dynamic DUSt3R line that handles moving scenes without an explicit human model.
-- [VGGT](../reconstruction/vggt.md) — used as an offline upper bound for camera pose in Figure 9; its full attention makes it accurate but memory-bound on long sequences.
+- [VGGT](../foundation/vggt.md) — used as an offline upper bound for camera pose in Figure 9; its full attention makes it accurate but memory-bound on long sequences.
 - [Dynamic Point Maps](dynamic-point-maps.md) and [V-DPM](v-dpm.md) — the complementary approach of representing dynamics in the point-map representation itself rather than with a parametric body model.
 
 ## 📚 Key Takeaways

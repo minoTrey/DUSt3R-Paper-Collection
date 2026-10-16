@@ -144,10 +144,10 @@ One4D is robust to the CFG choice (CFG=4/5 give very similar accuracy) and alrea
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: Introduced the paired pointmap representation that One4D adopts as its geometry representation for joint RGB–geometry generation.
-- **[MonST3R](./monst3r.md)**: Dynamic-scene pointmap baseline; One4D follows its evaluation setting and its global optimization for recovering cameras/depth, and compares against it.
-- **[CUT3R](./cut3r.md)**: Reconstruction-only pointmap baseline compared on full-video depth and camera accuracy.
-- **[Geo4D](./geo4d.md)**: Video-generator-based 4D reconstruction method used both to annotate One4D's real-world training data and as a strong reconstruction-only reference (Geo4D-ref).
-- **[VGGT](../reconstruction/vggt.md)**: Cited as evidence that pointmaps are effective for static 3D and dynamic 4D reconstruction.
+- **[MonST3R](monst3r.md)**: Dynamic-scene pointmap baseline; One4D follows its evaluation setting and its global optimization for recovering cameras/depth, and compares against it.
+- **[CUT3R](cut3r.md)**: Reconstruction-only pointmap baseline compared on full-video depth and camera accuracy.
+- **[Geo4D](geo4d.md)**: Video-generator-based 4D reconstruction method used both to annotate One4D's real-world training data and as a strong reconstruction-only reference (Geo4D-ref).
+- **[VGGT](../foundation/vggt.md)**: Cited as evidence that pointmaps are effective for static 3D and dynamic 4D reconstruction.
 
 ## 📚 Key Takeaways
 

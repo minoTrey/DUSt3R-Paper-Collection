@@ -133,7 +133,7 @@ The released datasets target video diffusion / camera-controllable generation, f
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the feed-forward baseline ViPE evaluates against, run under a sliding-window protocol for long video.
+- [VGGT](../foundation/vggt.md) — the feed-forward baseline ViPE evaluates against, run under a sliding-window protocol for long video.
 - [MASt3R-SLAM](../reconstruction/mast3r-slam.md) — the learned-front-end SLAM system ViPE argues is insufficient at scale.
 - [VGGT-SLAM](../reconstruction/vggt-slam.md) — described as concurrent work in the same hybrid direction.
 - [MASt3R](../foundation/mast3r.md) — the matching front-end underlying MASt3R-SLAM.

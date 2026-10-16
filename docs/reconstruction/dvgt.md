@@ -101,10 +101,10 @@ Baselines: general models (VGGT, MapAnything, CUT3R, StreamVGGT) and driving-spe
 
 ## 🔗 Related Work
 
-- **[VGGT](./vggt.md)**: the global-attention backbone DVGT re-architects with factorized spatial-temporal attention and metric-scale prediction; a primary baseline.
+- **[VGGT](../foundation/vggt.md)**: the global-attention backbone DVGT re-architects with factorized spatial-temporal attention and metric-scale prediction; a primary baseline.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: pioneering feed-forward pointmap regression cited as the paradigm's origin.
-- **[MapAnything](./mapanything.md)** / **[Point3R](./point3r.md)** / **[StreamVGGT](./streamvggt.md)** / **[CUT3R](../dynamic/cut3r.md)**: general feed-forward reconstruction baselines compared on driving data.
-- **[MoGe-2](./moge-2.md)**: monocular geometry model used to produce dense depth pseudo-labels in the GT-construction pipeline.
+- **[MapAnything](mapanything.md)** / **[Point3R](point3r.md)** / **[StreamVGGT](streamvggt.md)** / **[CUT3R](../dynamic/cut3r.md)**: general feed-forward reconstruction baselines compared on driving data.
+- **[MoGe-2](moge-2.md)**: monocular geometry model used to produce dense depth pseudo-labels in the GT-construction pipeline.
 
 ## 📚 Key Takeaways
 

@@ -110,7 +110,7 @@ Dense-only (D-20K) has marginally higher PSNR (23.41) but worse LPIPS (0.097 vs 
 
 ## 🔗 Related Work
 
-- The alternating-attention core is inspired by [VGGT](../reconstruction/vggt.md); the paper also cites FastVGGT ([FastVGGT](../reconstruction/fastvggt.md)) and the broader feed-forward reconstruction / LRM line ([DUSt3R](../foundation/dust3r.md)).
+- The alternating-attention core is inspired by [VGGT](../foundation/vggt.md); the paper also cites FastVGGT ([FastVGGT](../reconstruction/fastvggt.md)) and the broader feed-forward reconstruction / LRM line ([DUSt3R](../foundation/dust3r.md)).
 - Closely related feed-forward Gaussian head avatars include Avat3r ([Avat3r](avat3r.md)), GAGAvatar, LAM, GPAvatar, FastAvatar, and FastGHA; optimization baselines include GaussianAvatars, FlashAvatar, GHA.
 
 ## 📚 Key Takeaways

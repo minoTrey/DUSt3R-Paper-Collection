@@ -170,7 +170,7 @@ The paper is careful to frame these as **orthogonal and in principle combinable*
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the 1.2B-parameter model being quantized
+- [VGGT](../foundation/vggt.md) — the 1.2B-parameter model being quantized
 - [FastVGGT](fastvggt.md) — token-merging acceleration, compared as an orthogonal approach
 - [Fast3R](fast3r.md) — second backbone used to show the method generalizes
 - [DUSt3R](../foundation/dust3r.md) — the pointmap-regression foundation

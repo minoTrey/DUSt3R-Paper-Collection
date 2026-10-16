@@ -107,7 +107,7 @@ Evaluated under 4/8/12-view sparse configurations with the NeRF-W half-image pro
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: Foundational pose-free geometry reconstruction underpinning the feedforward line.
-- **[VGGT](../reconstruction/vggt.md)**: The backbone architecture of WildSplat's geometry branch and the pose prior it compares against.
+- **[VGGT](../foundation/vggt.md)**: The backbone architecture of WildSplat's geometry branch and the pose prior it compares against.
 - **[WorldMirror](../reconstruction/worldmirror.md)**: A feedforward baseline compared on both in-the-wild datasets.
 
 ## 📚 Key Takeaways

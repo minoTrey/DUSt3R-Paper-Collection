@@ -118,7 +118,7 @@ Probing for an _unsupervised_ quantity (F) rather than a supervised one (pose) i
 The three models analyzed, all present in this collection:
 
 - [DUSt3R](../foundation/dust3r.md) — early-layer, asymmetric encoding; most fragile to intervention
-- [VGGT](../reconstruction/vggt.md) — mid-layer encoding; the focus of the learned-priors half of the study
+- [VGGT](../foundation/vggt.md) — mid-layer encoding; the focus of the learned-priors half of the study
 - [Depth Anything 3](../reconstruction/depth-anything-3.md) — mid-layer encoding, immediately after global attention is introduced
 
 Also cited in context:

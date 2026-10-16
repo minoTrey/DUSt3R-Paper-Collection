@@ -55,7 +55,7 @@ Changing image counts alone cannot explain view-span failure; include duplicates
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md), [VGGT-Ω](../reconstruction/vggt-omega.md), [π³](../reconstruction/pi3.md): related reconstruction families.
+- [VGGT](../foundation/vggt.md), [VGGT-Ω](../reconstruction/vggt-omega.md), [π³](../reconstruction/pi3.md): related reconstruction families.
 - [E3D-Bench](e3d-bench.md): controlled-condition model comparisons.
 
 ## 📚 Key Takeaways

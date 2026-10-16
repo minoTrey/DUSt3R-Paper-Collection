@@ -183,7 +183,7 @@ Two-stage training effect (Figure 8, 수치 미인쇄): stage-1 (2D-only) captur
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: IVGT initializes its encoder/global-feature module from VGGT, reuses its alternating-attention design and depth loss, and positions itself as the implicit-field counterpart to VGGT's explicit pointmap paradigm. VGGT remains a strong baseline across Tables 2, 3, 5.
+- **[VGGT](../foundation/vggt.md)**: IVGT initializes its encoder/global-feature module from VGGT, reuses its alternating-attention design and depth loss, and positions itself as the implicit-field counterpart to VGGT's explicit pointmap paradigm. VGGT remains a strong baseline across Tables 2, 3, 5.
 - **[Fast3R](fast3r.md)**, **[CUT3R](../dynamic/cut3r.md)**: feed-forward explicit-geometry baselines compared on pointmap, pose, and depth benchmarks.
 - **[MonST3R](../dynamic/monst3r.md)**: pose-estimation evaluation protocol (ScanNet/Sintel/TUM) follows MonST3R and CUT3R.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: foundational pose-free feed-forward reconstruction lineage that established the explicit pointmap-regression paradigm IVGT contrasts against.

@@ -54,7 +54,7 @@ Monocular property outputs are estimates based on geometry/material priors, not 
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): geometry-aware representations.
+- [VGGT](../foundation/vggt.md): geometry-aware representations.
 - [IGGT](iggt.md): extending geometry features to dense tasks.
 
 ## 📚 Key Takeaways

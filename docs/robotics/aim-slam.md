@@ -99,7 +99,7 @@ Increasing the maximum keyframe-subset size `W` improves pose accuracy but satur
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: The feed-forward geometry foundation model providing dense pointmaps.
+- **[VGGT](../foundation/vggt.md)**: The feed-forward geometry foundation model providing dense pointmaps.
 - **[VGGT-SLAM](../reconstruction/vggt-slam.md)** and **[VGGT-Long](../reconstruction/vggt-long.md)**: Submap/window-based VGGT SLAM baselines that AIM-SLAM outperforms in the uncalibrated setting.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Foundational reconstruction priors underlying MASt3R-SLAM.
 

@@ -198,7 +198,7 @@ This is a geometry paper, not a rendering paper. It wins point-map Accuracy and 
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the backbone; also the ablation baseline and a competitor in every table
+- [VGGT](../foundation/vggt.md) — the backbone; also the ablation baseline and a competitor in every table
 - [StreamVGGT](../reconstruction/streamvggt.md) — the strongest competitor; wins KITTI Completeness and NYU-v2 depth, collapses on KITTI MVS
 - [DUSt3R](../foundation/dust3r.md) — origin of the pointmap regression formulation
 - [MASt3R](../foundation/mast3r.md) — depth baseline in Table 3, still best on KITTI mono δ<1.25

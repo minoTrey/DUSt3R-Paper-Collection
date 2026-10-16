@@ -54,7 +54,7 @@ Feed-forward priors initialize the system; photometric evidence refines both cam
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): initial geometry priors.
+- [VGGT](../foundation/vggt.md): initial geometry priors.
 - [VGGT-SLAM](../reconstruction/vggt-slam.md): submap-structure background.
 
 ## 📚 Key Takeaways

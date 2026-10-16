@@ -164,14 +164,14 @@ Because the optimised MLP _is_ a compressed map, querying it with a new image is
 
 ## 🔗 Related Work
 
-- [VGGT](./vggt.md) — the base model VGG-T3 linearises; the O(n²) accuracy reference throughout.
-- [FastVGGT](./fastvggt.md) and SparseVGGT — token merging and block-sparse attention; reduce the constant, not the asymptotics.
-- [TTT3R](./ttt3r.md) — the concurrent O(n) test-time-training baseline; VGG-T3 is offline and global where TTT3R is autoregressive.
-- [CUT3R](../dynamic/cut3r.md) and [MUSt3R](./must3r.md) — fixed-size iteratively-updated implicit memory, the online counterpart to this idea.
-- [STream3R](./stream3r.md) and [StreamVGGT](./streamvggt.md) — causal conversions of VGGT that still scale quadratically.
-- [Point3R](./point3r.md) and [MapAnything](./mapanything.md) — explicit spatial memory alternatives.
-- [VGGT-SLAM](./vggt-slam.md) and [Light3R-SfM](./light3r-sfm.md) — chunked and scene-graph approaches to large collections.
-- [Fast3R](./fast3r.md), [pi3](./pi3.md) — global softmax-attention fusion baselines discussed in related work.
+- [VGGT](../foundation/vggt.md) — the base model VGG-T3 linearises; the O(n²) accuracy reference throughout.
+- [FastVGGT](fastvggt.md) and SparseVGGT — token merging and block-sparse attention; reduce the constant, not the asymptotics.
+- [TTT3R](ttt3r.md) — the concurrent O(n) test-time-training baseline; VGG-T3 is offline and global where TTT3R is autoregressive.
+- [CUT3R](../dynamic/cut3r.md) and [MUSt3R](must3r.md) — fixed-size iteratively-updated implicit memory, the online counterpart to this idea.
+- [STream3R](stream3r.md) and [StreamVGGT](streamvggt.md) — causal conversions of VGGT that still scale quadratically.
+- [Point3R](point3r.md) and [MapAnything](mapanything.md) — explicit spatial memory alternatives.
+- [VGGT-SLAM](vggt-slam.md) and [Light3R-SfM](light3r-sfm.md) — chunked and scene-graph approaches to large collections.
+- [Fast3R](fast3r.md), [pi3](pi3.md) — global softmax-attention fusion baselines discussed in related work.
 - [Reloc3r](../pose/reloc3r.md) — the visual localization accuracy reference the paper cites against itself.
 
 ## 📚 Key Takeaways

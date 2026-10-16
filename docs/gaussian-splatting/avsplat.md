@@ -56,7 +56,7 @@ Increasing input views differs from preserving relevant context for each view.
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): geometry aggregation background.
+- [VGGT](../foundation/vggt.md): geometry aggregation background.
 - [DensiTok](densitok.md): generates unseen tokens rather than using real input-view context.
 
 ## 📚 Key Takeaways

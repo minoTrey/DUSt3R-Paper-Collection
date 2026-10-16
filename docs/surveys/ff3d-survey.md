@@ -59,7 +59,7 @@ As a survey, the paper's "results" are its organizing findings rather than exper
 This survey situates and organizes much of the DUSt3R-style feed-forward line covered elsewhere in this collection:
 
 - **[DUSt3R](../foundation/dust3r.md)** & **[MASt3R](../foundation/mast3r.md)**: Foundational pointmap-based feed-forward reconstruction the survey builds its problem formulation around.
-- **[VGGT](../reconstruction/vggt.md)** & **[π³ / Pi3](../reconstruction/pi3.md)**: Representative geometry-aware / feature-enhanced feed-forward models.
+- **[VGGT](../foundation/vggt.md)** & **[π³ / Pi3](../reconstruction/pi3.md)**: Representative geometry-aware / feature-enhanced feed-forward models.
 - **[CUT3R](../dynamic/cut3r.md)** & **[MonST3R](../dynamic/monst3r.md)**: Temporal-aware / dynamic 4D reconstruction discussed under the temporal axis.
 - **[MoGe](../reconstruction/moge.md)**: Monocular geometry estimation within the feature-enhancement/geometry-awareness scope.
 

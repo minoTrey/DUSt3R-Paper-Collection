@@ -214,7 +214,7 @@ In the FF-NVS benchmark, ranking by NVS quality reproduces the ranking by geomet
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The direct predecessor and primary baseline. DA3 keeps the alternating-attention idea but discards the two-transformer stack and the redundant multi-task heads, and reports large gains on HiRoom, ETH3D, and ScanNet++ pose accuracy.
+- **[VGGT](../foundation/vggt.md)**: The direct predecessor and primary baseline. DA3 keeps the alternating-attention idea but discards the two-transformer stack and the redundant multi-task heads, and reports large gains on HiRoom, ETH3D, and ScanNet++ pose accuracy.
 - **[Pi3](pi3.md)**: The permutation-equivariant contemporary. The paper explicitly calls its own contribution orthogonal to Pi3's, and Pi3 remains the strongest baseline on 7Scenes `w/ p.` F1 (57.5).
 - **[MapAnything](mapanything.md)**: The other pose-conditionable model in the comparison. Both exploit known poses, but MapAnything trails DA3 on nearly every pose-free setting.
 - **[Fast3R](fast3r.md)**: Included as the many-view point-map baseline in both the geometry and NVS tables.

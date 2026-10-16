@@ -199,11 +199,11 @@ Refining an internal state instead of the output means no decoder pass and no lo
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — supplies the alternating frame/global attention design of the looped block, and remains the DTU pose leader at 10× the parameters.
-- [VGGT-Ω](../reconstruction/vggt-omega.md) — concurrent work included in Tables 1–3, ahead on outdoor pointmap Rel. L2 and 7-Scenes pose.
-- [π³](../reconstruction/pi3.md) — the closest competitor overall, leading indoor pointmap accuracy at 8× the parameters.
-- [Depth Anything 3](../reconstruction/depth-anything-3.md) — DA3-L/DA3-G baselines; DejaView also follows its camera-parameter recovery from ray maps and its camera MLP head.
-- [MapAnything](../reconstruction/mapanything.md) — baseline in all three main tables.
+- [VGGT](../foundation/vggt.md) — supplies the alternating frame/global attention design of the looped block, and remains the DTU pose leader at 10× the parameters.
+- [VGGT-Ω](vggt-omega.md) — concurrent work included in Tables 1–3, ahead on outdoor pointmap Rel. L2 and 7-Scenes pose.
+- [π³](pi3.md) — the closest competitor overall, leading indoor pointmap accuracy at 8× the parameters.
+- [Depth Anything 3](depth-anything-3.md) — DA3-L/DA3-G baselines; DejaView also follows its camera-parameter recovery from ray maps and its camera MLP head.
+- [MapAnything](mapanything.md) — baseline in all three main tables.
 - [MASt3R](../foundation/mast3r.md) — pairwise baseline, with MASt3R-SfM adding sparse global alignment.
 - [DUSt3R](../foundation/dust3r.md) — source of the normalization scheme and the confidence-weighted depth loss used in stage 2.
 

@@ -132,7 +132,7 @@ Memory and runtime scale approximately linearly with `T`; inference remains seco
 ## 🔗 Related Work
 
 - Builds its initializer on AnySplat (feed-forward Gaussians from unconstrained views) and compares against pose-free NoPoSplat and FLARE.
-- Positioned against one-shot feed-forward pipelines derived from [DUSt3R](../foundation/dust3r.md) / [MASt3R](../foundation/mast3r.md) pointmap prediction and [VGGT](../reconstruction/vggt.md)-style joint multi-view geometry.
+- Positioned against one-shot feed-forward pipelines derived from [DUSt3R](../foundation/dust3r.md) / [MASt3R](../foundation/mast3r.md) pointmap prediction and [VGGT](../foundation/vggt.md)-style joint multi-view geometry.
 - Contrasts with concurrent iterative feed-forward work (ReSplat, iLRM): unlike ReSplat it is pose-free, and unlike iLRM its weight-shared head keeps parameter count constant while the iteration count stays adjustable at inference.
 - Relates to diffusion-enhanced reconstruction (Difix3D+, GenFusion), which it converts from an optimization-based loop into a forward-only cue.
 

@@ -57,7 +57,7 @@ Integrating new geometry consistently with tracker states matters alongside pred
 ## 🔗 Related Work
 
 - [MASt3R in the DROID-related family](../foundation/mast3r.md): learned matching/geometry background.
-- [VGGT](../reconstruction/vggt.md): comparisons connecting geometry models to SLAM.
+- [VGGT](../foundation/vggt.md): comparisons connecting geometry models to SLAM.
 
 ## 📚 Key Takeaways
 

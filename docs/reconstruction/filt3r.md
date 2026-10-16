@@ -108,7 +108,7 @@ Note: under metric-scale KITTI, TTT3R remains ahead of FILT3R (AbsRel 0.110 vs 0
 - **[CUT3R](../dynamic/cut3r.md)**: The CUT3R-style recurrent backbone whose state update FILT3R replaces (uniform overwrite baseline).
 - **[TTT3R](ttt3r.md)**: Heuristic confidence-scaling gate; primary adaptive baseline.
 - **[Point3R](point3r.md)**: Explicit spatial-memory streaming baseline (OOM at length 1000).
-- **[VGGT](vggt.md)** and **[Depth Anything 3](depth-anything-3.md)**: Full-attention references whose memory grows with sequence length.
+- **[VGGT](../foundation/vggt.md)** and **[Depth Anything 3](depth-anything-3.md)**: Full-attention references whose memory grows with sequence length.
 - **[Spann3R](spann3r.md)**, **[StreamVGGT](streamvggt.md)**, **[WinT3R](wint3r.md)**: Streaming variants cited for long-horizon bounded-memory inference.
 
 ## 📚 Key Takeaways

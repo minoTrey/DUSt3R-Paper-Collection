@@ -234,7 +234,7 @@ parts of the network receive proportionally tiny gradients.
 
 - [Dynamic Point Maps](dynamic-point-maps.md) — the direct predecessor. V-DPM is its multi-view/video successor, removing the pairwise restriction and the post-hoc optimisation needed to fuse more than two views.
 - [MonST3R](monst3r.md) — computes point maps equivalent to V-DPM's time-_variant_ subset **P**, which is insufficient to recover 3D motion without a separate 2D tracker.
-- [VGGT](../reconstruction/vggt.md) — the pretrained backbone; V-DPM keeps its architecture and camera head and reuses its DPT mechanism.
+- [VGGT](../foundation/vggt.md) — the pretrained backbone; V-DPM keeps its architecture and camera head and reuses its DPT mechanism.
 - [π³](../reconstruction/pi3.md) — the contemporaneous model that outperforms V-DPM on video depth and camera pose, and which the authors suggest as a future backbone.
 - [Easi3R](easi3r.md), [Geo4D](geo4d.md), [CUT3R](cut3r.md) — related dynamic/4D reconstruction lines discussed as partial-dynamic approaches that recover aligned dynamic depth but not scene motion.
 

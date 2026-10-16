@@ -55,7 +55,7 @@ Reuse geometry-backbone representations as a latent generation space for new vie
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md), [WorldMirror](../reconstruction/worldmirror.md): backbone.
+- [VGGT](../foundation/vggt.md), [WorldMirror](../reconstruction/worldmirror.md): backbone.
 - [JUSt3R](../reconstruction/just3r.md): generates pointmaps through flow rather than these latents.
 
 ## 📚 Key Takeaways

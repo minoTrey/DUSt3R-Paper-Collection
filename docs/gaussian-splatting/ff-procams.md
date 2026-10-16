@@ -101,7 +101,7 @@ A real setup (Hikvision camera at 512×512, Epson projector at 1920×1080, turnt
 
 ## 🔗 Related Work
 
-- Built on the feed-forward Gaussian reconstruction / Large Reconstruction Model line (GS-LRM, Long-LRM, AnySplat), which the broader DUSt3R/VGGT feed-forward paradigm ([DUSt3R](../foundation/dust3r.md), [VGGT](../reconstruction/vggt.md)) also belongs to.
+- Built on the feed-forward Gaussian reconstruction / Large Reconstruction Model line (GS-LRM, Long-LRM, AnySplat), which the broader DUSt3R/VGGT feed-forward paradigm ([DUSt3R](../foundation/dust3r.md), [VGGT](../foundation/vggt.md)) also belongs to.
 - ProCams-specific baselines: Nepmap (neural reflectance field) and GS-ProCams (2D Gaussian Splatting + projector mapping), both per-scene optimization.
 
 ## 📚 Key Takeaways
