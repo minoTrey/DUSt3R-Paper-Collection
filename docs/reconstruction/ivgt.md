@@ -1,5 +1,12 @@
 # IVGT: Implicit Visual Geometry Transformer for Neural Scene Representation (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/ivgt.png" width="720" alt="English summary card for ivgt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/ivgt.png)
+
+[Original paper](https://arxiv.org/abs/2605.16258v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/ivgt.png)
+<!-- /PAPER-CARD -->
+
 ![ivgt — architecture](https://arxiv.org/html/2605.16258v2/x2.png)
 
 _Explicit vs (원논문 Fig. 2)_

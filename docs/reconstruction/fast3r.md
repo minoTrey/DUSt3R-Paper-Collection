@@ -1,5 +1,12 @@
 # Fast3R: Towards 3D Reconstruction of 1000+ Images in One Forward Pass (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/fast3r.png" width="720" alt="English summary card for fast3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/fast3r.png)
+
+[Original paper](https://arxiv.org/abs/2501.13928v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/fast3r.png)
+<!-- /PAPER-CARD -->
+
 ![Fast3R Teaser](https://raw.githubusercontent.com/facebookresearch/fast3r/main/assets/teaser.png)
 _Fast3R enables efficient 3D reconstruction from 1000+ images in a single forward pass, achieving 320× speedup over DUSt3R and 1000× over MASt3R_
 

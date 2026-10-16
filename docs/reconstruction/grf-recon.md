@@ -1,5 +1,12 @@
 # GRF-Recon: Global Ray-Field Optimization for Long-Sequence Feed-forward Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/grf-recon.png" width="720" alt="English summary card for grf-recon: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/grf-recon.png)
+
+[Original paper](https://arxiv.org/abs/2609.20012v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/grf-recon.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Enpeng Li, Yunzhou Zhang, Zhiyao Zhang, Dexuan Lyu, Chenyu Wang, Chiyuan Cui, Cheng Cheng

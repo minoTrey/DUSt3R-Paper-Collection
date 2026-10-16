@@ -1,5 +1,12 @@
 # FILT3R: Latent State Adaptive Kalman Filter for Streaming 3D Reconstruction (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/filt3r.png" width="720" alt="English summary card for filt3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/filt3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.18493v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/filt3r.png)
+<!-- /PAPER-CARD -->
+
 ![filt3r — architecture](https://arxiv.org/html/2603.18493v1/x2.png)
 
 _FILT3R overview (원논문 Fig. 2)_

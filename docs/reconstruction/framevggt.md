@@ -1,5 +1,12 @@
 # FrameVGGT: Coherence-Preserving Memory for Bounded Streaming Geometry (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/framevggt.png" width="720" alt="English summary card for framevggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/framevggt.png)
+
+[Original paper](https://arxiv.org/abs/2603.07690v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/framevggt.png)
+<!-- /PAPER-CARD -->
+
 ![framevggt — architecture](https://arxiv.org/html/2603.07690v3/x2.png)
 
 _Pipeline of FrameVGGT (원논문 Fig. 2)_

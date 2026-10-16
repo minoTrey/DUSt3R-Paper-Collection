@@ -1,5 +1,12 @@
 # CAM3R: Camera-Agnostic Model for 3D Reconstruction (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/cam3r.png" width="720" alt="English summary card for cam3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/cam3r.png)
+
+[Original paper](https://arxiv.org/abs/2603.22631v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/cam3r.png)
+<!-- /PAPER-CARD -->
+
 ![cam3r — architecture](https://arxiv.org/html/2603.22631v1/pipeline_image_corrected.jpg)
 
 _CAM3R Overview (원논문 Fig. 2)_

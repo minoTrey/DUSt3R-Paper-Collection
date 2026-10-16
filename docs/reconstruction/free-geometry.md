@@ -1,5 +1,12 @@
 # Free Geometry: Refining 3D Reconstruction from Longer Versions of Itself (arXiv preprint (2026-04))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/free-geometry.png" width="720" alt="English summary card for free-geometry: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/free-geometry.png)
+
+[Original paper](https://arxiv.org/abs/2604.14048v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/free-geometry.png)
+<!-- /PAPER-CARD -->
+
 ![free-geometry — architecture](https://arxiv.org/html/2604.14048v1/figures/arch.png)
 
 _Architecture of Free Geometry (원논문 Fig. 3)_

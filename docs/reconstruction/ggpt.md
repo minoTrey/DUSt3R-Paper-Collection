@@ -1,5 +1,12 @@
 # GGPT: Geometry-Grounded Point Transformer (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/ggpt.png" width="720" alt="English summary card for ggpt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/ggpt.png)
+
+[Original paper](https://arxiv.org/abs/2603.11174v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/ggpt.png)
+<!-- /PAPER-CARD -->
+
 ![ggpt — architecture](https://arxiv.org/html/2603.11174v1/fig/fig2.jpg)
 
 _Overview of our method (원논문 Fig. 2)_

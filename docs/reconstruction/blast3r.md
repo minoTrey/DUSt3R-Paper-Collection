@@ -1,5 +1,12 @@
 # BLASt3R: Bundle Adjustment of Any Image Set with Multi-View Matching and Monocular Priors (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/blast3r.png" width="720" alt="English summary card for blast3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/blast3r.png)
+
+[Original paper](https://arxiv.org/abs/2609.05210v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/blast3r.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Vincent Leroy, Philippe Weinzaepfel, Lojze Zust, Yohann Cabon, Jérome Revaud

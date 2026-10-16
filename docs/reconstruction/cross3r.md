@@ -1,5 +1,12 @@
 # Cross3R: Feedforward 3D Reconstruction from Satellite, Drone, and Ground Images (arXiv preprint (2026-05))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/cross3r.png" width="720" alt="English summary card for cross3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/cross3r.png)
+
+[Original paper](https://arxiv.org/abs/2605.07978v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/cross3r.png)
+<!-- /PAPER-CARD -->
+
 ![cross3r — architecture](https://arxiv.org/html/2605.07978v1/framework.png)
 
 _Overview of Cross3R (원논문 Fig. 3)_

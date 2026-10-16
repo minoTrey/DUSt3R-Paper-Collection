@@ -1,5 +1,12 @@
 # Fus3D: Decoding Consolidated 3D Geometry from Feed-forward Geometry Transformer Latents (arXiv preprint (2026-03))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/fus3d.png" width="720" alt="English summary card for fus3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/fus3d.png)
+
+[Original paper](https://arxiv.org/abs/2603.25827v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/fus3d.png)
+<!-- /PAPER-CARD -->
+
 ![fus3d — architecture](https://arxiv.org/html/2603.25827v1/x3.png)
 
 _Architecture of Fus3D: The geometry transformer 𝒢\mathcal{G} (beige) processes tokenized input images, yielding a list of 2D intermediate features… (원논문 Fig. 3)_

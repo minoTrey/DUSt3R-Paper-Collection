@@ -1,5 +1,12 @@
 # Fin3R: Fine-tuning Feed-forward 3D Reconstruction Models via Monocular Knowledge Distillation (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/fin3r.png" width="720" alt="English summary card for fin3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/fin3r.png)
+
+[Original paper](https://arxiv.org/abs/2511.22429v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/fin3r.png)
+<!-- /PAPER-CARD -->
+
 ![fin3r — architecture](https://arxiv.org/html/2511.22429/x3.png)
 
 _Pipeline of our method (원논문 Fig. 4)_

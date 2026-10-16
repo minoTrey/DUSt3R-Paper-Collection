@@ -1,5 +1,12 @@
 # CGGT: Curve-Grounded Geometry Transformer for 3D Parametric Curve Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/cggt.png" width="720" alt="English summary card for cggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/cggt.png)
+
+[Original paper](https://arxiv.org/abs/2609.14521v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/cggt.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Zhirui Gao, Renjiao Yi, Yunfan Ye, Ruizhen Hu, Chenyang Zhu, Wei Chen, Kai Xu

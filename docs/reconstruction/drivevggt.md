@@ -1,5 +1,12 @@
 # DriveVGGT: Calibration-Constrained Visual Geometry Transformers for Multi-Camera Autonomous Driving (arXiv preprint (2025-11))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/drivevggt.png" width="720" alt="English summary card for drivevggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/drivevggt.png)
+
+[Original paper](https://arxiv.org/abs/2511.22264v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/drivevggt.png)
+<!-- /PAPER-CARD -->
+
 ![drivevggt — architecture](https://arxiv.org/html/2511.22264v2/x1.png)
 
 _Model Comparisons (원논문 Fig. 1)_

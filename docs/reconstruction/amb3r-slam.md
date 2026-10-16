@@ -1,5 +1,12 @@
 # AMB3R-SLAM: Kilometer-scale SLAM with Hierarchical Backend (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/amb3r-slam.png" width="720" alt="English summary card for amb3r-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/amb3r-slam.png)
+
+[Original paper](https://arxiv.org/abs/2609.19518v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/amb3r-slam.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Hengyi Wang, Lourdes Agapito

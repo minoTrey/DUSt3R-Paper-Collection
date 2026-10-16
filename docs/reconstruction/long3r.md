@@ -1,5 +1,12 @@
 # LONG3R: Long Sequence Streaming 3D Reconstruction (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/long3r.png" width="720" alt="English summary card for long3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/long3r.png)
+
+[Original paper](https://arxiv.org/abs/2507.18255v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/long3r.png)
+<!-- /PAPER-CARD -->
+
 ![long3r — architecture](https://arxiv.org/html/2507.18255/x2.png)
 
 _(a) Main Architecture. (원논문 Fig. 99)_

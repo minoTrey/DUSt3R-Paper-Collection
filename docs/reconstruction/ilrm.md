@@ -1,5 +1,12 @@
 # iLRM: An Iterative Large 3D Reconstruction Model (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/ilrm.png" width="720" alt="English summary card for ilrm: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/ilrm.png)
+
+[Original paper](https://arxiv.org/abs/2507.23277v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/ilrm.png)
+<!-- /PAPER-CARD -->
+
 ![ilrm — architecture](https://arxiv.org/html/2507.23277v3/main_figure/update.jpg)
 
 _Network architecture. (원논문 Fig. 3)_

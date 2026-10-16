@@ -1,5 +1,12 @@
 # FastVGGT: Training-Free Acceleration of Visual Geometry Transformer (ICLR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/fastvggt.png" width="720" alt="English summary card for fastvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/fastvggt.png)
+
+[Original paper](https://arxiv.org/abs/2509.02560v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/fastvggt.png)
+<!-- /PAPER-CARD -->
+
 ![fastvggt — architecture](https://arxiv.org/html/2509.02560/x4.png)
 
 _Overview of the proposed token merging strategy (원논문 Fig. 4)_

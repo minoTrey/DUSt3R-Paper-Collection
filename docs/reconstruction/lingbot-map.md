@@ -1,5 +1,12 @@
 # LingBot-Map: Geometric Context Transformer for Streaming 3D Reconstruction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/lingbot-map.png" width="720" alt="English summary card for lingbot-map: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/lingbot-map.png)
+
+[Original paper](https://arxiv.org/abs/2604.14141v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/lingbot-map.png)
+<!-- /PAPER-CARD -->
+
 ![lingbot-map — architecture](https://arxiv.org/html/2604.14141v2/x4.png)
 
 _(a) Row-major grid layout. (원논문 Fig. 99)_

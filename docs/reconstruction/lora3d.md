@@ -1,5 +1,12 @@
 # LoRA3D: Low-Rank Self-Calibration of 3D Geometric Foundation Models (ICLR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/lora3d.png" width="720" alt="English summary card for lora3d: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/lora3d.png)
+
+[Original paper](https://arxiv.org/abs/2412.07746v1) · [Full-size English card](../../assets/paper-cards/en/reconstruction/lora3d.png)
+<!-- /PAPER-CARD -->
+
 ![LoRA3D Pipeline](https://arxiv.org/html/2412.07746v1/extracted/6056771/Figures/fig1.png)
 _LoRA3D self-calibrates 3D foundation models through robust optimization and LoRA fine-tuning, achieving up to 88% improvement in camera estimation_
 

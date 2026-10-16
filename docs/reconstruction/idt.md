@@ -1,5 +1,14 @@
 # IDT: A Physically Grounded Transformer for Feed-Forward Multi-View Intrinsic Decomposition (arXiv preprint (2025-12))
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/idt.png" width="720" alt="English summary card for idt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/idt.png)
+
+[Original paper](https://arxiv.org/abs/2512.23667v3) · [Full-size English card](../../assets/paper-cards/en/reconstruction/idt.png)
+
+Version note: this card reviews arXiv:2512.23667v3, titled **MVID: Feed-Forward Multi-View Intrinsic Image Decomposition**. The existing IDT title, record ID and detailed note below retain their earlier snapshot.
+<!-- /PAPER-CARD -->
+
 ![idt — architecture](https://arxiv.org/html/2512.23667/assets/pipeline.png)
 
 _Overview of the IDT pipeline (원논문 Fig. 2)_

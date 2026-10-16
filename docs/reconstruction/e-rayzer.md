@@ -1,5 +1,12 @@
 # E-RayZer: Self-supervised 3D Reconstruction as Spatial Visual Pre-training (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reconstruction/e-rayzer.png" width="720" alt="English summary card for e-rayzer: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reconstruction/e-rayzer.png)
+
+[Original paper](https://arxiv.org/abs/2512.10950v2) · [Full-size English card](../../assets/paper-cards/en/reconstruction/e-rayzer.png)
+<!-- /PAPER-CARD -->
+
 ![e-rayzer — architecture](https://arxiv.org/html/2512.10950v2/x1.png)
 
 _E-RayZer Model & Training (원논문 Fig. 2)_
