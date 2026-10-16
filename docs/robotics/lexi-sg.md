@@ -1,5 +1,12 @@
 # LEXI-SG: Monocular 3D Scene Graph Mapping with Room-Guided Feed-Forward Reconstruction (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/lexi-sg.png" width="720" alt="English summary card for lexi-sg: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/lexi-sg.png)
+
+[Original paper](https://arxiv.org/abs/2605.13741v1) · [Full-size English card](../../assets/paper-cards/en/robotics/lexi-sg.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Christina Kassab, Hyeonjae Gil, Matı́as Mattamala, Ayoung Kim, Maurice Fallon

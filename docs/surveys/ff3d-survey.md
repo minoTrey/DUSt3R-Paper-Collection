@@ -1,5 +1,12 @@
 # FF3D-Survey: Feed-Forward 3D Scene Modeling — A Problem-Driven Perspective (arXiv preprint 2026-04)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/ff3d-survey.png" width="720" alt="English summary card for ff3d-survey: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/ff3d-survey.png)
+
+[Original paper](https://arxiv.org/abs/2604.14025v2) · [Full-size English card](../../assets/paper-cards/en/surveys/ff3d-survey.png)
+<!-- /PAPER-CARD -->
+
 ![ff3d-survey — architecture](https://arxiv.org/html/2604.14025v1/x6.png)
 
 _Outline of the survey (원논문 Fig. 1)_

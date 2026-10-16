@@ -850,3 +850,9 @@ Batch 006 validation: all 33 unit tests and all 12 default offline checks passed
 ## 2026-10-16 — Verify batch 006 on main
 
 PR #31 merged at `d0b4099060383c69d21fa3f4a9fd6ba7dd0f6d25` after CI passed. Fetched all 60 original PNGs and marked card/source links from that immutable main commit. Every asset hash and preserved note-content hash matched the reviewed batch. Publication records now show 293 complete/published cards and 44 repository integrations not recorded; external production availability remains unknown. Foundation remains its five core notes plus README. Browser rendering remains unverified.
+
+## 2026-10-16 — Review the final 44 supplied English cards and correct SAMV-DUSt3R
+
+Integrated the final 44 existing-note cards after original-source and full-image review, preserving all337 detailed bodies. Re-reviewed the supplied regenerated SAMV-DUSt3R PNG, verified its expected SHA256, and replaced the incorrect source footer image. The note retains the correct original-paper URL and Table I CD×10 qualification. No new papers or measured results are introduced. All other323 previous card/alias/figure blobs and the separate user worktree remain unchanged. Publication remains pending immutable-main verification.
+
+Batch 007 validation: all 33 unit tests and all 12 default offline checks passed. The final collection audit confirms 337 unique current notes, canonical PNGs, progress records and marked card links, with complete/category index coverage and no orphan cards. The 25 registered compatibility PNG aliases match their canonical originals and are excluded from paper totals. Reviewed 44 matching-source PDFs plus the SAMV-DUSt3R source and Pos3R supplement; 205 selected numeric tokens were additionally located. These hits supplement manual attribution. Repository-wide PDF/live-link checks and browser layout remain unverified.

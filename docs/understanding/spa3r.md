@@ -1,5 +1,12 @@
 # Spa3R: Predictive Spatial Field Modeling for 3D Visual Reasoning (arXiv preprint 2026-02)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/spa3r.png" width="720" alt="English summary card for spa3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/spa3r.png)
+
+[Original paper](https://arxiv.org/abs/2602.21186v2) · [Full-size English card](../../assets/paper-cards/en/understanding/spa3r.png)
+<!-- /PAPER-CARD -->
+
 ![spa3r — architecture](https://arxiv.org/html/2602.21186/x1.png)
 
 _Overview of the Spa3R framework and Spa3-VLM integration (원논문 Fig. 1)_

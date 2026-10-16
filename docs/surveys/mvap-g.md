@@ -1,5 +1,12 @@
 # Generating Multi-view Adversarial Examples for Visual Geometry Grounded Transformer (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/mvap-g.png" width="720" alt="English summary card for mvap-g: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/mvap-g.png)
+
+[Original paper](https://arxiv.org/abs/2608.20748v1) · [Full-size English card](../../assets/paper-cards/en/surveys/mvap-g.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Qi Song, Ziyuan Luo, Haoliang Han, Renjie Wan

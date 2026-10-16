@@ -1,5 +1,12 @@
 # A Calibration Audit of Confidence in Feed-Forward 3D Reconstruction Models (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/confidence-audit.png" width="720" alt="English summary card for confidence-audit: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/confidence-audit.png)
+
+[Original paper](https://arxiv.org/abs/2608.29705v3) · [Full-size English card](../../assets/paper-cards/en/surveys/confidence-audit.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Nanxing Nick Deng, Qing Cheng, Niclas Zeller, Daniel Cremers

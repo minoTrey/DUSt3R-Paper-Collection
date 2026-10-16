@@ -1,5 +1,12 @@
 # LG-VLN: A Zero-Shot Vision-and-Language Navigation Framework with LangGraph State Orchestration (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/lg-vln.png" width="720" alt="English summary card for lg-vln: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/lg-vln.png)
+
+[Original paper](https://arxiv.org/abs/2609.15098v1) · [Full-size English card](../../assets/paper-cards/en/robotics/lg-vln.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Jianhe Zhao, Yanhua Qiu, Zhiyu Zhang, Zibo Zhao, Jinhua Xie

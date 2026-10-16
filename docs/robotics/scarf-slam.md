@@ -1,5 +1,12 @@
 # ScaRF-SLAM: Scale-Consistent Reconstruction with Feed-Forward Models and Classical Visual SLAM (arXiv preprint 2026-05)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/scarf-slam.png" width="720" alt="English summary card for scarf-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/scarf-slam.png)
+
+[Original paper](https://arxiv.org/abs/2606.00307v4) · [Full-size English card](../../assets/paper-cards/en/robotics/scarf-slam.png)
+<!-- /PAPER-CARD -->
+
 ![scarf-slam — architecture](https://arxiv.org/html/2606.00307v1/images/recon_demo.jpg)
 
 _Top: A consistent two-floor dense reconstruction produced by our mapping module, including rooms visited multiple times (원논문 Fig. 1)_

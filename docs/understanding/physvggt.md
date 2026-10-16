@@ -1,5 +1,12 @@
 # PhysVGGT: Feed-Forward Dense Physical Property Estimation from A Single Image (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/understanding/physvggt.png" width="720" alt="English summary card for physvggt: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/physvggt.png)
+
+[Original paper](https://arxiv.org/abs/2609.18920v1) · [Full-size English card](../../assets/paper-cards/en/understanding/physvggt.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Sneha Paul, Guile Wu, Bingbing Liu, Dongfeng Bai

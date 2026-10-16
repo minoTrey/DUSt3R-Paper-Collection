@@ -1,5 +1,12 @@
 # UniSim-SLAM: Feed-Forward SLAM with Unified Sim(3) Optimization (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/unisim-slam.png" width="720" alt="English summary card for unisim-slam: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/unisim-slam.png)
+
+[Original paper](https://arxiv.org/abs/2608.01706v1) · [Full-size English card](../../assets/paper-cards/en/robotics/unisim-slam.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Inha Lee, Dongjae Jeong, Junhee Lee, Kyungdon Joo

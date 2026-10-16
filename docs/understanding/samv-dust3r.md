@@ -5,7 +5,7 @@
 [<img src="../../assets/paper-cards/en/understanding/samv-dust3r.png" width="720" alt="English summary card for samv-dust3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/understanding/samv-dust3r.png)
 
 [Original paper](https://arxiv.org/abs/2609.11279v1) · [Full-size English card](../../assets/paper-cards/en/understanding/samv-dust3r.png)
-**Card source correction:** The supplied image footer prints `2610.12971v1`. The paper summarized here is [SAMV-DUSt3R, arXiv:2609.11279v1](https://arxiv.org/abs/2609.11279v1). Its Table I contains the displayed DTU Chamfer values (reported at 10× scale). The supplied image is preserved unchanged; use this corrected paper link.
+**Card source and scale:** The corrected image identifies [SAMV-DUSt3R, arXiv:2609.11279v1](https://arxiv.org/abs/2609.11279v1). Its Table I reports DTU Chamfer values at 10× scale (CD × 10), rather than raw meter distances or success percentages.
 
 <!-- /PAPER-CARD -->
 

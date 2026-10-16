@@ -1,5 +1,12 @@
 # Amodal3R: Amodal 3D Reconstruction from Occluded 2D Images (ICCV 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/amodal3r.png" width="720" alt="English summary card for amodal3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/amodal3r.png)
+
+[Original paper](https://arxiv.org/abs/2503.13439v1) · [Full-size English card](../../assets/paper-cards/en/reasoning/amodal3r.png)
+<!-- /PAPER-CARD -->
+
 ![Amodal3R Teaser](https://sm0kywu.github.io/Amodal3R/images/overview.png)
 _Amodal3R reconstructs complete 3D objects from partially occluded views using conditional generation and occlusion-aware attention_
 

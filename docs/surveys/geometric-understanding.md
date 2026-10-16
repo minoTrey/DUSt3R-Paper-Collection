@@ -1,5 +1,12 @@
 # GeomUnderstanding: On Geometric Understanding and Learned Priors in Feed-forward 3D Reconstruction Models (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/geometric-understanding.png" width="720" alt="English summary card for geometric-understanding: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/geometric-understanding.png)
+
+[Original paper](https://arxiv.org/abs/2512.11508v1) · [Full-size English card](../../assets/paper-cards/en/surveys/geometric-understanding.png)
+<!-- /PAPER-CARD -->
+
 ![geometric-understanding — architecture](https://arxiv.org/html/2512.11508v2/x25.png)
 
 _Occlusion experiment (원논문 Fig. 4)_

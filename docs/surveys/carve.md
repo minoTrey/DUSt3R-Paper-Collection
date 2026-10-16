@@ -1,5 +1,12 @@
 # CARVE: Unlocking the Power of Critical Factors for 3D Visual Geometry Estimation (CVPR 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/surveys/carve.png" width="720" alt="English summary card for carve: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/surveys/carve.png)
+
+[Original paper](https://arxiv.org/abs/2604.21713v1) · [Full-size English card](../../assets/paper-cards/en/surveys/carve.png)
+<!-- /PAPER-CARD -->
+
 ![carve — architecture](https://arxiv.org/html/2604.21713v1/x1.png)
 
 _Network architecture of our proposed CARVE model (원논문 Fig. 1)_

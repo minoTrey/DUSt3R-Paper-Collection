@@ -1,5 +1,12 @@
 # AquaFlow: A Monocular Gaussian Splatting SLAM for Underwater Streaming Reconstruction (arXiv 2026)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/aquaflow.png" width="720" alt="English summary card for aquaflow: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/aquaflow.png)
+
+[Original paper](https://arxiv.org/abs/2608.22906v1) · [Full-size English card](../../assets/paper-cards/en/robotics/aquaflow.png)
+<!-- /PAPER-CARD -->
+
 ## 📋 Overview
 
 - **Authors**: Yingxiang Xu, Kerui Ren, Wenqi Guo, Changjian Jiang, Tao Lu, Linning Xu, Mulin Yu

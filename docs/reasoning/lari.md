@@ -1,5 +1,12 @@
 # LaRI: Layered Ray Intersections for Single-view 3D Geometric Reasoning (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/lari.png" width="720" alt="English summary card for lari: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/lari.png)
+
+[Original paper](https://arxiv.org/abs/2504.18424v2) · [Full-size English card](../../assets/paper-cards/en/reasoning/lari.png)
+<!-- /PAPER-CARD -->
+
 ![LaRI Teaser](https://raw.githubusercontent.com/ruili3/lari/main/assets/teaser.jpg)
 _LaRI models multiple surface layers along camera rays, enabling reasoning about occluded geometry from single images_
 

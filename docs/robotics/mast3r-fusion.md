@@ -1,5 +1,12 @@
 # MASt3R-Fusion: Integrating Feed-Forward Visual Model with IMU, GNSS for High-Functionality SLAM (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/mast3r-fusion.png" width="720" alt="English summary card for mast3r-fusion: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/mast3r-fusion.png)
+
+[Original paper](https://arxiv.org/abs/2509.20757v3) · [Full-size English card](../../assets/paper-cards/en/robotics/mast3r-fusion.png)
+<!-- /PAPER-CARD -->
+
 ![mast3r-fusion — architecture](https://arxiv.org/html/2509.20757/x1.png)
 
 _Illustration of the MASt3R-Fusion system (원논문 Fig. 1)_

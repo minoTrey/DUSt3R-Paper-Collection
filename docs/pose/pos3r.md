@@ -1,5 +1,12 @@
 # Pos3R: 6D Pose Estimation for Unseen Objects Made Easy (CVPR 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/pose/pos3r.png" width="720" alt="English summary card for pos3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/pose/pos3r.png)
+
+[Original paper](https://openaccess.thecvf.com/content/CVPR2025/papers/Deng_Pos3R_6D_Pose_Estimation_for_Unseen_Objects_Made_Easy_CVPR_2025_paper.pdf) · [Full-size English card](../../assets/paper-cards/en/pose/pos3r.png)
+<!-- /PAPER-CARD -->
+
 ![Pos3R Overview](https://openaccess.thecvf.com/content/CVPR2025/papers/Deng_Pos3R_6D_Pose_Estimation_for_Unseen_Objects_Made_Easy_CVPR_2025_paper_files/x1.png)
 _Pos3R leverages 3D foundation models for zero-shot 6D pose estimation without any additional training_
 

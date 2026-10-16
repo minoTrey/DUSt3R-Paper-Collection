@@ -1,5 +1,12 @@
 # RaySt3R: Predicting Novel Depth Maps for Zero-Shot Object Completion (NeurIPS 2025)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/reasoning/rayst3r.png" width="720" alt="English summary card for rayst3r: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/reasoning/rayst3r.png)
+
+[Original paper](https://arxiv.org/abs/2506.05285v1) · [Full-size English card](../../assets/paper-cards/en/reasoning/rayst3r.png)
+<!-- /PAPER-CARD -->
+
 ![RaySt3R Overview](https://rayst3r.github.io/static/images/overview.png)
 _RaySt3R recasts object completion as novel view depth prediction, achieving 44% improvement through transformer-based zero-shot approach_
 

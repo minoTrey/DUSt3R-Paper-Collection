@@ -1,5 +1,12 @@
 # GraphSeg: Segmented 3D Representations via Graph Edge Addition and Contraction (arXiv preprint)
 
+<!-- PAPER-CARD:en -->
+
+[<img src="../../assets/paper-cards/en/robotics/graphseg.png" width="720" alt="English summary card for graphseg: inputs, outputs, method, source-specific evidence and limitations; conceptual illustrations." />](../../assets/paper-cards/en/robotics/graphseg.png)
+
+[Original paper](https://arxiv.org/abs/2504.03129v1) · [Full-size English card](../../assets/paper-cards/en/robotics/graphseg.png)
+<!-- /PAPER-CARD -->
+
 ![GraphSeg Overview](https://arxiv.org/html/2504.03129v1/extracted/6335082/imgs/gs_abs.png)
 _GraphSeg generates consistent 3D object segmentations from sparse 2D images via graph edge addition and contraction_
 ![GraphSeg_Method](https://arxiv.org/html/2504.03129v1/extracted/6335082/imgs/gseg_method_updated.jpg)
