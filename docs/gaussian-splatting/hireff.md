@@ -95,7 +95,7 @@ With 2K input and 2K supervision, side-tuning increases VRAM by only 33.9% versu
 
 ## 🔗 Related Work
 
-- Directly builds on the feed-forward reconstruction backbone [VGGT](../reconstruction/vggt.md) and the feed-forward Gaussian head of AnySplat, and cites [DUSt3R](../foundation/dust3r.md), FLARE, MapAnything, and [Pi3](../reconstruction/pi3.md) as uncalibrated pose+pointmap regressors (Pi3 extends to relative coordinate systems).
+- Directly builds on the feed-forward reconstruction backbone [VGGT](../foundation/vggt.md) and the feed-forward Gaussian head of AnySplat, and cites [DUSt3R](../foundation/dust3r.md), FLARE, MapAnything, and [Pi3](../reconstruction/pi3.md) as uncalibrated pose+pointmap regressors (Pi3 extends to relative coordinate systems).
 - Positioned against uncalibrated Gaussian methods NoPoSplat and AnySplat, the monocular volumetric method 4DGT, and calibrated GPS-Gaussian; related to human-specific feed-forward avatars (IDOL, LHM, Human3R, FastAvatar) and Forge4D (frontal uncalibrated human NVS).
 - The high-resolution NVS component relates to SRGS and GaussianSR super-resolution, adapted here via side-tuning into a feed-forward 3DGS pipeline.
 

@@ -206,7 +206,7 @@ The RGB-only setting is genuinely harder and the paper does not hide the strict-
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the backbone architecture, the frozen geometric teacher, and the decoupled baseline in Table 8.
+- [VGGT](../foundation/vggt.md) — the backbone architecture, the frozen geometric teacher, and the decoupled baseline in Table 8.
 - [PanSt3R](panst3r.md) — concurrent joint reconstruction + panoptic segmentation, built on MUSt3R; the main RGB-based baseline.
 - [IGGT](iggt.md) — joint model using clustering for instance masks; the other RGB-based baseline.
 - [MUSt3R](../reconstruction/must3r.md) — PanSt3R's backbone, discussed for its memory/global-context trade-off.

@@ -104,7 +104,7 @@ Surflo is consistently best across all view counts, including the very sparse 2-
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)** & **[DUSt3R](../foundation/dust3r.md)**: Per-view feed-forward foundations; VGGT is Surflo's frozen backbone, and per-view pointmaps are its main contrast.
+- **[VGGT](../foundation/vggt.md)** & **[DUSt3R](../foundation/dust3r.md)**: Per-view feed-forward foundations; VGGT is Surflo's frozen backbone, and per-view pointmaps are its main contrast.
 - **[Depth Anything 3](depth-anything-3.md)**: The DA3 per-view baseline and optional monocular-depth guidance expert.
 - **[NOVA3R](../reasoning/nova3r.md)**: The closest latent feed-forward baseline (fixed 10K-point output, 2-view trained).
 - **[CUT3R](../dynamic/cut3r.md)**: A global-state model that still decodes per-view pointmaps rather than a global geometric object.

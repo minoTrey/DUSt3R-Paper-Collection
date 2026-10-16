@@ -350,7 +350,7 @@ The supplement notes the system can fail under long-term kidnapping scenarios, w
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The frozen front-end. AMB3R's gains are explicitly attributed to improved geometric features from the backend, since VGGT's weights never change. Its type-(c) token-based temporal encoding is what AMB3R reinterprets as a memory formulation for VO.
+- **[VGGT](../foundation/vggt.md)**: The frozen front-end. AMB3R's gains are explicitly attributed to improved geometric features from the backend, since VGGT's weights never change. Its type-(c) token-based temporal encoding is what AMB3R reinterprets as a memory formulation for VO.
 - **[DUSt3R](../foundation/dust3r.md)**: Categorized as type-(a) network-based temporal encoding — two intertwined decoders, inherently limited to two images.
 - **[Spann3R](spann3r.md)**: Type-(b) causal temporal encoding, where each frame queries accumulated memory. Baseline across depth, reconstruction, and VO.
 - **[MUSt3R](must3r.md)**: The previous uncalibrated VO state of the art, which AMB3R surpasses on TUM, ETH3D SLAM, and TUM Dynamic.

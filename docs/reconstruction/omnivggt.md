@@ -240,7 +240,7 @@ low-overlap capture (7-Scenes) where cameras remove the dominant failure mode.
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the backbone this work adapts; OmniVGGT keeps its Alternating-Attention design, L = 24 blocks, DPT heads, and camera head.
+- [VGGT](../foundation/vggt.md) — the backbone this work adapts; OmniVGGT keeps its Alternating-Attention design, L = 24 blocks, DPT heads, and camera head.
 - [Pow3R](pow3r.md) — the prior work on conditioning reconstruction on camera and scene priors, and the main baseline; limited to pairs and much slower.
 - [π³](pi3.md) — a contemporaneous RGB-only spatial foundation model in the same lineage.
 - [Fast3R](fast3r.md), [CUT3R](../dynamic/cut3r.md), [Spann3R](spann3r.md), [SLAM3R](slam3r.md) — multi-view / streaming baselines compared on 7-Scenes and depth.

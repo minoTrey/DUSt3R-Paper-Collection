@@ -25,7 +25,7 @@ The paper states three contributions:
 
 ### Problem Setup
 
-- Offline models like [VGGT](vggt.md) process a batch of N images in a single pass over 24 self-attention layers (alternating frame `Fθ` and global `Gθ` interaction), jointly estimating camera parameters `gi ∈ R⁹`, depth `Di`, point map `Pi`, and tracking features `Ti`.
+- Offline models like [VGGT](../foundation/vggt.md) process a batch of N images in a single pass over 24 self-attention layers (alternating frame `Fθ` and global `Gθ` interaction), jointly estimating camera parameters `gi ∈ R⁹`, depth `Di`, point map `Pi`, and tracking features `Ti`.
 - Streaming variants like [StreamVGGT](streamvggt.md) replace the global interaction `Gθ` with a causal temporal module `Tθ` and a KV cache `Ct-1` that stores context from all previous frames. The cache grows linearly (`O(t)`), which is unsustainable for long streams.
 
 ### Key Insight: redundancy in key space
@@ -151,7 +151,7 @@ On short 50–100 frame sequences (where the StreamVGGT baseline fits in memory)
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: the offline backbone architecture (24 alternating frame/global attention layers) whose first-frame coordinate alignment motivates the immutable anchor token.
+- **[VGGT](../foundation/vggt.md)**: the offline backbone architecture (24 alternating frame/global attention layers) whose first-frame coordinate alignment motivates the immutable anchor token.
 - **[StreamVGGT](streamvggt.md)**: the causal streaming base that InfiniteVGGT modifies; suffers from unbounded KV growth (Fig. 1(c)).
 - **[CUT3R](../dynamic/cut3r.md)** and **TTT3R**: implicit RNN-state streaming baselines that bound memory but drift; the main long-sequence competitors.
 - **[Point3R](point3r.md)**: explicit spatial-pointer streaming memory, an additional baseline whose memory still grows.

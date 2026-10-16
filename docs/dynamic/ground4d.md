@@ -115,7 +115,7 @@ Surface-normal regularization (원논문 Table 4) improves PSNR 23.45 → 23.89 
 
 ## 🔗 Related Work
 
-- Backbone [VGGT](../reconstruction/vggt.md); foundation [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md).
+- Backbone [VGGT](../foundation/vggt.md); foundation [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md).
 - Closest driving-scene feedforward baseline [DGGT](dggt.md); also compared against STORM, NopoSplat, MvSplat, DepthSplat.
 
 ## 📚 Key Takeaways

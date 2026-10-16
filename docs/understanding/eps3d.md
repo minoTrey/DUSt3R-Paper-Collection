@@ -155,7 +155,7 @@ The paper demonstrates robotic manipulation (segmentation guiding grasping) and 
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the geometry transformer backbone
+- [VGGT](../foundation/vggt.md) — the geometry transformer backbone
 - [Large Spatial Model (LSM)](largespatialmodel.md) — the two-stage feed-forward baseline EPS3D contrasts against throughout
 - [DUSt3R](../foundation/dust3r.md) — cited as the origin of feed-forward 3D reconstruction models used for scene understanding
 - [FF3R](ff3r.md) — contemporaneous annotation-free joint geometry-semantics feed-forward framework

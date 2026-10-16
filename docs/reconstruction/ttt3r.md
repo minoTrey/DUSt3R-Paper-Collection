@@ -133,7 +133,7 @@ The paper states that TTT3R **mitigates but does not resolve** state forgetting,
 - [CUT3R](../dynamic/cut3r.md) — the direct base model. TTT3R is a drop-in replacement for its state update rule; every experiment is framed as CUT3R + intervention.
 - [Point3R](point3r.md) — the alternative answer to forgetting: explicit point-anchored memory. TTT3R notes it trades constant memory for linearly growing memory and hits OOM beyond 700 frames.
 - [StreamVGGT](streamvggt.md) — KV-cache causal attention; TTT3R classifies it as O(t) state growth, efficient per step but memory-unbounded.
-- [VGGT](vggt.md) — used as the offline upper bound throughout, since full attention preserves the entire history.
+- [VGGT](../foundation/vggt.md) — used as the offline upper bound throughout, since full attention preserves the entire history.
 - [Spann3R](spann3r.md) / [MUSt3R](must3r.md) — earlier streaming-memory lineage that motivates the fixed-length state formulation.
 - [Fast3R](fast3r.md) — cited as the other full-attention, all-frames-at-once design.
 - [Test3R](test3r.md) — a different flavour of test-time adaptation: fine-tuning on the test sequence with a geometric consistency loss, versus TTT3R's fine-weight state update inside the forward pass.

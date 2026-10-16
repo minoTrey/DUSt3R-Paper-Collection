@@ -90,7 +90,7 @@ The two cross-view attention layers are the primary source of generalizable geom
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**, **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Feed-forward reconstruction models cited as requiring multiple posed images, unlike PRISM's single-image setting.
+- **[VGGT](../foundation/vggt.md)**, **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Feed-forward reconstruction models cited as requiring multiple posed images, unlike PRISM's single-image setting.
 - **[Depth Anything 3](depth-anything-3.md)**: Referenced as DA3 among feed-forward reconstruction models.
 - **[MoGe](moge.md)**: The monocular depth estimator supplying the geometric warp prior.
 - **[TokenSplat](../gaussian-splatting/tokensplat.md)** & **[GlobalSplat](../gaussian-splatting/globalsplat.md)**: Feed-forward Gaussian Splatting works cited among scene-level methods.

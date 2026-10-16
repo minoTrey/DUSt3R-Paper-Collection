@@ -189,10 +189,10 @@ The paper is explicit that it does not aim to produce a competitive point tracke
 
 - [MASt3R](../foundation/mast3r.md) — the starting point; PointSt3R fine-tunes its decoders and heads.
 - [DUSt3R](../foundation/dust3r.md) — the pointmap regression foundation MASt3R extends.
-- [MonST3R](../dynamic/monst3r.md) — the precedent that dynamic reconstruction failure is a training-regime problem, not an architectural one, and the source of the temporal striding scheme.
-- [Dynamic Point Maps](../dynamic/dynamic-point-maps.md) — DPM, cited among 3D-tracking approaches.
-- [D4RT](../dynamic/d4rt.md) — a unified 4D query-based model addressing the same dynamic-correspondence gap.
-- [Easi3R](../dynamic/easi3r.md) — related work on static/dynamic separation in DUSt3R-family models.
+- [MonST3R](monst3r.md) — the precedent that dynamic reconstruction failure is a training-regime problem, not an architectural one, and the source of the temporal striding scheme.
+- [Dynamic Point Maps](dynamic-point-maps.md) — DPM, cited among 3D-tracking approaches.
+- [D4RT](d4rt.md) — a unified 4D query-based model addressing the same dynamic-correspondence gap.
+- [Easi3R](easi3r.md) — related work on static/dynamic separation in DUSt3R-family models.
 
 ## 📚 Key Takeaways
 

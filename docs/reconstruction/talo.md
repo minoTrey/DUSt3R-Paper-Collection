@@ -174,7 +174,7 @@ The paper is unusually candid that its own geometry metrics under-report the imp
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — primary backbone; TALO is backbone-agnostic and also uses π³ and MapAnything
+- [VGGT](../foundation/vggt.md) — primary backbone; TALO is backbone-agnostic and also uses π³ and MapAnything
 - [pi3](pi3.md) — permutation-equivariant backbone that removes reference-view bias
 - [MapAnything](mapanything.md) — universal metric-scale backbone, third tested model
 - [VGGT-Long](vggt-long.md) — the Sim(3) alignment baseline TALO directly replaces

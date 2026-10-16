@@ -170,7 +170,7 @@ Everything here is driving-specific: Waymo, nuScenes, Argoverse2, a sky head, ve
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the alternating-attention aggregator design DGGT's backbone follows; VGGT++ (VGGT plus a Gaussian head) is a baseline in Table 1.
+- [VGGT](../foundation/vggt.md) — the alternating-attention aggregator design DGGT's backbone follows; VGGT++ (VGGT plus a Gaussian head) is a baseline in Table 1.
 - [DUSt3R](../foundation/dust3r.md) — the feed-forward pointmap paradigm this line of work descends from.
 - [MonST3R](monst3r.md) — dynamic-scene extension of the pointmap paradigm via video fine-tuning.
 - [CUT3R](cut3r.md) — streaming dynamic reconstruction with a persistent state.

@@ -167,7 +167,7 @@ Do not combine DTU MVS using GT cameras with pose-estimation results as if both 
 
 ### Building on MASt3R
 
-- **[MASt3R-SfM](mast3r-sfm.md)**: Complete Structure from Motion pipeline
+- **[MASt3R-SfM](../reconstruction/mast3r-sfm.md)**: Complete Structure from Motion pipeline
 - **[MASt3R-SLAM](../reconstruction/mast3r-slam.md)**: Real-time SLAM integration
 - Various applications in AR/VR and robotics
 

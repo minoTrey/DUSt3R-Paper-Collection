@@ -93,7 +93,7 @@ Across all models, datasets, and metrics (135 tests), SSL alone reaches 50%+ imp
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**, **[π³](pi3.md)**, **[MapAnything](mapanything.md)**: The three unified feed-forward foundation models adapted.
+- **[VGGT](../foundation/vggt.md)**, **[π³](pi3.md)**, **[MapAnything](mapanything.md)**: The three unified feed-forward foundation models adapted.
 - **[DUSt3R](../foundation/dust3r.md)** and **[MASt3R](../foundation/mast3r.md)**: Pointmap-regression predecessors cited as the feed-forward lineage.
 
 ## 📚 Key Takeaways

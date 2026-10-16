@@ -57,7 +57,7 @@ Deciding not to fuse unreliable local predictions matters alongside geometry-mod
 ## 🔗 Related Work
 
 - [GeoFF3D](geoff3d.md): UAV reconstruction using location priors and spatial partitioning.
-- [VGGT](vggt.md): a supported backbone family.
+- [VGGT](../foundation/vggt.md): a supported backbone family.
 
 ## 📚 Key Takeaways
 

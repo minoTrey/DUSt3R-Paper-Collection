@@ -188,13 +188,13 @@ The authors note that replacing loop detection and optimization with full attent
 
 ## 🔗 Related Work
 
-- [VGGT-SLAM](./vggt-slam.md) — the submap + SL(4) manifold approach SLAM-Former argues against; a direct baseline in every table.
-- [MASt3R-SLAM](./mast3r-slam.md) — pairwise matching under a traditional SLAM pipeline; the strongest calibrated baseline here.
-- [Pi3](./pi3.md) — supplies the pre-trained initialization and the shared-register, reference-frame-free design.
-- [VGGT](./vggt.md) — contrasted directly: VGGT predicts global geometry, SLAM-Former predicts per-frame local pointmaps.
-- [StreamVGGT](./streamvggt.md), [Stream3R](./stream3r.md), [CUT3R](../dynamic/cut3r.md) — the streaming/causal family whose "never revisit the past" property motivates the backend.
-- [Spann3R](./spann3r.md), [SLAM3R](./slam3r.md) — memory-based and SLAM-oriented predecessors appearing as reconstruction baselines.
-- [Fast3R](./fast3r.md), [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md) — the feed-forward lineage the paper positions itself within.
+- [VGGT-SLAM](vggt-slam.md) — the submap + SL(4) manifold approach SLAM-Former argues against; a direct baseline in every table.
+- [MASt3R-SLAM](mast3r-slam.md) — pairwise matching under a traditional SLAM pipeline; the strongest calibrated baseline here.
+- [Pi3](pi3.md) — supplies the pre-trained initialization and the shared-register, reference-frame-free design.
+- [VGGT](../foundation/vggt.md) — contrasted directly: VGGT predicts global geometry, SLAM-Former predicts per-frame local pointmaps.
+- [StreamVGGT](streamvggt.md), [Stream3R](stream3r.md), [CUT3R](../dynamic/cut3r.md) — the streaming/causal family whose "never revisit the past" property motivates the backend.
+- [Spann3R](spann3r.md), [SLAM3R](slam3r.md) — memory-based and SLAM-oriented predecessors appearing as reconstruction baselines.
+- [Fast3R](fast3r.md), [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md) — the feed-forward lineage the paper positions itself within.
 
 ## 📚 Key Takeaways
 

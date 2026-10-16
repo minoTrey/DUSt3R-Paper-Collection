@@ -162,13 +162,13 @@ The authors are candid: compute constraints forced a small token count, a small 
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — supplies the image encoder architecture and pretrained weights; its dense prediction heads are the thing NOVA3R removes.
+- [VGGT](../foundation/vggt.md) — supplies the image encoder architecture and pretrained weights; its dense prediction heads are the thing NOVA3R removes.
 - [DUSt3R](../foundation/dust3r.md) — the pixel-aligned paradigm NOVA3R argues against, and a baseline in Tables 1–3.
 - [CUT3R](../dynamic/cut3r.md) — pixel-aligned streaming baseline in Tables 1–3.
-- [LaRI](../reasoning/lari.md) — the concurrent amodal/layered-ray reconstruction work NOVA3R follows for evaluation protocol and compares against directly.
+- [LaRI](lari.md) — the concurrent amodal/layered-ray reconstruction work NOVA3R follows for evaluation protocol and compares against directly.
 - [Spann3R](../reconstruction/spann3r.md) — token-efficient baseline in the 7-Scenes comparison.
 - [MoGe](../reconstruction/moge.md) — single-view baseline, still the leader on visible-surface metrics.
-- [Amodal3R](../reasoning/amodal3r.md) — related amodal 3D reasoning work in this collection.
+- [Amodal3R](amodal3r.md) — related amodal 3D reasoning work in this collection.
 
 ## 📚 Key Takeaways
 

@@ -99,7 +99,7 @@ Removing the state token (and CSA) is the most damaging (Angm 5.79° → 31.46°
 
 ## 🔗 Related Work
 
-- Extends the static feed-forward geometry line — [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md), FLARE, and specifically [VGGT](../reconstruction/vggt.md) (backbone) initialized from AnySplat.
+- Extends the static feed-forward geometry line — [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md), FLARE, and specifically [VGGT](../foundation/vggt.md) (backbone) initialized from AnySplat.
 - Contrasts with dynamic-scene models such as [MonST3R](../dynamic/monst3r.md) that assume dense temporal correspondence.
 - Related feed-forward Gaussian splatting: [Splatt3R](splatt3r.md); closest articulated feed-forward prior work is ART and LARM (pose-conditioned).
 

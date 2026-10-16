@@ -171,13 +171,13 @@ On Oxford kebel 04 (701 frames, 773 m): Scal3R 2.448 / 2.078 / 2.426 versus VGGT
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the backbone Scal3R extends; its quadratic attention is the scalability constraint being addressed
+- [VGGT](../foundation/vggt.md) — the backbone Scal3R extends; its quadratic attention is the scalability constraint being addressed
 - [FastVGGT](fastvggt.md) — token-merging acceleration, criticized here for discarding fine-grained spatial cues
 - [TTT3R](ttt3r.md) — the closest prior test-time-training approach, limited by a fixed-size token set
 - [CUT3R](../dynamic/cut3r.md) — persistent-state online reconstruction, a memory-mechanism baseline
 - [STream3R](stream3r.md) / [StreamVGGT](streamvggt.md) — causal-transformer streaming baselines
 - [VGGT-SLAM](vggt-slam.md) / [MASt3R-SLAM](mast3r-slam.md) — learning-based SLAM baselines
-- [MASt3R-SfM](../foundation/mast3r-sfm.md) — SfM baseline
+- [MASt3R-SfM](mast3r-sfm.md) — SfM baseline
 - [DUSt3R](../foundation/dust3r.md) / [MASt3R](../foundation/mast3r.md) — the origins of feed-forward pointmap regression
 
 ## 📚 Key Takeaways

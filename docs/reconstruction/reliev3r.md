@@ -146,13 +146,13 @@ The ScanNet++ result is the strongest argument in the paper: given identical tra
 
 ## 🔗 Related Work
 
-- [π³](../reconstruction/pi3.md) — the architecture Reliev3R is built on (with the point map head swapped for a depth head) and the primary fully-supervised reference point, including the matched-data π³† baseline.
-- [MapAnything](../reconstruction/mapanything.md) — fully-supervised SOTA baseline; its open-sourced annotation pipeline also produced the DL3DV-benchmark ground truth.
-- [VGGT](../reconstruction/vggt.md) — fully-supervised baseline in Table 1.
+- [π³](pi3.md) — the architecture Reliev3R is built on (with the point map head swapped for a depth head) and the primary fully-supervised reference point, including the matched-data π³† baseline.
+- [MapAnything](mapanything.md) — fully-supervised SOTA baseline; its open-sourced annotation pipeline also produced the DL3DV-benchmark ground truth.
+- [VGGT](../foundation/vggt.md) — fully-supervised baseline in Table 1.
 - [CUT3R](../dynamic/cut3r.md) — fully-supervised baseline in Table 1.
 - [DUSt3R](../foundation/dust3r.md) — the two-view foundation that MVDUSt3R and FLARE extend to multiple views.
-- [MV-DUSt3R+](../reconstruction/mv-dust3r-plus.md) — related multi-view extension of DUSt3R.
-- [MoGe-2](../reconstruction/moge-2.md) — used to generate pseudo depth and pseudo FoV labels in the semi-supervised experiment.
+- [MV-DUSt3R+](mv-dust3r-plus.md) — related multi-view extension of DUSt3R.
+- [MoGe-2](moge-2.md) — used to generate pseudo depth and pseudo FoV labels in the semi-supervised experiment.
 
 ## 📚 Key Takeaways
 

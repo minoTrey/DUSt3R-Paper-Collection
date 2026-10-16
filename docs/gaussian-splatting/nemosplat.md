@@ -55,7 +55,7 @@ Combine dynamic separation and optical restoration for underwater reconstruction
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): geometry-transformer background.
+- [VGGT](../foundation/vggt.md): geometry-transformer background.
 - [Swimm3R](swimm3r.md): medium-aware geometry and splatting comparisons.
 
 ## 📚 Key Takeaways

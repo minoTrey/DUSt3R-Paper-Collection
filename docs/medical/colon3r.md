@@ -55,7 +55,7 @@ Minimizing target consistency alone can damage geometry priors; evaluate adaptat
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): source backbone.
+- [VGGT](../foundation/vggt.md): source backbone.
 - [Endo3R](endo3r.md): endoscopic geometry comparisons.
 
 ## 📚 Key Takeaways

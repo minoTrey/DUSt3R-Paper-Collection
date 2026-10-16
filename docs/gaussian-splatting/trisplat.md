@@ -100,7 +100,7 @@ Trained on RealEstate10K (RE10K) and DL3DV; ScanNet evaluated zero-shot. Baselin
 
 - **[DUSt3R](../foundation/dust3r.md)**: Foundational dense-geometry prediction that enabled joint structure-and-pose recovery, cited as the origin of the pose-free feed-forward line.
 - **[MASt3R](../foundation/mast3r.md)**: Matching-grounded extension of the same family.
-- **[VGGT](../reconstruction/vggt.md)**: Transformer-based pose-free geometry model in the same lineage of baselines.
+- **[VGGT](../foundation/vggt.md)**: Transformer-based pose-free geometry model in the same lineage of baselines.
 
 ## 📚 Key Takeaways
 

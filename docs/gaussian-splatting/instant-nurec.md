@@ -103,7 +103,7 @@ The LiDAR branch trails per-scene NuRec on Chamfer distance (0.286 vs 0.204), ma
 ## 🔗 Related Work
 
 - Preserves the layered output format of per-scene driving reconstruction (NuRec, OmniRe, Neural Scene Graphs) but amortizes it into a feed-forward pass; uses 3DGUT/3DGRT-style rendering for distorted cameras.
-- Builds its backbone on Depth-Anything-3 (a DINOv2-based multi-view geometry model), aligning with the alternating-attention design popularized by [VGGT](../reconstruction/vggt.md) and the pointmap paradigm of [DUSt3R](../foundation/dust3r.md); contrasts with pixel-aligned generalizable Gaussian models (DepthSplat) and token/query-based decoders (TokenGS).
+- Builds its backbone on Depth-Anything-3 (a DINOv2-based multi-view geometry model), aligning with the alternating-attention design popularized by [VGGT](../foundation/vggt.md) and the pointmap paradigm of [DUSt3R](../foundation/dust3r.md); contrasts with pixel-aligned generalizable Gaussian models (DepthSplat) and token/query-based decoders (TokenGS).
 - Specializes feed-forward reconstruction to dynamic driving, comparing against STORM, DrivingForward, DGGT, and StreetForward-style depth evaluation; positioned as the reconstruction backbone complementary to generative driving world models.
 
 ## 📚 Key Takeaways

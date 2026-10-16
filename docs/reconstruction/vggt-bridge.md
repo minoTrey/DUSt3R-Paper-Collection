@@ -86,7 +86,7 @@ Primarily assumes static scenes and evaluates driving; results do not guarantee 
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: frozen local camera/depth/point-cloud predictions.
+- **[VGGT](../foundation/vggt.md)**: frozen local camera/depth/point-cloud predictions.
 - **[VGGT-Long](vggt-long.md)**: earlier overlapping-chunk reconstruction with loop-closure alignment.
 - **SwiftVGGT**: direct baseline with single-SVD alignment and internal-feature loop detection; no separate note yet.
 - **[VGGT-SLAM](vggt-slam.md)**: related learned geometry plus graph constraints.

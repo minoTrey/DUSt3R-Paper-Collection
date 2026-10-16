@@ -207,7 +207,7 @@ Frozen registers improve every LIBERO task, and a language token that never sees
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The model being scaled. VGGT-Ω keeps alternating attention but drops the redundant dense heads, replaces Huber with ℓ1 camera loss, removes iterative camera refinement, and switches DINOv2 for DINOv3. It also fixes an inference implementation detail in VGGT before benchmarking speed against it.
+- **[VGGT](../foundation/vggt.md)**: The model being scaled. VGGT-Ω keeps alternating attention but drops the redundant dense heads, replaces Huber with ℓ1 camera loss, removes iterative camera refinement, and switches DINOv2 for DINOv3. It also fixes an inference implementation detail in VGGT before benchmarking speed against it.
 - **[Depth Anything 3](depth-anything-3.md)**: The strongest published baseline in nearly every table, and the direct target of the depth-vs-ray-map argument.
 - **[Pi3](pi3.md)**: Consistently the second-strongest baseline among feed-forward models across both static and dynamic sets.
 - **[MapAnything](mapanything.md)**: Compared as a feed-forward baseline; it degrades notably on Sintel and TUM-Dynamic.

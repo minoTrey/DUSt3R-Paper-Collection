@@ -101,7 +101,7 @@ Under batch size 6 the method achieves up to 17% absolute precision improvement 
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)** & **[MASt3R](../foundation/mast3r.md)**: GFMs underlying compared fully-coupled SLAM systems (VGGT-SLAM2, MASt3R-SLAM/Fusion).
+- **[VGGT](../foundation/vggt.md)** & **[MASt3R](../foundation/mast3r.md)**: GFMs underlying compared fully-coupled SLAM systems (VGGT-SLAM2, MASt3R-SLAM/Fusion).
 - **[MASt3R-SLAM](../reconstruction/mast3r-slam.md)**: The tightly-coupled GFM SLAM baseline contrasted against the decoupled design.
 - **[VGGT-Long](../reconstruction/vggt-long.md)**: Temporal chunking for long sequences, adapted here as DA3-Long.
 - **[MapAnything](../reconstruction/mapanything.md)**: Metric feed-forward GFM discussed among GFM-enabled SLAM.

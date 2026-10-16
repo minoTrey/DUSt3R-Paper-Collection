@@ -196,11 +196,11 @@ The reframing of a stack of cross-attention layers as an unrolled optimizer is t
 
 ## 🔗 Related Work
 
-- [VGGT](./vggt.md) — unified feed-forward geometry transformer; iLRM cites it and shares the "one forward pass" ambition, but targets Gaussian-based novel view synthesis rather than pointmaps.
+- [VGGT](../foundation/vggt.md) — unified feed-forward geometry transformer; iLRM cites it and shares the "one forward pass" ambition, but targets Gaussian-based novel view synthesis rather than pointmaps.
 - [DUSt3R](../foundation/dust3r.md) — cited as an explicitly geometry-supervised method, the class iLRM notes may recover more accurate geometry.
-- [MapAnything](./mapanything.md), [Depth Anything 3](./depth-anything-3.md) — contemporaneous feed-forward geometry models with the opposite supervision emphasis.
-- [Fast3R](./fast3r.md) — another attack on the quadratic multi-view attention cost, but by scaling global attention rather than decoupling the representation.
-- [Pi3](./pi3.md), [MUSt3R](./must3r.md) — alternative routes to many-view scalability.
+- [MapAnything](mapanything.md), [Depth Anything 3](depth-anything-3.md) — contemporaneous feed-forward geometry models with the opposite supervision emphasis.
+- [Fast3R](fast3r.md) — another attack on the quadratic multi-view attention cost, but by scaling global attention rather than decoupling the representation.
+- [Pi3](pi3.md), [MUSt3R](must3r.md) — alternative routes to many-view scalability.
 
 ## 📚 Key Takeaways
 

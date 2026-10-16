@@ -56,7 +56,7 @@ Apparently consistent geometry does not guarantee input-perturbation robustness.
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): the evaluated model.
+- [VGGT](../foundation/vggt.md): the evaluated model.
 - [Confidence Audit](confidence-audit.md): a different reliability analysis.
 
 ## 📚 Key Takeaways

@@ -188,7 +188,7 @@ The paper's discussion of SLAM is unusually even-handed: SLAM systems could use 
 - [MASt3R-SLAM](mast3r-slam.md) — the SLAM system Point3R benchmarks against on mapping quality, tracking, and efficiency (Table 8).
 - [StreamVGGT](streamvggt.md) — sibling work from the same lab, taking the KV-cache route instead; StreamVGGT adopts Point3R's variable-aspect-ratio preprocessing.
 - [TTT3R](ttt3r.md) — argues the opposite direction: keep memory constant and fix the update rule, citing Point3R's linear memory growth as the cost of explicitness.
-- [VGGT](vggt.md) — the global-attention paradigm Point3R lists as computationally intensive and mismatched with streaming perception.
+- [VGGT](../foundation/vggt.md) — the global-attention paradigm Point3R lists as computationally intensive and mismatched with streaming perception.
 
 ## 📚 Key Takeaways
 

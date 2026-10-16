@@ -159,7 +159,7 @@ The concrete number driving the design — VGGT limited to roughly 60 frames on 
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the reconstruction front end, used unmodified. VGGT-SLAM consumes its depth maps, confidence maps, and camera head outputs, deliberately skipping the 3D point DPT head.
+- [VGGT](../foundation/vggt.md) — the reconstruction front end, used unmodified. VGGT-SLAM consumes its depth maps, confidence maps, and camera head outputs, deliberately skipping the 3D point DPT head.
 - [MASt3R-SLAM](mast3r-slam.md) — the closest prior system and primary baseline in both calibrated and uncalibrated modes. VGGT-SLAM follows its evaluation protocol for dense reconstruction.
 - [Spann3R](spann3r.md) — included in the dense reconstruction comparison at two keyframe rates.
 - [DUSt3R](../foundation/dust3r.md) — the pairwise ancestor whose point clouds enabled pose recovery via 3-point RANSAC.

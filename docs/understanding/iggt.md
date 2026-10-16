@@ -154,10 +154,10 @@ The claim that semantics improve geometry is supported only weakly by the number
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — supplies the backbone design, the geometry head, and the geometry loss recipe; also the geometry baseline in both tables.
-- [Large Spatial Model](./largespatialmodel.md) — the LSM baseline; the language-aligned feed-forward approach IGGT argues against.
+- [VGGT](../foundation/vggt.md) — supplies the backbone design, the geometry head, and the geometry loss recipe; also the geometry baseline in both tables.
+- [Large Spatial Model](largespatialmodel.md) — the LSM baseline; the language-aligned feed-forward approach IGGT argues against.
 - [DUSt3R](../foundation/dust3r.md) — cited as the origin of direct pointmap regression and, alongside Panst3R, as a feed-forward attempt that keeps geometry and semantics decoupled.
-- [PE3R](./pe3r.md), [MEt3R](./met3r.md) — neighbouring work on perception and consistency in the understanding category.
+- [PE3R](pe3r.md), [MEt3R](met3r.md) — neighbouring work on perception and consistency in the understanding category.
 - [Depth Anything 3](../reconstruction/depth-anything-3.md), [MapAnything](../reconstruction/mapanything.md) — contemporaneous large geometry models without the instance-grounding component.
 
 ## 📚 Key Takeaways

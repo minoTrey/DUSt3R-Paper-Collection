@@ -54,7 +54,7 @@ Strong local predictions do not solve inter-local coordinate connections; the co
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): multi-view geometry background.
+- [VGGT](../foundation/vggt.md): multi-view geometry background.
 - [MASt3R](../foundation/mast3r.md): pairwise geometry/matching background.
 
 ## 📚 Key Takeaways

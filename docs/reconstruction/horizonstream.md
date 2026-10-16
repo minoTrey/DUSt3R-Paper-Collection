@@ -275,15 +275,15 @@ Because the kernel is local and bounded, it defines a propagation rule that does
 
 ## 🔗 Related Work
 
-- [LoGeR](./loger.md) — the chunk-wise hybrid-memory approach and the strongest offline comparison here; note the two papers reach related conclusions (bounded memory, multi-timescale retention) from different directions.
-- [TTT3R](./ttt3r.md) — the closest architectural relative; HorizonStream's channel-wise gating is explicitly positioned against its scalar/frame-wise update, and its refresh algorithm is used for baseline evaluation.
+- [LoGeR](loger.md) — the chunk-wise hybrid-memory approach and the strongest offline comparison here; note the two papers reach related conclusions (bounded memory, multi-timescale retention) from different directions.
+- [TTT3R](ttt3r.md) — the closest architectural relative; HorizonStream's channel-wise gating is explicitly positioned against its scalar/frame-wise update, and its refresh algorithm is used for baseline evaluation.
 - [CUT3R](../dynamic/cut3r.md) — the persistent recurrent state whose ungated form the kernel analysis calls heavy-tailed.
-- [Stream3R](./stream3r.md), [StreamVGGT](./streamvggt.md) — the sliding-window / causal-mask designs whose hard-cutoff kernel is the paper's first pathology.
-- [Point3R](./point3r.md) — explicit spatial pointer memory; a depth baseline.
-- [FastVGGT](./fastvggt.md) — attention-map reuse for offline efficiency; a baseline that fails on long KITTI sequences.
-- [VGGT](./vggt.md) — supplies the ViT-L initialization; still the δ<1.25 leader on KITTI depth.
-- [VGGT-SLAM](./vggt-slam.md), [MASt3R-SLAM](./mast3r-slam.md) — optimization-based baselines.
-- [Spann3R](./spann3r.md), [MonST3R](../dynamic/monst3r.md), [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Pi3](./pi3.md) — the offline lineage surveyed in the related work.
+- [Stream3R](stream3r.md), [StreamVGGT](streamvggt.md) — the sliding-window / causal-mask designs whose hard-cutoff kernel is the paper's first pathology.
+- [Point3R](point3r.md) — explicit spatial pointer memory; a depth baseline.
+- [FastVGGT](fastvggt.md) — attention-map reuse for offline efficiency; a baseline that fails on long KITTI sequences.
+- [VGGT](../foundation/vggt.md) — supplies the ViT-L initialization; still the δ<1.25 leader on KITTI depth.
+- [VGGT-SLAM](vggt-slam.md), [MASt3R-SLAM](mast3r-slam.md) — optimization-based baselines.
+- [Spann3R](spann3r.md), [MonST3R](../dynamic/monst3r.md), [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Pi3](pi3.md) — the offline lineage surveyed in the related work.
 
 ## 📚 Key Takeaways
 

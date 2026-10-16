@@ -112,7 +112,7 @@ The keypoint + PnP module yields lower translation/rotation error and higher acc
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: Provides the Alternating-Attention backbone Robo3R adopts and is a reconstruction baseline.
+- **[VGGT](../foundation/vggt.md)**: Provides the Alternating-Attention backbone Robo3R adopts and is a reconstruction baseline.
 - **[π³ / Pi3](../reconstruction/pi3.md)**: Permutation-equivariant affine-invariant reconstruction, the strongest baseline compared.
 - **[MapAnything](../reconstruction/mapanything.md)** & **[Depth Anything 3](../reconstruction/depth-anything-3.md)**: Metric-scale feed-forward baselines (MA / DA3).
 - **[DUSt3R](../foundation/dust3r.md)**: The pointmap foundation of the feed-forward reconstruction line.

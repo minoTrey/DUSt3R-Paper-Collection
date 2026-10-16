@@ -126,7 +126,7 @@ A background-only static-scene analysis (원논문 Table 6) shows batch feed-for
 
 ## 🔗 Related Work
 
-- Foundation [Human3R](human3r.md); backbone lineage cites [VGGT](../reconstruction/vggt.md), [CUT3R](cut3r.md), [MonST3R](monst3r.md), [DUSt3R](../foundation/dust3r.md), [MASt3R-SfM](../foundation/mast3r-sfm.md), [Depth Anything 3](../reconstruction/depth-anything-3.md), [HAMSt3R](../understanding/hamst3r.md), [YoNoSplat](../gaussian-splatting/yonosplat.md); related human-scene method [ODHSR](odhsr.md).
+- Foundation [Human3R](human3r.md); backbone lineage cites [VGGT](../foundation/vggt.md), [CUT3R](cut3r.md), [MonST3R](monst3r.md), [DUSt3R](../foundation/dust3r.md), [MASt3R-SfM](../reconstruction/mast3r-sfm.md), [Depth Anything 3](../reconstruction/depth-anything-3.md), [HAMSt3R](../understanding/hamst3r.md), [YoNoSplat](../gaussian-splatting/yonosplat.md); related human-scene method [ODHSR](odhsr.md).
 
 ## 📚 Key Takeaways
 

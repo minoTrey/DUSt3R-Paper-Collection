@@ -55,7 +55,7 @@ Handle mixed cameras through projection-diverse data, overlap validation and inp
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md): a perspective-geometry comparison model.
+- [VGGT](../foundation/vggt.md): a perspective-geometry comparison model.
 - [DUSt3R](../foundation/dust3r.md): pointmap-prediction background.
 
 ## 📚 Key Takeaways

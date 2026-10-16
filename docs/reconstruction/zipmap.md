@@ -195,7 +195,7 @@ The paper reports that removing the explicit reference-view selection in the fin
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the quadratic-time reference model; ZipMap reuses its DINOv2 encoder, camera head design, and initializes attention weights from it
+- [VGGT](../foundation/vggt.md) — the quadratic-time reference model; ZipMap reuses its DINOv2 encoder, camera head design, and initializes attention weights from it
 - [Pi3](pi3.md) — source of the local point map formulation, the affine-invariant camera loss, and the strongest accuracy baseline
 - [CUT3R](../dynamic/cut3r.md) — persistent-state sequential reconstruction, the main linear-time baseline
 - [TTT3R](ttt3r.md) — the other test-time-training linear-time baseline

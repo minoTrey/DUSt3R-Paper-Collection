@@ -89,7 +89,7 @@ With pose post-optimization on DL3DV (원논문 Table 4), StructSplat reaches 29
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: Used as the geometry backbone; StructSplat argues geometry features alone underfit appearance.
+- **[VGGT](../foundation/vggt.md)**: Used as the geometry backbone; StructSplat argues geometry features alone underfit appearance.
 - **[MASt3R](../foundation/mast3r.md)**: Alternative geometry backbone (used by Splatt3R baseline).
 - **[DUSt3R](../foundation/dust3r.md)**: Foundational feed-forward pointmap reconstruction that this line of pose-free NVS builds upon.
 - **[Depth Anything 3](../reconstruction/depth-anything-3.md)**: A compared camera-free baseline with a Gaussian decoding head.

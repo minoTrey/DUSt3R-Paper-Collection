@@ -55,8 +55,8 @@ Removing worst points and weighting residuals across points/scenes require diffe
 
 ## 🔗 Related Work
 
-- [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [VGGT](../reconstruction/vggt.md): audited confidence-producing models.
-- [ReVar3R](../reconstruction/revar3r.md), [GeoCond](../foundation/geocond.md): alternative reliability signals.
+- [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [VGGT](../foundation/vggt.md): audited confidence-producing models.
+- [ReVar3R](../reconstruction/revar3r.md), [GeoCond](../extensions/geocond.md): alternative reliability signals.
 
 ## 📚 Key Takeaways
 

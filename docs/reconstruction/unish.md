@@ -91,7 +91,7 @@ Naively fine-tuning on synthetic BEDLAM degrades performance (sim-to-real gap); 
 
 - **[π³ (pi3)](pi3.md)**: Provides the scene-branch structural priors for robust camera pose that UniSH builds on.
 - **[MoGe-2](moge-2.md)**: Expert depth model distilled for human surface refinement.
-- **[VGGT](vggt.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[Fast3R](fast3r.md)**: Reconstruction baselines on human-centric depth.
+- **[VGGT](../foundation/vggt.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[Fast3R](fast3r.md)**: Reconstruction baselines on human-centric depth.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**, **[MonST3R](../dynamic/monst3r.md)**: Foundational and dynamic reconstruction baselines.
 
 ## 📚 Key Takeaways

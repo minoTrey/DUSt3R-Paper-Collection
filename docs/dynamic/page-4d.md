@@ -213,7 +213,7 @@ Optimization-based MonST3R still leads Sintel ATE and RPE trans, CUT3R holds Bon
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the backbone PAGE-4D extends; all four components except the aggregator are inherited unchanged.
+- [VGGT](../foundation/vggt.md) — the backbone PAGE-4D extends; all four components except the aggregator are inherited unchanged.
 - [DUSt3R](../foundation/dust3r.md) / [MASt3R](../foundation/mast3r.md) — pairwise pointmap foundations that the paper argues are constrained by their pairwise framework.
 - [MonST3R](monst3r.md) — DUSt3R fine-tuned on video; the optimization-based dynamic baseline that still wins Sintel ATE.
 - [CUT3R](cut3r.md) — recurrent state-token streaming model, the strongest non-VGGT feed-forward competitor here.

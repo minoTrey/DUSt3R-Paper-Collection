@@ -129,7 +129,7 @@ Backend refinement raises PSNR from 20.14 (0 iterations, raw feed-forward output
 
 ## 🔗 Related Work
 
-- Built on the feed-forward geometry line: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md), [VGGT](../reconstruction/vggt.md); the recurrent frontend is initialized from [CUT3R](../dynamic/cut3r.md) and inspired by streaming models like [Point3R](../reconstruction/point3r.md).
+- Built on the feed-forward geometry line: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [Fast3R](../reconstruction/fast3r.md), [VGGT](../foundation/vggt.md); the recurrent frontend is initialized from [CUT3R](../dynamic/cut3r.md) and inspired by streaming models like [Point3R](../reconstruction/point3r.md).
 - SLAM peers: [MASt3R-SLAM](../reconstruction/mast3r-slam.md) and [VGGT-SLAM](../reconstruction/vggt-slam.md); renderable feed-forward Gaussian works FLARE and [Splatt3R](splatt3r.md).
 
 ## 📚 Key Takeaways

@@ -88,7 +88,7 @@ The largest gain is on MOSE (heavy occlusion): 75.2 → 77.8.
 ## 🔗 Related Work
 
 - **[π³ / Pi3](../reconstruction/pi3.md)**: The permutation-equivariant reconstruction backbone G2TAM builds on and extends with segmentation.
-- **[VGGT](../reconstruction/vggt.md)** & **[DUSt3R](../foundation/dust3r.md)**: Feed-forward geometry foundations compared for reconstruction/depth.
+- **[VGGT](../foundation/vggt.md)** & **[DUSt3R](../foundation/dust3r.md)**: Feed-forward geometry foundations compared for reconstruction/depth.
 - **[MonST3R](../dynamic/monst3r.md)** & **[Fast3R](../reconstruction/fast3r.md)**: Related feed-forward geometry models in the monocular-depth comparison.
 
 ## 📚 Key Takeaways

@@ -205,7 +205,7 @@ The paper lists them itself: no explicit handling of noise or uncertainty in geo
 
 - **[DUSt3R](../foundation/dust3r.md)**: MapAnything follows DUSt3R's ground-truth validity convention but replaces the two-view pointmap with a factored N-view metric representation.
 - **[MASt3R](../foundation/mast3r.md)**: A two-view baseline in the reconstruction and depth tables; MapAnything outperforms its bundle-adjusted variant on multi-view metric depth.
-- **[VGGT](vggt.md)**: The alternating-attention transformer MapAnything borrows for its 16-layer trunk, and its main image-only baseline. The qualitative comparison targets VGGT specifically on large disparity changes, seasonal shifts, and water bodies.
+- **[VGGT](../foundation/vggt.md)**: The alternating-attention transformer MapAnything borrows for its 16-layer trunk, and its main image-only baseline. The qualitative comparison targets VGGT specifically on large disparity changes, seasonal shifts, and water bodies.
 - **[MUSt3R](must3r.md)**: The scalable multi-view baseline MapAnything beats on multi-view metric depth from images alone.
 - **[Pi3](pi3.md)**: The strongest baseline under scale alignment — π³ leads MapAnything on both KITTI and ScanNet aligned depth.
 - **[MoGe](moge.md)**: The monocular geometry line MoGe-2 extends; the single-view calibration and single-view depth comparisons run against it.

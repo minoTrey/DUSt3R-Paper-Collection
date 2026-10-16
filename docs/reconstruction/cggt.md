@@ -54,7 +54,7 @@ Use foundation geometry as intermediate coordinate/depth priors for CAD-style ou
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md): geometry encoder.
+- [VGGT](../foundation/vggt.md): geometry encoder.
 - [DUSt3R](../foundation/dust3r.md): contrast with dense-pointmap outputs.
 
 ## 📚 Key Takeaways

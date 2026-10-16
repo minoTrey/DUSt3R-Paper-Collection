@@ -176,13 +176,13 @@ A large share of this paper's quantitative story (VBR, 7-Scenes, ScanNet, TUM-Dy
 
 ## 🔗 Related Work
 
-- [Pi3](./pi3.md) — supplies the backbone initialization, the loss formulation, and the prediction heads; also the basis of the Pi3-Chunk baseline the authors construct.
-- [TTT3R](./ttt3r.md) — the closest prior use of test-time training here, criticized for being frame-wise and therefore unable to exploit multi-frame bidirectional reasoning; the strongest recurrent baseline on KITTI.
-- [FastVGGT](./fastvggt.md) — the inference-time efficiency approach that solves memory but, per Fig. 3, hits the data wall on large-scale scenes.
+- [Pi3](pi3.md) — supplies the backbone initialization, the loss formulation, and the prediction heads; also the basis of the Pi3-Chunk baseline the authors construct.
+- [TTT3R](ttt3r.md) — the closest prior use of test-time training here, criticized for being frame-wise and therefore unable to exploit multi-frame bidirectional reasoning; the strongest recurrent baseline on KITTI.
+- [FastVGGT](fastvggt.md) — the inference-time efficiency approach that solves memory but, per Fig. 3, hits the data wall on large-scale scenes.
 - [CUT3R](../dynamic/cut3r.md) — the recurrent single-hidden-state design whose lossy compression motivates the SWA half of the hybrid.
-- [VGGT](./vggt.md) — the bidirectional backbone family LoGeR builds chunks on.
-- [Point3R](./point3r.md), [StreamVGGT](./streamvggt.md) — explicit-state and causal-attention baselines in the short-sequence evaluation.
-- [MoGe](./moge.md) — source of the per-sequence scale alignment used in the local pointmap loss.
+- [VGGT](../foundation/vggt.md) — the bidirectional backbone family LoGeR builds chunks on.
+- [Point3R](point3r.md), [StreamVGGT](streamvggt.md) — explicit-state and causal-attention baselines in the short-sequence evaluation.
+- [MoGe](moge.md) — source of the per-sequence scale alignment used in the local pointmap loss.
 - [DUSt3R](../foundation/dust3r.md), [MonST3R](../dynamic/monst3r.md) — the geometric foundation model lineage the introduction traces.
 
 ## 📚 Key Takeaways

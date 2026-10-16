@@ -1,151 +1,89 @@
+<!-- PAPER-REDIRECT: docs/reconstruction/mast3r-sfm.md -->
+
 # MASt3R-SfM: A Fully-Integrated Solution for Unconstrained Structure-from-Motion (3DV 2025)
 
-<!-- PAPER-CARD:en -->
+This paper note moved to **[MASt3R-SfM: A Fully-Integrated Solution for Unconstrained Structure-from-Motion (3DV 2025)](../reconstruction/mast3r-sfm.md)**. Open that page for the full summary, figures, source links and English card when available.
 
-[<img src="../../assets/paper-cards/en/foundation/mast3r-sfm.png" width="720" alt="English summary card for MASt3R-SfM: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/mast3r-sfm.png)
+This compatibility notice preserves the previous URL. It is not a second paper entry. See the [path mapping](../../data/paper-path-migrations.json) for card-production identities.
 
-[Original paper](https://arxiv.org/abs/2409.19152v1) · [Full-size English card](../../assets/paper-cards/en/foundation/mast3r-sfm.png)
-<!-- /PAPER-CARD -->
+## Previous section links
 
-![MASt3R-SfM Architecture](https://arxiv.org/html/2409.19152v1/x2.png)
-_MASt3R-SfM replaces the entire traditional SfM pipeline with an end-to-end foundation model approach_
+<div id="-overview"></div>
 
-## 📋 Overview
+[📋 Overview](../reconstruction/mast3r-sfm.md#-overview)
 
-- **Authors**: Bardienus Pieter Duisterhof, Lojze Zust, Philippe Weinzaepfel, Vincent Leroy, Yohann Cabon, Jerome Revaud
-- **Institution**: NAVER LABS Europe
-- **Venue**: 3DV 2025
-- **Links**: [Paper](https://arxiv.org/abs/2409.19152) | [Code](https://github.com/naver/mast3r)
-- **Verification**: CONFIRMED (2026-07-20 cached verdict; DBLP conf/3dim/DuisterhofZWLCR25; 2026-10-15 field restored; venue not revalidated in this batch)
-- **TL;DR**: Complete end-to-end SfM pipeline using MASt3R, replacing traditional multi-stage approaches with a unified framework that handles unconstrained image collections.
+<div id="-key-contributions"></div>
 
-## 🎯 Key Contributions
+[🎯 Key Contributions](../reconstruction/mast3r-sfm.md#-key-contributions)
 
-1. **First Foundation Model-based SfM**: Replaces entire traditional pipeline (keypoints → matching → RANSAC → BA) with integrated solution
-2. **Linear Complexity**: O(n) scaling instead of O(n²), enabling large-scale reconstruction
-3. **Truly Unconstrained**: Works with any image collection - ordered/unordered, minimal overlap, pure rotation
-4. **Robust Performance**: Handles challenging cases where traditional SfM fails
-5. **No Additional Training**: Uses frozen MASt3R models with novel optimization-based alignment
+<div id="-technical-details"></div>
 
-## 🔧 Technical Details
+[🔧 Technical Details](../reconstruction/mast3r-sfm.md#-technical-details)
 
-### Three-Stage Pipeline
+<div id="three-stage-pipeline"></div>
 
-1. **Image Retrieval**
-   - Uses MASt3R itself as retrieval model (no overhead)
-   - Efficiently finds overlapping image pairs
-   - Avoids exhaustive pairwise processing
+[Three-Stage Pipeline](../reconstruction/mast3r-sfm.md#three-stage-pipeline)
 
-2. **Local Reconstruction**
-   - MASt3R produces per-pair:
-     - Dense 3D pointmaps
-     - Pixel correspondences
-     - Confidence maps
-   - No feature detection or matching needed
+<div id="key-innovations"></div>
 
-3. **Sparse Global Alignment**
-   - **Coarse alignment**: Minimizes 3D matching loss with canonical pointmaps
-   - **Refinement**: Minimizes 2D reprojection error
-   - Solved via Adam optimizer (no learning required)
+[Key Innovations](../reconstruction/mast3r-sfm.md#key-innovations)
 
-### Key Innovations
+<div id="implementation-details"></div>
 
-- **MASt3R as complete building block**: Provides both geometry and correspondences
-- **Two-stage optimization**: Robust initialization followed by accurate refinement
-- **Confidence-guided**: Uses MASt3R's confidence for weighted optimization
-- **Minimal solver free**: No RANSAC or complex minimal problems
+[Implementation Details](../reconstruction/mast3r-sfm.md#implementation-details)
 
-### Implementation Details
+<div id="-results"></div>
 
-- **No training required**: Inference-only approach
-- **Optimization backend**: Standard non-linear least squares
-- **Sparse representation**: Converts dense outputs to sparse for efficiency
-- **Flexible connectivity**: Adapts graph based on scene complexity
+[📊 Results](../reconstruction/mast3r-sfm.md#-results)
 
-## 📊 Results
+<div id="quantitative-performance"></div>
 
-### Quantitative Performance
+[Quantitative Performance](../reconstruction/mast3r-sfm.md#quantitative-performance)
 
-#### Tanks & Temples (Table 1)
+<div id="tanks--temples-table-1"></div>
 
-| Views        | Registration | ATE ↓       |
-| ------------ | ------------ | ----------- |
-| 25 views     | 100%         | 0.01060     |
-| 50 views     | 100%         | 0.01060     |
-| 100 views    | 100%         | 0.01060     |
-| 200 views    | 100%         | 0.01060     |
-| Full dataset | 100%         | **0.01060** |
+[Tanks & Temples (Table 1)](../reconstruction/mast3r-sfm.md#tanks--temples-table-1)
 
-#### Multi-view Pose Estimation (Table 2)
+<div id="multi-view-pose-estimation-table-2"></div>
 
-| Dataset       | Frames    | Accuracy  |
-| ------------- | --------- | --------- |
-| CO3Dv2        | 10 random | **96.0%** |
-| RealEstate10K | 10 random | **93.1%** |
+[Multi-view Pose Estimation (Table 2)](../reconstruction/mast3r-sfm.md#multi-view-pose-estimation-table-2)
 
-### Key Achievements
+<div id="key-achievements"></div>
 
-- **100% registration rate** on Tanks & Temples across all view counts
-- **Quasi-linear O(N) complexity** vs O(N²) for traditional methods
-- **29.9 GB GPU memory** for 200-view complete graph
-- **Robust to minimal views**: Works with as few as 3 images
-- **Handles pure rotation**: Unlike traditional SfM
+[Key Achievements](../reconstruction/mast3r-sfm.md#key-achievements)
 
-### Implementation Status
+<div id="implementation-status"></div>
 
-- **GitHub**: Available as `sparse_global_alignment` in demo.py
-- **No additional training**: Uses frozen MASt3R checkpoint
-- **Optimizer**: Adam with two-stage optimization
+[Implementation Status](../reconstruction/mast3r-sfm.md#implementation-status)
 
-## 💡 Insights & Impact
+<div id="-insights--impact"></div>
 
-### Paradigm Shift
+[💡 Insights & Impact](../reconstruction/mast3r-sfm.md#-insights--impact)
 
-| Aspect        | Traditional SfM                | MASt3R-SfM               |
-| ------------- | ------------------------------ | ------------------------ |
-| Pipeline      | Multi-stage, brittle           | Single integrated system |
-| Features      | Hand-crafted/sparse            | Learned/dense            |
-| Matching      | Separate step + RANSAC         | Implicit in model        |
-| Optimization  | Bundle adjustment              | Two-stage alignment      |
-| Failure modes | Many (texture, baseline, etc.) | Few (extreme scale)      |
+<div id="paradigm-shift"></div>
 
-### Advantages
+[Paradigm Shift](../reconstruction/mast3r-sfm.md#paradigm-shift)
 
-1. **Robustness**: Works where traditional methods fail
-2. **Simplicity**: No complex engineering of minimal solvers
-3. **Consistency**: Uniform performance across scenarios
-4. **Accessibility**: No parameter tuning required
-5. **Completeness**: From images to camera poses in one system
+<div id="advantages"></div>
 
-### Limitations
+[Advantages](../reconstruction/mast3r-sfm.md#advantages)
 
-1. **Compute requirements**: Needs GPU for MASt3R inference
-2. **Memory scaling**: Dense representations limit very large scenes
-3. **Metric scale**: Inherits MASt3R's scale ambiguity
+<div id="limitations"></div>
 
-## 🔗 Related Work
+[Limitations](../reconstruction/mast3r-sfm.md#limitations)
 
-### Evolution from Foundation Papers
+<div id="-related-work"></div>
 
-- **[CroCo](croco.md)/[CroCo v2](croco-v2.md)**: Pre-training strategy
-- **[DUSt3R](dust3r.md)**: Direct 3D prediction
-- **[MASt3R](mast3r.md)**: Added matching capabilities
-- **MASt3R-SfM**: Complete SfM solution
+[🔗 Related Work](../reconstruction/mast3r-sfm.md#-related-work)
 
-### Contemporary Approaches
+<div id="evolution-from-foundation-papers"></div>
 
-- **COLMAP**: Traditional feature-based SfM
-- **ACE-Zero**: Learning-enhanced SfM
-- **FlowMap**: Dense correspondence SfM
-- **Particle-SfM**: Differentiable SfM
+[Evolution from Foundation Papers](../reconstruction/mast3r-sfm.md#evolution-from-foundation-papers)
 
-## 📚 Key Takeaways
+<div id="contemporary-approaches"></div>
 
-MASt3R-SfM demonstrates that:
+[Contemporary Approaches](../reconstruction/mast3r-sfm.md#contemporary-approaches)
 
-1. **Foundation models can replace entire pipelines**: Not just components but complete systems
-2. **Robustness comes from learned priors**: Neural models handle cases theory cannot
-3. **Simplicity enables reliability**: Fewer components mean fewer failure modes
-4. **The future is end-to-end**: Integrated solutions outperform modular pipelines
+<div id="-key-takeaways"></div>
 
-This work represents the culmination of the DUSt3R lineage, showing how the progression from cross-view completion (CroCo) through direct 3D prediction (DUSt3R) and 3D-aware matching (MASt3R) enables a complete reimagining of classical computer vision pipelines.
+[📚 Key Takeaways](../reconstruction/mast3r-sfm.md#-key-takeaways)

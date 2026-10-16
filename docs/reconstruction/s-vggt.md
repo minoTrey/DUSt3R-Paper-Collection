@@ -173,7 +173,7 @@ Deriving `K` from measured scene density rather than a fixed constant means dens
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the accelerated model; S-VGGT uses the VRAM-efficient `VGGT*` variant as its baseline and does not fine-tune the weights
+- [VGGT](../foundation/vggt.md) — the accelerated model; S-VGGT uses the VRAM-efficient `VGGT*` variant as its baseline and does not fine-tune the weights
 - [FastVGGT](fastvggt.md) — the token-level acceleration baseline shown to be orthogonal and combinable
 - [Sparse-VGGT](sparse-vggt.md) — a different attention-level acceleration, sparsifying rather than partitioning
 - [VGGT-Long](vggt-long.md) — chunking with explicit Sim(3) alignment, which anchor frame sharing avoids
@@ -181,7 +181,7 @@ Deriving `K` from measured scene density rather than a fixed constant means dens
 - [Spann3R](spann3r.md) — spatial memory baseline; the only method that OOMs on 1000-image ScanNet
 - [CUT3R](../dynamic/cut3r.md) — recurrent-state baseline with high FPS but accumulated pose error
 - [DUSt3R](../foundation/dust3r.md) — the origin of the feed-forward baselines compared here
-- [MUSt3R](must3r.md), [Light3R-SfM](light3r-sfm.md), [MASt3R-SfM](../foundation/mast3r-sfm.md) — scalability approaches cited in the paper's related work
+- [MUSt3R](must3r.md), [Light3R-SfM](light3r-sfm.md), [MASt3R-SfM](mast3r-sfm.md) — scalability approaches cited in the paper's related work
 
 ## 📚 Key Takeaways
 

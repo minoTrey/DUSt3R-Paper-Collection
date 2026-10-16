@@ -18,6 +18,7 @@ from collections import Counter, defaultdict
 
 from extract_meta import parse, papers
 from build_papers_list import CATEGORY_ORDER, CAT_BEGIN, CAT_END, parse_h1
+from paper_paths import migration_errors
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEST = ROOT / "data"
@@ -151,6 +152,7 @@ def produce() -> tuple[dict, dict]:
             invalid_progress.append({"record_id": rid, "issue": "published state lacks a commit"})
     duplicate_progress = [rid for rid, n in Counter(x["record_id"] for x in progress_records).items() if n > 1]
     audit = {
+        "migration_findings": migration_errors(ROOT, recs),
         "source_snapshot_sha256": snapshot,
         "counts": {"papers": len(rows), "detected_note_candidates": len(detected), "complete_index_entries": len(indexed), "category_index_entries": len(category_index_paths), "categories": dict(sorted(Counter(r["category"] for r in rows).items())), "arxiv_sources": sum(bool(r["arxiv_id"]) for r in rows), "project_links_recorded": sum(bool(r["project_url"]) for r in rows), "project_links_not_recorded": len(missing["project_url"]), "existing_card_assets_at_planned_paths": sum(r["card_asset_present"] for r in rows), "card_production_statuses": dict(Counter(r["card_production_status"] for r in rows)), "cards_published": sum(r["card_publication_status"] == "published" for r in rows)},
         "coverage": {"unindexed_note_candidates": sorted(detected - paths), "records_without_detected_note": sorted(paths - detected), "missing_from_complete_index": sorted(paths - set(indexed)), "extra_in_complete_index": sorted(set(indexed) - paths), "missing_from_category_indexes": sorted(paths - set(category_index_paths)), "extra_in_category_indexes": sorted(set(category_index_paths) - paths), "duplicate_complete_index_paths": [x for x, n in Counter(indexed).items() if n > 1], "duplicate_category_index_paths": [x for x, n in Counter(category_index_paths).items() if n > 1]},
@@ -170,6 +172,8 @@ def produce() -> tuple[dict, dict]:
         "card_generation_performed": False,
     }
     errors = []
+    if audit["migration_findings"]:
+        errors.append("invalid paper migration")
     for key, values in audit["coverage"].items():
         if values:
             errors.append(key)

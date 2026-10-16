@@ -221,7 +221,7 @@ the cleanest empirical evidence that these two quantities have been successfully
 
 - **[DUSt3R](../foundation/dust3r.md)**: pointmap regression formulation, the confidence-weighted pointmap loss, and encoder initialization.
 - **[Fast3R](../reconstruction/fast3r.md)**: the 1D sine-cosine index embedding scheme that lets Rig3R generalize to varying frame and camera counts.
-- **[VGGT](../reconstruction/vggt.md)**: motivates learning scale and direction norms directly, which the paper finds more stable for camera centers near the origin.
+- **[VGGT](../foundation/vggt.md)**: motivates learning scale and direction norms directly, which the paper finds more stable for camera centers near the origin.
 - **DPT**: pointmap head architecture.
 
 ### Contrast with Conditioning Approaches

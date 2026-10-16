@@ -209,7 +209,7 @@ Estimating `F` exclusively from predicted-static correspondences is an elegant b
 - [Easi3R](easi3r.md) — another training-free approach to dynamic scenes via attention
 - [Align3R](align3r.md), [D²USt3R](d2ust3r.md) — related dynamic pointmap alignment work
 - [Dynamic Point Maps](dynamic-point-maps.md), [Stereo4D](stereo4d.md) — 4D pointmap representations
-- [MASt3R-SfM](../foundation/mast3r-sfm.md) — the sparse scene-graph construction C4D follows
+- [MASt3R-SfM](../reconstruction/mast3r-sfm.md) — the sparse scene-graph construction C4D follows
 
 ## 📚 Key Takeaways
 

@@ -86,10 +86,10 @@ COLMAP retains the highest accuracy (0.997) but its lower SfM rate limits comple
 
 ## 🔗 Related Work
 
-- **[MASt3R-SfM](../foundation/mast3r-sfm.md)**: The baseline pipeline this work augments with GVP and MSO.
+- **[MASt3R-SfM](../reconstruction/mast3r-sfm.md)**: The baseline pipeline this work augments with GVP and MSO.
 - **[MASt3R](../foundation/mast3r.md)**: The matching model whose confidence/point maps feed the scene graph.
 - **[DUSt3R](../foundation/dust3r.md)**: The pointmap-regression foundation MASt3R extends.
-- **[VGGT](../reconstruction/vggt.md)**: A transformer-based multi-view baseline compared on ETH3D.
+- **[VGGT](../foundation/vggt.md)**: A transformer-based multi-view baseline compared on ETH3D.
 
 ## 📚 Key Takeaways
 

@@ -61,7 +61,7 @@ Which variables receive which gradients matters alongside adding geometric const
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md), [π³](pi3.md), [Depth Anything 3](depth-anything-3.md): adapted backbones.
+- [VGGT](../foundation/vggt.md), [π³](pi3.md), [Depth Anything 3](depth-anything-3.md): adapted backbones.
 - [Free-Geometry](free-geometry.md), [Fin3R](fin3r.md): earlier test-scene adaptation approaches.
 
 ## 📚 Key Takeaways

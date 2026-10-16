@@ -112,7 +112,7 @@ WildSplatter wins most scene/metric cells, but not all: at 2 views WildGaussians
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)** and **[MASt3R](../foundation/mast3r.md)**: Foundation models enabling pose-free two-view geometry that the feedforward 3DGS line builds on.
-- **[VGGT](../reconstruction/vggt.md)**: Source of the alternating local/global attention mechanism used in the backbone.
+- **[VGGT](../foundation/vggt.md)**: Source of the alternating local/global attention mechanism used in the backbone.
 - **[Depth Anything 3](../reconstruction/depth-anything-3.md)**: The base model WildSplatter initializes from and compares against.
 
 ## 📚 Key Takeaways

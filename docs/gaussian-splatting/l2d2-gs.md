@@ -107,7 +107,7 @@ Even with the same 1.2M budget via denser init, removing learned densification d
 
 ## 🔗 Related Work
 
-- Builds on generalizable-optimization methods G3R (gradient-guided refinement) and Flux4D (flow-based unsupervised 4D), and feed-forward reconstruction including AnySplat and STORM; initializes geometry from LiDAR and [VGGT](../reconstruction/vggt.md)/MapAnything-style vision foundation priors.
+- Builds on generalizable-optimization methods G3R (gradient-guided refinement) and Flux4D (flow-based unsupervised 4D), and feed-forward reconstruction including AnySplat and STORM; initializes geometry from LiDAR and [VGGT](../foundation/vggt.md)/MapAnything-style vision foundation priors.
 - Contrasts with per-scene driving reconstruction (Street Gaussians, OmniRe, Desire-GS, AD-GS) that inherit slow per-scene optimization, and with single-pass densification methods (QuickSplat, Generative Densification, GaussianLens) limited to object-centric scenes.
 - Related to the recurrent feed-forward refinement line exemplified by ReSplat.
 

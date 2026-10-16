@@ -181,7 +181,7 @@ The dual-branch GSA incurs a **15% memory overhead** versus full attention. The 
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) and [π³](pi3.md) — the two backbones Speed3R sparsifies
+- [VGGT](../foundation/vggt.md) and [π³](pi3.md) — the two backbones Speed3R sparsifies
 - [FastVGGT](fastvggt.md) — the training-free token merge/unmerge baseline it consistently beats
 - [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md) — the pairwise ancestors
 - [CUT3R](../dynamic/cut3r.md) and [Spann3R](spann3r.md) — cited as the sequential-input extensions

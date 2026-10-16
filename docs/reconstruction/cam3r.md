@@ -98,8 +98,8 @@ Baselines: DUSt3R, MASt3R, Pow3R, VGGT, π³.
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: pointmap-regression foundation used to initialize the Cross-view Module and as a baseline; its pinhole assumption motivates CAM3R.
-- **[MASt3R](../foundation/mast3r.md)** / **[Pow3R](./pow3r.md)**: DUSt3R-family baselines; Pow3R adds camera/scene priors.
-- **[VGGT](./vggt.md)** / **[π³](./pi3.md)**: multi-view feed-forward baselines; π³ remains competitive on perspective data.
+- **[MASt3R](../foundation/mast3r.md)** / **[Pow3R](pow3r.md)**: DUSt3R-family baselines; Pow3R adds camera/scene priors.
+- **[VGGT](../foundation/vggt.md)** / **[π³](pi3.md)**: multi-view feed-forward baselines; π³ remains competitive on perspective data.
 
 ## 📚 Key Takeaways
 

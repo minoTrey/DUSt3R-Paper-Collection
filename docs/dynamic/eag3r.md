@@ -86,7 +86,7 @@ _EAG3R pipeline for event-augmented dynamic 3D reconstruction (원논문 Fig. 1)
 ## 🔗 Related Work
 
 - Backbone [MonST3R](monst3r.md); foundation [DUSt3R](../foundation/dust3r.md); compared against [Easi3R](easi3r.md).
-- Related dynamic-scene methods cited: [DAS3R](../gaussian-splatting/das3r.md), [CUT3R](cut3r.md), [Stereo4D](stereo4d.md), [Dynamic Point Maps](dynamic-point-maps.md); also references [VGGT](../reconstruction/vggt.md) and [MASt3R-SLAM](../reconstruction/mast3r-slam.md).
+- Related dynamic-scene methods cited: [DAS3R](../gaussian-splatting/das3r.md), [CUT3R](cut3r.md), [Stereo4D](stereo4d.md), [Dynamic Point Maps](dynamic-point-maps.md); also references [VGGT](../foundation/vggt.md) and [MASt3R-SLAM](../reconstruction/mast3r-slam.md).
 
 ## 📚 Key Takeaways
 

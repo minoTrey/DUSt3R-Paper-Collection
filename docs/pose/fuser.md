@@ -98,7 +98,7 @@ FUSER dominates on looser thresholds and mean/median error, but at the strictest
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: Source of the alternating-attention architecture that FUSER adapts to 3D scans.
+- **[VGGT](../foundation/vggt.md)**: Source of the alternating-attention architecture that FUSER adapts to 3D scans.
 - **[Pi3](../reconstruction/pi3.md)**: The π³ VGGT variant whose pretrained 2D weights are transferred to initialize FUSER's attention layers.
 - **[DUSt3R](../foundation/dust3r.md)**: Foundational feed-forward geometry model motivating the shift away from pairwise pipelines.
 

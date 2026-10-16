@@ -96,7 +96,7 @@ Room-based reconstruction nearly halves ATE on AOD over a sliding-window baselin
 ## 🔗 Related Work
 
 - **[MapAnything](../reconstruction/mapanything.md)**: The feed-forward reconstruction model used throughout LEXI-SG.
-- **[VGGT](../reconstruction/vggt.md)** & **[MASt3R](../foundation/mast3r.md)**: Foundation models behind compared SLAM baselines.
+- **[VGGT](../foundation/vggt.md)** & **[MASt3R](../foundation/mast3r.md)**: Foundation models behind compared SLAM baselines.
 - **[MASt3R-SLAM](../reconstruction/mast3r-slam.md)** & **[VGGT-SLAM](../reconstruction/vggt-slam.md)**: The feed-forward SLAM baselines LEXI-SG is evaluated against.
 
 ## 📚 Key Takeaways

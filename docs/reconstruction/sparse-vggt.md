@@ -161,7 +161,7 @@ Block-wise sparsity is described as orthogonal to FlashAttention-style accelerat
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the primary target architecture whose global attention is analyzed and sparsified
+- [VGGT](../foundation/vggt.md) — the primary target architecture whose global attention is analyzed and sparsified
 - [pi3](pi3.md) — the permutation-equivariant successor, also sparsified here (18 alternating blocks vs VGGT's 24)
 - [MapAnything](mapanything.md) — the third architecture the method is applied to
 - [Fast3R](fast3r.md) and [CUT3R](../dynamic/cut3r.md) — state-of-the-art comparison points in the trade-off plots

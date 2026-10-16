@@ -55,7 +55,7 @@ Separate geometry and appearance can remain jointly trainable while reusing adva
 ## 🔗 Related Work
 
 - [YoNoSplat](yonosplat.md): a pose-free NVS comparison.
-- [VGGT](../reconstruction/vggt.md): background for the geometry expert.
+- [VGGT](../foundation/vggt.md): background for the geometry expert.
 
 ## 📚 Key Takeaways
 

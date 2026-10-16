@@ -177,7 +177,7 @@ An unexpected benefit: confidence-aware weighting suppresses fast-moving vehicle
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the frozen backbone; VGGT-Long adds no training and modifies no weights
+- [VGGT](../foundation/vggt.md) — the frozen backbone; VGGT-Long adds no training and modifies no weights
 - [MASt3R](../foundation/mast3r.md) and [MASt3R-SLAM](mast3r-slam.md) — the SLAM-back-end alternative that VGGT-Long argues against
 - [CUT3R](../dynamic/cut3r.md) — the recurrent-state baseline that drifts on long outdoor sequences
 - [Fast3R](fast3r.md) — a multi-view feed-forward baseline that OOMs on all tested KITTI sequences

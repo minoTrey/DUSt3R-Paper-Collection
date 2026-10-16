@@ -118,7 +118,7 @@ On this unseen dataset DUSt3R is best in low and high occlusion; VGTW(VGGT) lead
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)** and **[π³ (pi3)](pi3.md)**: The two feed-forward backbones VGTW wraps with distractor-aware training.
+- **[VGGT](../foundation/vggt.md)** and **[π³ (pi3)](pi3.md)**: The two feed-forward backbones VGTW wraps with distractor-aware training.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**, **[Fast3R](fast3r.md)**: Feed-forward reconstruction baselines compared against.
 
 ## 📚 Key Takeaways

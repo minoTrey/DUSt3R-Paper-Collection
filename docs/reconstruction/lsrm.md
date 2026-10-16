@@ -193,7 +193,7 @@ On 10 randomly selected GSO models, LSRM (8–16 views) is competitive with 3DGS
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**, **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Cited among the 3D foundation models for joint geometry/camera estimation that motivate the broader feed-forward 3D reconstruction direction LSRM builds on.
+- **[VGGT](../foundation/vggt.md)**, **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Cited among the 3D foundation models for joint geometry/camera estimation that motivate the broader feed-forward 3D reconstruction direction LSRM builds on.
 - **LIRM** (the primary SOTA baseline) and **MeshLRM**: LSRM inherits their multi-view camera-trajectory sampling and SDF-bias design; LIRM's 8-image / hexaplane token budget is the reference LSRM scales past (>2× image, >20× object tokens).
 - **LRM / GS-LRM / Mesh-LRM**: Earlier object-centric reconstruction models compared as baselines; LRM pioneered single-image geometry but struggles with high-fidelity textures.
 - **NSA (Native Sparse Attention)** and **Direct3D-S2**: The sparse-attention algorithm LSRM adapts for 3D, and the spatial block-partitioning strategy it borrows for the volume.

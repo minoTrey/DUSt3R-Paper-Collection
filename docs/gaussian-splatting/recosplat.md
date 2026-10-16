@@ -103,7 +103,7 @@ Training with predicted assembly poses significantly degrades quality; mixed pos
 ## 🔗 Related Work
 
 - Built on the YoNoSplat feed-forward Gaussian backbone and the [Pi3](../reconstruction/pi3.md) (π³) permutation-equivariant decoder, in the feed-forward 3DGS line from PixelSplat, GS-LRM, AnySplat, NoPoSplat, and DepthSplat.
-- Positioned against autoregressive/streaming methods StreamGS, SaLon3R, LongSplat (excluded from comparison due to unavailable code) and adapts FreeSplat as a baseline; contrasts with streaming pointmap models [CUT3R](../dynamic/cut3r.md), TTT3R, StreamVGGT, WinT3R, Point3R for pose estimation, building on the [DUSt3R](../foundation/dust3r.md)/[VGGT](../reconstruction/vggt.md) foundation.
+- Positioned against autoregressive/streaming methods StreamGS, SaLon3R, LongSplat (excluded from comparison due to unavailable code) and adapts FreeSplat as a baseline; contrasts with streaming pointmap models [CUT3R](../dynamic/cut3r.md), TTT3R, StreamVGGT, WinT3R, Point3R for pose estimation, building on the [DUSt3R](../foundation/dust3r.md)/[VGGT](../foundation/vggt.md) foundation.
 - The ReCo module draws on the Analysis-by-Synthesis / vision-as-inverse-problem framework.
 
 ## 📚 Key Takeaways

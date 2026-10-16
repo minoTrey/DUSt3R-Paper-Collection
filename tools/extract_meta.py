@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Overview 블록만 추출한다. 파일 전체를 읽지 않는 것이 요점."""
 import re, sys, json, pathlib
+from paper_paths import redirect_target
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIELD = re.compile(r'^\s*[-*]\s*\*\*(?P<k>[^*]+)\*\*\s*:\s*(?P<v>.*?)\s*$')
@@ -9,6 +10,8 @@ ARXIV = re.compile(r'arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})')
 def papers():
     for p in sorted(ROOT.glob('docs/*/*.md')):
         if p.name == 'README.md' or 'VERIFICATION' in p.name:
+            continue
+        if redirect_target(p.read_text(encoding='utf-8')):
             continue
         yield p
 

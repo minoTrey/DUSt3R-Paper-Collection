@@ -120,7 +120,7 @@ FF3R does not beat 2D LSeg on raw segmentation mIoU in the ScanNet sparse settin
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md) — the geometry backbone architecture and the source of pseudo-label distillation
+- [VGGT](../foundation/vggt.md) — the geometry backbone architecture and the source of pseudo-label distillation
 - [Large Spatial Model (LSM)](largespatialmodel.md) — the closest prior feed-forward semantic-geometry method; FF3R's main baseline
 - [DUSt3R](../foundation/dust3r.md) — the pairwise post-optimization strategy used to extend LSM to multi-view
 - [Depth Anything 3](../reconstruction/depth-anything-3.md) — contemporary geometry foundation model in the same family

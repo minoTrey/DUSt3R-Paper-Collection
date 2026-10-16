@@ -105,7 +105,7 @@ Rendering throughput (FPS) rises with pruning strength as fewer active Gaussians
 
 ## 🔗 Related Work
 
-- Builds on feed-forward Gaussian backbones: [MASt3R](../foundation/mast3r.md) and [VGGT](../reconstruction/vggt.md) supply the initial point cloud; MVSplat is used as a pose-input backbone.
+- Builds on feed-forward Gaussian backbones: [MASt3R](../foundation/mast3r.md) and [VGGT](../foundation/vggt.md) supply the initial point cloud; MVSplat is used as a pose-input backbone.
 - Contrasts with per-scene 3DGS compression (EAGLES, LightGaussian, EfficientGS, PUP-3DGS), which require dense views and scene-specific optimization.
 - Related feed-forward Gaussian splatting entries in this collection: [Splatt3R](splatt3r.md), [PreF3R](pref3r.md).
 

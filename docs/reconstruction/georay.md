@@ -55,7 +55,7 @@ Aligned heights differ from accurate heights in actual map coordinates. Design g
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md): perspective geometry-foundation background.
+- [VGGT](../foundation/vggt.md): perspective geometry-foundation background.
 - [GeoFF3D](geoff3d.md): UAV coordinate anchoring differs from satellite RPC estimation.
 
 ## 📚 Key Takeaways

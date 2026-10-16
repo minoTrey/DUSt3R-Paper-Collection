@@ -5,6 +5,7 @@ import collections
 import json
 import pathlib
 import re
+from paper_paths import resolve
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "candidates/review-2026-10-15.md"
@@ -37,7 +38,7 @@ def build():
         decision = {"include": "포함", "exclude": "제외", "defer": "보류"}[r["decision"]]
         title = r["title"].replace("|", "\\|").replace("$\\Omega$", "Ω").replace("$\\pi$", "π")
         link = f"[{title}]({r['source_pdf']})"
-        summary = f"[요약](../{r['summary_file']})" if r.get("summary_file") else "작성 대기" if r["decision"] == "include" else "해당 없음"
+        summary = f"[요약](../{resolve(r['summary_file'], 'note_path', ROOT)})" if r.get("summary_file") else "작성 대기" if r["decision"] == "include" else "해당 없음"
         lines.append(f"| {link} | {r['priority']} | {decision} / {queue[aid]['status']} | {r['reason']} | {summary} |")
     lines += ["", "## 검토 한계", "",
               "이 분류는 원문의 문제·방법·평가 연결을 읽은 범위 판정이다. 실험 재현이나 학회 게재 확인이 아니다.",

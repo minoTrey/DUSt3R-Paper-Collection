@@ -8,11 +8,11 @@ Document counts are not counts of fully verified papers. Read each result with i
 
 Keep each number beside its source table, dataset, camera inputs, units and alignment protocol.
 The same metric name does not make results comparable when GT poses, scale treatment or completed sequences differ.
-Start with [Surveys & Analysis](../docs/surveys/) for comparisons under a shared protocol.
+Start with [Surveys & Analysis](../docs/surveys) for comparisons under a shared protocol.
 
 ## Verification
 
-Metadata and results in this collection are checked by scripts in [`tools/`](../tools/):
+Metadata and results in this collection are checked by scripts in [`tools/`](../tools):
 
 | Check                     | What it does                                                                          |
 | ------------------------- | ------------------------------------------------------------------------------------- |

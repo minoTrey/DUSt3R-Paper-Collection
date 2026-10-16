@@ -158,7 +158,7 @@ Per-scene representative results (원논문 Tables 5–7, Appendix B) are not tr
 - **[DUSt3R](../foundation/dust3r.md)** pioneered aligned pointmap prediction from image pairs without known poses or explicit optimization.
 - **[MASt3R](../foundation/mast3r.md)** strengthens the formulation with improved local matching.
 - **[Fast3R](fast3r.md)** processes many views jointly in a single forward pass.
-- **[VGGT](vggt.md)** and **[π³ (pi3)](pi3.md)** regress camera parameters and dense geometry from flexible multi-view inputs; used here as direct feed-forward baselines (both OOM on full long sequences).
+- **[VGGT](../foundation/vggt.md)** and **[π³ (pi3)](pi3.md)** regress camera parameters and dense geometry from flexible multi-view inputs; used here as direct feed-forward baselines (both OOM on full long sequences).
 
 ### Long-sequence reconstruction
 

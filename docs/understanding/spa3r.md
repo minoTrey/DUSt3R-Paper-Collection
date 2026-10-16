@@ -126,7 +126,7 @@ Combining geometric (VGGT) and semantic (DINO) reconstruction targets is best; a
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: Geometry foundation model whose global attention Spa3R adapts (with asymmetric masking) as its View Aggregator, and a baseline whose partial view-conditioned features Spa3R outperforms.
+- **[VGGT](../foundation/vggt.md)**: Geometry foundation model whose global attention Spa3R adapts (with asymmetric masking) as its View Aggregator, and a baseline whose partial view-conditioned features Spa3R outperforms.
 - **[DUSt3R](../foundation/dust3r.md)**: Part of the geometry-foundation-model lineage that inspired augmenting VLMs with geometric priors.
 - **[Large Spatial Model](largespatialmodel.md)**: Related unposed-images-to-semantic-3D approach cited in this space.
 - VLM-3R, Spatial-MLLM, VG-LLM (not in this collection): contemporary methods that inject partial view-conditioned geometry into VLMs — the very bottleneck Spa3R targets.

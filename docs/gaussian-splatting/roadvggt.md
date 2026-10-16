@@ -55,7 +55,7 @@ Encode road-surface structure in fusion rules to reduce both primitive counts an
 
 ## 🔗 Related Work
 
-- [VGGT](../reconstruction/vggt.md): the geometric-backbone family.
+- [VGGT](../foundation/vggt.md): the geometric-backbone family.
 - [Splatt3R](splatt3r.md): background on connecting geometry to Gaussians.
 
 ## 📚 Key Takeaways

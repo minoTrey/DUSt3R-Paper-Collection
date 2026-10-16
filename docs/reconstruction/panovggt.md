@@ -98,7 +98,7 @@ The paper notes translation error slightly increases after adding tri-axis spher
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)** & **[π³ (pi3)](pi3.md)**: The perspective-domain permutation-equivariant foundations PanoVGGT adapts to the spherical domain.
+- **[VGGT](../foundation/vggt.md)** & **[π³ (pi3)](pi3.md)**: The perspective-domain permutation-equivariant foundations PanoVGGT adapts to the spherical domain.
 - **[DUSt3R](../foundation/dust3r.md)** & **[MASt3R](../foundation/mast3r.md)**: The feed-forward pointmap lineage.
 - **[MoGe](moge.md)** & **[MoGe-2](moge-2.md)**: Monocular geometry baselines used in the zero-shot dodecahedral-projection depth comparison.
 - **[MonST3R](../dynamic/monst3r.md)**: Referenced dynamic-scene pointmap variant.

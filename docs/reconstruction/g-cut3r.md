@@ -149,7 +149,7 @@ Without zero convolutions the method is clearly worse than the Pow3R adaptation;
 - [DUSt3R](../foundation/dust3r.md) — pairwise pointmap regression, the origin of the paradigm
 - [MASt3R](../foundation/mast3r.md) — adds a matching head to DUSt3R
 - [Spann3R](spann3r.md) — sequential reconstruction with spatial memory, a baseline here
-- [VGGT](vggt.md) — the multi-view alternative the paper cites as more memory-hungry
+- [VGGT](../foundation/vggt.md) — the multi-view alternative the paper cites as more memory-hungry
 
 ## 📚 Key Takeaways
 

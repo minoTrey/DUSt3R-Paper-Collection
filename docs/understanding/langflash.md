@@ -97,7 +97,7 @@ Component runtime (Table 5): LFA 72 ms, SG 38 ms, shared encoder 32 ms, Gaussian
 
 ## 🔗 Related Work
 
-- **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)** & **[VGGT](../reconstruction/vggt.md)**: Transformer-based pose-free reconstruction priors cited as the geometric foundation.
+- **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)** & **[VGGT](../foundation/vggt.md)**: Transformer-based pose-free reconstruction priors cited as the geometric foundation.
 - **[Large Spatial Model (LSM)](largespatialmodel.md)**: The closest feed-forward geometry+appearance+semantics baseline LangFlash improves over.
 - **[PE3R](pe3r.md)**: Perception-efficient feed-forward 3D reconstruction in the same open-vocabulary line.
 

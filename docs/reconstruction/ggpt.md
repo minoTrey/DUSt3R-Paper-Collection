@@ -179,11 +179,11 @@ At 53M parameters against the ~300M of comparable 2D transformers, and with the 
 
 ## 🔗 Related Work
 
-- [VGGT](./vggt.md) — the dense predictor GGPT is trained on and improves most dramatically.
-- [pi3](./pi3.md) — concurrent predictor; already strong in-domain on ScanNet++, refined mainly cross-domain.
-- [MapAnything](./mapanything.md) — refined as an upstream predictor and also compared as a 2D geometry-conditioned baseline.
-- [MASt3R-SfM](../foundation/mast3r-sfm.md) — the prior SfM whose guidance `X_s` is the comparison point in Table 3.
-- [Pow3R](./pow3r.md) — 2D geometry-conditioned baseline (POW3R) in Table 3.
+- [VGGT](../foundation/vggt.md) — the dense predictor GGPT is trained on and improves most dramatically.
+- [pi3](pi3.md) — concurrent predictor; already strong in-domain on ScanNet++, refined mainly cross-domain.
+- [MapAnything](mapanything.md) — refined as an upstream predictor and also compared as a 2D geometry-conditioned baseline.
+- [MASt3R-SfM](mast3r-sfm.md) — the prior SfM whose guidance `X_s` is the comparison point in Table 3.
+- [Pow3R](pow3r.md) — 2D geometry-conditioned baseline (POW3R) in Table 3.
 - [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md) — the lineage that established dense feed-forward point map prediction.
 
 ## 📚 Key Takeaways

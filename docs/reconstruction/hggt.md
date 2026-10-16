@@ -87,7 +87,7 @@ On HO3D, HGGT (Ours) even surpasses the GT-camera POEMv2-large (PA-MPJPE 3.33 vs
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The alternating-attention backbone adopted and fully fine-tuned; also the source of the camera-head design.
+- **[VGGT](../foundation/vggt.md)**: The alternating-attention backbone adopted and fully fine-tuned; also the source of the camera-head design.
 - **[DUSt3R](../foundation/dust3r.md)** and **[MASt3R](../foundation/mast3r.md)**: Cited feed-forward reconstruction predecessors.
 - **[Fast3R](fast3r.md)** and **[CUT3R](../dynamic/cut3r.md)**: Cited follow-up feed-forward geometry methods; **[Human3R](../dynamic/human3r.md)** cited as a concurrent human-reconstruction effort building on such priors.
 

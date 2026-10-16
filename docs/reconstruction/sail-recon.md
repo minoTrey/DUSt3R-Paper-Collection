@@ -217,10 +217,10 @@ On small-N CO3Dv2, VGGT is still slightly better (Table 6). SAIL-Recon's contrib
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the scene-regression backbone SAIL-Recon augments; still the accuracy reference on small inputs
+- [VGGT](../foundation/vggt.md) — the scene-regression backbone SAIL-Recon augments; still the accuracy reference on small inputs
 - [VGGT-SLAM](vggt-slam.md) — the SL(4)/Sim(3) submap-fusion approach SAIL-Recon compares against on TUM
 - [DUSt3R](../foundation/dust3r.md) — origin of the scene-regression paradigm, via global alignment
-- [MASt3R-SfM](../foundation/mast3r-sfm.md) — the optimization-based SfM baseline in Tables 1 and 6
+- [MASt3R-SfM](mast3r-sfm.md) — the optimization-based SfM baseline in Tables 1 and 6
 - [Light3R-SfM](light3r-sfm.md) — the closest feed-forward SfM competitor in Table 1
 - [Spann3R](spann3r.md) and [CUT3R](../dynamic/cut3r.md) — the global-memory-token approach whose drift the paper critiques
 - [SLAM3R](slam3r.md) — sequential feed-forward baseline on Tanks & Temples

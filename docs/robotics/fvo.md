@@ -159,7 +159,7 @@ The authors do not claim general dataset coverage. FVO is trained primarily in s
 
 - [DUSt3R](../foundation/dust3r.md) — provides the CroCo-based encoder training framework; its per-pixel confidence formulation is explicitly rejected for pose learning
 - [CroCo v2](../foundation/croco-v2.md) — the backbone architecture
-- [VGGT](../reconstruction/vggt.md) — evaluated as a baseline; drifts over long sequences
+- [VGGT](../foundation/vggt.md) — evaluated as a baseline; drifts over long sequences
 - [CUT3R](../dynamic/cut3r.md) — evaluated as a baseline
 - [MASt3R-SLAM](../reconstruction/mast3r-slam.md) — the MASt3R-SLAM-VO baseline, which suffers scale ambiguity and fails on KITTI
 - [Reloc3R](../pose/reloc3r.md) — related pose-regression-from-DUSt3R-priors work

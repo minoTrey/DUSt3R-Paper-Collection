@@ -222,7 +222,7 @@ The headline benchmarks show parity, not superiority. The robot navigation table
 - [MASt3R](../foundation/mast3r.md) — learned-descriptor matching predecessor
 - [DUSt3R](../foundation/dust3r.md) — the pairwise pointmap formulation the whole family descends from
 - [CUT3R](../dynamic/cut3r.md) and [Fast3R](fast3r.md) — the memory/recurrent alternatives to segmentation cited in the related work
-- [VGGT](vggt.md) — backbone of the VGGT-Long and VGGT-SLAM baselines
+- [VGGT](../foundation/vggt.md) — backbone of the VGGT-Long and VGGT-SLAM baselines
 
 ## 📚 Key Takeaways
 

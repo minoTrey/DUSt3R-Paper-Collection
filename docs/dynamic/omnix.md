@@ -162,13 +162,13 @@ The sparse design lowers FLOPs (15.25→12.07 T), memory (23727→21999 MB), and
 
 - **[DepthAnything3](../reconstruction/depth-anything-3.md)**: The feed-forward 3D reconstruction backbone OmniX is built upon; also a baseline in the depth and pose tables.
 - **[DUSt3R](../foundation/dust3r.md)**: The pioneering feed-forward dense point-map foundation the field builds on.
-- **[VGGT](../reconstruction/vggt.md)** / **[Fast3R](../reconstruction/fast3r.md)** / **[MapAnything](../reconstruction/mapanything.md)** / **[WorldMirror](../reconstruction/worldmirror.md)**: All-to-all attention feed-forward reconstruction lineage cited as scalability precursors.
+- **[VGGT](../foundation/vggt.md)** / **[Fast3R](../reconstruction/fast3r.md)** / **[MapAnything](../reconstruction/mapanything.md)** / **[WorldMirror](../reconstruction/worldmirror.md)**: All-to-all attention feed-forward reconstruction lineage cited as scalability precursors.
 - **[π3](../reconstruction/pi3.md)**: Permutation-equivariant geometry model used as a depth and pose baseline.
-- **[MonST3R](./monst3r.md)** / **[CUT3R](./cut3r.md)**: Per-frame dynamic-scene reconstruction that predicts point clouds without explicit cross-time correspondence.
-- **[VGGT4D](./vggt4d.md)** / **[PAGE-4D](./page-4d.md)** / **[Any4D](./any4d.md)**: Feed-forward 4D reconstruction baselines (VGGT4D and PAGE-4D appear in the depth/pose tables).
-- **[V-DPM](./v-dpm.md)**: Dynamic-point-maps method that predicts both camera parameters and dense trajectories; a primary comparison baseline.
-- **[D4RT](./d4rt.md)**: A flexible-querying dense dynamic reconstruction method cited as a strong but non-open-sourced approach.
-- **[Stereo4D](./stereo4d.md)**: One of the eight public datasets used to augment training.
+- **[MonST3R](monst3r.md)** / **[CUT3R](cut3r.md)**: Per-frame dynamic-scene reconstruction that predicts point clouds without explicit cross-time correspondence.
+- **[VGGT4D](vggt4d.md)** / **[PAGE-4D](page-4d.md)** / **[Any4D](any4d.md)**: Feed-forward 4D reconstruction baselines (VGGT4D and PAGE-4D appear in the depth/pose tables).
+- **[V-DPM](v-dpm.md)**: Dynamic-point-maps method that predicts both camera parameters and dense trajectories; a primary comparison baseline.
+- **[D4RT](d4rt.md)**: A flexible-querying dense dynamic reconstruction method cited as a strong but non-open-sourced approach.
+- **[Stereo4D](stereo4d.md)**: One of the eight public datasets used to augment training.
 
 ## 📚 Key Takeaways
 

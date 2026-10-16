@@ -129,7 +129,7 @@ At the strict 1° threshold, Glob3R also leads AMB3R by a wide margin: RRA@1 91.
 ## 🔗 Related Work
 
 - **[Pi3](../reconstruction/pi3.md)**: The frozen permutation-equivariant backbone (Pi3X / π³) Glob3R builds on.
-- **[VGGT](../reconstruction/vggt.md)**: Feed-forward foundation model and point-tracking baseline compared in the ablation.
+- **[VGGT](../foundation/vggt.md)**: Feed-forward foundation model and point-tracking baseline compared in the ablation.
 - **[DUSt3R](../foundation/dust3r.md)** and **[MASt3R](../foundation/mast3r.md)**: Foundational pointmap and dense-matching models underpinning this line.
 - **[AMB3R](../reconstruction/amb3r.md)**: The strongest learning-based SfM baseline compared across all benchmarks.
 

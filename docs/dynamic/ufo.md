@@ -108,9 +108,9 @@ Evaluated on the **Waymo Open Dataset (WOD)**; each segment is roughly 20 s at 1
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: Introduces the pointmap representation for reconstruction from unposed images; UFO cites it as the foundation of the unposed-image reconstruction line it extends toward driving scenes.
-- **[MonST3R](./monst3r.md)**: Extends the pointmap direction to dynamic data, cited among works UFO builds on for dynamic reconstruction.
-- **[VGGT](../reconstruction/vggt.md)** / **[Fast3R](../reconstruction/fast3r.md)**: Incorporate global attention to avoid global-alignment post-processing, cited in the feed-forward reconstruction discussion.
-- **[Spann3R](../reconstruction/spann3r.md)** / **[StreamVGGT](../reconstruction/streamvggt.md)** / **[Point3R](../reconstruction/point3r.md)** / **[CUT3R](./cut3r.md)**: Streaming reconstruction approaches UFO contrasts against — they cache/query historical features or memory but are unidirectional and do not support photorealistic NVS, whereas UFO is bidirectional and renders.
+- **[MonST3R](monst3r.md)**: Extends the pointmap direction to dynamic data, cited among works UFO builds on for dynamic reconstruction.
+- **[VGGT](../foundation/vggt.md)** / **[Fast3R](../reconstruction/fast3r.md)**: Incorporate global attention to avoid global-alignment post-processing, cited in the feed-forward reconstruction discussion.
+- **[Spann3R](../reconstruction/spann3r.md)** / **[StreamVGGT](../reconstruction/streamvggt.md)** / **[Point3R](../reconstruction/point3r.md)** / **[CUT3R](cut3r.md)**: Streaming reconstruction approaches UFO contrasts against — they cache/query historical features or memory but are unidirectional and do not support photorealistic NVS, whereas UFO is bidirectional and renders.
 
 ## 📚 Key Takeaways
 

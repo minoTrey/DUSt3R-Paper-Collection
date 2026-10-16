@@ -109,7 +109,7 @@ SCPA adds +0.97 dB over naive context-target training; ROM independently lifts t
 
 ## 🔗 Related Work
 
-- Builds on 3DVFMs: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [VGGT](../reconstruction/vggt.md), and π³ ([Pi3](../reconstruction/pi3.md)); the baseline is a view-synthesis-head variant (DepthAnything3, [Depth-Anything-3](../reconstruction/depth-anything-3.md); [WorldMirror](../reconstruction/worldmirror.md)).
+- Builds on 3DVFMs: [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md), [VGGT](../foundation/vggt.md), and π³ ([Pi3](../reconstruction/pi3.md)); the baseline is a view-synthesis-head variant (DepthAnything3, [Depth-Anything-3](../reconstruction/depth-anything-3.md); [WorldMirror](../reconstruction/worldmirror.md)).
 - Compared against pose-free feed-forward NVS: NoPoSplat, AnySplat, SPFSplat, YoNoSplat ([YoNoSplat](yonosplat.md)), and pose-required MVSplat / DepthSplat / MonoSplat.
 
 ## 📚 Key Takeaways

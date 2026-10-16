@@ -56,7 +56,7 @@ Low mean surface error can differ from a surface that looks physically plausible
 ## 🔗 Related Work
 
 - [DUSt3R](../foundation/dust3r.md): the geometry backbone and controlled baseline.
-- [VGGT](vggt.md): direct geometry-regression comparisons.
+- [VGGT](../foundation/vggt.md): direct geometry-regression comparisons.
 
 ## 📚 Key Takeaways
 

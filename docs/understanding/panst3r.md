@@ -181,7 +181,7 @@ Two limits are visible in the paper's own numbers: Replica, where LUDVIG uplifti
 - [MASt3R](../foundation/mast3r.md) — sibling in the same NAVER LABS line, matching-focused rather than segmentation-focused
 - [PE3R](pe3r.md) — another entry in this collection combining perception/semantics with feed-forward 3D
 - [Large Spatial Model](largespatialmodel.md) — related attempt at semantics + geometry in one feed-forward model
-- [VGGT](../reconstruction/vggt.md) — the contemporaneous unified-transformer alternative, geometry-only
+- [VGGT](../foundation/vggt.md) — the contemporaneous unified-transformer alternative, geometry-only
 
 ## 📚 Key Takeaways
 

@@ -188,7 +188,7 @@ VGGT is a better backbone than SAIL-Recon (H). Removing PGO (I) causes the large
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: Backbone of MAGiSt3R — jointly predicts point clouds, poses, and intrinsics per submap.
+- **[VGGT](../foundation/vggt.md)**: Backbone of MAGiSt3R — jointly predicts point clouds, poses, and intrinsics per submap.
 - **[VGGT-SLAM](vggt-slam.md)**: SL(4)-manifold optimization; used both as a baseline and, via its SL(4) merging, as an ablation alternative (B).
 - **[SLAM3R](slam3r.md)**: Its Local-to-World (L2W) module is compared against MAGMA (C); also a baseline.
 - **[MASt3R-SLAM](mast3r-slam.md)**: Real-time monocular SLAM baseline; a concurrent multi-agent lift (MA-MASt3R-SLAM) is the closest competitor.

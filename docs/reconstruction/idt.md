@@ -104,7 +104,7 @@ Metrics (원논문 Sec. 4.2): depth/normals use AbsRel, RMSE, mean angular error
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: IDT adopts a VGGT-style multi-view transformer encoder and uses per-view VGGT as a backbone-matched baseline (same backbone and training setup, but without joint multi-view attention) to isolate the effect of joint inference. VGGT is also a depth baseline (원논문 Table 2).
+- **[VGGT](../foundation/vggt.md)**: IDT adopts a VGGT-style multi-view transformer encoder and uses per-view VGGT as a backbone-matched baseline (same backbone and training setup, but without joint multi-view attention) to isolate the effect of joint inference. VGGT is also a depth baseline (원논문 Table 2).
 - **[Pi3](pi3.md)**: Cited among feed-forward multi-view transformer architectures that aggregate multi-view information in a single forward pass (원논문 Related Work, ref [28]).
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Foundational feed-forward multi-view geometry line that IDT's multi-view reasoning motivation builds on (not directly benchmarked here).
 

@@ -1,72 +1,45 @@
+<!-- PAPER-REDIRECT: docs/extensions/ott3r.md -->
+
 # OTT3R: Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute (arXiv 2026)
 
-<!-- PAPER-CARD:en -->
+This paper note moved to **[OTT3R: Multi-View 3D Reconstruction and Fast Dataset Generation at 1% Compute (arXiv 2026)](../extensions/ott3r.md)**. Open that page for the full summary, figures, source links and English card when available.
 
-[<img src="../../assets/paper-cards/en/foundation/ott3r.png" width="720" alt="English summary card for OTT3R: research problem, inputs, outputs, method, reported evidence and limitations." />](../../assets/paper-cards/en/foundation/ott3r.png)
+This compatibility notice preserves the previous URL. It is not a second paper entry. See the [path mapping](../../data/paper-path-migrations.json) for card-production identities.
 
-[Original paper](https://arxiv.org/abs/2609.36374v1) · [Full-size English card](../../assets/paper-cards/en/foundation/ott3r.png)
-<!-- /PAPER-CARD -->
+## Previous section links
 
-## 📋 Overview
+<div id="-overview"></div>
 
-- **Authors**: Brandon Leblanc, Charalambos Poullis
-- **Institution**: Concordia University
-- **Venue**: arXiv preprint (2026-09)
-- **Links**: [Paper](https://arxiv.org/abs/2609.36374)
-- **Verification**: UNKNOWN (2026-10-15; source 2609.36374v1 content reviewed; publication venue not independently confirmed)
-- **TL;DR**: Train small multi-view students from cached π3 pointmap/pose pseudo-labels, comparing general-purpose and domain-specialized models.
+[📋 Overview](../extensions/ott3r.md#-overview)
 
-## 🎯 Key Contributions
+<div id="-key-contributions"></div>
 
-1. Move expensive teacher inference into an offline cache.
-2. Distill geometry, pose and confidence jointly into a small student.
-3. Separate generalization from domain-specialization effects.
+[🎯 Key Contributions](../extensions/ott3r.md#-key-contributions)
 
-## 🔧 Technical Details
+<div id="-technical-details"></div>
 
-### Input, Output, and Problem
+[🔧 Technical Details](../extensions/ott3r.md#-technical-details)
 
-- **Input**: An uncalibrated set of RGB images.
-- **Output**: Dense pointmaps, camera poses, confidence and a pseudo-label corpus.
-- **Problem**: Large 3D models are costly to train and run; smaller models lose substantial pose accuracy on unfamiliar scenes.
+<div id="input-output-and-problem"></div>
 
-### Method
+[Input, Output, and Problem](../extensions/ott3r.md#input-output-and-problem)
 
-1. Compute and cache source-corpus pointmaps, confidence and SE(3) poses with a π3 teacher once.
-2. Train only the student using view groups sampled from the cache.
-3. Combine point, normal, pairwise-relative-camera and confidence losses.
-4. Train a separate specialized student with target-domain caches.
+<div id="method"></div>
 
-Supervision comes from the teacher. Separate student costs excluding teacher inference from full cache-generation costs.
+[Method](../extensions/ott3r.md#method)
 
-## 📊 Results
+<div id="-results"></div>
 
-**Source**: [Source PDF](https://arxiv.org/pdf/2609.36374v1), Table 1, PDF p.10.
+[📊 Results](../extensions/ott3r.md#-results)
 
-7-Scenes, π3 accuracy/completeness protocol (cm), student input 518×224. General is zero-shot; domain is specialized on 7-Scenes.
+<div id="-insights--impact"></div>
 
-| Model         | Accuracy (cm) ↓ | Completeness (cm) ↓ | FPS ↑ |
-| ------------- | --------------- | ------------------- | ----- |
-| π3 teacher    | 1.52            | 2.03                | 40    |
-| OTT3R general | 10.16           | 34.84               | 273   |
-| OTT3R domain  | 6.16            | 2.84                | 274   |
+[💡 Insights & Impact](../extensions/ott3r.md#-insights--impact)
 
-The general student does not replace the teacher. COLMAP comparisons use larger inputs and only completed scenes; the CO3D student pose table measures teacher agreement, not GT accuracy.
+<div id="-related-work"></div>
 
-## 💡 Insights & Impact
+[🔗 Related Work](../extensions/ott3r.md#-related-work)
 
-Practical value depends more on domain specialization and pose generalization than compression ratio alone.
+<div id="-key-takeaways"></div>
 
-- Teacher errors remain in pseudo-labels.
-- Do not present specialized performance as general zero-shot performance.
-
-## 🔗 Related Work
-
-- [π3](../reconstruction/pi3.md): teacher.
-- [DUSt3R](dust3r.md): pointmap-based reconstruction background.
-
-## 📚 Key Takeaways
-
-1. Amortize teacher computation through caches.
-2. Small models are fast but lose substantial OOD geometry quality.
-3. Distinguish teacher agreement from GT evaluation.
+[📚 Key Takeaways](../extensions/ott3r.md#-key-takeaways)

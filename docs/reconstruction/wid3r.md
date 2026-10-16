@@ -118,7 +118,7 @@ Training with diverse camera models improves 360° geometry and reduces variance
 ## 🔗 Related Work
 
 - **[π³ (pi3)](pi3.md)**: The backbone Wid3R initializes and extends with ray-based modules and camera tokens.
-- **[VGGT](vggt.md)**: Multi-view feed-forward baseline compared on pose and point maps.
+- **[VGGT](../foundation/vggt.md)**: Multi-view feed-forward baseline compared on pose and point maps.
 - **[Fisheye3R](fisheye3r.md)**: Related feed-forward reconstruction targeting fisheye distortion.
 - **[DUSt3R](../foundation/dust3r.md)**, **[Spann3R](spann3r.md)**: Foundational feed-forward reconstruction formulations discussed as lineage.
 

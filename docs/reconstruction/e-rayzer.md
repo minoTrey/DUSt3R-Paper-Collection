@@ -198,7 +198,7 @@ The two models show similar scaling behavior — broader training distributions 
 
 ## 🔗 Related Work
 
-- [VGGT](vggt.md) — the supervised reference point (reproduced as VGGT*) and the architectural template for the alternating local-global transformer
+- [VGGT](../foundation/vggt.md) — the supervised reference point (reproduced as VGGT*) and the architectural template for the alternating local-global transformer
 - [DUSt3R](../foundation/dust3r.md) — pixel-aligned pointmap prediction; also the source of the StaticThings3D image pairs used for flow evaluation
 - [MASt3R](../foundation/mast3r.md) — the densely supervised model SPFSplat is initialized from
 - [CroCo v2](../foundation/croco-v2.md) — cross-view completion pre-training, a probing baseline

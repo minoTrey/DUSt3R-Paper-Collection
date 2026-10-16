@@ -224,7 +224,7 @@ MonoFusion still holds SSIM and LPIPS on ExoRecon; DGGT edges PSNR at extreme N3
 - [CUT3R](cut3r.md) — streaming dynamic reconstruction with a persistent state.
 - [InstantSplat](../gaussian-splatting/instantsplat.md) — pose-free Gaussian splatting for static sparse views.
 - [PAGE-4D](page-4d.md) — another 4D perception model built on a static geometry foundation model.
-- [VGGT](../reconstruction/vggt.md) — the alternating within-view / cross-view attention pattern DA3 and this work inherit.
+- [VGGT](../foundation/vggt.md) — the alternating within-view / cross-view attention pattern DA3 and this work inherit.
 
 ## 📚 Key Takeaways
 

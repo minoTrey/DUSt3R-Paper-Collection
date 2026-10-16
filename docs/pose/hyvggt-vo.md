@@ -109,7 +109,7 @@ _Overall architecture of the proposed HyVGGT-VO framework (원논문 Fig. 2)_
 
 ## 🔗 Related Work
 
-- **[VGGT](../reconstruction/vggt.md)**: the feed-forward backbone whose tracking head, poses and dense geometry HyVGGT-VO couples into a traditional VO pipeline.
+- **[VGGT](../foundation/vggt.md)**: the feed-forward backbone whose tracking head, poses and dense geometry HyVGGT-VO couples into a traditional VO pipeline.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: pioneering feed-forward pointmap regression cited as precursors; MASt3R-SLAM is a compared baseline.
 - **[Fast3R](../reconstruction/fast3r.md)** / **[Spann3R](../reconstruction/spann3r.md)**: feed-forward methods extending DUSt3R/MASt3R to sequential processing, cited in related work.
 - **[VGGT-Long](../reconstruction/vggt-long.md)**: chunk-and-align long-sequence VGGT SLAM whose sub-graph scale propagation this paper critiques and improves upon.

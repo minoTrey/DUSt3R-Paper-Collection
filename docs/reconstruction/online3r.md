@@ -101,7 +101,7 @@ Online learning adds a marginal FPS cost (13.2 → 10.0) while significantly imp
 - **[DUSt3R](../foundation/dust3r.md)**: The feed-forward pointmap foundation the lineage builds on.
 - **[Test3R](test3r.md)**: Introduced prompt tuning to geometry foundation models for offline consistency; Online3R adapts the idea to efficient online tuning.
 - **[Spann3R](spann3r.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[Point3R](point3r.md)**: Online sequential reconstruction baselines compared against.
-- **[VGGT](vggt.md)**: Multi-view alternating-attention foundation model referenced for its memory limits in sequential settings.
+- **[VGGT](../foundation/vggt.md)**: Multi-view alternating-attention foundation model referenced for its memory limits in sequential settings.
 
 ## 📚 Key Takeaways
 

@@ -100,7 +100,7 @@ Both mechanisms matter, especially for LPIPS: without adaptive density highly-de
 
 ## 🔗 Related Work
 
-- Fine-tunes [VGGT](../reconstruction/vggt.md) like AnySplat but with a detection decoder; contrasts with pixel-aligned feed-forward 3DGS (PixelSplat, DepthAnything3-GS) and voxel-aligned aggregation, and with MVSplat's plane-sweep cost volume (also a regular grid).
+- Fine-tunes [VGGT](../foundation/vggt.md) like AnySplat but with a detection decoder; contrasts with pixel-aligned feed-forward 3DGS (PixelSplat, DepthAnything3-GS) and voxel-aligned aggregation, and with MVSplat's plane-sweep cost volume (also a regular grid).
 - Positioned among pose-free feed-forward methods NoPoSplat, Splatt3R, SPFSplat, PF3Splat, VicaSplat, FLARE, built on [DUSt3R](../foundation/dust3r.md)/[MASt3R](../foundation/mast3r.md) foundations.
 - Borrows keypoint-detection tools (SuperPoint, DSNT) and entropy-based adaptive patching (APT) for primitive allocation.
 

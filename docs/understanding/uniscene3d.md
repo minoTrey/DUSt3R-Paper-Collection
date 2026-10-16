@@ -133,7 +133,7 @@ Early summation fusion with pretrained patch-embedding weights beats concat+proj
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: Feed-forward pointmap prediction that made scene-level pointmaps a practical modality for representation learning.
-- **[VGGT](../reconstruction/vggt.md)**: Geometry foundation model producing dense pointmaps of the kind UniScene3D consumes.
+- **[VGGT](../foundation/vggt.md)**: Geometry foundation model producing dense pointmaps of the kind UniScene3D consumes.
 - **[Large Spatial Model](largespatialmodel.md)**: Related unposed-image-to-semantic-3D work in this collection.
 - POMA-3D (not in this collection): the closest prior pointmap-only representation method, which UniScene3D consistently outperforms by adding appearance and cross-view alignment.
 

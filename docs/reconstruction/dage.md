@@ -113,10 +113,10 @@ _Overview of DAGE (원논문 Fig. 2)_
 
 ## 🔗 Related Work
 
-- **[Pi3](./pi3.md)**: alternating-attention teacher used for LR-stream distillation/initialization and the main comparison.
-- **[VGGT](./vggt.md)**: global-attention feed-forward baseline whose quadratic cost DAGE sidesteps.
-- **[MoGe-2](./moge-2.md)** / **[MoGe](./moge.md)**: single-view geometry model providing DAGE's frozen HR backbone and gradient-loss design.
-- **[CUT3R](../dynamic/cut3r.md)** / **[Fast3R](./fast3r.md)** / **[MapAnything](./mapanything.md)** / **[DUSt3R](../foundation/dust3r.md)**: feed-forward reconstruction baselines compared on reconstruction/pose.
+- **[Pi3](pi3.md)**: alternating-attention teacher used for LR-stream distillation/initialization and the main comparison.
+- **[VGGT](../foundation/vggt.md)**: global-attention feed-forward baseline whose quadratic cost DAGE sidesteps.
+- **[MoGe-2](moge-2.md)** / **[MoGe](moge.md)**: single-view geometry model providing DAGE's frozen HR backbone and gradient-loss design.
+- **[CUT3R](../dynamic/cut3r.md)** / **[Fast3R](fast3r.md)** / **[MapAnything](mapanything.md)** / **[DUSt3R](../foundation/dust3r.md)**: feed-forward reconstruction baselines compared on reconstruction/pose.
 
 ## 📚 Key Takeaways
 

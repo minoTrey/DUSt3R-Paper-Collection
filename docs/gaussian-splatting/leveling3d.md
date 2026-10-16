@@ -104,7 +104,7 @@ Test-time mask refinement (d) recovers SSIM sharply (0.392 → 0.610) by prevent
 
 ## 🔗 Related Work
 
-- Built on the feed-forward 3DGS backbone AnySplat, itself distilled from [VGGT](../reconstruction/vggt.md); situated among pose-free feed-forward methods NoPoSplat, Splatt3R, PF3plat, FLARE, VolSplat and the [MASt3R](../foundation/mast3r.md)/[DUSt3R](../foundation/dust3r.md) geometry lineage.
+- Built on the feed-forward 3DGS backbone AnySplat, itself distilled from [VGGT](../foundation/vggt.md); situated among pose-free feed-forward methods NoPoSplat, Splatt3R, PF3plat, FLARE, VolSplat and the [MASt3R](../foundation/mast3r.md)/[DUSt3R](../foundation/dust3r.md) geometry lineage.
 - Contrasts with diffusion-as-post-processor artifact repair (Difix3D+, GSFixer, GSFix3D, ViewExtrapolator) that operate on 2D renderings without geometric awareness; uses [Pi3](../reconstruction/pi3.md)-style depth protocols and Met3R for multi-view consistency.
 - Adapter control relates to T2I-Adapter and ControlNet, which Leveling3D outperforms by adding geometry conditioning.
 

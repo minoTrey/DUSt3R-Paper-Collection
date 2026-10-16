@@ -72,7 +72,7 @@ FAST3DIS outperforms its primary baseline IGGT on ScanNet V2, ScanNet++ and Repl
 - **[Depth Anything 3](../reconstruction/depth-anything-3.md)**: The frozen geometric backbone (DA3) that FAST3DIS LoRA-adapts.
 - **[IGGT](iggt.md)**: The post-hoc clustering class-agnostic 3D instance segmentation baseline FAST3DIS is primarily positioned against.
 - **[PanSt3R](panst3r.md)**: Feed-forward multi-view panoptic segmentation on MUSt3R, a related baseline.
-- **[VGGT](../reconstruction/vggt.md)**, **[Fast3R](../reconstruction/fast3r.md)** & **[DUSt3R](../foundation/dust3r.md)**: Feed-forward reconstruction models providing the geometric foundation.
+- **[VGGT](../foundation/vggt.md)**, **[Fast3R](../reconstruction/fast3r.md)** & **[DUSt3R](../foundation/dust3r.md)**: Feed-forward reconstruction models providing the geometric foundation.
 
 ## 📚 Key Takeaways
 

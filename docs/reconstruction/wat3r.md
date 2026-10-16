@@ -119,7 +119,7 @@ Synthetic underwater rendering already improves over VGGT; real video plus stron
 
 ## 🔗 Related Work
 
-- **[VGGT](vggt.md)**: The feed-forward backbone Wat3R adapts to underwater scenes.
+- **[VGGT](../foundation/vggt.md)**: The feed-forward backbone Wat3R adapts to underwater scenes.
 - **[π³ (pi3)](pi3.md)**, **[Fast3R](fast3r.md)**, **[Depth Anything 3 (DA3)](depth-anything-3.md)**: Feed-forward reconstruction / depth baselines compared across underwater tasks.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)**: Foundational feed-forward reconstruction lineage.
 

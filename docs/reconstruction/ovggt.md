@@ -96,7 +96,7 @@ Performance degrades with an excessively small budget, stabilizes at 200K, and y
 ## 🔗 Related Work
 
 - **[StreamVGGT](streamvggt.md)**: The full-cache causal baseline OVGGT is built on and improves.
-- **[VGGT](vggt.md)**: The offline all-to-all attention model whose quadratic cost motivates streaming variants.
+- **[VGGT](../foundation/vggt.md)**: The offline all-to-all attention model whose quadratic cost motivates streaming variants.
 - **[Evict3R](evict3r.md)** & **[InfiniteVGGT](infinitevggt.md)**: The most directly related fixed-budget cache-management baselines, also built on StreamVGGT.
 - **[Spann3R](spann3r.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[TTT3R](ttt3r.md)**, **[Point3R](point3r.md)**: Streaming reconstruction baselines with recurrent or pointer memory.
 - **[DUSt3R](../foundation/dust3r.md)** & **[MASt3R](../foundation/mast3r.md)**: The pairwise foundation lineage.

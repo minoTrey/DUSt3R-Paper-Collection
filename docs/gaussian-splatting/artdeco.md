@@ -200,7 +200,7 @@ ARTDECO sits between OnTheFly-NVS (0.74–2.29 min, but 15–18 PSNR on hard sce
 - [MASt3R](../foundation/mast3r.md) — instantiates the matching/tracking module; the ablation shows it cannot be freely substituted
 - [MASt3R-SLAM](../reconstruction/mast3r-slam.md) — the tracking formulation ARTDECO follows, and its strongest ATE competitor
 - [π³](../reconstruction/pi3.md) — instantiates the loop-detection module
-- [VGGT](../reconstruction/vggt.md) — evaluated as an alternative loop-detection backbone and found worse than π³ here
+- [VGGT](../foundation/vggt.md) — evaluated as an alternative loop-detection backbone and found worse than π³ here
 - [DUSt3R](../foundation/dust3r.md) — origin of the pointmap prior this pipeline consumes
 - [InstantSplat](instantsplat.md) — related feed-forward-prior + Gaussian optimization hybrid
 - [DAS3R](das3r.md) and [PreF3R](pref3r.md) — other DUSt3R-family Gaussian reconstruction entries

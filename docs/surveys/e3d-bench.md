@@ -147,7 +147,7 @@ All evaluations use GPU setups, following prior GFM studies. The authors call fo
 This benchmark evaluates many papers already in this collection:
 
 - [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md) — the pairwise baselines
-- [VGGT](../reconstruction/vggt.md) — the consistent top performer across tasks
+- [VGGT](../foundation/vggt.md) — the consistent top performer across tasks
 - [Fast3R](../reconstruction/fast3r.md) — architecturally similar to VGGT, consistently weaker
 - [Spann3R](../reconstruction/spann3r.md) and [CUT3R](../dynamic/cut3r.md) — the online-registration models that win on efficiency
 - [MonST3R](../dynamic/monst3r.md), [Align3R](../dynamic/align3r.md), [Easi3R](../dynamic/easi3r.md), [Geo4D](../dynamic/geo4d.md) — the dynamic/video branch
