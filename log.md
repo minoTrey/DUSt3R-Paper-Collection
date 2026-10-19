@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Register the next 36 completed dedicated thumbnails
+
+Add 36 master/320px-reviewed method illustrations with original-paper revision provenance and independent uncropped WebP deliveries. The completed set reaches 71; 266 remain. MVID v3, FlowR v2 and VoT v1 source identities are now verified against their existing cards; thumbnail scopes explicitly retain those baselines and record the differences from older note text. Do not silently substitute newer CalfVO v5 or rewrite existing notes/cards. All original summaries and detailed bodies remain unchanged. The preceding 35-thumbnail main deployment has been verified publicly.
+
 ## [2026-10-19] Add 24 reviewed method thumbnails across five categories
 
 Register 24 completed dedicated illustrations from parallel paper-source and visual review. Preserve unchanged generated masters, separate uncropped optimized WebP deliveries and original-paper revision/method provenance. Every master and actual 320px preview passed visual inspection. Site validation retains all 337 original summary hashes and 5,089 detail links. The completed set reaches 35, with 302 remaining; the preceding 11-image main deployment is publicly verified. Existing note bodies, visual summaries, permissions and discovery schedules remain intact.
