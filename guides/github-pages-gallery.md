@@ -1,6 +1,6 @@
 # GitHub Pages paper gallery
 
-The English gallery reads the canonical `docs/<category>/<slug>.md` notes and existing PNG assets. Markdown and reviewed PNGs remain the content source; generated HTML is not edited or committed. Original full summary PNGs remain unchanged. Separate reviewed landscape thumbnails have optimized WebP deliveries; pending papers show their complete original summary. Both use contain sizing. Detail pages show the original full poster and substantive note sections.
+The English gallery reads the canonical `docs/<category>/<slug>.md` notes and existing PNG assets. Markdown and reviewed PNGs remain the content source; generated HTML is not edited or committed. All 337 canonical papers have separate reviewed landscape thumbnails with optimized WebP deliveries. Original full summary PNGs remain unchanged. Future entries without dedicated art show their complete original summary. Both use contain sizing. Detail pages show the original full poster and substantive note sections.
 
 ## Build and preview
 
