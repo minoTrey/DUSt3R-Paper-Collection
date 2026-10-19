@@ -2,6 +2,27 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
+function webpDimensions(bytes) {
+  if (bytes.toString("ascii", 0, 4) !== "RIFF" || bytes.toString("ascii", 8, 12) !== "WEBP")
+    throw new Error("Invalid WebP signature.");
+  for (let offset = 12; offset + 8 <= bytes.length;) {
+    const type = bytes.toString("ascii", offset, offset + 4);
+    const size = bytes.readUInt32LE(offset + 4);
+    const start = offset + 8;
+    if (start + size > bytes.length) throw new Error("Truncated WebP chunk.");
+    if (type === "VP8X" && size >= 10)
+      return [1 + bytes.readUIntLE(start + 4, 3), 1 + bytes.readUIntLE(start + 7, 3)];
+    if (type === "VP8 " && size >= 10 && bytes.toString("hex", start + 3, start + 6) === "9d012a")
+      return [bytes.readUInt16LE(start + 6) & 0x3fff, bytes.readUInt16LE(start + 8) & 0x3fff];
+    if (type === "VP8L" && size >= 5 && bytes[start] === 0x2f) {
+      const dimensions = bytes.readUInt32LE(start + 1);
+      return [1 + (dimensions & 0x3fff), 1 + ((dimensions >>> 14) & 0x3fff)];
+    }
+    offset = start + size + (size % 2);
+  }
+  throw new Error("WebP dimensions were not found.");
+}
+
 // Listing art has its own identity and review. Full visual summaries never act as thumbnails.
 export function loadThumbnails(root, inventory) {
   const manifest = JSON.parse(
@@ -27,7 +48,24 @@ export function loadThumbnails(root, inventory) {
       throw new Error("Thumbnail dimensions must match a landscape 16:9 asset: " + id);
     if (crypto.createHash("sha256").update(bytes).digest("hex") !== item.sha256)
       throw new Error("Thumbnail bytes changed after review: " + id);
-    if (!item.alt || !item.caption || item.review?.status !== "pilot_visual_reviewed")
+    const web = item.delivery;
+    if (
+      !web ||
+      web.path !== `assets/paper-thumbnails/en/${id}.webp` ||
+      web.source_sha256 !== item.sha256
+    )
+      throw new Error("Thumbnail delivery must identify its canonical original: " + id);
+    const delivered = fs.readFileSync(path.join(root, web.path));
+    const [width, height] = webpDimensions(delivered);
+    if (width !== web.width || height !== web.height || width / height !== 16 / 9)
+      throw new Error("Thumbnail delivery dimensions must match a 16:9 WebP: " + id);
+    if (crypto.createHash("sha256").update(delivered).digest("hex") !== web.sha256)
+      throw new Error("Thumbnail delivery bytes changed after review: " + id);
+    if (
+      !item.alt ||
+      !item.caption ||
+      !["pilot_visual_reviewed", "visual_reviewed"].includes(item.review?.status)
+    )
       throw new Error("Thumbnail requires accessible text and a recorded review: " + id);
   }
   return manifest;
@@ -35,5 +73,7 @@ export function loadThumbnails(root, inventory) {
 
 export function thumbnailFor(id, manifest) {
   const item = manifest.thumbnails[id];
-  return item ? { kind: "image", ...item } : { kind: "text", ...manifest.fallback };
+  return item
+    ? { kind: "image", ...item, ...item.delivery, masterPath: item.path }
+    : { kind: "text", ...manifest.fallback };
 }

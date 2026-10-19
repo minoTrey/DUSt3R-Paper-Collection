@@ -3,6 +3,14 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Complete and optimize the five Foundation thumbnails
+
+Added CroCo and CroCo v2 to the approved DUSt3R/MASt3R/VGGT thumbnail set with the official built-in image generation tool. Read CroCo revision v2 and CroCo v2 revision v3 original-paper Section 3 and the cross-view completion figures: both CroCo thumbnails show masked target plus reference view reconstructing target-view RGB during pre-training. They do not depict disparity/flow fine-tuning outputs or direct 3D pointmaps. Original full-size summaries, detailed notes and prior thumbnail PNGs remain unchanged.
+
+Created separate no-crop 960×540 WebP delivery files for all five Foundation images. Total listing artwork is 564,056 bytes rather than 11,797,530 bytes of PNG masters; original generated PNGs are retained for review/provenance. Metadata validates original and delivery identities, hashes and dimensions. The existing responsive 16:9 layout and text/error fallback are carried forward from the reviewed pilot. Only these five thumbnails are produced in this change.
+
+Exported 332 unassigned jobs with canonical IDs, original source/revision references, note/poster hashes, output paths and shared design/review specifications for parent-coordinated production. Open FVO/CalfVO, IDT/MVID and FlowR source issues are attached to the affected jobs. The export assigns no work and generates no images. Existing permissions, credentials and scheduled discovery are preserved. Publication proceeds through the existing reviewed PR/main Pages workflow; pre-merge validation is recorded separately from subsequent public checks.
+
 ## [2026-10-19] Prepare a local three-paper thumbnail pilot
 
 Created dedicated landscape listing artwork for DUSt3R, MASt3R and VGGT with the official built-in image generation tool. The new English compositions retain the source posters' cream/forest-green palette and show only the method name, short input/output caption and conceptual scene. They are separate assets, not portrait-poster crops. Their source identities, original PNG dimensions/hashes, prompts and review scope are recorded in `data/paper-thumbnails.json`. The current gallery chrome is unchanged.

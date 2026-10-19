@@ -5,10 +5,10 @@ import { chromium } from "playwright";
 
 const base = process.env.SITE_URL || "http://127.0.0.1:4177/DUSt3R-Paper-Collection/";
 assert.ok(
-  new URL(base).hostname === "127.0.0.1" || new URL(base).hostname === "localhost",
-  "Pilot validation is local only.",
+  ["127.0.0.1", "localhost", "minotrey.github.io"].includes(new URL(base).hostname),
+  "Use the local preview or approved public gallery.",
 );
-const output = path.resolve("site-test-results/thumbnail-pilot");
+const output = path.resolve("site-test-results/foundation-thumbnails");
 fs.mkdirSync(output, { recursive: true });
 fs.rmSync(path.join(output, "report.json"), { force: true });
 const profile = fs.mkdtempSync(path.join(output, "profile-"));
@@ -31,11 +31,15 @@ try {
     [360, 800],
   ]) {
     await page.setViewportSize({ width, height });
-    await page.goto(base + "thumbnail-preview/", { waitUntil: "domcontentloaded" });
-    for (const slug of ["dust3r", "mast3r", "vggt"]) {
+    await page.goto(base + "?category=foundation", { waitUntil: "domcontentloaded" });
+    for (const slug of ["croco", "croco-v2", "dust3r", "mast3r", "vggt"]) {
       const card = page.locator(`[data-paper="foundation/${slug}"]`);
       await card.scrollIntoViewIfNeeded();
       const image = card.locator("img");
+      await page.waitForFunction((id) => {
+        const img = document.querySelector(`[data-paper="foundation/${id}"] img`);
+        return img?.complete && img.naturalWidth > 0;
+      }, slug);
       await image.evaluate((img) => img.decode());
       const frame = await card.locator(".paper-image").boundingBox();
       assert.ok(Math.abs(frame.width / frame.height - 16 / 9) < 0.01);
@@ -44,7 +48,7 @@ try {
         `${width}px ${slug}: image width ${frame.width}`,
       );
       assert.equal(await image.evaluate((img) => getComputedStyle(img).objectFit), "contain");
-      assert.equal(await image.getAttribute("width"), "1672");
+      assert.equal(await image.getAttribute("width"), "960");
       await card
         .locator(".paper-image")
         .screenshot({ path: path.join(output, `${width}-${slug}.png`) });
@@ -64,7 +68,7 @@ try {
     await page.screenshot({ path: path.join(output, `${width}-preview.png`), fullPage: true });
   }
   report.checks.push(
-    "Three sample images: 16:9, full composition, desktop/tablet/390px/360px with no page overflow.",
+    "Five Foundation images: 16:9, full composition, desktop/tablet/390px/360px with no page overflow.",
   );
   const requested = [];
   page.on("request", (r) => requested.push(r.url()));
@@ -72,18 +76,18 @@ try {
   assert.equal(await page.locator(".paper-item:not([hidden])").count(), 5);
   assert.equal(
     await page.locator('.paper-item:not([hidden]) [data-thumbnail-kind="image"]').count(),
-    3,
+    5,
   );
   assert.equal(
     await page.locator('.paper-item:not([hidden]) [data-thumbnail-kind="text"]').count(),
-    2,
+    0,
   );
   assert.equal(
     requested.some((u) => u.includes("/paper-cards/")),
     false,
   );
   report.checks.push(
-    "Real filtered gallery: three dedicated thumbnails, two text fallbacks, no full-poster requests.",
+    "Real filtered gallery: five dedicated thumbnails, no text fallbacks, no full-poster requests.",
   );
   await page.goto(base + "papers/foundation/dust3r/", { waitUntil: "domcontentloaded" });
   const poster = page.locator(".detail-poster");
@@ -94,8 +98,8 @@ try {
   await page.screenshot({ path: path.join(output, "mobile-original-detail.png"), fullPage: false });
   report.checks.push("Detail retains the original 1086×1448 visual summary.");
   const broken = await context.newPage();
-  await broken.route("**/paper-thumbnails/en/foundation/dust3r.png", (route) => route.abort());
-  await broken.goto(base + "thumbnail-preview/", { waitUntil: "domcontentloaded" });
+  await broken.route("**/paper-thumbnails/en/foundation/dust3r.webp", (route) => route.abort());
+  await broken.goto(base + "?category=foundation", { waitUntil: "domcontentloaded" });
   const frame = broken.locator('[data-paper="foundation/dust3r"] .paper-image');
   await frame.scrollIntoViewIfNeeded();
   await frame.locator("[data-thumbnail-fallback]").waitFor({ state: "visible" });

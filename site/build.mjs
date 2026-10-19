@@ -213,11 +213,11 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, "index.html"), shell("Research library", intro + filters));
 if (args.includes("--thumbnail-preview")) {
-  const samples = ["dust3r", "mast3r", "vggt"].map((s) =>
+  const samples = ["croco", "croco-v2", "dust3r", "mast3r", "vggt"].map((s) =>
     papers.find((p) => p.id === "foundation/" + s),
   );
-  const fallback = papers.find((p) => p.id === "foundation/croco");
-  const preview = `<section class="thumbnail-study"><h1>Three methods. A clearer first look.</h1><p>Dedicated listing thumbnails. Full visual summaries stay in the paper details.</p><div class="paper-grid">${samples.map((p) => listingCard(p)).join("")}</div><h2>When a thumbnail is unavailable</h2><div class="fallback-example">${listingCard(fallback, true)}</div></section>`;
+  const fallback = papers.find((p) => p.id === "extensions/filt3r");
+  const preview = `<section class="thumbnail-study"><h1>Five foundations. A clearer first look.</h1><p>Dedicated listing thumbnails. Full visual summaries stay in the paper details.</p><div class="paper-grid">${samples.map((p) => listingCard(p)).join("")}</div><h2>When a thumbnail is unavailable</h2><div class="fallback-example">${listingCard(fallback, true)}</div></section>`;
   fs.mkdirSync(path.join(output, "thumbnail-preview"));
   fs.writeFileSync(
     path.join(output, "thumbnail-preview/index.html"),

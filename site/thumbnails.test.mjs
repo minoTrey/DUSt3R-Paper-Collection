@@ -10,9 +10,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const inventory = JSON.parse(
   fs.readFileSync(path.join(root, "data/paper-card-inventory.json"), "utf8"),
 );
-test("all three dedicated images retain canonical source identities and reviewed bytes", () => {
+test("all five dedicated images retain canonical source identities and reviewed bytes", () => {
   const manifest = loadThumbnails(root, inventory);
   assert.deepEqual(Object.keys(manifest.thumbnails).sort(), [
+    "foundation/croco",
+    "foundation/croco-v2",
     "foundation/dust3r",
     "foundation/mast3r",
     "foundation/vggt",
@@ -20,7 +22,7 @@ test("all three dedicated images retain canonical source identities and reviewed
   assert.equal(thumbnailFor("foundation/dust3r", manifest).kind, "image");
 });
 test("a paper without dedicated art gets text, never a full-poster fallback", () => {
-  const fallback = thumbnailFor("foundation/croco", loadThumbnails(root, inventory));
+  const fallback = thumbnailFor("extensions/filt3r", loadThumbnails(root, inventory));
   assert.equal(fallback.kind, "text");
   assert.equal(fallback.path, undefined);
 });
@@ -34,6 +36,8 @@ function invalid(edit, pattern) {
     const target = path.join(fixture, item.path);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(path.join(root, item.path), target);
+    const delivery = path.join(fixture, item.delivery.path);
+    fs.copyFileSync(path.join(root, item.delivery.path), delivery);
     edit(item);
     fs.writeFileSync(path.join(fixture, "data/paper-thumbnails.json"), JSON.stringify(manifest));
     assert.throws(() => loadThumbnails(fixture, inventory), pattern);
@@ -50,3 +54,8 @@ test("changed image bytes require a new review hash", () =>
   invalid((p) => (p.sha256 = "0".repeat(64)), /bytes changed/));
 test("portrait or misrecorded dimensions are rejected", () =>
   invalid((p) => (p.width = 100), /dimensions/));
+
+test("delivery must retain the reviewed original identity", () =>
+  invalid((p) => (p.delivery.source_sha256 = "0".repeat(64)), /canonical original/));
+test("delivery byte changes require a renewed hash", () =>
+  invalid((p) => (p.delivery.sha256 = "0".repeat(64)), /delivery bytes changed/));
