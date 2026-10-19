@@ -37,6 +37,8 @@ export function loadThumbnails(root, inventory) {
     const paper = papers.get(id);
     if (!paper || paper.paper_source_identity !== item.source_identity)
       throw new Error("Thumbnail source identity does not match canonical paper: " + id);
+    if (!paper.note_sha256 || item.review?.source_note_content_sha256 !== paper.note_sha256)
+      throw new Error("Thumbnail source note hash does not match canonical note content: " + id);
     if (item.path !== `assets/paper-thumbnails/en/${id}.png`)
       throw new Error("Thumbnail must have its separate canonical asset path: " + id);
     const bytes = fs.readFileSync(path.join(root, item.path));

@@ -51,6 +51,9 @@ try {
   await count(1);
   await visible().locator(".paper-title").click();
   await page.waitForSelector("[data-back]");
+  await page.waitForFunction(() =>
+    new URL(document.querySelector("[data-back]").href).searchParams.has("year"),
+  );
   const back = new URL(await page.locator("[data-back]").getAttribute("href"), base);
   for (const [key, value] of Object.entries({
     q: "DUSt3R",
