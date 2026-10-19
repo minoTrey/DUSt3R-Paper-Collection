@@ -16,15 +16,16 @@ const context = await chromium.launchPersistentContext(
 );
 const page = context.pages()[0];
 const errors = [];
+const manifest = await (await context.request.get(base + "build-manifest.json")).json();
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("response", (r) => {
   if (r.url().startsWith(base) && r.status() >= 400) errors.push(r.status() + " " + r.url());
 });
 const report = {
   url: base,
-  actual_listing_images: 337,
-  dedicated_images: 5,
-  complete_original_summaries: 332,
+  actual_listing_images: manifest.papers,
+  dedicated_images: manifest.dedicatedThumbnails,
+  complete_original_summaries: manifest.summaryFallbacks,
   text_only_cards: 0,
   layouts: [],
   errors,
@@ -38,9 +39,15 @@ try {
   ]) {
     await page.setViewportSize({ width, height });
     await page.goto(base + "?category=dynamic", { waitUntil: "domcontentloaded" });
-    assert.equal(await page.locator(".paper-image img").count(), 337);
-    assert.equal(await page.locator('[data-thumbnail-kind="visual_summary"]').count(), 332);
-    assert.equal(await page.locator('[data-thumbnail-kind="image"]').count(), 5);
+    assert.equal(await page.locator(".paper-image img").count(), manifest.papers);
+    assert.equal(
+      await page.locator('[data-thumbnail-kind="visual_summary"]').count(),
+      manifest.summaryFallbacks,
+    );
+    assert.equal(
+      await page.locator('[data-thumbnail-kind="image"]').count(),
+      manifest.dedicatedThumbnails,
+    );
     assert.equal(await page.locator('.paper-fallback, [data-thumbnail-kind="text"]').count(), 0);
     const card = page.locator(".paper-item:not([hidden])").first();
     await card.evaluate((el) =>
