@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Add 27 reconstruction and evaluation thumbnails
+
+Register 27 source-reviewed illustrations, including explicit camera/IMU inputs for DAVIO, event-only geometry for Event3R, iterative denoising for GARD and cross-view consistency evaluation for MEt3R. Every original master and actual 320px image passed; all original summaries and note bodies remain unchanged. The registered set reaches 146, with 191 remaining. Build checks retain all 337 original PNG hashes and 5,426 detail links, and 26 Node tests pass. The preceding 119-thumbnail deployment is verified against every public delivery hash/MIME and preserved detail poster. Year/month/day filters are already publicly verified at desktop and mobile widths.
+
 ## [2026-10-19] Add 48 reviewed thumbnails and normalize provenance hashes
 
 Register 48 completed original-paper method illustrations with unchanged PNG masters and separate uncropped WebP deliveries. All masters and actual 320px previews passed; representative gallery checks at 1440/390/360/320px preserve the original detail posters. The registered set reaches 119, with 218 remaining. Correct 66 earlier thumbnail provenance entries that used whole-file note bytes instead of canonical LF-normalized content excluding generated card blocks. All 337 existing note bodies match the canonical inventory; no notes or summary images changed. Add a validator and two regression tests that reject this hash-basis mismatch. The preceding 71-thumbnail public checkpoint is verified.
