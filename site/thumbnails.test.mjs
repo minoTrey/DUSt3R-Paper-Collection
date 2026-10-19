@@ -21,10 +21,14 @@ test("all five dedicated images retain canonical source identities and reviewed 
   ]);
   assert.equal(thumbnailFor("foundation/dust3r", manifest).kind, "image");
 });
-test("a paper without dedicated art gets text, never a full-poster fallback", () => {
-  const fallback = thumbnailFor("extensions/filt3r", loadThumbnails(root, inventory));
-  assert.equal(fallback.kind, "text");
-  assert.equal(fallback.path, undefined);
+test("a paper without dedicated art retains its complete original summary image", () => {
+  const fallback = thumbnailFor("extensions/filt3r", loadThumbnails(root, inventory), {
+    path: "assets/paper-cards/en/extensions/filt3r.png",
+    width: 1086,
+    height: 1448,
+  });
+  assert.equal(fallback.kind, "visual_summary");
+  assert.equal(fallback.path, "assets/paper-cards/en/extensions/filt3r.png");
 });
 function invalid(edit, pattern) {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "paper-thumbnails-test-"));
@@ -59,3 +63,9 @@ test("delivery must retain the reviewed original identity", () =>
   invalid((p) => (p.delivery.source_sha256 = "0".repeat(64)), /canonical original/));
 test("delivery byte changes require a renewed hash", () =>
   invalid((p) => (p.delivery.sha256 = "0".repeat(64)), /delivery bytes changed/));
+
+test("missing artwork cannot become a text-only replacement", () =>
+  assert.throws(
+    () => thumbnailFor("extensions/filt3r", loadThumbnails(root, inventory)),
+    /visual-summary image is required/,
+  ));

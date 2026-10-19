@@ -39,6 +39,7 @@ def produce():
             "language": "English", "aspect_ratio": "16:9", "original_reference_dimensions": [1672, 941], "delivery_dimensions": [960, 540],
             "palette": {"cream": "#FAF7EE", "forest_green": "#103F2D", "sage": "#DCE8C8", "lime": "#BFE35B"},
             "composition": "Large short method name, one short input-to-output or core-method caption, one concrete conceptual scene/diagram. Readable at 316px. No paragraphs, result tables or benchmark numbers.",
+            "listing_fallback": "Use the complete existing visual summary with contain and its original aspect ratio until approved dedicated art exists. Never use a text-only replacement.",
             "scientific_review": "Read the matching original paper before selecting inputs, outputs and core contribution. Separate pre-training, inference and downstream fine-tuning. Conceptual diagrams are not measured outputs. Resolve recorded source issues before making content claims.",
             "source_preservation": "Keep all full-size visual summaries and note bodies. Create new landscape art, never a portrait-poster crop. Preserve generated PNG bytes and register a separate no-crop optimized WebP derivative with hashes.",
             "coordination": "Claim a canonical record_id before generation, record owner/batch outside this unassigned snapshot, and exclude the five already_handled IDs. Check current migrations and thumbnail manifest before importing. Do not overwrite another worker's asset.",

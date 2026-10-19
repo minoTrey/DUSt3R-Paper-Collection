@@ -87,7 +87,7 @@ try {
     false,
   );
   report.checks.push(
-    "Real filtered gallery: five dedicated thumbnails, no text fallbacks, no full-poster requests.",
+    "Real filtered gallery: five dedicated method-illustration thumbnails; original-summary images are used by other papers.",
   );
   await page.goto(base + "papers/foundation/dust3r/", { waitUntil: "domcontentloaded" });
   const poster = page.locator(".detail-poster");
@@ -102,11 +102,17 @@ try {
   await broken.goto(base + "?category=foundation", { waitUntil: "domcontentloaded" });
   const frame = broken.locator('[data-paper="foundation/dust3r"] .paper-image');
   await frame.scrollIntoViewIfNeeded();
-  await frame.locator("[data-thumbnail-fallback]").waitFor({ state: "visible" });
-  assert.equal(await frame.locator("img").isVisible(), false);
-  assert.equal(await frame.getAttribute("data-thumbnail-kind"), "text");
+  await broken.waitForFunction(() =>
+    document
+      .querySelector('[data-paper="foundation/dust3r"] img')
+      ?.getAttribute("src")
+      ?.endsWith("/paper-cards/en/foundation/dust3r.png"),
+  );
+  await frame.locator("img").evaluate((img) => img.decode());
+  assert.equal(await frame.locator("img").isVisible(), true);
+  assert.equal(await frame.getAttribute("data-thumbnail-kind"), "visual_summary");
   report.checks.push(
-    "Failed image request switches to accessible text fallback without a broken-image icon.",
+    "Failed dedicated thumbnail loads the full original summary image; no text-only card.",
   );
   await broken.close();
   assert.deepEqual(report.errors, []);

@@ -142,6 +142,15 @@ const papers = source
       ...(rec.fields.Links || "").matchAll(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g),
     ].map((m) => ({ label: m[1], url: m[2] }));
     const purpose = plain(rec.fields["TL;DR"] || row.title);
+    const posterBytes = fs.readFileSync(path.join(root, row.planned_card_path));
+    const summaryPreview = {
+      path: row.planned_card_path,
+      width: posterBytes.readUInt32BE(16),
+      height: posterBytes.readUInt32BE(20),
+      sha256: sha(posterBytes),
+      alt: `Complete visual summary for ${row.short_title}; conceptual diagrams and source qualifications remain in the original image.`,
+    };
+
     return {
       id: row.record_id,
       title: row.title,
@@ -155,7 +164,8 @@ const papers = source
       preprint: /arxiv|preprint/i.test(rec.fields.Venue),
       url: base + "papers/" + row.record_id + "/",
       image: relativeAsset(row.planned_card_path),
-      thumbnail: thumbnailFor(row.record_id, thumbnails),
+      thumbnail: thumbnailFor(row.record_id, thumbnails, summaryPreview),
+      summaryPreview,
       links,
       search: [row.title, purpose, rec.fields.Authors, rec.cat, names[rec.cat], rec.arxiv_id]
         .join(" ")
@@ -184,16 +194,14 @@ const categoryOptions = Object.entries(names)
   .join("");
 const years = [...new Set(papers.map((p) => p.year).filter(Boolean))].sort((a, b) => b - a);
 function listingCard(p, forceFallback = false) {
-  const art = p.thumbnail;
-  const hasImage = art.kind === "image" && !forceFallback;
-  const fallback = `<span class="paper-fallback" data-thumbnail-fallback${hasImage ? " hidden" : ""}><span>${escape(thumbnails.fallback.label)}</span><strong>${escape(p.shortTitle)}</strong><span class="fallback-purpose">${escape(p.purpose)}</span></span>`;
-  const image = hasImage
-    ? `<img data-src="${relativeAsset(art.path)}" width="${art.width}" height="${art.height}" loading="lazy" decoding="async" alt="${escape(art.alt)}">`
-    : "";
-  return `<article class="paper-item" data-paper="${escape(p.id)}"><a class="paper-image" data-thumbnail-kind="${hasImage ? "image" : "text"}" href="${p.url}" aria-label="Read ${escape(p.shortTitle)}">${image}${fallback}</a><div class="paper-caption"><div class="paper-meta"><span>${escape(p.categoryName)}</span><span>${p.year || "Year not recorded"}</span></div><h2><a class="paper-title" href="${p.url}">${escape(p.title)}</a></h2><p class="paper-purpose" title="${escape(p.purpose)}">${escape(p.purpose)}</p></div></article>`;
+  const art = forceFallback ? { ...p.summaryPreview, kind: "visual_summary" } : p.thumbnail;
+  const image = `<img data-src="${relativeAsset(art.path)}" data-summary-src="${p.image}" data-summary-width="${p.summaryPreview.width}" data-summary-height="${p.summaryPreview.height}" width="${art.width}" height="${art.height}" loading="lazy" decoding="async" alt="${escape(art.alt)}">`;
+  return `<article class="paper-item" data-paper="${escape(p.id)}"><a class="paper-image" data-thumbnail-kind="${art.kind}" style="--summary-ratio:${p.summaryPreview.width} / ${p.summaryPreview.height}" href="${p.url}" aria-label="Read ${escape(p.shortTitle)}">${image}</a><div class="paper-caption"><div class="paper-meta"><span>${escape(p.categoryName)}</span><span>${p.year || "Year not recorded"}</span></div><h2><a class="paper-title" href="${p.url}">${escape(p.title)}</a></h2><p class="paper-purpose" title="${escape(p.purpose)}">${escape(p.purpose)}</p></div></article>`;
 }
 const list = papers.map((p) => listingCard(p)).join("\n");
-const data = papers.map(({ html, noteSha256, sourceIdentity, thumbnail, ...p }) => p);
+const data = papers.map(
+  ({ html, noteSha256, sourceIdentity, thumbnail, summaryPreview, ...p }) => p,
+);
 const intro = `<section class="intro"><div><h1>From images<br>to 3D.</h1><p class="intro-description">Source-linked notes and visual summaries for geometric vision.</p></div><aside class="reading-route"><p>Start with the foundations</p><div>${[
   "croco",
   "croco-v2",
@@ -278,7 +286,8 @@ const manifest = {
   ),
   assets: assets.size,
   dedicatedThumbnails: Object.keys(thumbnails.thumbnails).length,
-  textFallbacks: papers.length - Object.keys(thumbnails.thumbnails).length,
+  textFallbacks: 0,
+  summaryFallbacks: papers.length - Object.keys(thumbnails.thumbnails).length,
   source: "Existing canonical Markdown notes and unchanged PNG assets",
   records: papers.map((p) => ({
     id: p.id,
@@ -290,7 +299,11 @@ const manifest = {
     thumbnail:
       p.thumbnail.kind === "image"
         ? { kind: "image", path: base + p.thumbnail.path, sha256: p.thumbnail.sha256 }
-        : { kind: "text" },
+        : {
+            kind: "visual_summary",
+            path: base + p.summaryPreview.path,
+            sha256: p.summaryPreview.sha256,
+          },
     url: p.url,
   })),
 };
