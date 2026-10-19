@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Register 79 additional reviewed thumbnails
+
+Add 79 independently source-reviewed method illustrations with unchanged PNG masters and contained WebP deliveries, reaching 243 complete and 94 remaining. Every master and actual 320px preview passed visual inspection. Preserve all 337 original summary PNGs and detailed note bodies. Validation includes 26 Node tests, regenerated remaining inventory and the full site/hash/link check. The preceding 146-thumbnail public checkpoint is verified. Group the pending 18-image batch, these 79 images and the tested publication-period UI into one approved main deployment to avoid redundant full-site uploads. Signed original PNGs remain byte-identical; no provenance-breaking recompression or redundant transport workflow is introduced.
+
 ## [2026-10-19] Add publication-period navigation and measure real page delivery
 
 Inspect Hugging Face Papers in Edge: Daily/Weekly/Monthly buttons change the selected period and previous/next links; its central date display opens no calendar. Apply that compact period-navigation structure with this collection's requested All time/Year/Month/Day controls and direct year/month/day selection. Preserve first-publication evidence, partial dates, existing query URLs, combined filters and detail/Back state. Picker placement, Escape focus return and 1440/390/360/320px layouts pass browser checks, as do the existing gallery flows. Date-only scripts are excluded from detail pages.
