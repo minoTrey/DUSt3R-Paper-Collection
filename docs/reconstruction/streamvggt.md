@@ -188,7 +188,7 @@ The KD ablation (Table 9) is the most instructive result. Under the _same_ train
 
 ### The unresolved scaling problem
 
-The cached KV memory grows linearly with sequence length, so StreamVGGT trades VGGT's quadratic recompute for linear memory accumulation rather than eliminating growth. This is precisely the criticism [TTT3R](ttt3r.md) levels, and it is why [FastVGGT](fastvggt.md) reports StreamVGGT as OOM on its 100+-image benchmarks. Window-based pruning is the paper's own mitigation, and it works well (Table 8), but it is a post-hoc bound rather than a constant-memory design.
+The cached KV memory grows linearly with sequence length, so StreamVGGT trades VGGT's quadratic recompute for linear memory accumulation rather than eliminating growth. This is precisely the criticism [TTT3R](../extensions/ttt3r.md) levels, and it is why [FastVGGT](../extensions/fastvggt.md) reports StreamVGGT as OOM on its 100+-image benchmarks. Window-based pruning is the paper's own mitigation, and it works well (Table 8), but it is a post-hoc bound rather than a constant-memory design.
 
 ## 🔗 Related Work
 
@@ -196,8 +196,8 @@ The cached KV memory grows linearly with sequence length, so StreamVGGT trades V
 - [CUT3R](../dynamic/cut3r.md) — the fixed-length-state alternative, and the main streaming baseline throughout.
 - [Point3R](point3r.md) — sibling work from the same lab; StreamVGGT adopts its variable-aspect-ratio image processing.
 - [Spann3R](spann3r.md) / [MUSt3R](must3r.md) — the earlier explicit-memory streaming lineage.
-- [TTT3R](ttt3r.md) — classifies StreamVGGT as O(t) state growth and shows it exhausting memory on long sequences.
-- [FastVGGT](fastvggt.md) — the other efficiency answer to VGGT: token merging inside global attention rather than causal restriction.
+- [TTT3R](../extensions/ttt3r.md) — classifies StreamVGGT as O(t) state growth and shows it exhausting memory on long sequences.
+- [FastVGGT](../extensions/fastvggt.md) — the other efficiency answer to VGGT: token merging inside global attention rather than causal restriction.
 - [Fast3R](fast3r.md) — the all-frames-at-once feed-forward design StreamVGGT contrasts against.
 
 ## 📚 Key Takeaways

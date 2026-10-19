@@ -4,6 +4,23 @@
 
 Document counts are not counts of fully verified papers. Read each result with its source, protocol and limitations.
 
+## Category indexes and Featured papers
+
+The [complete list](../docs/papers-list.md) and category READMEs group papers by the year recorded in each Overview's `Venue`, newest first. For a preprint, this is its recorded preprint year. A `Verification` date records a check, not a publication date. Entries with no recorded year appear last; years are not inferred from review dates or title text. Within a year, entries use stable slug order rather than an inferred month or day. Extensions and Surveys retain their topic groups below each year.
+
+Featured papers are editorial reading routes that balance recent work with representative methods and task coverage. They are not performance rankings or an exhaustive list of recent papers. [Curated settings](../data/category-featured.json) record the review date, explicit order, selection type and reason for every choice. Preprints can be selected and are labeled **Preprint**; conference/journal venues that lack a stored `CONFIRMED` verdict are labeled **Venue unconfirmed**. Selection does not change a note's verification status or establish peer review.
+
+To maintain these indexes, edit the curated settings and, when needed, [topic memberships](../data/category-groups.json), then regenerate and validate:
+
+```sh
+python tools/build_papers_list.py
+python tools/build_papers_list.py --check
+python -m unittest discover -s tools -p 'test_*.py'
+python tools/verify_all.py
+```
+
+Keep Foundation limited to CroCo, CroCo v2, DUSt3R, MASt3R and VGGT. Update `reviewed_on` when reviewing Featured choices. The generator validates category coverage, canonical IDs, duplicate selections and nonempty reasons. Do not edit generated README blocks directly.
+
 ## Reading results responsibly
 
 Keep each number beside its source table, dataset, camera inputs, units and alignment protocol.

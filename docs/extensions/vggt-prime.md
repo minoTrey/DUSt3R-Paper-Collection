@@ -63,7 +63,7 @@ Adjust computation precision instead of choosing only whether to discard or reta
 ## 🔗 Related Work
 
 - [VGGT](../foundation/vggt.md): the original backbone.
-- [FastVGGT](../reconstruction/fastvggt.md): a comparison method reducing token redundancy.
+- [FastVGGT](fastvggt.md): a comparison method reducing token redundancy.
 
 ## 📚 Key Takeaways
 

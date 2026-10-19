@@ -233,9 +233,9 @@ On π³ under 4/4, FGQ raises Co3Dv2 AUC@3 from 0.2686 (FlatQuant) to 0.5032, ap
 ## 🔗 Related Work
 
 - **Quantized model** — [VGGT](../foundation/vggt.md): the feed-forward 3D transformer that FGQ quantizes (VGGT-1.2B, 48 aggregator blocks).
-- **Direct PTQ baseline** — [QuantVGGT](../reconstruction/quantvggt.md) [Feng et al., 2025]: the prior VGGT-specific PTQ method addressing special-token activation outliers; FGQ's main comparison point.
+- **Direct PTQ baseline** — [QuantVGGT](quantvggt.md) [Feng et al., 2025]: the prior VGGT-specific PTQ method addressing special-token activation outliers; FGQ's main comparison point.
 - **Generalization target** — [π³](../reconstruction/pi3.md) [Wang et al., 2025b]: FGQ is additionally validated on this more recent feed-forward 3D model (Appendix D).
-- **Efficient VGGT (token merging), cited** — [FastVGGT](../reconstruction/fastvggt.md) [Shen et al., 2025] and [LiteVGGT](../reconstruction/litevggt.md) [Shu et al., 2025]: orthogonal efficiency methods that fuse redundant tokens rather than quantize.
+- **Efficient VGGT (token merging), cited** — [FastVGGT](fastvggt.md) [Shen et al., 2025] and [LiteVGGT](litevggt.md) [Shu et al., 2025]: orthogonal efficiency methods that fuse redundant tokens rather than quantize.
 - **Lineage** — [DUSt3R](../foundation/dust3r.md) and [MASt3R](../foundation/mast3r.md): the feed-forward 3D reconstruction family that VGGT and this quantization line build upon.
 
 FGQ's quantization backbone derives from LLM PTQ: QuaRot (fixed Hadamard rotation), SpinQuant (learned rotations), and FlatQuant (learnable per-layer affine transformations) — the last serving as FGQ's base method.

@@ -108,8 +108,8 @@ At N = 300 this is a 5.1× speedup over unmodified VGGT (7.4s vs. 37.8s) with lo
 ## 🔗 Related Work
 
 - **[VGGT](../foundation/vggt.md)**: The frozen backbone that PaceVGGT accelerates.
-- **[FastVGGT](../reconstruction/fastvggt.md)**: Training-free in-AA token merging within global attention; PaceVGGT instead cuts before AA.
-- **[LiteVGGT](../reconstruction/litevggt.md)**: Geometry-aware cached token merging inside AA; the primary latency baseline PaceVGGT compares against.
+- **[FastVGGT](fastvggt.md)**: Training-free in-AA token merging within global attention; PaceVGGT instead cuts before AA.
+- **[LiteVGGT](litevggt.md)**: Geometry-aware cached token merging inside AA; the primary latency baseline PaceVGGT compares against.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Feed-forward predecessors in the line VGGT builds on.
 
 ## 📚 Key Takeaways

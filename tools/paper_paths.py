@@ -1,4 +1,4 @@
-"""Resolve approved paper moves and validate their compatibility notices."""
+"""Resolve flattened historical paths and validate canonical notes and PNG aliases."""
 from __future__ import annotations
 
 import hashlib
@@ -36,10 +36,21 @@ def migration_errors(root: Path, records: list[dict]) -> list[str]:
     errors = []
     canonical = {row["file"]: row for row in records}
     expected_redirects = {row["old_note_path"] for row in rows if row.get("legacy_note_retained", True)}
-    for key in ("old_record_id", "new_record_id", "old_note_path", "new_note_path"):
+    # Several historical identities can resolve to one canonical paper after
+    # multiple moves. Historical keys must be unique; final targets may repeat.
+    for key in ("old_record_id", "old_note_path", "old_card_path"):
         values = [row[key] for row in rows]
         if len(values) != len(set(values)):
             errors.append("duplicate migration " + key)
+    for field in ("record_id", "note_path", "card_path"):
+        old_values = {row["old_" + field] for row in rows}
+        if any(row["new_" + field] in old_values for row in rows):
+            errors.append("migration targets must be flattened: " + field)
+    by_target: dict[str, set[str]] = {}
+    for row in rows:
+        by_target.setdefault(row["new_note_path"], set()).add(row["paper_source_identity"])
+    if any(len(identities) != 1 for identities in by_target.values()):
+        errors.append("historical aliases disagree on canonical source identity")
     for row in rows:
         old, new = row["old_note_path"], row["new_note_path"]
         old_path, new_path = root / old, root / new
@@ -63,6 +74,11 @@ def migration_errors(root: Path, records: list[dict]) -> list[str]:
         if path.name != "README.md" and redirect_target(path.read_text(encoding="utf-8")):
             if path.relative_to(root).as_posix() not in expected_redirects:
                 errors.append("unregistered compatibility notice: " + path.relative_to(root).as_posix())
+    if data.get("category_directory_policy") == "canonical_only":
+        expected = set(canonical) | {"docs/" + row["cat"] + "/README.md" for row in records}
+        actual = {path.relative_to(root).as_posix() for path in root.glob("docs/*/*.md")}
+        if actual != expected:
+            errors.append("category directories must contain canonical notes and README only")
     foundation = {r["file"][5:-3] for r in records if r["cat"] == "foundation"}
     if foundation != set(data["core_foundation_record_ids"]):
         errors.append("Foundation must match the approved core-model set")

@@ -127,7 +127,7 @@ _Overview of Spark3R (원논문 Fig. 2)_
 ## 🔗 Related Work
 
 - **[VGGT](../foundation/vggt.md)** / **[π³](../reconstruction/pi3.md)** / **[VGGT-Ω](../reconstruction/vggt-omega.md)**: Base feed-forward models Spark3R accelerates (with DA3).
-- **[FastVGGT](../reconstruction/fastvggt.md)** / **[LiteVGGT](../reconstruction/litevggt.md)**: Uniform token-merging accelerators; Spark3R argues their uniform factor caps speedups near ~10×.
+- **[FastVGGT](fastvggt.md)** / **[LiteVGGT](litevggt.md)**: Uniform token-merging accelerators; Spark3R argues their uniform factor caps speedups near ~10×.
 - **[CUT3R](../dynamic/cut3r.md)** / **[StreamVGGT](../reconstruction/streamvggt.md)**: Streaming/memory approaches that restrict cross-frame reasoning; Spark3R keeps full global context.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Pairwise predecessors fused via post-hoc alignment.
 

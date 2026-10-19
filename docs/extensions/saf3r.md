@@ -139,7 +139,7 @@ Per the efficiency benchmark (Fig. 6), SAF3R achieves end-to-end speedups of up 
 ## 🔗 Related Work
 
 - **[VGGT](../foundation/vggt.md)** / **[π³](../reconstruction/pi3.md)**: Two of the F3R backbones SAF3R accelerates (alongside MapAnything and DA3).
-- **[FastVGGT](../reconstruction/fastvggt.md)** / **[LiteVGGT](../reconstruction/litevggt.md)**: Token-merging accelerators compared against; SAF3R instead uses head-level sparse attention.
+- **[FastVGGT](fastvggt.md)** / **[LiteVGGT](litevggt.md)**: Token-merging accelerators compared against; SAF3R instead uses head-level sparse attention.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Feed-forward reconstruction predecessors.
 
 ## 📚 Key Takeaways

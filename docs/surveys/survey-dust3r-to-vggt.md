@@ -144,7 +144,7 @@ Primary papers for the models this review surveys, where the collection has entr
 - [Pow3R](../reconstruction/pow3r.md) — prior conditioning, not pose-graph optimisation.
 - [MonST3R](../dynamic/monst3r.md) — dynamic scenes with monocular depth priors.
 - [MUSt3R](../reconstruction/must3r.md), [CUT3R](../dynamic/cut3r.md) — memory-based and recurrent extensions.
-- [SLAM3R](../reconstruction/slam3r.md), [Reloc3r](../pose/reloc3r.md), [PE3R](../understanding/pe3r.md), [Test3R](../reconstruction/test3r.md), [Regist3R](../reconstruction/regist3r.md), [MV-DUSt3R+](../reconstruction/mv-dust3r-plus.md).
+- [SLAM3R](../reconstruction/slam3r.md), [Reloc3r](../pose/reloc3r.md), [PE3R](../understanding/pe3r.md), [Test3R](../extensions/test3r.md), [Regist3R](../reconstruction/regist3r.md), [MV-DUSt3R+](../reconstruction/mv-dust3r-plus.md).
 
 ## 📚 Key Takeaways
 

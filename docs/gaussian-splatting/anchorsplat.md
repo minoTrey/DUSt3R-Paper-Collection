@@ -96,8 +96,8 @@ At 256 views AnySplat runs out of memory while AnchorSplat⋆ stays at 247,153 G
 
 ## 🔗 Related Work
 
-- Uses feed-forward MVS priors: [MapAnything](../reconstruction/mapanything.md) (anchor predictor), MVSAnywhere, and [Reliev3R](../reconstruction/reliev3r.md).
-- Positioned against the pixel/voxel-aligned feed-forward line: AnySplat (baseline), the LRM family including [iLRM](../reconstruction/ilrm.md), [WorldMirror](../reconstruction/worldmirror.md), and [YoNoSplat](yonosplat.md).
+- Uses feed-forward MVS priors: [MapAnything](../reconstruction/mapanything.md) (anchor predictor), MVSAnywhere, and [Reliev3R](../extensions/reliev3r.md).
+- Positioned against the pixel/voxel-aligned feed-forward line: AnySplat (baseline), the LRM family including [iLRM](ilrm.md), [WorldMirror](../reconstruction/worldmirror.md), and [YoNoSplat](yonosplat.md).
 - Part of the DUSt3R-lineage of feed-forward reconstruction ([DUSt3R](../foundation/dust3r.md), [VGGT](../foundation/vggt.md)) that supplies poses/depth as geometric priors.
 
 ## 📚 Key Takeaways

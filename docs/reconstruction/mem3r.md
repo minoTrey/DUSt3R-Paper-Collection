@@ -221,7 +221,7 @@ Both the fast-weight memory and the channel-wise state gate help mitigate tempor
 ## 🔗 Related Work
 
 - **[CUT3R](../dynamic/cut3r.md)**: The closest baseline and backbone paradigm — a fixed-size recurrent latent state for constant-memory streaming. Mem3R inherits its heads, losses, and 26-dataset training recipe, then replaces the pose-related state tokens and decoder with the implicit fast-weight memory.
-- **[TTT3R](ttt3r.md)** and **TTSA3R**: Training-free, plug-and-play per-token state-update strategies for CUT3R. Mem3R stays compatible with both and stacks their gates into its channel-wise update.
+- **[TTT3R](../extensions/ttt3r.md)** and **TTSA3R**: Training-free, plug-and-play per-token state-update strategies for CUT3R. Mem3R stays compatible with both and stacks their gates into its channel-wise update.
 - **[Point3R](point3r.md)**: A streaming baseline that strengthens memory recall via explicit 3D point pointers, at the cost of memory growth with points/views. Compared throughout the long-sequence and short-sequence tables.
 - **[StreamVGGT](streamvggt.md)**: KV-cache causal-transformer streaming — long-range conditioning but linear memory growth and OOM on long streams (shown as OOM in the reconstruction tables).
 - **[VGGT](../foundation/vggt.md)** and **[Fast3R](fast3r.md)** / FastVGGT: Offline / large-window feed-forward transformers with global attention; strong quality but quadratic cost and reprocessing per new view, ill-suited to real-time long-sequence streaming.

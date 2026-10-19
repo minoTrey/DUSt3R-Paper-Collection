@@ -197,13 +197,13 @@ Removing pose-query tokens from the cache improves ATE, RTE, and RRE on most sce
 - [VGGT](../foundation/vggt.md) — the initialization and backbone; its unified camera/depth/point/track prediction is the starting point
 - [Pi3](pi3.md) — permutation-equivariant formulation that removed fixed-reference bias; source of the scale-factor estimation, and the Pi3-Chunk baseline
 - [CUT3R](../dynamic/cut3r.md) — persistent latent scene memory, a streaming baseline
-- [TTT3R](ttt3r.md) — inference-time state updating, a streaming baseline
+- [TTT3R](../extensions/ttt3r.md) — inference-time state updating, a streaming baseline
 - [STream3R](stream3r.md) — causal-transformer streaming, and the fixed-gauge baseline used in the attention ablation
 - [StreamVGGT](streamvggt.md) — streaming 4D visual geometry transformer baseline
 - [Point3R](point3r.md) — explicit spatial pointer memory anchored to reconstructed 3D structure
 - [ZipMap](zipmap.md) — compresses an image collection into a compact hidden state via test-time training
 - [Scal3R](scal3r.md) — test-time-adapted global context for large-scale reconstruction
-- [FastVGGT](fastvggt.md) — optimization-based baseline in the pose tables
+- [FastVGGT](../extensions/fastvggt.md) — optimization-based baseline in the pose tables
 - [Depth Anything 3](depth-anything-3.md) / [MapAnything](mapanything.md) — cited as recent extensions of the offline feed-forward paradigm
 - [DUSt3R](../foundation/dust3r.md) — two-view pointmap prediction in a shared pairwise frame
 

@@ -218,7 +218,7 @@ VGGT wins all three AUC thresholds; FlashVGGT trails VGGT but beats FastVGGT and
 ## 🔗 Related Work
 
 - **[VGGT](../foundation/vggt.md)**: The base model FlashVGGT is built on and initialized from; its alternating frame/global attention backbone and dense global self-attention are the exact bottleneck this paper targets.
-- **[FastVGGT](../reconstruction/fastvggt.md)**: Concurrent efficient VGGT variant using token merging; the primary efficient baseline compared throughout (Tables 1–4, 9). FlashVGGT argues token merging adds overhead and reports 2.1× speedup over it at 1,000 images.
+- **[FastVGGT](fastvggt.md)**: Concurrent efficient VGGT variant using token merging; the primary efficient baseline compared throughout (Tables 1–4, 9). FlashVGGT argues token merging adds overhead and reports 2.1× speedup over it at 1,000 images.
 - **[StreamVGGT](../reconstruction/streamvggt.md)**: Online VGGT variant that caches full-resolution tokens from all global blocks; FlashVGGT caches only compressed descriptors for an `r²` memory reduction (online Table 4).
 - **[VGGT-Long](../reconstruction/vggt-long.md)**: Cited chunk-based approach for kilometer-scale long RGB sequences, related to the chunk-recursive scheme.
 - **[Fast3R](../reconstruction/fast3r.md)**: Single-pass many-image reconstruction, used as a baseline in the long-sequence tables.

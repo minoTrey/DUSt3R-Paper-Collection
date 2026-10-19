@@ -143,7 +143,7 @@ Against the only other training-free method, FlexGaussian, 3DTurboQuant `b = 3` 
 ## 🔗 Related Work
 
 - **[DUSt3R](../foundation/dust3r.md)**: the transformer 3D reconstructor whose ViT-Large KV cache (dkv = 1024, 24 encoder / 48 total attention layers) 3DTurboQuant quantizes to 7.9× at 39.7 dB pointmap fidelity — the direct 3D-vision target of this paper.
-- **[QuantVGGT](../reconstruction/quantvggt.md)**: closest peer for 3D-vision transformer quantization — W4A4 post-training quantization of the 1.2B VGGT with Hadamard rotation smoothing. Cited here as prior art; 3DTurboQuant differs by being fully data-oblivious with provable near-optimal MSE bounds.
+- **[QuantVGGT](quantvggt.md)**: closest peer for 3D-vision transformer quantization — W4A4 post-training quantization of the 1.2B VGGT with Hadamard rotation smoothing. Cited here as prior art; 3DTurboQuant differs by being fully data-oblivious with provable near-optimal MSE bounds.
 - **[VGGT](../foundation/vggt.md)**: the VGGT foundation model that QuantVGGT and streaming-KV methods target; useful context for the KV-cache-compression thread this paper joins for DUSt3R.
 
 The underlying quantizer is TurboQuant (Zandieh et al. 2025a); other cited KV-cache methods (KIVI, KVQuant, QJL, PolarQuant) and 3DGS/NeRF compressors (HAC++, CodecGS, CNC, SHACIRA) are calibration- or training-dependent and are not part of this collection.

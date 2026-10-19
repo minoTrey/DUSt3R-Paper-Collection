@@ -190,7 +190,7 @@ An unexpected benefit: confidence-aware weighting suppresses fast-moving vehicle
 - [Fast3R](fast3r.md) — a multi-view feed-forward baseline that OOMs on all tested KITTI sequences
 - [DUSt3R](../foundation/dust3r.md) — the origin of the pointmap formulation being chunked here
 - [StreamVGGT](streamvggt.md), [Stream3R](stream3r.md), [Point3R](point3r.md) — alternative approaches to long streams via causal/streaming architectures rather than chunking
-- [FastVGGT](fastvggt.md), [TTT3R](ttt3r.md) — other training-free modifications of the VGGT family
+- [FastVGGT](../extensions/fastvggt.md), [TTT3R](../extensions/ttt3r.md) — other training-free modifications of the VGGT family
 - [VGGT-SLAM](vggt-slam.md) — a submap-based SLAM system on the same backbone
 
 ## 📚 Key Takeaways

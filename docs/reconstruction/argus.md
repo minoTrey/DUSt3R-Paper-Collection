@@ -147,7 +147,7 @@ The extra cross-coordinate DPT heads can be disabled at inference (optimal perfo
 - **[MapAnything](mapanything.md)**: universal metric feed-forward reconstruction with prior inputs; a main baseline (MapAnything360).
 - **[π³](pi3.md)**: permutation-equivariant design for unordered inputs, contrasted with Argus's learned covisibility anchor; a main baseline (π³360).
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: foundational feed-forward pointmap regression and its SfM extension cited as lineage.
-- **[Pow3R](pow3r.md)** / **[TTT3R](ttt3r.md)**: cited among recent feed-forward reconstruction works.
+- **[Pow3R](pow3r.md)** / **[TTT3R](../extensions/ttt3r.md)**: cited among recent feed-forward reconstruction works.
 
 ## 📚 Key Takeaways
 

@@ -140,8 +140,8 @@ The authors state future work targets real-time calibration and reconstruction, 
 - [MASt3R-SfM](../reconstruction/mast3r-sfm.md) — supplies the co-visibility graph pair-selection strategy; also the closest two-stage baseline.
 - [DUSt3R](../foundation/dust3r.md) — earlier pointmap regressor, used as a weaker two-stage baseline.
 - [VGGT](../foundation/vggt.md) — the strongest reconstruction-based competitor in Table I and II.
-- [rig3r](rig3r.md) — multi-camera rig geometry from a feed-forward model, an adjacent robotics application.
-- [Adapt3R](../dynamic/adapt3r.md) — 3D representations for robot manipulation policies.
+- [rig3r](../reconstruction/rig3r.md) — multi-camera rig geometry from a feed-forward model, an adjacent robotics application.
+- [Adapt3R](adapt3r.md) — 3D representations for robot manipulation policies.
 
 ## 📚 Key Takeaways
 

@@ -127,7 +127,7 @@ Notably, 1K labeled + 20K unlabeled (81.12 RRA@30) outperforms 4K labeled alone 
 ## 🔗 Related Work
 
 - Backbone [Pi3 (π³)](../reconstruction/pi3.md); also integrated with [VGGT](../foundation/vggt.md); foundation [DUSt3R](../foundation/dust3r.md), [MASt3R](../foundation/mast3r.md).
-- Dynamic-scene baselines [CUT3R](cut3r.md), [MonST3R](monst3r.md), [StreamVGGT](../reconstruction/streamvggt.md); optimization-based [ViPE](../robotics/vipe.md) cited.
+- Dynamic-scene baselines [CUT3R](cut3r.md), [MonST3R](monst3r.md), [StreamVGGT](../reconstruction/streamvggt.md); optimization-based [ViPE](../pose/vipe.md) cited.
 
 ## 📚 Key Takeaways
 

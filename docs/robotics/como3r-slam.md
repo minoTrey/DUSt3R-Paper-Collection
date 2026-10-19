@@ -84,7 +84,7 @@ CoMo3R-SLAM is best overall on 158686 (1.773) and 106762 (5.004) and remains com
 
 - **[MASt3R](../foundation/mast3r.md)**: The feed-forward reconstruction prior whose pointmaps and encoder features drive tracking, cross-agent verification, and the metric scale prior.
 - **[DUSt3R](../foundation/dust3r.md)**: Foundational feed-forward reconstruction formulation underlying the prior.
-- **[MASt3R-Fusion](mast3r-fusion.md)**: Related MASt3R-prior-based SLAM/fusion system in the robotics collection.
+- **[MASt3R-Fusion](../reconstruction/mast3r-fusion.md)**: Related MASt3R-prior-based SLAM/fusion system in the robotics collection.
 
 ## 📚 Key Takeaways
 

@@ -159,8 +159,8 @@ Removing FP8-aware QAT improves quality slightly but degrades efficiency sharply
 
 - **[VGGT](../foundation/vggt.md)**: one of the two backbones Lite3R adapts; the dense teacher whose 1.16B parameters (~3.1% trainable) Lite3R lightweights.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: geometry-grounded pretrained backbones cited as the dense-attention lineage Lite3R targets for efficiency.
-- **[FastVGGT](../reconstruction/fastvggt.md)**: cited (ref [33]) as training-free acceleration of VGGT — a complementary efficiency direction to Lite3R's trained FP8/SLA adaptation.
-- **[LiteVGGT](../reconstruction/litevggt.md)**: sibling effort on lightweight VGGT; same quality–efficiency tradeoff theme via a different mechanism.
+- **[FastVGGT](fastvggt.md)**: cited (ref [33]) as training-free acceleration of VGGT — a complementary efficiency direction to Lite3R's trained FP8/SLA adaptation.
+- **[LiteVGGT](litevggt.md)**: sibling effort on lightweight VGGT; same quality–efficiency tradeoff theme via a different mechanism.
 - **[Fast3R](../reconstruction/fast3r.md)**: cited (ref [51]) among systems pushing DUSt3R-family backbones toward practical, large-scale feed-forward reconstruction.
 
 ## 📚 Key Takeaways

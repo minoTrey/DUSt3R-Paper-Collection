@@ -205,11 +205,11 @@ The paper reports that removing the explicit reference-view selection in the fin
 - [VGGT](../foundation/vggt.md) — the quadratic-time reference model; ZipMap reuses its DINOv2 encoder, camera head design, and initializes attention weights from it
 - [Pi3](pi3.md) — source of the local point map formulation, the affine-invariant camera loss, and the strongest accuracy baseline
 - [CUT3R](../dynamic/cut3r.md) — persistent-state sequential reconstruction, the main linear-time baseline
-- [TTT3R](ttt3r.md) — the other test-time-training linear-time baseline
+- [TTT3R](../extensions/ttt3r.md) — the other test-time-training linear-time baseline
 - [Point3R](point3r.md) — explicit spatial pointer memory, cited among sequential approaches
 - [Fast3R](fast3r.md) — multi-view extension beyond the 2-image setting
 - [DUSt3R](../foundation/dust3r.md) / [MASt3R](../foundation/mast3r.md) — the pairwise pointmap foundation
-- [FastVGGT](fastvggt.md) — token-merging acceleration that, as the paper notes, still retains quadratic runtime complexity
+- [FastVGGT](../extensions/fastvggt.md) — token-merging acceleration that, as the paper notes, still retains quadratic runtime complexity
 
 ## 📚 Key Takeaways
 
