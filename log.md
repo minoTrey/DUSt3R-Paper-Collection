@@ -3,6 +3,12 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Verify public gallery and moved canonical publication
+
+PR #35 merged the reviewed reclassification and gallery at main `b5b1e5d0def26fa6dd2900e0796e199afbc52c60`. The main Pages build and deployment succeeded. The [public gallery](https://minotrey.github.io/DUSt3R-Paper-Collection/) manifest matches the validated 337-paper build; all 337 detail and 337 original-poster URLs return HTTP 200, with representative public PNG byte comparisons. Actual Edge checks pass all eight desktop/mobile filter, detail, Back and layout flows without same-origin HTTP errors or script errors. The browser check now waits for the detail document's deferred scripts before checking its filter-return link.
+
+Downloaded all 60 moved canonical PNGs and notes from immutable main, verified exact PNG SHA-256 and note/source links, and restored those progress records to complete/published. All 337 canonical cards are published again. Source-review evidence, original image bytes, prior publication commits, migration history and the unrelated user worktree remain intact. The [publication evidence](data/site-publication-2026-10-19.json) supplements the historical draft audit. The 28 held category boundary cases and FVO/CalfVO, IDT/MVID and FlowR scientific/source issues remain unchanged; this publication check is not a new full-collection paper review.
+
 ## [2026-10-19] Build the source-backed English paper gallery
 
 Added a static research gallery generated from the canonical Markdown notes, their Overview metadata and unchanged reviewed PNGs. The build includes all 337 current papers in the reclassified folders, search/category/year filters, descending publication/preprint-year order, shareable filter queries, physical detail URLs, return-state navigation and original paper/code links. Details render the existing large poster, substantive note sections, local mathematical typesetting and responsive scrollable tables. Existing source/version issues remain visible rather than being silently corrected. No paper image is regenerated, resized or replaced; gallery cropping is CSS presentation only.
