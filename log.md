@@ -3,6 +3,22 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Complete and optimize the five Foundation thumbnails
+
+Added CroCo and CroCo v2 to the approved DUSt3R/MASt3R/VGGT thumbnail set with the official built-in image generation tool. Read CroCo revision v2 and CroCo v2 revision v3 original-paper Section 3 and the cross-view completion figures: both CroCo thumbnails show masked target plus reference view reconstructing target-view RGB during pre-training. They do not depict disparity/flow fine-tuning outputs or direct 3D pointmaps. Original full-size summaries, detailed notes and prior thumbnail PNGs remain unchanged.
+
+Created separate no-crop 960×540 WebP delivery files for all five Foundation images. Total listing artwork is 564,056 bytes rather than 11,797,530 bytes of PNG masters; original generated PNGs are retained for review/provenance. Metadata validates original and delivery identities, hashes and dimensions. The existing responsive 16:9 layout and text/error fallback are carried forward from the reviewed pilot. Only these five thumbnails are produced in this change.
+
+Exported 332 unassigned jobs with canonical IDs, original source/revision references, note/poster hashes, output paths and shared design/review specifications for parent-coordinated production. Open FVO/CalfVO, IDT/MVID and FlowR source issues are attached to the affected jobs. The export assigns no work and generates no images. Existing permissions, credentials and scheduled discovery are preserved. Publication proceeds through the existing reviewed PR/main Pages workflow; pre-merge validation is recorded separately from subsequent public checks.
+
+## [2026-10-19] Prepare a local three-paper thumbnail pilot
+
+Created dedicated landscape listing artwork for DUSt3R, MASt3R and VGGT with the official built-in image generation tool. The new English compositions retain the source posters' cream/forest-green palette and show only the method name, short input/output caption and conceptual scene. They are separate assets, not portrait-poster crops. Their source identities, original PNG dimensions/hashes, prompts and review scope are recorded in `data/paper-thumbnails.json`. The current gallery chrome is unchanged.
+
+The listing now uses a consistent 16:9 full-image frame on desktop and mobile. The other 334 papers use an explicit text fallback; failed thumbnail requests use the same fallback. No listing fallback loads a full visual-summary poster. All 337 detailed notes, original posters and progress records remain unchanged. This pilot has not been pushed, merged or publicly deployed, and no further paper thumbnails have been generated.
+
+Validation: 12 Node tests, 49 existing Python regressions, all 12 default offline checks and generator/inventory checks passed. Static checks cover 337 original PNG hashes, three thumbnail hashes, 334 text fallbacks and 5,089 detail links. Actual Edge checks covered all three images at 1440/768/390/360px viewport widths, original detail preservation, an intentionally failed image request and the eight existing navigation/filter flows. Representative actual frame sizes are 409×230px desktop, 346×195px mobile and 316×178px narrow mobile. Separate user worktree files remain intact. Composition approval and web-asset optimization remain before any collection-wide production or public deployment.
+
 ## [2026-10-19] Verify public gallery and moved canonical publication
 
 PR #35 merged the reviewed reclassification and gallery at main `b5b1e5d0def26fa6dd2900e0796e199afbc52c60`. The main Pages build and deployment succeeded. The [public gallery](https://minotrey.github.io/DUSt3R-Paper-Collection/) manifest matches the validated 337-paper build; all 337 detail and 337 original-poster URLs return HTTP 200, with representative public PNG byte comparisons. Actual Edge checks pass all eight desktop/mobile filter, detail, Back and layout flows without same-origin HTTP errors or script errors. The browser check now waits for the detail document's deferred scripts before checking its filter-return link.

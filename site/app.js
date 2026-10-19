@@ -6,17 +6,18 @@
     if (from && from.startsWith("?") && !/[<>]/.test(from)) back.href = base + from + "#papers";
   }
   const form = document.querySelector("#filters");
-  if (!form) return;
-  const records = JSON.parse(document.querySelector("#paper-data").textContent);
-  const cards = new Map(
-    [...document.querySelectorAll("[data-paper]")].map((card) => [card.dataset.paper, card]),
-  );
-  const query = document.querySelector("#query");
-  const category = document.querySelector("#category");
-  const year = document.querySelector("#year");
-  const count = document.querySelector("#result-count");
-  const empty = document.querySelector("#empty-state");
-  const reset = form.querySelector("[type=reset]");
+  document.querySelectorAll(".paper-image img[data-src]").forEach((img) => {
+    img.addEventListener(
+      "error",
+      () => {
+        img.hidden = true;
+        const frame = img.closest(".paper-image");
+        frame.dataset.thumbnailKind = "text";
+        frame.querySelector("[data-thumbnail-fallback]").hidden = false;
+      },
+      { once: true },
+    );
+  });
   const images = new IntersectionObserver(
     (entries) =>
       entries.forEach((entry) => {
@@ -29,6 +30,17 @@
     { rootMargin: "180px" },
   );
   document.querySelectorAll("img[data-src]").forEach((img) => images.observe(img));
+  if (!form) return;
+  const records = JSON.parse(document.querySelector("#paper-data").textContent);
+  const cards = new Map(
+    [...document.querySelectorAll("[data-paper]")].map((card) => [card.dataset.paper, card]),
+  );
+  const query = document.querySelector("#query");
+  const category = document.querySelector("#category");
+  const year = document.querySelector("#year");
+  const count = document.querySelector("#result-count");
+  const empty = document.querySelector("#empty-state");
+  const reset = form.querySelector("[type=reset]");
   function readURL() {
     const params = new URLSearchParams(location.search);
     query.value = params.get("q") || "";
