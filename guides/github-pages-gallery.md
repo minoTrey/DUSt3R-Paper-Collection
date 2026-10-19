@@ -27,6 +27,8 @@ Search matches paper titles, methods/purposes, authors and source IDs. Category 
 
 Each detail has a physical `papers/<category>/<slug>/index.html`, so direct URLs work without a single-page-app fallback. Internal paper links resolve to current site detail pages, category links return to filtered results, original paper/code links stay external, and other repository documents remain linked to GitHub. Mathematical notation is rendered with local KaTeX assets; tables scroll within the note on narrow screens. Existing legacy-language passages remain unchanged.
 
+The build copies the exact original KaTeX WOFF2 font files and rewrites its stylesheet to reference only those files. It omits the redundant WOFF and TTF copies from deployment. The static check verifies every font reference and compares the delivered font bytes with the installed KaTeX source. Original summary PNGs and their embedded provenance remain byte-identical.
+
 FVO/CalfVO, IDT/MVID and FlowR display the recorded unresolved source/content issue. The gallery does not turn source publication status or image integration into a claim of scientific verification.
 
 ## Verification
