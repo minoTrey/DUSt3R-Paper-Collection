@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Add 18 reviewed thumbnails and audit deployment size
+
+Register 18 source-specific illustrations with master and actual 320px review, reaching 164 completed and 173 remaining. Preserve explicit sensor/geometry priors, optional inputs and confidence-only calibration; all existing notes and full summaries remain unchanged. All 26 Node tests and the 337-page static/hash/link checks pass. The preceding 146-thumbnail public deployment and its 27 new deliveries/detail posters are verified. Audit the complete 146-thumbnail deployment payload: no unused assets, duplicate files, thumbnail PNG masters or QA screenshots are included. Required original summaries and method figures account for 738,598,674 bytes of the 763,606,573-byte site. No substantial safe payload reduction is available while retaining those referenced originals and their quality.
+
 ## [2026-10-19] Add 27 reconstruction and evaluation thumbnails
 
 Register 27 source-reviewed illustrations, including explicit camera/IMU inputs for DAVIO, event-only geometry for Event3R, iterative denoising for GARD and cross-view consistency evaluation for MEt3R. Every original master and actual 320px image passed; all original summaries and note bodies remain unchanged. The registered set reaches 146, with 191 remaining. Build checks retain all 337 original PNG hashes and 5,426 detail links, and 26 Node tests pass. The preceding 119-thumbnail deployment is verified against every public delivery hash/MIME and preserved detail poster. Year/month/day filters are already publicly verified at desktop and mobile widths.
