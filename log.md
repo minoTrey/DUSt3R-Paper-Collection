@@ -3,6 +3,14 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Build the source-backed English paper gallery
+
+Added a static research gallery generated from the canonical Markdown notes, their Overview metadata and unchanged reviewed PNGs. The build includes all 337 current papers in the reclassified folders, search/category/year filters, descending publication/preprint-year order, shareable filter queries, physical detail URLs, return-state navigation and original paper/code links. Details render the existing large poster, substantive note sections, local mathematical typesetting and responsive scrollable tables. Existing source/version issues remain visible rather than being silently corrected. No paper image is regenerated, resized or replaced; gallery cropping is CSS presentation only.
+
+The responsive editorial interface was opened in actual Microsoft Edge through Playwright at 1440px desktop and 390/360px mobile widths. Search/filter combinations, reset, empty results, browser Back, direct moved-paper detail URLs and original-poster loading passed for both the project base path and root-hosted preview. Static checks cover all 337 detail pages, all canonical PNG hashes, 5,089 local detail links, year order and exact category counts. The generated project site is approximately 746 MB, below the 1 GB build check. Source notes and original card/figure blobs remain unchanged from the reclassification commit.
+
+Public GitHub Pages publication was explicitly approved. The new workflow validates PRs and deploys only validated main builds; its deployment job uses pages-write and OIDC permissions without a repository-write grant or a new secret. Pages was initially disabled, so existing publication is not replaced. Site output, browser profiles and screenshots are ignored; a lockfile makes development/build dependencies reproducible. Public deployment and URL checks are recorded separately after publication; the source is not proof that deployment happened.
+
 ## [2026-10-19] Reclassify by primary contribution and refresh chronological reading routes
 
 Reviewed the supplied full-collection note audit and independently read the original-paper abstracts for all 60 moving papers, plus PRISM Section 3.1. Applied 60 task/contribution-based category moves, retained 249 notes and held 28 boundary cases. This is not a new full-PDF, venue or numeric-results audit of all 337 papers. MIRAGE and the three full-SfM moves remain medium-confidence editorial judgments. FVO/CalfVO, IDT/MVID and the reported FlowR content mismatch remain separate unresolved issues. Per-paper reasons, source URLs/revisions and abstract snapshot hashes are recorded in `data/classification-review-2026-10-19.json`.
