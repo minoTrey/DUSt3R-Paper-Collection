@@ -69,6 +69,7 @@ try {
   );
   completed.push("search/category/year AND combination");
   await page.locator(".paper-item:not([hidden]) .paper-title").click();
+  await page.waitForLoadState("domcontentloaded");
   await page.waitForSelector(".detail-poster");
   await detailImage();
   assert.ok(page.url().includes("/papers/robotics/lg-vln/"));

@@ -2,7 +2,7 @@
 
 Source-linked paper notes on DUSt3R and related feed-forward 3D research. Start with a research topic, then compare each method's inputs, outputs and evidence.
 
-[Paper gallery and local preview](guides/github-pages-gallery.md).
+[Browse the paper gallery](https://minotrey.github.io/DUSt3R-Paper-Collection/) · [Build and preview locally](guides/github-pages-gallery.md).
 
 <div id="research-categories"></div>
 
