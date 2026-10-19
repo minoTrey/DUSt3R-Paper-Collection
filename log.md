@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Sort by first publication and add year/month/day filters
+
+Review primary-source dates for all 337 canonical papers: 336 arXiv v1 submission dates and Pos3R's publisher month 2025-06. Store source identity, evidence, precision and response hashes; never substitute venue/update dates or invent an unknown day. Add newest-first ordering with deterministic canonical-ID ties, linked detail dates and cascading Year/Month/Day controls that combine with search/category and retain URL/Back state. Preserve all detailed notes and original summaries. Main's preceding 71-thumbnail deployment is publicly verified. Date unit, build, provenance and actual desktop/mobile browser checks cover partial dates, invalid selections, empty/reset and 320px layouts; CI runs the new unit checks and rebuilds when date metadata changes.
+
 ## [2026-10-19] Register the next 36 completed dedicated thumbnails
 
 Add 36 master/320px-reviewed method illustrations with original-paper revision provenance and independent uncropped WebP deliveries. The completed set reaches 71; 266 remain. MVID v3, FlowR v2 and VoT v1 source identities are now verified against their existing cards; thumbnail scopes explicitly retain those baselines and record the differences from older note text. Do not silently substitute newer CalfVO v5 or rewrite existing notes/cards. All original summaries and detailed bodies remain unchanged. The preceding 35-thumbnail main deployment has been verified publicly.

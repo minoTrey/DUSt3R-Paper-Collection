@@ -41,14 +41,56 @@
   const query = document.querySelector("#query");
   const category = document.querySelector("#category");
   const year = document.querySelector("#year");
+  const month = document.querySelector("#month");
+  const day = document.querySelector("#day");
+  const dates = window.PaperDates;
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const count = document.querySelector("#result-count");
   const empty = document.querySelector("#empty-state");
   const reset = form.querySelector("[type=reset]");
+  function refreshDates(preferred = { year: year.value, month: month.value, day: day.value }) {
+    const selection = dates.normalize(records, preferred);
+    year.value = selection.year;
+    const fill = (select, key, disabled) => {
+      select.replaceChildren(new Option("All", ""));
+      for (const value of dates.options(records, key, selection)) {
+        const label =
+          value === "unknown"
+            ? "Unknown"
+            : key === "month"
+              ? monthNames[Number(value) - 1]
+              : String(Number(value));
+        select.add(new Option(label, value));
+      }
+      select.disabled = disabled;
+      select.value = selection[key];
+    };
+    fill(month, "month", !selection.year || selection.year === "unknown");
+    fill(day, "day", !selection.month || selection.month === "unknown");
+  }
   function readURL() {
     const params = new URLSearchParams(location.search);
     query.value = params.get("q") || "";
     category.value = params.get("category") || "";
     year.value = params.get("year") || "";
+    refreshDates({
+      year: year.value,
+      month: params.get("month") || "",
+      day: params.get("day") || "",
+    });
   }
   function apply(updateURL = true) {
     const words = query.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -56,12 +98,18 @@
     if (query.value.trim()) params.set("q", query.value.trim());
     if (category.value) params.set("category", category.value);
     if (year.value) params.set("year", year.value);
+    if (month.value) params.set("month", month.value);
+    if (day.value) params.set("day", day.value);
     const search = params.size ? "?" + params.toString() : "";
     let visible = 0;
     for (const paper of records) {
       const show =
         (!category.value || paper.category === category.value) &&
-        (!year.value || paper.year === Number(year.value)) &&
+        dates.matches(paper.publication, {
+          year: year.value,
+          month: month.value,
+          day: day.value,
+        }) &&
         words.every((word) => paper.search.includes(word));
       const card = cards.get(paper.id);
       card.hidden = !show;
@@ -85,11 +133,21 @@
   });
   query.addEventListener("input", () => apply());
   category.addEventListener("change", () => apply());
-  year.addEventListener("change", () => apply());
-  form.addEventListener("reset", () => {
+  year.addEventListener("change", () => {
+    refreshDates();
+    apply();
+  });
+  month.addEventListener("change", () => {
+    refreshDates();
+    apply();
+  });
+  day.addEventListener("change", () => apply());
+  form.addEventListener("reset", (event) => {
+    event.preventDefault();
     query.value = "";
     category.value = "";
     year.value = "";
+    refreshDates({ year: "", month: "", day: "" });
     apply();
     query.focus();
   });
@@ -100,4 +158,5 @@
   });
   readURL();
   apply(false);
+  form.dataset.ready = "true";
 })();
