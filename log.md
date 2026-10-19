@@ -3,6 +3,12 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Begin approved collection-wide thumbnail production
+
+The user approved the three new MUSt3R, Spann3R and MASt3R-SLAM compositions and explicitly authorized remaining dedicated thumbnails, main merges and sequential public rollout. Import those three unchanged generated PNGs and separate no-crop 960×540 WebP deliveries. Read their matching original-paper method sections: multi-layer memory and shared-frame pointmaps; external spatial memory and incremental global pointmaps; monocular tracking, dense geometry, loop closure and global optimization. The artwork is conceptual and contains no benchmark measurements.
+
+Preserve all 337 original visual-summary assets, detailed notes, the five existing Foundation thumbnails and unrelated worktree changes. Original and real 320px previews were visually inspected. The production inventory now excludes eight completed canonical IDs and retains 329 remaining jobs, including the existing three source-identity issues. Listing regression counts now derive from the build manifest so later approved batches do not stale the checks. Current scope is the first three-paper publication batch; further production continues after its main deployment is verified.
+
 ## [2026-10-19] Restore visual summaries in every listing card
 
 The latest user correction supersedes the text-fallback design in the preceding thumbnail change. Remove all text-only replacement markup and its error handler. Every one of 337 listing records now has an actual image: five dedicated method/scene illustrations and 332 existing full visual-summary posters. Use contain and each poster's original aspect ratio, with full card width on mobile, so no diagram or text is cropped away. Failed dedicated images load the same paper's original visual summary.

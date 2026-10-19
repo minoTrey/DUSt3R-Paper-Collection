@@ -10,19 +10,23 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const inventory = JSON.parse(
   fs.readFileSync(path.join(root, "data/paper-card-inventory.json"), "utf8"),
 );
-test("all five dedicated images retain canonical source identities and reviewed bytes", () => {
+test("dedicated images retain canonical source identities and reviewed bytes", () => {
   const manifest = loadThumbnails(root, inventory);
-  assert.deepEqual(Object.keys(manifest.thumbnails).sort(), [
+  const foundation = [
     "foundation/croco",
     "foundation/croco-v2",
     "foundation/dust3r",
     "foundation/mast3r",
     "foundation/vggt",
-  ]);
+  ];
+  for (const id of foundation) assert.ok(manifest.thumbnails[id]);
+  assert.ok(Object.keys(manifest.thumbnails).length <= inventory.papers.length);
   assert.equal(thumbnailFor("foundation/dust3r", manifest).kind, "image");
 });
 test("a paper without dedicated art retains its complete original summary image", () => {
-  const fallback = thumbnailFor("extensions/filt3r", loadThumbnails(root, inventory), {
+  const manifest = loadThumbnails(root, inventory);
+  delete manifest.thumbnails["extensions/filt3r"];
+  const fallback = thumbnailFor("extensions/filt3r", manifest, {
     path: "assets/paper-cards/en/extensions/filt3r.png",
     width: 1086,
     height: 1448,
@@ -66,6 +70,6 @@ test("delivery byte changes require a renewed hash", () =>
 
 test("missing artwork cannot become a text-only replacement", () =>
   assert.throws(
-    () => thumbnailFor("extensions/filt3r", loadThumbnails(root, inventory)),
+    () => thumbnailFor("extensions/filt3r", { thumbnails: {} }),
     /visual-summary image is required/,
   ));
