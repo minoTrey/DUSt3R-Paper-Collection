@@ -60,7 +60,8 @@ try {
   completed.push("desktop gallery,337 papers,lazy images,no overflow");
   await page.selectOption("#category", "robotics");
   assert.equal(await count(), 7);
-  await page.selectOption("#year", "2026");
+  await page.click("#date-toggle");
+  await page.getByRole("button", { name: "Year 2026", exact: true }).click();
   assert.equal(await count(), 4);
   await page.fill("#query", "navigation");
   assert.equal(await count(), 1);

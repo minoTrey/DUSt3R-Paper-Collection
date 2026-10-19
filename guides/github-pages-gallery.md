@@ -1,6 +1,6 @@
 # GitHub Pages paper gallery
 
-The English gallery reads the canonical `docs/<category>/<slug>.md` notes and existing PNG assets. Markdown and reviewed PNGs remain the content source; generated HTML is not edited or committed. No card image is regenerated, resized or replaced. List thumbnails are cropped by CSS, and detail pages show the original full poster and substantive note sections.
+The English gallery reads the canonical `docs/<category>/<slug>.md` notes and existing PNG assets. Markdown and reviewed PNGs remain the content source; generated HTML is not edited or committed. Original full summary PNGs remain unchanged. Separate reviewed landscape thumbnails have optimized WebP deliveries; pending papers show their complete original summary. Both use contain sizing. Detail pages show the original full poster and substantive note sections.
 
 ## Build and preview
 
@@ -23,7 +23,7 @@ The build output must be a direct workspace folder named `_site` or `_site-<name
 
 ## Reading and navigation
 
-Search matches paper titles, methods/purposes, authors and source IDs. Category and year filters combine with search. Years come from the recorded Overview Venue/preprint year, never Verification dates. Results retain descending year order. Filter state is encoded in the URL; detail links preserve the return query and browser Back restores the list.
+Search matches paper titles, methods/purposes, authors and source IDs. Category and Year/Month/Day publication periods combine with search. Dates use verified arXiv v1 submission or original publisher evidence at its actual precision; results retain newest-first publication order. The period toolbar provides previous/next navigation and a date picker. Filter state is encoded in the URL; detail links preserve the return query and browser Back restores the list. See [publication dates](gallery-publication-dates.md) for evidence and partial-date rules.
 
 Each detail has a physical `papers/<category>/<slug>/index.html`, so direct URLs work without a single-page-app fallback. Internal paper links resolve to current site detail pages, category links return to filtered results, original paper/code links stay external, and other repository documents remain linked to GitHub. Mathematical notation is rendered with local KaTeX assets; tables scroll within the note on narrow screens. Existing legacy-language passages remain unchanged.
 

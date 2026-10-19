@@ -44,6 +44,7 @@
   const month = document.querySelector("#month");
   const day = document.querySelector("#day");
   const dates = window.PaperDates;
+  let dateNavigation;
   const monthNames = [
     "Jan",
     "Feb",
@@ -80,6 +81,7 @@
     };
     fill(month, "month", !selection.year || selection.year === "unknown");
     fill(day, "day", !selection.month || selection.month === "unknown");
+    dateNavigation?.render();
   }
   function readURL() {
     const params = new URLSearchParams(location.search);
@@ -155,6 +157,15 @@
   window.addEventListener("popstate", () => {
     readURL();
     apply(false);
+  });
+  dateNavigation = window.createDateNavigation({
+    records,
+    dates,
+    year,
+    month,
+    day,
+    refresh: refreshDates,
+    apply,
   });
   readURL();
   apply(false);

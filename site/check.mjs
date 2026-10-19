@@ -86,6 +86,9 @@ assert.ok(index.includes('aria-live="polite"'));
 for (const id of ["year", "month", "day"]) assert.ok(index.includes(`id="${id}"`));
 assert.ok(index.includes("Newest publication first"));
 assert.ok(index.includes("publication-date-utils.js"));
+assert.ok(index.includes("date-navigation.js"));
+assert.ok(index.includes('id="date-picker"'));
+assert.ok(fs.existsSync(path.join(output, "date-navigation.js")));
 assert.deepEqual(
   manifest.records.map((r) => r.id),
   [...manifest.records].sort(dates.compare).map((r) => r.id),
