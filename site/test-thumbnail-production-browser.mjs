@@ -94,7 +94,20 @@ try {
     const poster = page.locator(".detail-poster");
     assert.equal(await poster.getAttribute("src"), record.image);
     await poster.evaluate((img) => img.decode());
-    assert.ok(await poster.evaluate((img) => img.naturalHeight > img.naturalWidth));
+    const logical = record.image.slice(new URL(base).pathname.length);
+    assert.ok(logical.startsWith("assets/paper-cards/en/"));
+    const original = fs.readFileSync(path.resolve(logical));
+    assert.equal(await poster.evaluate((img) => img.naturalWidth), original.readUInt32BE(16));
+    assert.equal(await poster.evaluate((img) => img.naturalHeight), original.readUInt32BE(20));
+    const response = await context.request.get(new URL(record.image, base).href);
+    assert.equal(response.status(), 200);
+    assert.equal(
+      crypto
+        .createHash("sha256")
+        .update(await response.body())
+        .digest("hex"),
+      crypto.createHash("sha256").update(original).digest("hex"),
+    );
   }
   assert.deepEqual(report.errors, []);
   fs.writeFileSync(path.join(output, "report.json"), JSON.stringify(report, null, 2) + "\n");
