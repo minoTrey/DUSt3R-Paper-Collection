@@ -90,7 +90,7 @@ Raw foundation-model features (F2d or F3d alone) are inadequate; query refinemen
 
 - **[CUT3R](../dynamic/cut3r.md)**: The reconstructive foundation model whose recurrent state, geometry and state attention MoonSeg3R exploits.
 - **[DUSt3R](../foundation/dust3r.md)**: The pointmap RFM lineage CUT3R descends from.
-- **[MUSt3R](../reconstruction/must3r.md)** & **[TTT3R](../reconstruction/ttt3r.md)**: Related online/streaming RFMs cited in the reconstructive-foundation-model discussion.
+- **[MUSt3R](../reconstruction/must3r.md)** & **[TTT3R](../extensions/ttt3r.md)**: Related online/streaming RFMs cited in the reconstructive-foundation-model discussion.
 
 ## 📚 Key Takeaways
 

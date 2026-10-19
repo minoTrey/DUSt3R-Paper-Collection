@@ -146,7 +146,7 @@ Visual examples show varied-input possibilities, not guaranteed accuracy for all
 
 - **[MUSt3R](../reconstruction/must3r.md)**: Memory for scale → VGGT: Direct scale
 - **[Fast3R](../reconstruction/fast3r.md)**: Speed focus → VGGT: Speed + quality
-- **[Test3R](../reconstruction/test3r.md)**: Test-time adapt → VGGT: Direct generalization
+- **[Test3R](../extensions/test3r.md)**: Test-time adapt → VGGT: Direct generalization
 
 ## 📚 Key Takeaways
 

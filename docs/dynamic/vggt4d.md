@@ -249,7 +249,7 @@ Because the method touches only attention computation and masking, it stacks dir
 - [DAS3R](../gaussian-splatting/das3r.md) — feed-forward motion masks via an augmented DPT head
 - [CUT3R](cut3r.md) — fine-tunes on mixed static/dynamic data; one of the few baselines that survives 500-frame Point Odyssey
 - [POMATO](pomato.md) — dynamic-scene baseline in Tables 2 and 4
-- [FastVGGT](../reconstruction/fastvggt.md) — supplies the long-sequence token-discarding backbone VGGT4D builds on
+- [FastVGGT](../extensions/fastvggt.md) — supplies the long-sequence token-discarding backbone VGGT4D builds on
 - [DUSt3R](../foundation/dust3r.md) — origin of the pairwise attention formulation Easi3R exploits
 
 ## 📚 Key Takeaways

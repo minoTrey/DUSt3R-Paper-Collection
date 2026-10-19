@@ -196,7 +196,7 @@ disc exceeds 1 on every dataset; AUC exceeds 0.5 on the real-world datasets, wit
 
 - **[CUT3R](cut3r.md)**: The frozen recurrent implicit-memory backbone RayMap3R builds on; the static bias is derived from its RayMap-only predictions.
 - **[MonST3R](monst3r.md)**: Offline dynamic-scene reconstruction baseline (with global alignment) compared throughout.
-- **[TTT3R](../reconstruction/ttt3r.md)**: Extends CUT3R with cross-attention soft gating for long-range reconstruction; the closest streaming competitor in the tables.
+- **[TTT3R](../extensions/ttt3r.md)**: Extends CUT3R with cross-attention soft gating for long-range reconstruction; the closest streaming competitor in the tables.
 - **[Point3R](../reconstruction/point3r.md)**: Streaming baseline with explicit spatial pointer memory that grows with sequence length.
 - **[StreamVGGT](../reconstruction/streamvggt.md)**: Distills VGGT for streaming prediction; wins per-sequence Sintel depth but its memory scales with frame count.
 - **[Spann3R](../reconstruction/spann3r.md)**: Streaming spatial-memory extension of DUSt3R; higher normal consistency but weaker on other geometric metrics.

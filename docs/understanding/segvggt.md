@@ -218,7 +218,7 @@ The RGB-only setting is genuinely harder and the paper does not hide the strict-
 - [IGGT](iggt.md) — joint model using clustering for instance masks; the other RGB-based baseline.
 - [MUSt3R](../reconstruction/must3r.md) — PanSt3R's backbone, discussed for its memory/global-context trade-off.
 - [PE3R](pe3r.md) — perception-efficient 3D semantic reconstruction in the same understanding category.
-- [GraphSeg](../robotics/graphseg.md) — 3D segmentation from multi-view observations.
+- [GraphSeg](graphseg.md) — 3D segmentation from multi-view observations.
 - [DUSt3R](../foundation/dust3r.md) — the feed-forward reconstruction lineage the whole line descends from.
 
 ## 📚 Key Takeaways

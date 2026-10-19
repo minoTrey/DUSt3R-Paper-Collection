@@ -226,10 +226,10 @@ Table 2 shows an online method beating the strongest offline (DA3, 49.84 AUC@15)
 - [VGGT](../foundation/vggt.md) — the loss definitions and token layout LingBot-Map builds from; also an offline baseline it beats by 2.6× on Oxford Spires AUC@15
 - [π³](pi3.md) — source of the relative pose loss over window pairs; an offline baseline in Table 2
 - [CUT3R](../dynamic/cut3r.md) — the strongest online competitor on Oxford Spires; degrades 14.31 ATE from sparse to dense
-- [TTT3R](ttt3r.md) and [Stream3R](stream3r.md) — online streaming baselines across every table
+- [TTT3R](../extensions/ttt3r.md) and [Stream3R](stream3r.md) — online streaming baselines across every table
 - [StreamVGGT](streamvggt.md) — causal-attention streaming baseline
 - [Spann3R](spann3r.md) — early memory-based streaming reconstruction
-- [FastVGGT](fastvggt.md) — efficiency-focused offline baseline in Table 2
+- [FastVGGT](../extensions/fastvggt.md) — efficiency-focused offline baseline in Table 2
 - [Fast3R](fast3r.md) and [SLAM3R](slam3r.md) — additional baselines
 - [Depth Anything 3](depth-anything-3.md) — the DA3 offline baseline, strongest non-LingBot method on Oxford Spires
 - [DUSt3R](../foundation/dust3r.md) — the global point-cloud normalization the anchor context replaces

@@ -1,5 +1,6 @@
 """Legacy note notices must resolve to one canonical paper without lost cards."""
 import hashlib
+import copy
 import json
 from pathlib import Path
 import tempfile
@@ -79,6 +80,43 @@ class PaperPathTests(unittest.TestCase):
         (self.root / self.row["old_note_path"]).unlink()
         self.assertEqual(paper_paths.migration_errors(self.root, self.records), [])
         self.assertEqual(paper_paths.resolve("foundation/example", root=self.root), "extensions/example")
+
+    def test_multiple_historical_aliases_resolve_to_one_final_target(self):
+        second = copy.deepcopy(self.row)
+        second.update(old_record_id="pose/example", old_note_path="docs/pose/example.md",
+                      old_card_path="assets/paper-cards/en/pose/example.png", legacy_note_retained=False)
+        self.data["migrations"].append(second)
+        self.write(second["old_card_path"], "reviewed pixels")
+        self.write("data/paper-path-migrations.json", json.dumps(self.data))
+        self.assertEqual(paper_paths.migration_errors(self.root, self.records), [])
+        self.assertEqual(paper_paths.resolve("pose/example", root=self.root), "extensions/example")
+
+    def test_unflattened_chain_is_rejected(self):
+        second = copy.deepcopy(self.row)
+        second.update(old_record_id="pose/example", old_note_path="docs/pose/example.md",
+                      old_card_path="assets/paper-cards/en/pose/example.png",
+                      new_record_id="foundation/example", new_note_path="docs/foundation/example.md",
+                      new_card_path="assets/paper-cards/en/foundation/example.png", legacy_note_retained=False)
+        self.data["migrations"].append(second)
+        self.write("data/paper-path-migrations.json", json.dumps(self.data))
+        self.assertTrue(any("flattened" in e for e in paper_paths.migration_errors(self.root, self.records)))
+
+    def test_aliases_with_different_paper_identities_are_rejected(self):
+        second = copy.deepcopy(self.row)
+        second.update(old_record_id="pose/example", old_note_path="docs/pose/example.md",
+                      old_card_path="assets/paper-cards/en/pose/example.png",
+                      paper_source_identity="arxiv:2601.00003", legacy_note_retained=False)
+        self.data["migrations"].append(second)
+        self.write(second["old_card_path"], "reviewed pixels")
+        self.write("data/paper-path-migrations.json", json.dumps(self.data))
+        self.assertTrue(any("disagree" in e for e in paper_paths.migration_errors(self.root, self.records)))
+
+    def test_canonical_only_category_policy_rejects_move_notices(self):
+        self.data["category_directory_policy"] = "canonical_only"
+        self.write("docs/foundation/README.md", "# Foundation\n")
+        self.write("docs/extensions/README.md", "# Extensions\n")
+        self.write("data/paper-path-migrations.json", json.dumps(self.data))
+        self.assertTrue(any("canonical notes and README" in e for e in paper_paths.migration_errors(self.root, self.records)))
 
 
 if __name__ == "__main__":

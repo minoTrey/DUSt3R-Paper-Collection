@@ -106,7 +106,7 @@ Online learning adds a marginal FPS cost (13.2 → 10.0) while significantly imp
 
 - **[MASt3R](../foundation/mast3r.md)** & **[MASt3R-SLAM](mast3r-slam.md)**: The frozen backbone and base SLAM system Online3R adapts.
 - **[DUSt3R](../foundation/dust3r.md)**: The feed-forward pointmap foundation the lineage builds on.
-- **[Test3R](test3r.md)**: Introduced prompt tuning to geometry foundation models for offline consistency; Online3R adapts the idea to efficient online tuning.
+- **[Test3R](../extensions/test3r.md)**: Introduced prompt tuning to geometry foundation models for offline consistency; Online3R adapts the idea to efficient online tuning.
 - **[Spann3R](spann3r.md)**, **[CUT3R](../dynamic/cut3r.md)**, **[Point3R](point3r.md)**: Online sequential reconstruction baselines compared against.
 - **[VGGT](../foundation/vggt.md)**: Multi-view alternating-attention foundation model referenced for its memory limits in sequential settings.
 

@@ -247,10 +247,10 @@ Because MERG3R only requires `F_g(I) = (G, D, C)` — poses, depth, confidence �
 
 - [VGGT](../foundation/vggt.md) — the primary backbone; MERG3R uses the VRAM-efficient VGGT\* variant.
 - [Pi3](pi3.md) — permutation-equivariant successor to VGGT; MERG3R's strongest pairing.
-- [FastVGGT](fastvggt.md) — token-merging efficiency variant, both a baseline and a supported backbone.
+- [FastVGGT](../extensions/fastvggt.md) — token-merging efficiency variant, both a baseline and a supported backbone.
 - [DUSt3R](../foundation/dust3r.md) / [MASt3R](../foundation/mast3r.md) — the pointmap lineage; DUSt3R's RRA/RTA protocol is followed here.
 - [MASt3R-SfM](mast3r-sfm.md) — pairwise gradient-based global refinement, the method MERG3R's BA is positioned against.
-- [CUT3R](../dynamic/cut3r.md) / [TTT3R](ttt3r.md) — streaming/test-time-optimization baselines with good raw scalability but rapid accuracy degradation.
+- [CUT3R](../dynamic/cut3r.md) / [TTT3R](../extensions/ttt3r.md) — streaming/test-time-optimization baselines with good raw scalability but rapid accuracy degradation.
 - [Fast3R](fast3r.md) — restructured attention for high token counts, discussed as still memory-bounded.
 - [MapAnything](mapanything.md) — another recent feed-forward geometry foundation model cited in the same lineage.
 - [Light3R-SfM](light3r-sfm.md) — scalable feed-forward SfM in an adjacent direction.

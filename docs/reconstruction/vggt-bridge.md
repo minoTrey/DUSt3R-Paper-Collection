@@ -97,7 +97,7 @@ Primarily assumes static scenes and evaluates driving; results do not guarantee 
 - **[VGGT-Long](vggt-long.md)**: earlier overlapping-chunk reconstruction with loop-closure alignment.
 - **SwiftVGGT**: direct baseline with single-SVD alignment and internal-feature loop detection; no separate note yet.
 - **[VGGT-SLAM](vggt-slam.md)**: related learned geometry plus graph constraints.
-- **[Slot3R](slot3r.md)**: changes inference memory, whereas VGGT-Bridge changes inter-chunk graphs.
+- **[Slot3R](../extensions/slot3r.md)**: changes inference memory, whereas VGGT-Bridge changes inter-chunk graphs.
 
 ## 📚 Key Takeaways
 

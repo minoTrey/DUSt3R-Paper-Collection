@@ -121,7 +121,7 @@ Peak-memory reduction over full-precision VGGT reaches 4.9× at one input frame 
 ## 🔗 Related Work
 
 - **[VGGT](../foundation/vggt.md)**: The 1.26B-parameter model QVGGT compresses.
-- **[QuantVGGT](../reconstruction/quantvggt.md)**: Concurrent PTQ-for-VGGT work; QVGGT is positioned as complementary (geometry/task-aware vs. distribution-oriented) and reports comparable or better accuracy at matched bit-widths.
+- **[QuantVGGT](quantvggt.md)**: Concurrent PTQ-for-VGGT work; QVGGT is positioned as complementary (geometry/task-aware vs. distribution-oriented) and reports comparable or better accuracy at matched bit-widths.
 - **[DUSt3R](../foundation/dust3r.md)** / **[MASt3R](../foundation/mast3r.md)**: Feed-forward regression predecessors VGGT unifies.
 
 ## 📚 Key Takeaways

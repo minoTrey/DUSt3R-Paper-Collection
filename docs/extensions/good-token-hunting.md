@@ -182,10 +182,10 @@ Accuracy improves as K grows to ~40-60 (≈10% of frames), then is non-monotonic
 - **[VGGT](../foundation/vggt.md)** — the primary base model accelerated here; supplies the global attention bottleneck GoToHunt targets.
 - **[π³](../reconstruction/pi3.md)** — second base model; GoToHunt-π³ is evaluated on pose, point maps, and video depth.
 - **[Fast3R](../reconstruction/fast3r.md)** — scaling many views in one forward pass; related direction of making geometry transformers efficient.
-- **[FastVGGT](../reconstruction/fastvggt.md)** — training-free token merging baseline compared throughout (Tables 4-7).
-- **[SparseVGGT](../reconstruction/sparse-vggt.md)** — attention-based token pruning baseline (SR 50%/75%), including the Sparse-π³ variant.
-- **[LiteVGGT](../reconstruction/litevggt.md)** — retraining-based efficient variant; faster but requires costly full training, used as the efficiency reference in Figure 1 and Table 7.
-- **[TurboVGGT](../reconstruction/turbovggt.md)** — related VGGT acceleration line for context.
+- **[FastVGGT](fastvggt.md)** — training-free token merging baseline compared throughout (Tables 4-7).
+- **[SparseVGGT](sparse-vggt.md)** — attention-based token pruning baseline (SR 50%/75%), including the Sparse-π³ variant.
+- **[LiteVGGT](litevggt.md)** — retraining-based efficient variant; faster but requires costly full training, used as the efficiency reference in Figure 1 and Table 7.
+- **[TurboVGGT](turbovggt.md)** — related VGGT acceleration line for context.
 - **[DUSt3R](../foundation/dust3r.md)**, **[MASt3R](../foundation/mast3r.md)** — foundational feed-forward reconstruction the visual geometry transformer paradigm builds on.
 
 ## 📚 Key Takeaways

@@ -131,7 +131,7 @@ The three models analyzed, all present in this collection:
 Also cited in context:
 
 - [MASt3R](../foundation/mast3r.md) — cited as improving robustness to large viewpoint change via a dense local feature head
-- [FastVGGT](../reconstruction/fastvggt.md) — cited among follow-up work accelerating inference
+- [FastVGGT](../extensions/fastvggt.md) — cited among follow-up work accelerating inference
 - [VGGT-SLAM](../reconstruction/vggt-slam.md) — cited among extensions to SLAM and real-time reconstruction
 
 ## 📚 Key Takeaways

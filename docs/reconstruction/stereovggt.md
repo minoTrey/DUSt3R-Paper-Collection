@@ -108,7 +108,7 @@ VGGT alone gives the best raw camera-pose features (lowest FOV error before merg
 
 - **[VGGT](../foundation/vggt.md)**: The frozen geometry foundation supplying camera-pose knowledge.
 - **[MoGe-2](moge-2.md)**: The MDE model whose weights are merged and which serves as a backbone baseline.
-- **[fastVGGT](fastvggt.md)**: A VGGT-accelerating variant compared in the cross-dataset disparity table.
+- **[fastVGGT](../extensions/fastvggt.md)**: A VGGT-accelerating variant compared in the cross-dataset disparity table.
 - **[DUSt3R](../foundation/dust3r.md)** & **[MASt3R](../foundation/mast3r.md)**: The feed-forward geometry lineage referenced for VGGT's origins.
 
 ## 📚 Key Takeaways

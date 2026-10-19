@@ -65,7 +65,7 @@ High confidence, low pose error and likely BA success are different concepts. Pr
 ## 🔗 Related Work
 
 - [VGGT](../foundation/vggt.md): the principal frozen backbone.
-- [Trust3R](trust3r.md), [ReVar3R](../reconstruction/revar3r.md): learned and repeated-inference uncertainty methods.
+- [Trust3R](trust3r.md), [ReVar3R](revar3r.md): learned and repeated-inference uncertainty methods.
 
 ## 📚 Key Takeaways
 

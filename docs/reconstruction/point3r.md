@@ -180,7 +180,7 @@ Because retrieval is by 3D proximity rather than temporal recency or feature sim
 
 ### The pose regression cost
 
-The same growing pointer set that helps reconstruction hurts pose. Table 4 shows Point3R behind CUT3R on almost every pose metric, sometimes badly. The authors name this in their limitations and propose improving pointer-image interaction as future work. Downstream papers confirm the pattern: [TTT3R](ttt3r.md) reports Point3R hitting OOM beyond 700 frames because pointer memory grows linearly.
+The same growing pointer set that helps reconstruction hurts pose. Table 4 shows Point3R behind CUT3R on almost every pose metric, sometimes badly. The authors name this in their limitations and propose improving pointer-image interaction as future work. Downstream papers confirm the pattern: [TTT3R](../extensions/ttt3r.md) reports Point3R hitting OOM beyond 700 frames because pointer memory grows linearly.
 
 ### The two paradigms are compatible
 
@@ -194,7 +194,7 @@ The paper's discussion of SLAM is unusually even-handed: SLAM systems could use 
 - [DUSt3R](../foundation/dust3r.md) — supplies the ViT encoder, decoders, and DPT head initialization.
 - [MASt3R-SLAM](mast3r-slam.md) — the SLAM system Point3R benchmarks against on mapping quality, tracking, and efficiency (Table 8).
 - [StreamVGGT](streamvggt.md) — sibling work from the same lab, taking the KV-cache route instead; StreamVGGT adopts Point3R's variable-aspect-ratio preprocessing.
-- [TTT3R](ttt3r.md) — argues the opposite direction: keep memory constant and fix the update rule, citing Point3R's linear memory growth as the cost of explicitness.
+- [TTT3R](../extensions/ttt3r.md) — argues the opposite direction: keep memory constant and fix the update rule, citing Point3R's linear memory growth as the cost of explicitness.
 - [VGGT](../foundation/vggt.md) — the global-attention paradigm Point3R lists as computationally intensive and mismatched with streaming perception.
 
 ## 📚 Key Takeaways

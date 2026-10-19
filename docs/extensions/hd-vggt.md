@@ -178,7 +178,7 @@ HD-VGGT positions itself as a high-resolution extension of the VGGT line of feed
 - **[MASt3R](../foundation/mast3r.md)**: DUSt3R-paradigm matching model; baseline in the CO3Dv2 and depth tables.
 - **[Fast3R](../reconstruction/fast3r.md)**: Cited as an architectural refinement for scalability (1000+ images); baseline across pose and point-map tables.
 - **[π³](../reconstruction/pi3.md)**: Permutation-equivariant VGGT variant addressing reference-view bias; a strong baseline across all task tables.
-- **[FastVGGT](../reconstruction/fastvggt.md)**: Training-free acceleration of the visual geometry transformer, cited among the surrounding VGGT-acceleration literature.
+- **[FastVGGT](fastvggt.md)**: Training-free acceleration of the visual geometry transformer, cited among the surrounding VGGT-acceleration literature.
 
 The paper also compares against CUT3R, FLARE, WorldMirror, DA3, and MonST3R, which do not have dedicated pages in this collection.
 

@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
-"""docs/papers-list.md 를 131편 전체에서 재생성한다.
+"""Generate paper indexes and curated highlights from stored Overview metadata.
 
-이 파일은 README 배지(Papers-131)가 가리키는 전체 목록이다. 손으로 관리돼
-오랫동안 55편에 멈춰 있었고 venue 오류(MASt3R-SLAM을 arXiv 2024로 표기 등)도
-그대로였다. 이제 개별 문서에서 자동 생성한다 — 개별 문서는 검증을 거쳤으므로
-목록도 자동으로 원문까지 추적된다.
-
---check 는 CI용. 현재 파일이 생성 결과와 다르면 non-zero.
+Publication years come from Venue (including preprint years), never Verification.
+Within each year, preserve configured topics and use stable slug order.
 """
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import json
 import pathlib
 import re
@@ -19,8 +16,6 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "papers-list.md"
-
-# 루트 README와 같은 카테고리 순서·표기
 CATEGORY_ORDER = [
     ("foundation", "Foundation Models"),
     ("extensions", "Model Extensions"),
@@ -35,163 +30,147 @@ CATEGORY_ORDER = [
     ("medical", "Medical"),
 ]
 H1 = re.compile(r"^(.+?):\s*(.+?)\s*\(([^()]*(?:\([^)]*\))?[^()]*)\)\s*$")
-
-
-def load() -> list[dict]:
-    return json.loads(
-        subprocess.run(
-            [sys.executable, str(ROOT / "tools" / "extract_meta.py"), "--json"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-    )
-
-
-def parse_h1(rec: dict) -> tuple[str, str, str]:
-    """H1에서 (이름, 부제, venue)를 뽑는다. Venue 필드를 우선한다."""
-    h = rec["h1"] or rec["slug"]
-    m = H1.match(h)
-    venue = rec["fields"].get("Venue", "").strip()
-    if m:
-        name, sub, h1venue = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
-        return name, sub, venue or h1venue
-    return h, "", venue
-
-
-def build() -> str:
-    recs = load()
-    by_cat: dict[str, list[dict]] = {}
-    for r in recs:
-        by_cat.setdefault(r["cat"], []).append(r)
-
-    total = len(recs)
-    lines = [
-        "# Complete Papers List",
-        "",
-        "> Generated from individual paper notes by `tools/build_papers_list.py`.",
-        "> Links open collection notes, primarily in English; some legacy passages are in Korean. Original papers are linked in each Overview.",
-        "",
-        f"**Total: {total} papers**",
-        "",
-    ]
-
-    seen = set()
-    for cat, title in CATEGORY_ORDER:
-        recs_c = sorted(by_cat.get(cat, []), key=lambda r: r["slug"])
-        if not recs_c:
-            continue
-        seen.add(cat)
-        lines.append(f"## {title} ({len(recs_c)})")
-        lines.append("")
-        for r in recs_c:
-            name, sub, venue = parse_h1(r)
-            link = pathlib.Path(r["file"]).name  # docs/<cat>/<slug>.md → <slug>.md
-            rel = f"{cat}/{link}"
-            tail = f" — {sub}" if sub else ""
-            lines.append(f"- [**{name}**]({rel}) ({venue}){tail}")
-        lines.append("")
-
-    # CATEGORY_ORDER에 없는 카테고리가 생기면 조용히 빠지지 않게 경고
-    missing = set(by_cat) - seen
-    if missing:
-        lines.append(f"<!-- ⚠️ CATEGORY_ORDER에 없는 카테고리: {sorted(missing)} -->")
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
-
-
+YEAR = re.compile(r"\b(20\d{2})\b")
 CAT_BEGIN = "<!-- GENERATED:paper-index -->"
 CAT_END = "<!-- /GENERATED -->"
 FEAT_BEGIN = "<!-- GENERATED:featured -->"
 FEAT_END = "<!-- /GENERATED:featured -->"
 
-# 수상 등급 우선순위 (높을수록 먼저)
-_AWARD_RANK = [
-    ("best paper", 5),
-    ("oral", 4),
-    ("spotlight", 3),
-    ("highlight", 2),
-]
+
+def load() -> list[dict]:
+    return json.loads(subprocess.run(
+        [sys.executable, "-X", "utf8", str(ROOT / "tools" / "extract_meta.py"), "--json"],
+        capture_output=True, text=True, encoding="utf-8", check=True,
+    ).stdout)
 
 
-def _award_score(award: str) -> int:
-    a = (award or "").lower()
-    for kw, sc in _AWARD_RANK:
-        if kw in a:
-            return sc
-    return 1 if a else 0
+def record_id(rec: dict) -> str:
+    return f"{rec['cat']}/{rec['slug']}"
 
 
-def featured_block(recs_c: list[dict], limit: int = 8) -> str:
-    """카테고리별 Featured — 손큐레이션이 아니라 검증 가능한 신호로 자동 선정.
+def parse_h1(rec: dict) -> tuple[str, str, str]:
+    """Extract display text; prefer the Overview Venue for the venue label."""
+    heading = rec["h1"] or rec["slug"]
+    match = H1.match(heading)
+    venue = rec["fields"].get("Venue", "").strip()
+    if match:
+        name, subtitle, h1venue = (s.strip() for s in match.groups())
+        return name, subtitle, venue or h1venue
+    return heading, "", venue
 
-    과거엔 손으로 관리해 낡았다("Complete (110)"인데 19개, 신규 133편 미반영).
-    이제 수상(Best Paper/Oral/Highlight/Spotlight) → CONFIRMED 게재작 순으로
-    자동 선정한다. award/venue는 원문 대조를 거친 사실 카드에서 온다.
-    """
-    def eligible(r) -> bool:
-        """수상작, 또는 학회 게재(확정/유력). 순수 프리프린트는 Featured 제외."""
-        f = r["fields"]
-        if f.get("Award"):
-            return True
-        ver = f.get("Verification", "")
-        # arXiv preprint venue는 게재작이 아니다
-        is_venue = "arxiv" not in f.get("Venue", "").lower()
-        return is_venue and ("CONFIRMED" in ver or "LIKELY" in ver)
 
-    def key(r):
-        f = r["fields"]
-        aw = _award_score(f.get("Award", ""))
-        conf = 1 if "CONFIRMED" in f.get("Verification", "") else 0
-        m = re.search(r"\b(20\d{2})\b", f.get("Venue", ""))
-        yr = int(m.group(1)) if m else 0
-        return (aw, conf, yr)
+def paper_year(rec: dict) -> int:
+    """The first Overview venue/preprint year; missing years sort last."""
+    match = YEAR.search(rec["fields"].get("Venue", ""))
+    return int(match.group(1)) if match else 0
 
-    picks = sorted([r for r in recs_c if eligible(r)], key=key, reverse=True)[:limit]
+
+def year_groups(recs: list[dict]) -> list[tuple[int, list[dict]]]:
+    years: dict[int, list[dict]] = {}
+    for rec in recs:
+        years.setdefault(paper_year(rec), []).append(rec)
+    return [(year, sorted(years[year], key=lambda r: r["slug"]))
+            for year in sorted(years, reverse=True)]
+
+
+def paper_line(rec: dict, prefix: str = "") -> str:
+    name, subtitle, venue = parse_h1(rec)
+    link = prefix + pathlib.Path(rec["file"]).name
+    tail = f" — {subtitle}" if subtitle else ""
+    return f"- [**{name}**]({link}) ({venue or 'Venue not recorded'}){tail}"
+
+
+def build(recs: list[dict] | None = None) -> str:
+    recs = load() if recs is None else recs
+    by_cat: dict[str, list[dict]] = {}
+    for rec in recs:
+        by_cat.setdefault(rec["cat"], []).append(rec)
+    missing = set(by_cat) - {cat for cat, _ in CATEGORY_ORDER}
+    if missing:
+        raise ValueError(f"Categories missing from CATEGORY_ORDER: {sorted(missing)}")
     lines = [
-        FEAT_BEGIN,
-        "",
-        "## ⭐ Featured Papers",
-        "",
-        "> **Automatically selected** from stored award and publication metadata (`tools/build_papers_list.py`). "
-        "Some legacy passages are in Korean. See “All Papers in This Category” for every entry.",
-        "",
+        "# Complete Papers List", "",
+        "> Generated from individual paper notes by `tools/build_papers_list.py`.",
+        "> Years use the recorded Overview Venue or preprint year, newest first; verification dates are not publication dates. Within each year, entries are ordered by slug.",
+        "> Links open collection notes and their English summary cards; original papers are linked in each Overview. Some legacy passages are in Korean.",
+        "", f"**Total: {len(recs)} papers**", "",
     ]
-    if not picks:
-        lines.append("_(No entries currently meet the stored award/publication selection rules. "
-                     "See the complete list below.)_")
-    for r in picks:
-        name, sub, venue = parse_h1(r)
-        link = pathlib.Path(r["file"]).name
-        aw = r["fields"].get("Award", "")
-        badge = f" — **{aw}**" if aw else ""
-        tail = f" ({venue})"
-        lines.append(f"- [**{name}**]({link}){tail}{badge}")
-    lines += ["", FEAT_END]
-    return "\n".join(lines)
+    for cat, title in CATEGORY_ORDER:
+        recs_c = by_cat.get(cat, [])
+        if not recs_c:
+            continue
+        lines += [f"## {title} ({len(recs_c)})", ""]
+        for year, members in year_groups(recs_c):
+            lines += [f"### {year or 'Year not recorded'}", ""]
+            lines += [paper_line(rec, f"{cat}/") for rec in members]
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
 
 
-def category_block(recs_c: list[dict]) -> str:
-    """카테고리 README 끝에 붙는 자동 생성 전체 목록 블록.
+def load_featured(recs: list[dict]) -> dict:
+    config = json.loads((ROOT / "data/category-featured.json").read_text(encoding="utf-8"))
+    if config.get("schema_version") != 1:
+        raise ValueError("Unsupported category-featured schema version")
+    if config.get("selection_status", "curated") not in {
+        "curated", "provisional_pending_primary_contribution_classification_review"
+    }:
+        raise ValueError("Unknown Featured selection status")
+    date.fromisoformat(config["reviewed_on"])
+    by_cat: dict[str, set[str]] = {}
+    for rec in recs:
+        by_cat.setdefault(rec["cat"], set()).add(record_id(rec))
+    if set(config["categories"]) != set(by_cat):
+        raise ValueError("Featured configuration must cover every current category exactly")
+    for cat, entries in config["categories"].items():
+        if not entries or len(entries) > 8:
+            raise ValueError(f"Featured category {cat} must have between 1 and 8 selections")
+        seen = set()
+        for entry in entries:
+            rid = entry["record_id"]
+            if rid not in by_cat[cat] or rid in seen:
+                raise ValueError(f"Invalid or duplicate Featured member: {rid}")
+            if entry["selection"] not in {"recent", "representative"}:
+                raise ValueError(f"Unknown Featured selection type: {rid}")
+            if not entry["reason"].strip() or "\n" in entry["reason"]:
+                raise ValueError(f"Featured reason must be one nonempty line: {rid}")
+            seen.add(rid)
+    return config
 
-    손으로 큐레이션한 테마별 리스트는 그대로 두고, 이 블록이 '빠짐없는 전체
-    목록'을 보장한다. 큐레이션이 최신 논문을 놓쳐도 여기엔 반드시 있다.
-    """
+
+def featured_block(recs_c: list[dict], config: dict) -> str:
+    by_id = {record_id(rec): rec for rec in recs_c}
+    category = recs_c[0]["cat"]
     lines = [
-        CAT_BEGIN,
-        "",
-        f"## 📄 All Papers in This Category ({len(recs_c)})",
-        "",
-        "> Generated by `tools/build_papers_list.py`. Links open collection notes; some legacy passages are in Korean.",
-        "",
+        FEAT_BEGIN, "", "## \u2b50 Featured Papers", "",
+        f"> **Curated for recency and representative methods; reviewed {config['reviewed_on']}.** "
+        "[Selection settings](../../data/category-featured.json) record the reason for each choice. "
+        "This is a reading route, not a performance ranking. Preprint labels mean no independently confirmed conference/journal publication is stored; "
+        "other unconfirmed venues are marked. See All Papers in This Category for every entry.", "",
     ]
+    if config.get("selection_status") == "provisional_pending_primary_contribution_classification_review":
+        lines[4:4] = [
+            "> **Provisional choices: primary-contribution classification review is pending.** "
+            "Featured selections will be reconsidered after that review.", ">",
+        ]
+    for entry in config["categories"][category]:
+        rec = by_id[entry["record_id"]]
+        name, _, venue = parse_h1(rec)
+        fields = rec["fields"]
+        preprint = re.search(r"arxiv|preprint|\bcorr\b", venue, re.I)
+        confirmed = re.match(r"^CONFIRMED\b", fields.get("Verification", ""))
+        status = " — **Preprint**" if preprint else "" if confirmed else " — **Venue unconfirmed**"
+        award = f" — **{fields['Award']}**" if fields.get("Award") else ""
+        role = entry["selection"].capitalize()
+        lines.append(f"- [**{name}**]({pathlib.Path(rec['file']).name}) ({venue}){status}{award} — **{role}:** {entry['reason']}")
+    return "\n".join(lines + ["", FEAT_END])
+
+
+def topic_groups(recs_c: list[dict]) -> list[tuple[str, list[dict]]]:
     category = recs_c[0]["cat"] if recs_c else ""
-    groups_path = ROOT / "data/category-groups.json"
-    groups = json.loads(groups_path.read_text(encoding="utf-8"))["categories"].get(category, []) if groups_path.exists() else []
-    by_id = {f"{r['cat']}/{r['slug']}": r for r in recs_c}
-    grouped = []
-    seen = set()
+    config = json.loads((ROOT / "data/category-groups.json").read_text(encoding="utf-8"))
+    groups = config["categories"].get(category, [])
+    by_id = {record_id(rec): rec for rec in recs_c}
+    grouped, seen = [], set()
     for group in groups:
         members = []
         for rid in group["record_ids"]:
@@ -200,105 +179,78 @@ def category_block(recs_c: list[dict]) -> str:
             seen.add(rid)
             members.append(by_id[rid])
         grouped.append((group["title"], members))
-    remaining = [r for rid, r in by_id.items() if rid not in seen]
+    remaining = [rec for rid, rec in by_id.items() if rid not in seen]
     if remaining:
-        grouped.append(("Surveys and analysis" if category == "surveys" else "Other extensions" if groups else "", sorted(remaining, key=lambda r: r["slug"])))
-    for heading, members in grouped:
-        if heading:
-            lines += [f"### {heading}", ""]
-        for r in members:
-            name, sub, venue = parse_h1(r)
-            link = pathlib.Path(r["file"]).name
-            tail = f" — {sub}" if sub else ""
-            lines.append(f"- [**{name}**]({link}) ({venue}){tail}")
-        lines.append("")
-    lines.append(CAT_END)
-    return "\n".join(lines)
+        fallback = "Surveys and analysis" if category == "surveys" else "Other extensions" if groups else ""
+        grouped.append((fallback, remaining))
+    return grouped
 
 
-def apply_category(recs: list[dict], check: bool) -> tuple[int, list[str]]:
-    """각 카테고리 README에 자동 목록 블록을 삽입/갱신한다."""
+def category_block(recs_c: list[dict]) -> str:
+    lines = [
+        CAT_BEGIN, "", f"## \U0001f4c4 All Papers in This Category ({len(recs_c)})", "",
+        "> Generated by `tools/build_papers_list.py`. Years use the recorded Overview Venue or preprint year, newest first; "
+        "verification dates are not publication dates. Topics, where present, are nested below each year; "
+        "entries within each year/topic are ordered by slug. Links open notes and their English summary cards.", "",
+    ]
+    topics = topic_groups(recs_c)
+    for year, _ in year_groups(recs_c):
+        lines += [f"### {year or 'Year not recorded'}", ""]
+        for heading, recs_t in topics:
+            members = sorted((r for r in recs_t if paper_year(r) == year), key=lambda r: r["slug"])
+            if not members:
+                continue
+            if heading:
+                lines += [f"#### {heading}", ""]
+            lines += [paper_line(rec) for rec in members]
+            lines.append("")
+    return "\n".join(lines + [CAT_END])
+
+
+def apply_category(recs: list[dict], check: bool, config: dict | None = None) -> tuple[int, list[str]]:
+    config = load_featured(recs) if config is None else config
     by_cat: dict[str, list[dict]] = {}
-    for r in recs:
-        by_cat.setdefault(r["cat"], []).append(r)
-    changed, stale = 0, []
+    for rec in recs:
+        by_cat.setdefault(rec["cat"], []).append(rec)
+    # Prepare all results before writing, so invalid settings cannot partially update files.
+    updates = []
     for cat, recs_c in by_cat.items():
-        rp = ROOT / "docs" / cat / "README.md"
-        if not rp.exists():
-            continue
-        old = rp.read_text(encoding="utf-8")
+        path = ROOT / "docs" / cat / "README.md"
+        old = path.read_text(encoding="utf-8")
         new = old
-
-        # 1) 전체 목록 블록 (하단)
-        block = category_block(recs_c)
-        if CAT_BEGIN in new:
-            new = re.sub(
-                re.escape(CAT_BEGIN) + r".*?" + re.escape(CAT_END),
-                block,
-                new,
-                flags=re.S,
-            )
-        else:
-            new = new.rstrip() + "\n\n" + block + "\n"
-
-        # 2) Featured 블록 (자동). 기존 마커가 있으면 교체.
-        feat = featured_block(recs_c)
-        if FEAT_BEGIN in new:
-            new = re.sub(
-                re.escape(FEAT_BEGIN) + r".*?" + re.escape(FEAT_END),
-                feat,
-                new,
-                flags=re.S,
-            )
-        else:
-            # 마커가 없으면: 손큐레이션 "⭐ Featured Papers" 섹션(다음 ## 전까지)을
-            # 자동 블록으로 교체한다. 없으면 파일 앞부분(첫 ## 뒤)에 삽입.
-            m = re.search(
-                r"##\s*⭐?\s*Featured Papers.*?(?=\n##\s|\n<!-- GENERATED)",
-                new,
-                flags=re.S,
-            )
-            if m:
-                new = new[: m.start()] + feat + "\n\n" + new[m.end():]
-            else:
-                # 첫 번째 '## ' 앞(개요 뒤)에 삽입
-                m2 = re.search(r"\n##\s", new)
-                pos = m2.start() if m2 else len(new)
-                new = new[:pos] + "\n\n" + feat + "\n" + new[pos:]
+        for begin, end, block in [
+            (CAT_BEGIN, CAT_END, category_block(recs_c)),
+            (FEAT_BEGIN, FEAT_END, featured_block(recs_c, config)),
+        ]:
+            if new.count(begin) != 1 or new.count(end) != 1:
+                raise ValueError(f"Expected exactly one generated block: {path} {begin}")
+            new = re.sub(re.escape(begin) + r".*?" + re.escape(end), lambda _: block, new, flags=re.S)
         if new != old:
-            changed += 1
-            stale.append(cat)
-            if not check:
-                rp.write_text(new, encoding="utf-8")
-    return changed, stale
+            updates.append((cat, path, new))
+    if not check:
+        for _, path, new in updates:
+            path.write_text(new, encoding="utf-8", newline="\n")
+    return len(updates), [cat for cat, _, _ in updates]
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--check", action="store_true")
-    args = ap.parse_args()
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
     recs = load()
-    new = build()
+    config = load_featured(recs)
+    new = build(recs)
     old = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
-    cat_changed, cat_stale = apply_category(recs, args.check)
-
+    changed, stale = apply_category(recs, args.check, config)
     if args.check:
-        bad = new != old or cat_changed
-        if bad:
-            if new != old:
-                print("❌ docs/papers-list.md 가 문서 실태와 다르다.", file=sys.stderr)
-            if cat_changed:
-                print(f"❌ 카테고리 README {cat_stale} 목록이 낡았다.", file=sys.stderr)
-            print("   `python3 tools/build_papers_list.py` 실행 필요", file=sys.stderr)
+        if new != old or changed:
+            print(f"Stale indexes: papers-list={new != old}, categories={stale}. "
+                  "Run python tools/build_papers_list.py", file=sys.stderr)
             return 1
-        print("✅ papers-list.md + 카테고리 목록 정합")
+        print("Paper list and all category READMEs match the generator and curated settings.")
         return 0
-
-    OUT.write_text(new, encoding="utf-8")
-    print(f"✅ papers-list.md 재생성 ({new.count('- [')}편)")
-    if cat_changed:
-        print(f"✅ 카테고리 README 목록 갱신: {cat_stale}")
+    OUT.write_text(new, encoding="utf-8", newline="\n")
+    print(f"Generated papers-list.md ({len(recs)} papers); updated category READMEs: {stale}")
     return 0
 
 

@@ -162,7 +162,7 @@ Estimating a full 15-DOF homography is degenerate when points are planar. The TU
 
 ### Submapping as the standard workaround
 
-The concrete number driving the design — VGGT limited to roughly 60 frames on a 24 GB RTX 4090 — is the same constraint that motivates [FastVGGT](fastvggt.md) and [StreamVGGT](streamvggt.md). VGGT-SLAM's answer is to keep VGGT unmodified and put the scaling in a classical SLAM backend.
+The concrete number driving the design — VGGT limited to roughly 60 frames on a 24 GB RTX 4090 — is the same constraint that motivates [FastVGGT](../extensions/fastvggt.md) and [StreamVGGT](streamvggt.md). VGGT-SLAM's answer is to keep VGGT unmodified and put the scaling in a classical SLAM backend.
 
 ## 🔗 Related Work
 
@@ -170,7 +170,7 @@ The concrete number driving the design — VGGT limited to roughly 60 frames on 
 - [MASt3R-SLAM](mast3r-slam.md) — the closest prior system and primary baseline in both calibrated and uncalibrated modes. VGGT-SLAM follows its evaluation protocol for dense reconstruction.
 - [Spann3R](spann3r.md) — included in the dense reconstruction comparison at two keyframe rates.
 - [DUSt3R](../foundation/dust3r.md) — the pairwise ancestor whose point clouds enabled pose recovery via 3-point RANSAC.
-- [FastVGGT](fastvggt.md) / [StreamVGGT](streamvggt.md) — alternative answers to the same VGGT frame-count ceiling, via token merging and causal attention respectively rather than submapping.
+- [FastVGGT](../extensions/fastvggt.md) / [StreamVGGT](streamvggt.md) — alternative answers to the same VGGT frame-count ceiling, via token merging and causal attention respectively rather than submapping.
 - [Point3R](point3r.md) — benchmarks itself against MASt3R-SLAM on the same 7-Scenes mapping/tracking axes, from the feed-forward rather than the SLAM side.
 
 ## 📚 Key Takeaways

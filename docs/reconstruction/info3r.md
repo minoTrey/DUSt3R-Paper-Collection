@@ -64,8 +64,8 @@ Storing more information differs from retaining capacity to learn new observatio
 ## 🔗 Related Work
 
 - [CUT3R](../dynamic/cut3r.md): the recurrent geometric base model.
-- [TTT3R](ttt3r.md): the direct test-time state-learning comparison.
-- [Slot3R](slot3r.md): another streaming approach changing storage/readout structure.
+- [TTT3R](../extensions/ttt3r.md): the direct test-time state-learning comparison.
+- [Slot3R](../extensions/slot3r.md): another streaming approach changing storage/readout structure.
 
 ## 📚 Key Takeaways
 
