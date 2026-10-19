@@ -22,6 +22,7 @@ assert.equal(ids.size, inventory.total_papers);
 const byId = new Map(inventory.papers.map((r) => [r.record_id, r]));
 const hash = (b) => crypto.createHash("sha256").update(b).digest("hex");
 let pngs = 0,
+  thumbnails = 0,
   localLinks = 0;
 for (const rec of manifest.records) {
   const item = byId.get(rec.id);
@@ -35,10 +36,18 @@ for (const rec of manifest.records) {
     hash(fs.readFileSync(path.join(output, image))),
   );
   pngs++;
+  if (rec.thumbnail?.kind === "image") {
+    const thumb = rec.thumbnail.path.slice(manifest.base.length);
+    assert.ok(thumb.startsWith("assets/paper-thumbnails/en/"));
+    assert.equal(hash(fs.readFileSync(path.join(root, thumb))), rec.thumbnail.sha256);
+    assert.equal(hash(fs.readFileSync(path.join(output, thumb))), rec.thumbnail.sha256);
+    thumbnails++;
+  } else assert.equal(rec.thumbnail?.kind, "text");
   const file = path.join(output, "papers", rec.id, "index.html");
   assert.ok(fs.existsSync(file));
   const html = fs.readFileSync(file, "utf8");
   assert.ok(html.includes('class="detail-poster"'));
+  assert.ok(html.includes('class="detail-poster" src="' + rec.image + '"'));
   assert.ok(html.includes('class="note-content"'));
   for (const m of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) {
     const url = m[1].replaceAll("&amp;", "&");
@@ -51,7 +60,10 @@ for (const rec of manifest.records) {
 }
 const index = fs.readFileSync(path.join(output, "index.html"), "utf8");
 assert.equal((index.match(/data-paper="/g) || []).length, inventory.total_papers);
-assert.equal((index.match(/data-src="/g) || []).length, inventory.total_papers);
+assert.equal((index.match(/data-src="/g) || []).length, manifest.dedicatedThumbnails);
+assert.equal(thumbnails, manifest.dedicatedThumbnails);
+assert.equal(manifest.textFallbacks, inventory.total_papers - thumbnails);
+assert.ok(!/data-src="[^"]*paper-cards\//.test(index), "Listing must not use full posters.");
 assert.ok(index.includes('loading="lazy"'));
 assert.ok(index.includes('aria-live="polite"'));
 const years = manifest.records.map((r) => r.year);
@@ -76,6 +88,8 @@ console.log(
     papers: manifest.papers,
     detail_pages: manifest.papers,
     canonical_png_hashes: pngs,
+    dedicated_thumbnail_hashes: thumbnails,
+    text_fallbacks: manifest.textFallbacks,
     local_detail_links: localLinks,
     base: manifest.base,
     categories: manifest.categories,

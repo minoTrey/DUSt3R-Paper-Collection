@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import MarkdownIt from "markdown-it";
 import texmath from "markdown-it-texmath";
 import katex from "katex";
+import { loadThumbnails, thumbnailFor } from "./thumbnails.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -78,6 +79,7 @@ const inventory = JSON.parse(
   fs.readFileSync(path.join(root, "data/paper-card-inventory.json"), "utf8"),
 );
 const byNote = new Map(inventory.papers.map((p) => [p.note_path, p]));
+const thumbnails = loadThumbnails(root, inventory);
 const canonical = new Set(source.map((p) => p.file));
 const assets = new Set();
 const relativeAsset = (logical) => {
@@ -153,6 +155,7 @@ const papers = source
       preprint: /arxiv|preprint/i.test(rec.fields.Venue),
       url: base + "papers/" + row.record_id + "/",
       image: relativeAsset(row.planned_card_path),
+      thumbnail: thumbnailFor(row.record_id, thumbnails),
       links,
       search: [row.title, purpose, rec.fields.Authors, rec.cat, names[rec.cat], rec.arxiv_id]
         .join(" ")
@@ -180,13 +183,17 @@ const categoryOptions = Object.entries(names)
   .map(([id, name]) => `<option value="${id}">${escape(name)}</option>`)
   .join("");
 const years = [...new Set(papers.map((p) => p.year).filter(Boolean))].sort((a, b) => b - a);
-const list = papers
-  .map(
-    (p) =>
-      `<article class="paper-item" data-paper="${escape(p.id)}"><a class="paper-image" href="${p.url}" aria-label="Read ${escape(p.shortTitle)}"><img data-src="${p.image}" width="900" height="650" loading="lazy" decoding="async" alt="Visual summary for ${escape(p.shortTitle)}"></a><div class="paper-caption"><div class="paper-meta"><span>${escape(p.categoryName)}</span><span>${p.year || "Year not recorded"}</span></div><h2><a class="paper-title" href="${p.url}">${escape(p.title)}</a></h2><p class="paper-purpose" title="${escape(p.purpose)}">${escape(p.purpose)}</p></div></article>`,
-  )
-  .join("\n");
-const data = papers.map(({ html, noteSha256, sourceIdentity, ...p }) => p);
+function listingCard(p, forceFallback = false) {
+  const art = p.thumbnail;
+  const hasImage = art.kind === "image" && !forceFallback;
+  const fallback = `<span class="paper-fallback" data-thumbnail-fallback${hasImage ? " hidden" : ""}><span>${escape(thumbnails.fallback.label)}</span><strong>${escape(p.shortTitle)}</strong><span class="fallback-purpose">${escape(p.purpose)}</span></span>`;
+  const image = hasImage
+    ? `<img data-src="${relativeAsset(art.path)}" width="${art.width}" height="${art.height}" loading="lazy" decoding="async" alt="${escape(art.alt)}">`
+    : "";
+  return `<article class="paper-item" data-paper="${escape(p.id)}"><a class="paper-image" data-thumbnail-kind="${hasImage ? "image" : "text"}" href="${p.url}" aria-label="Read ${escape(p.shortTitle)}">${image}${fallback}</a><div class="paper-caption"><div class="paper-meta"><span>${escape(p.categoryName)}</span><span>${p.year || "Year not recorded"}</span></div><h2><a class="paper-title" href="${p.url}">${escape(p.title)}</a></h2><p class="paper-purpose" title="${escape(p.purpose)}">${escape(p.purpose)}</p></div></article>`;
+}
+const list = papers.map((p) => listingCard(p)).join("\n");
+const data = papers.map(({ html, noteSha256, sourceIdentity, thumbnail, ...p }) => p);
 const intro = `<section class="intro"><div><h1>From images<br>to 3D.</h1><p class="intro-description">Source-linked notes and visual summaries for geometric vision.</p></div><aside class="reading-route"><p>Start with the foundations</p><div>${[
   "croco",
   "croco-v2",
@@ -205,6 +212,18 @@ const filters = `<section class="catalog" id="papers" aria-label="Paper library"
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, "index.html"), shell("Research library", intro + filters));
+if (args.includes("--thumbnail-preview")) {
+  const samples = ["dust3r", "mast3r", "vggt"].map((s) =>
+    papers.find((p) => p.id === "foundation/" + s),
+  );
+  const fallback = papers.find((p) => p.id === "foundation/croco");
+  const preview = `<section class="thumbnail-study"><h1>Three methods. A clearer first look.</h1><p>Dedicated listing thumbnails. Full visual summaries stay in the paper details.</p><div class="paper-grid">${samples.map((p) => listingCard(p)).join("")}</div><h2>When a thumbnail is unavailable</h2><div class="fallback-example">${listingCard(fallback, true)}</div></section>`;
+  fs.mkdirSync(path.join(output, "thumbnail-preview"));
+  fs.writeFileSync(
+    path.join(output, "thumbnail-preview/index.html"),
+    shell("Thumbnail study", preview),
+  );
+}
 const classificationReview = JSON.parse(
   fs.readFileSync(path.join(root, "data/classification-review-2026-10-19.json"), "utf8"),
 );
@@ -258,6 +277,8 @@ const manifest = {
     Object.keys(names).map((cat) => [cat, papers.filter((p) => p.category === cat).length]),
   ),
   assets: assets.size,
+  dedicatedThumbnails: Object.keys(thumbnails.thumbnails).length,
+  textFallbacks: papers.length - Object.keys(thumbnails.thumbnails).length,
   source: "Existing canonical Markdown notes and unchanged PNG assets",
   records: papers.map((p) => ({
     id: p.id,
@@ -266,6 +287,10 @@ const manifest = {
     noteSha256: p.noteSha256,
     sourceIdentity: p.sourceIdentity,
     image: p.image,
+    thumbnail:
+      p.thumbnail.kind === "image"
+        ? { kind: "image", path: base + p.thumbnail.path, sha256: p.thumbnail.sha256 }
+        : { kind: "text" },
     url: p.url,
   })),
 };
