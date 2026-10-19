@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Add 24 reviewed method thumbnails across five categories
+
+Register 24 completed dedicated illustrations from parallel paper-source and visual review. Preserve unchanged generated masters, separate uncropped optimized WebP deliveries and original-paper revision/method provenance. Every master and actual 320px preview passed visual inspection. Site validation retains all 337 original summary hashes and 5,089 detail links. The completed set reaches 35, with 302 remaining; the preceding 11-image main deployment is publicly verified. Existing note bodies, visual summaries, permissions and discovery schedules remain intact.
+
 ## [2026-10-19] Publish the next three multi-view reconstruction thumbnails
 
 Add reviewed Fast3R, SLAM3R and Light3R-SfM dedicated artwork with unchanged PNG masters and uncropped optimized WebP deliveries. Original-paper methods distinguish simultaneous multi-view attention, local-to-world pointmap registration and latent alignment with a sparse scene graph. Master and actual 320px previews plus gallery layouts at 1440/390/360/320px passed. All 337 original summaries and detailed notes remain intact. Dedicated assets: 11; remaining jobs: 326. First production PR #39 is already merged at 8160f7c and publicly verified: eight exact dedicated assets and no text-only cards. Further completed batches proceed through the same validation and main publication path.
