@@ -268,14 +268,24 @@ for (const logical of assets) {
 }
 const mathAssets = path.join(output, "vendor/katex");
 fs.mkdirSync(mathAssets, { recursive: true });
-fs.copyFileSync(
-  path.join(root, "node_modules/katex/dist/katex.min.css"),
-  path.join(mathAssets, "katex.min.css"),
+const mathCSS = fs.readFileSync(path.join(root, "node_modules/katex/dist/katex.min.css"), "utf8");
+const compactMathCSS = mathCSS.replace(
+  /,url\(fonts\/[^)]+\.woff\) format\("woff"\),url\(fonts\/[^)]+\.ttf\) format\("truetype"\)/g,
+  "",
 );
+const mathFonts = [
+  ...new Set([...compactMathCSS.matchAll(/url\(fonts\/([^)]+)\)/g)].map((match) => match[1])),
+];
+if (!mathFonts.length || mathFonts.some((name) => !/^[A-Za-z0-9_-]+\.woff2$/.test(name)))
+  throw new Error("KaTeX font sources changed; review before producing the WOFF2-only delivery.");
+fs.writeFileSync(path.join(mathAssets, "katex.min.css"), compactMathCSS);
 fs.copyFileSync(path.join(root, "node_modules/katex/LICENSE"), path.join(mathAssets, "LICENSE"));
-fs.cpSync(path.join(root, "node_modules/katex/dist/fonts"), path.join(mathAssets, "fonts"), {
-  recursive: true,
-});
+fs.mkdirSync(path.join(mathAssets, "fonts"));
+for (const name of mathFonts)
+  fs.copyFileSync(
+    path.join(root, "node_modules/katex/dist/fonts", name),
+    path.join(mathAssets, "fonts", name),
+  );
 fs.writeFileSync(path.join(output, ".nojekyll"), "");
 fs.writeFileSync(
   path.join(output, "404.html"),

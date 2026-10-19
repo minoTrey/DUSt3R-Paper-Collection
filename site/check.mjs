@@ -89,6 +89,22 @@ assert.ok(index.includes("publication-date-utils.js"));
 assert.ok(index.includes("date-navigation.js"));
 assert.ok(index.includes('id="date-picker"'));
 assert.ok(fs.existsSync(path.join(output, "date-navigation.js")));
+const mathCSS = fs.readFileSync(path.join(output, "vendor/katex/katex.min.css"), "utf8");
+const mathFonts = [...mathCSS.matchAll(/url\(fonts\/([^)]+)\)/g)].map((match) => match[1]);
+assert.ok(mathFonts.length > 0);
+for (const name of mathFonts) {
+  assert.ok(name.endsWith(".woff2"));
+  assert.ok(fs.existsSync(path.join(output, "vendor/katex/fonts", name)));
+  assert.equal(
+    hash(fs.readFileSync(path.join(output, "vendor/katex/fonts", name))),
+    hash(fs.readFileSync(path.join(root, "node_modules/katex/dist/fonts", name))),
+    `KaTeX font bytes must match the original WOFF2 file: ${name}`,
+  );
+}
+assert.deepEqual(
+  fs.readdirSync(path.join(output, "vendor/katex/fonts")).sort(),
+  [...new Set(mathFonts)].sort(),
+);
 assert.deepEqual(
   manifest.records.map((r) => r.id),
   [...manifest.records].sort(dates.compare).map((r) => r.id),
