@@ -1,32 +1,23 @@
 # Gallery thumbnails
 
-The approved set contains the five Foundation thumbnails (CroCo, CroCo v2, DUSt3R, MASt3R and VGGT), plus MUSt3R, Spann3R and MASt3R-SLAM. Collection-wide production, main merges and incremental public rollout were explicitly approved on 2026-10-19. Their dedicated English landscape illustrations retain the source posters' cream/forest-green palette. They show a short method name, an input/output caption and one conceptual scene, with no benchmark measurements. The gallery chrome retains its existing white/navy palette. Full-size visual summaries remain in the detail pages.
+Collection-wide production, main merges and incremental public rollout were explicitly approved on 2026-10-19. Dedicated landscape illustrations use the approved cream/forest-green palette, a large English paper name, one short input/output caption and a substantial conceptual method scene. No benchmark measurements, title-only replacement, or reduced summary poster qualifies as dedicated artwork.
 
-CroCo and CroCo v2 show **cross-view RGB completion during pre-training**: a masked target and an unmasked reference from another viewpoint reconstruct target-view RGB patches. This follows [CroCo Section 3 / Figure 3](https://arxiv.org/html/2210.10716v2) and [CroCo v2 Section 3 / Figure 2](https://arxiv.org/html/2211.10408v3). CroCo v2 stereo disparity and optical flow require downstream fine-tuning; these are not its RGB pretext outputs. All artwork is illustrative rather than measured model output.
+[paper-thumbnails.json](../data/paper-thumbnails.json) records the authoritative completed set, canonical source identities, unchanged PNG masters, dimensions/hashes, prompts, original-paper method review and separate uncropped 960x540 WebP deliveries. [thumbnail-production-inventory.json](../data/thumbnail-production-inventory.json) exports the remaining IDs, sources, recorded issues and intended destinations. Regenerate it after each imported batch. Never overwrite completed artwork.
 
-## Original and delivery records
+Read each original paper before choosing its caption and scene. Distinguish required inputs, optional priors, training, inference and downstream fine-tuning. For example, [CroCo Section 3 / Figure 3](https://arxiv.org/html/2210.10716v2) and [CroCo v2 Section 3 / Figure 2](https://arxiv.org/html/2211.10408v3) describe cross-view RGB completion during pre-training, not direct pointmap prediction. Resolve FVO/CalfVO, IDT/MVID and FlowR source issues before making claims for those jobs. Artwork is explanatory, not measured output.
 
-[paper-thumbnails.json](../data/paper-thumbnails.json) records canonical paper IDs, primary source identities, original PNG paths/dimensions/hashes, prompts, alt text and review scope. Its separate `delivery` record identifies a 960×540 WebP and the reviewed PNG it came from. The eight generated PNGs are retained unchanged. Full-image containment/padding and Lanczos resizing produce the web derivatives, with WebP quality 85 and method 6. No poster or thumbnail is cropped. The eight delivery assets total **982,706 bytes**, compared with **19,499,609 bytes** for the generated PNG masters.
+Preserve all original visual summaries and detailed notes. Pending papers show their complete original summary at its native aspect ratio. Dedicated images use 16:9 frames; both use `object-fit: contain`. Failed dedicated images load the same paper's original summary. Text-only cards are forbidden.
 
-[thumbnails.mjs](../site/thumbnails.mjs) validates both originals and deliveries. The site loads optimized listing art where it exists and otherwise loads the unchanged original visual summary. All 337 originals also remain available in details. Dedicated art uses 16:9 frames; original summaries retain their own portrait ratios. Both use `object-fit: contain` and span the card width on mobile. For the other 329 papers, render the complete existing visual-summary image with `object-fit: contain` and its original aspect ratio. The full-width portrait frame preserves the diagram and all poster content. A failed dedicated thumbnail also falls back to that paper's original summary image. Text-only cards are forbidden.
-
-## Remaining production handoff
-
-The other **329** papers still require dedicated artwork. The first approved three-paper production batch shows MUSt3R’s multi-view memory, Spann3R’s external spatial memory and MASt3R-SLAM’s dense map and camera trajectory. Their original-paper method sections and full-size/320px images were reviewed before import. [thumbnail-production-inventory.json](../data/thumbnail-production-inventory.json) supplies unassigned canonical IDs, source links/revisions as recorded, note/poster hashes, output destinations, open source issues and the common design/review specification. Track the current batch against canonical IDs before generation. Recheck the current thumbnail manifest and migrations before claiming/importing a job; all eight completed IDs are excluded.
-
-Read each matching original paper before deciding on a caption or diagram. Distinguish pre-training, inference dependencies and downstream fine-tuning. Resolve FVO/CalfVO, IDT/MVID and FlowR source issues before making content claims for those jobs. The handoff inventory is a production snapshot, not fresh source verification or an instruction to generate all images automatically.
+Inspect each master and an actual 320px preview. Retain PNG bytes and create a separate contained/padded WebP (Lanczos, quality 85, method 6), recording both hashes. Validate inventories, identities, original-summary hashes, deliveries, detail links and responsive display. After merge, verify the deployed manifest, exact public WebP bytes/MIME and original detail images. Source review, generation, merge and deployment are separate stages.
 
 ```sh
 python tools/build_thumbnail_inventory.py
 python tools/build_thumbnail_inventory.py --check
 node --test site/build.test.mjs site/thumbnails.test.mjs
-node site/build.mjs --out _site-thumbnails --thumbnail-preview
-node site/check.mjs _site-thumbnails
-python site/serve.py --directory _site-thumbnails --port 4177
+node site/build.mjs --out _site-approved --base /DUSt3R-Paper-Collection/
+node site/check.mjs _site-approved
+python site/serve.py --directory _site-approved --port 4180
+node site/test-thumbnail-production-browser.mjs
 ```
 
-The optional `/thumbnail-preview/` study is generated only with `--thumbnail-preview`. The actual gallery `?category=foundation` contains all five thumbnails in publication-year order. Run `node site/test-thumbnail-browser.mjs` against the local server, or set `SITE_URL` to the approved public gallery after deployment. Reports and screenshots are ignored under `site-test-results/foundation-thumbnails/`. The check covers all five images at 1440/768/390/360px, failed-image original-summary fallback, filtered-gallery requests and original detail preservation.
-
-The static checker validates all 337 canonical poster hashes and 5,089 detail links, plus all eight delivery hashes and 329 complete original-summary image fallbacks. Thumbnail regressions cover canonical source identity, separate paths, original/delivery byte integrity and actual PNG/WebP dimensions. Existing permissions, credentials and discovery schedules are unchanged.
-
-Production checkpoint: 337 total; 5 existing dedicated images; 3 newly imported; 329 remaining. Each next batch must preserve source summaries, record paper-specific input/output/method evidence, inspect the master and real 320px display, retain immutable PNG bytes, validate an uncropped optimized WebP, and verify public image bytes after main deployment. No title-only or reduced-poster substitute counts as completed.
+The production browser check accepts `SITE_URL` for the approved public site and comma-separated `THUMBNAIL_IDS` for a batch. It verifies desktop and 390/360/320px gallery frames, delivery hashes, public MIME and original detail posters. `test-summary-browser.mjs` gets counts from the deployed manifest. Reports/screenshots stay ignored under `site-test-results/`. The current manifest and latest verified deployment determine completion; historical records retain their original checkpoint meaning. Existing permissions, credentials and discovery schedules stay unchanged.

@@ -3,6 +3,10 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Publish the next three multi-view reconstruction thumbnails
+
+Add reviewed Fast3R, SLAM3R and Light3R-SfM dedicated artwork with unchanged PNG masters and uncropped optimized WebP deliveries. Original-paper methods distinguish simultaneous multi-view attention, local-to-world pointmap registration and latent alignment with a sparse scene graph. Master and actual 320px previews plus gallery layouts at 1440/390/360/320px passed. All 337 original summaries and detailed notes remain intact. Dedicated assets: 11; remaining jobs: 326. First production PR #39 is already merged at 8160f7c and publicly verified: eight exact dedicated assets and no text-only cards. Further completed batches proceed through the same validation and main publication path.
+
 ## [2026-10-19] Begin approved collection-wide thumbnail production
 
 The user approved the three new MUSt3R, Spann3R and MASt3R-SLAM compositions and explicitly authorized remaining dedicated thumbnails, main merges and sequential public rollout. Import those three unchanged generated PNGs and separate no-crop 960×540 WebP deliveries. Read their matching original-paper method sections: multi-layer memory and shared-frame pointmaps; external spatial memory and incremental global pointmaps; monocular tracking, dense geometry, loop closure and global optimization. The artwork is conceptual and contains no benchmark measurements.
