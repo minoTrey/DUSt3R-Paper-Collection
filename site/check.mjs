@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import dates from "./publication-date-utils.js";
+import { loadPublicationDates } from "./publication-dates.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.join(root, process.argv[2] || "_site");
 const manifest = JSON.parse(fs.readFileSync(path.join(output, "build-manifest.json"), "utf8"));
@@ -20,6 +22,7 @@ assert.deepEqual(manifest.categories, expected);
 const ids = new Set(manifest.records.map((r) => r.id));
 assert.equal(ids.size, inventory.total_papers);
 const byId = new Map(inventory.papers.map((r) => [r.record_id, r]));
+const publicationDates = loadPublicationDates(root, inventory);
 const hash = (b) => crypto.createHash("sha256").update(b).digest("hex");
 let pngs = 0,
   thumbnails = 0,
@@ -29,6 +32,8 @@ for (const rec of manifest.records) {
   assert.ok(item);
   assert.equal(rec.note, item.note_path);
   assert.equal(rec.sourceIdentity, item.paper_source_identity);
+  assert.deepEqual(rec.publication, publicationDates.get(rec.id));
+  assert.equal(rec.year, dates.parts(rec.publication).year || 0);
   assert.equal(hash(fs.readFileSync(path.join(root, rec.note), "utf8")), rec.noteSha256);
   const image = rec.image.slice(manifest.base.length);
   assert.equal(
@@ -78,10 +83,12 @@ assert.ok(
 );
 assert.ok(index.includes('loading="lazy"'));
 assert.ok(index.includes('aria-live="polite"'));
-const years = manifest.records.map((r) => r.year);
+for (const id of ["year", "month", "day"]) assert.ok(index.includes(`id="${id}"`));
+assert.ok(index.includes("Newest publication first"));
+assert.ok(index.includes("publication-date-utils.js"));
 assert.deepEqual(
-  years,
-  [...years].sort((a, b) => b - a),
+  manifest.records.map((r) => r.id),
+  [...manifest.records].sort(dates.compare).map((r) => r.id),
 );
 assert.ok(fs.existsSync(path.join(output, ".nojekyll")));
 const size = (dir) =>
@@ -107,7 +114,13 @@ console.log(
     base: manifest.base,
     categories: manifest.categories,
     total_bytes: bytes,
-    descending_years: true,
+    descending_first_publication_dates: true,
+    date_precision_counts: Object.fromEntries(
+      ["day", "month", "year", "unknown"].map((precision) => [
+        precision,
+        manifest.records.filter((r) => r.publication.precision === precision).length,
+      ]),
+    ),
     missing_or_duplicate_papers: 0,
   }),
 );
