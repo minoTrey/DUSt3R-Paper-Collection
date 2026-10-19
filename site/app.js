@@ -10,10 +10,13 @@
     img.addEventListener(
       "error",
       () => {
-        img.hidden = true;
-        const frame = img.closest(".paper-image");
-        frame.dataset.thumbnailKind = "text";
-        frame.querySelector("[data-thumbnail-fallback]").hidden = false;
+        const fallback = img.dataset.summarySrc;
+        if (fallback && img.getAttribute("src") !== fallback) {
+          img.closest(".paper-image").dataset.thumbnailKind = "visual_summary";
+          img.width = Number(img.dataset.summaryWidth);
+          img.height = Number(img.dataset.summaryHeight);
+          img.src = fallback;
+        }
       },
       { once: true },
     );

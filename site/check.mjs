@@ -42,7 +42,11 @@ for (const rec of manifest.records) {
     assert.equal(hash(fs.readFileSync(path.join(root, thumb))), rec.thumbnail.sha256);
     assert.equal(hash(fs.readFileSync(path.join(output, thumb))), rec.thumbnail.sha256);
     thumbnails++;
-  } else assert.equal(rec.thumbnail?.kind, "text");
+  } else {
+    assert.equal(rec.thumbnail?.kind, "visual_summary");
+    assert.equal(rec.thumbnail.path, rec.image);
+    assert.equal(rec.thumbnail.sha256, hash(fs.readFileSync(path.join(root, image))));
+  }
   const file = path.join(output, "papers", rec.id, "index.html");
   assert.ok(fs.existsSync(file));
   const html = fs.readFileSync(file, "utf8");
@@ -60,10 +64,18 @@ for (const rec of manifest.records) {
 }
 const index = fs.readFileSync(path.join(output, "index.html"), "utf8");
 assert.equal((index.match(/data-paper="/g) || []).length, inventory.total_papers);
-assert.equal((index.match(/data-src="/g) || []).length, manifest.dedicatedThumbnails);
+assert.equal((index.match(/data-src="/g) || []).length, inventory.total_papers);
 assert.equal(thumbnails, manifest.dedicatedThumbnails);
-assert.equal(manifest.textFallbacks, inventory.total_papers - thumbnails);
-assert.ok(!/data-src="[^"]*paper-cards\//.test(index), "Listing must not use full posters.");
+assert.equal(manifest.textFallbacks, 0);
+assert.equal(manifest.summaryFallbacks, inventory.total_papers - thumbnails);
+assert.equal(
+  (index.match(/data-thumbnail-kind="visual_summary"/g) || []).length,
+  manifest.summaryFallbacks,
+);
+assert.ok(
+  !index.includes("paper-fallback") && !index.includes('data-thumbnail-kind="text"'),
+  "Text-only replacements are forbidden.",
+);
 assert.ok(index.includes('loading="lazy"'));
 assert.ok(index.includes('aria-live="polite"'));
 const years = manifest.records.map((r) => r.year);
@@ -90,6 +102,7 @@ console.log(
     canonical_png_hashes: pngs,
     dedicated_thumbnail_hashes: thumbnails,
     text_fallbacks: manifest.textFallbacks,
+    original_summary_fallbacks: manifest.summaryFallbacks,
     local_detail_links: localLinks,
     base: manifest.base,
     categories: manifest.categories,

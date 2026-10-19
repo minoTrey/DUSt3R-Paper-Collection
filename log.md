@@ -3,6 +3,12 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Restore visual summaries in every listing card
+
+The latest user correction supersedes the text-fallback design in the preceding thumbnail change. Remove all text-only replacement markup and its error handler. Every one of 337 listing records now has an actual image: five dedicated method/scene illustrations and 332 existing full visual-summary posters. Use contain and each poster's original aspect ratio, with full card width on mobile, so no diagram or text is cropped away. Failed dedicated images load the same paper's original visual summary.
+
+Re-reviewed the five dedicated thumbnails: each contains a substantial research scene or method/input-output diagram, rather than a title-only image. Keep these five artworks, all 337 full-size originals, detailed notes and user worktree changes intact. The 332 production jobs remain unassigned and receive the corrected image-fallback specification. Existing historical validation records describe their original checkpoints; current publication checks supersede the old text-fallback result.
+
 ## [2026-10-19] Complete and optimize the five Foundation thumbnails
 
 Added CroCo and CroCo v2 to the approved DUSt3R/MASt3R/VGGT thumbnail set with the official built-in image generation tool. Read CroCo revision v2 and CroCo v2 revision v3 original-paper Section 3 and the cross-view completion figures: both CroCo thumbnails show masked target plus reference view reconstructing target-view RGB during pre-training. They do not depict disparity/flow fine-tuning outputs or direct 3D pointmaps. Original full-size summaries, detailed notes and prior thumbnail PNGs remain unchanged.

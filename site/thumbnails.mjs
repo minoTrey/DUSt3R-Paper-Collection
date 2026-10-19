@@ -23,13 +23,15 @@ function webpDimensions(bytes) {
   throw new Error("WebP dimensions were not found.");
 }
 
-// Listing art has its own identity and review. Full visual summaries never act as thumbnails.
+// Dedicated listing art is separate; missing art uses the complete original visual summary.
 export function loadThumbnails(root, inventory) {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(root, "data/paper-thumbnails.json"), "utf8"),
   );
-  if (manifest.schema_version !== 1 || manifest.fallback?.kind !== "text")
-    throw new Error("Thumbnail manifest requires schema 1 and an explicit text fallback.");
+  if (manifest.schema_version !== 1 || manifest.fallback?.kind !== "visual_summary")
+    throw new Error(
+      "Thumbnail manifest requires schema 1 and an explicit visual-summary image fallback.",
+    );
   const papers = new Map(inventory.papers.map((p) => [p.record_id, p]));
   for (const [id, item] of Object.entries(manifest.thumbnails)) {
     const paper = papers.get(id);
@@ -71,9 +73,11 @@ export function loadThumbnails(root, inventory) {
   return manifest;
 }
 
-export function thumbnailFor(id, manifest) {
+export function thumbnailFor(id, manifest, summary) {
   const item = manifest.thumbnails[id];
+  if (!item && (!summary?.path || !summary?.width || !summary?.height))
+    throw new Error("A canonical visual-summary image is required when dedicated art is absent.");
   return item
     ? { kind: "image", ...item, ...item.delivery, masterPath: item.path }
-    : { kind: "text", ...manifest.fallback };
+    : { ...summary, kind: "visual_summary" };
 }
