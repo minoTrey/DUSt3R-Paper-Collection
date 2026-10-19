@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,6 +57,17 @@ function invalid(edit, pattern) {
 }
 test("source identity mismatch is rejected", () =>
   invalid((p) => (p.source_identity = "arxiv:0000.00000"), /identity/));
+test("a wrong source-note content hash is rejected", () =>
+  invalid((p) => (p.review.source_note_content_sha256 = "0".repeat(64)), /source note hash/));
+test("a full-note hash cannot replace the canonical content hash", () => {
+  const paper = inventory.papers.find((p) => p.record_id === "foundation/dust3r");
+  const fullNoteHash = crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(path.join(root, paper.note_path)))
+    .digest("hex");
+  assert.notEqual(fullNoteHash, paper.note_sha256);
+  invalid((p) => (p.review.source_note_content_sha256 = fullNoteHash), /source note hash/);
+});
 test("full-poster paths cannot be registered as thumbnail assets", () =>
   invalid((p) => (p.path = "assets/paper-cards/en/foundation/dust3r.png"), /separate canonical/));
 test("changed image bytes require a new review hash", () =>
