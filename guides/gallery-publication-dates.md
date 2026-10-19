@@ -1,6 +1,8 @@
 # Gallery publication dates
 
-The gallery orders papers by first publication date, newest first. Equal dates use canonical paper IDs for a stable order. Year, Month and Day filters combine with search and category; detail links and browser Back retain the selection. Selecting a year or month clears unavailable dependent values. Reset clears every filter.
+The gallery orders papers by first publication date, newest first. Equal dates use canonical paper IDs for a stable order. All time, Year, Month and Day period buttons accompany a compact date display with previous/next navigation. The display opens a year/month/day picker; only periods present in the collection can be selected. Calendar dates use UTC calendar values. Year, Month and Day filters combine with search and category; detail links and browser Back retain the selection. Selecting a year or month clears unavailable dependent values. Reset clears every filter.
+
+The interaction follows the period tabs and previous/next structure observed on Hugging Face Papers. Its inspected Daily/Weekly/Monthly view uses a plain central date display, without a calendar popover. This collection keeps the requested Year/Month/Day periods and adds direct date selection, responsive picker placement and Escape/focus support. It preserves existing `year`, `month` and `day` query links.
 
 [publication-dates.json](../data/publication-dates.json) records one date and primary-source evidence for each canonical paper. For arXiv papers, use the first version's submission date: Atom `published` or the official abstract page's v1 submission history. Do not use Atom `updated`, later revisions, venue years or repository timestamps. For non-arXiv papers, use the original publisher's publication evidence.
 

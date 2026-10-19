@@ -3,6 +3,20 @@
 `raw/`의 원본 API 응답과 함께 이 레포의 메타데이터가 언제 어떤 근거로 바뀌었는지 남긴다.
 새 논문을 추가하거나 검증을 재실행하면 여기에 한 줄 추가한다.
 
+## [2026-10-19] Register 79 additional reviewed thumbnails
+
+Add 79 independently source-reviewed method illustrations with unchanged PNG masters and contained WebP deliveries, reaching 243 complete and 94 remaining. Every master and actual 320px preview passed visual inspection. Preserve all 337 original summary PNGs and detailed note bodies. Validation includes 26 Node tests, regenerated remaining inventory and the full site/hash/link check. The preceding 146-thumbnail public checkpoint is verified. Group the pending 18-image batch, these 79 images and the tested publication-period UI into one approved main deployment to avoid redundant full-site uploads. Signed original PNGs remain byte-identical; no provenance-breaking recompression or redundant transport workflow is introduced.
+
+## [2026-10-19] Add publication-period navigation and measure real page delivery
+
+Inspect Hugging Face Papers in Edge: Daily/Weekly/Monthly buttons change the selected period and previous/next links; its central date display opens no calendar. Apply that compact period-navigation structure with this collection's requested All time/Year/Month/Day controls and direct year/month/day selection. Preserve first-publication evidence, partial dates, existing query URLs, combined filters and detail/Back state. Picker placement, Escape focus return and 1440/390/360/320px layouts pass browser checks, as do the existing gallery flows. Date-only scripts are excluded from detail pages.
+
+Record the deployment snapshot separately from first-page transfer: the 146-thumbnail artifact is 763,606,573 bytes; cold unscrolled initial viewport traffic measured 5,018,426 bytes at 1440px and 2,577,916 bytes at 390px. The current 167-delivery mean estimates a full337 site near 786MB, with roughly 214MB below a conservative decimal1GB ceiling. These are snapshot measurements and an explicit estimate. Pixel-identical PNG recompression saves8-12% on three samples but is not deployed: signed C2PA chunks require provenance-safe handling. Source PNG bytes and signatures remain preserved.
+
+## [2026-10-19] Add 18 reviewed thumbnails and audit deployment size
+
+Register 18 source-specific illustrations with master and actual 320px review, reaching 164 completed and 173 remaining. Preserve explicit sensor/geometry priors, optional inputs and confidence-only calibration; all existing notes and full summaries remain unchanged. All 26 Node tests and the 337-page static/hash/link checks pass. The preceding 146-thumbnail public deployment and its 27 new deliveries/detail posters are verified. Audit the complete 146-thumbnail deployment payload: no unused assets, duplicate files, thumbnail PNG masters or QA screenshots are included. Required original summaries and method figures account for 738,598,674 bytes of the 763,606,573-byte site. No substantial safe payload reduction is available while retaining those referenced originals and their quality.
+
 ## [2026-10-19] Add 27 reconstruction and evaluation thumbnails
 
 Register 27 source-reviewed illustrations, including explicit camera/IMU inputs for DAVIO, event-only geometry for Event3R, iterative denoising for GARD and cross-view consistency evaluation for MEt3R. Every original master and actual 320px image passed; all original summaries and note bodies remain unchanged. The registered set reaches 146, with 191 remaining. Build checks retain all 337 original PNG hashes and 5,426 detail links, and 26 Node tests pass. The preceding 119-thumbnail deployment is verified against every public delivery hash/MIME and preserved detail poster. Year/month/day filters are already publicly verified at desktop and mobile widths.
