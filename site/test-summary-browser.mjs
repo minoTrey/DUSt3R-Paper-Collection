@@ -50,6 +50,9 @@ try {
     );
     assert.equal(await page.locator('.paper-fallback, [data-thumbnail-kind="text"]').count(), 0);
     const card = page.locator(".paper-item:not([hidden])").first();
+    const recordId = await card.getAttribute("data-paper");
+    const record = manifest.records.find((r) => r.id === recordId);
+    assert.ok(record);
     await card.evaluate((el) =>
       window.scrollTo({
         top: el.getBoundingClientRect().top + window.scrollY,
@@ -72,7 +75,7 @@ try {
       frame.y >= -1 && frame.y + frame.height <= height + 1,
       "The complete poster must fit inside the captured viewport.",
     );
-    assert.ok(metrics.src.includes("/paper-cards/"));
+    assert.equal(metrics.src, record.thumbnail.path);
     assert.equal(metrics.fit, "contain");
     assert.ok(Math.abs(frame.width / frame.height - metrics.width / metrics.height) < 0.01);
     assert.equal(
